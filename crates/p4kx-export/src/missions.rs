@@ -9,6 +9,7 @@ use rayon::prelude::*;
 
 use crate::blueprint::as_struct;
 use crate::contract_missions::{ContractEntry, ContractFaction, PickupPlace, ReputationGain};
+use crate::contract_reward::{FixedReward, fixed_rewards};
 use crate::contract_starmap::StarmapObject;
 use crate::guid_text::CatalogGuid;
 use crate::mission_cooldown::Cooldown;
@@ -208,6 +209,7 @@ impl<'f> Parent<'_, 'f> {
             .and_then(|guid| index.broker(guid.0));
         let shared = Shared {
             gains: gains(self.contract, index),
+            fixed_rewards: fixed_rewards(self.contract),
             standing: Standing::read(self.handler, self.contract),
             cooldown: Cooldown::read(self.handler),
         };
@@ -315,6 +317,7 @@ impl<'f> Parent<'_, 'f> {
             faction: self.faction(context),
             pickup_places: pickup,
             reputation_gains: shared.gains.clone(),
+            fixed_rewards: shared.fixed_rewards.clone(),
             min_standing_guid: shared.standing.min,
             max_standing_guid: shared.standing.max,
             standing_requirements: shared.standing.requirements_of(sub),
@@ -341,6 +344,7 @@ impl<'f> Parent<'_, 'f> {
 /// of its handler.
 struct Shared<'f> {
     gains: Vec<ReputationGain<'f>>,
+    fixed_rewards: Vec<FixedReward<'f>>,
     standing: Standing,
     cooldown: Cooldown,
 }
@@ -384,7 +388,7 @@ fn link<'f>(parent: &StructValue<'f>, name: &str) -> Option<(CatalogGuid, &'f st
     }
 }
 
-fn succeeds(result: &StructValue<'_>) -> bool {
+pub(crate) fn succeeds(result: &StructValue<'_>) -> bool {
     match items(Some(result), "missionResults").first() {
         Some(Value::Bool(set)) => *set,
         Some(Value::Struct(flag)) => boolean(Some(flag), "value").unwrap_or(false),

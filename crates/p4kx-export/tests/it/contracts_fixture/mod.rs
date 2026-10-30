@@ -63,7 +63,11 @@ pub(crate) const OBJ_STATION: u128 = 0xc100_0000_0000_4000_8000_0000_0000_0000;
 
 fn database() -> DataForgeBuilder {
     records::generator(lookups::places(lookups::reputation(
-        referenced::referenced(structures::structures(DataForgeBuilder::new().version(8))),
+        referenced::referenced(structures::structures(
+            DataForgeBuilder::new()
+                .version(8)
+                .enumeration("ECurrency", ["UEC"]),
+        )),
     )))
 }
 

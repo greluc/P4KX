@@ -903,6 +903,13 @@
           ],
           "description": "The `factionReputation` of the handler, as stored: the faction of a contract that has no\nreputation result, e.g. the collector's. `null` when the handler names none."
         },
+        "fixedRewards": {
+          "description": "The payouts the contract states itself (`ContractResult_Reward`) for success, as stored;\nempty for the contracts that pay through a calculated reward, whose amount the Archive\ndoes not state.",
+          "items": {
+            "$ref": "#/$defs/FixedReward"
+          },
+          "type": "array"
+        },
         "guid": {
           "$ref": "#/$defs/Guid",
           "description": "The `id` of the contract."
@@ -1053,6 +1060,7 @@
         "cooldownLayer",
         "debugName",
         "faction",
+        "fixedRewards",
         "guid",
         "handler",
         "hasPersonalCooldown",
@@ -1954,6 +1962,48 @@
         "overchargeTime",
         "pellets",
         "spread"
+      ],
+      "type": "object"
+    },
+    "FixedReward": {
+      "description": "A payout a contract states itself (`ContractResult_Reward`), as stored. Most contracts pay\nthrough `ContractResult_CalculatedReward`, which holds no amount.",
+      "properties": {
+        "amount": {
+          "description": "The `reward` amount; `null` when absent.",
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "currency": {
+          "description": "The currency of the payout (`currencyType`), e.g. `UEC`; `null` when absent.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "max": {
+          "description": "The `max` amount; `null` when absent. Zero when the reward is fixed.",
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "plusBonuses": {
+          "description": "The `plusBonuses` flag: whether the game adds bonuses on top; `null` when absent.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "amount",
+        "currency",
+        "max",
+        "plusBonuses"
       ],
       "type": "object"
     },

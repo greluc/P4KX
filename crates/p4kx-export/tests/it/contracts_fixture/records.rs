@@ -3,7 +3,7 @@
 
 use p4kx_testkit::{DataForgeBuilder, TestInstance, TestRecord, TestValue};
 
-use super::lookups::legacy;
+use super::lookups::{legacy, payout};
 use super::prerequisites::{locality, location, standing_prerequisite};
 use super::{
     AFFINITY, BOUNTY, BROKER, CONTRACT_A, CONTRACT_B, CONTRACT_C, CONTRACT_D, CONTRACT_DEV,
@@ -209,6 +209,8 @@ fn delivery_contract() -> TestInstance {
                 [false, false, true, false, false],
                 vec![amount(FACTION_SCOPE, LOSS)],
             ),
+            payout([true, false, false, false, false], 40_000),
+            payout([false, true, false, false, false], 1_000),
             TestValue::Struct(TestInstance::new("ContractResult_CompletionTags")),
         ]),
     )

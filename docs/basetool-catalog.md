@@ -47,7 +47,8 @@ The rule is ADR-0054 (amending ADR-0002):
   (#830, ADR-0242), the kinds `legacyLootTables` and `legacyLootArchetypes` (#818, ADR-0238), the
   contract fields `cooldownLayer`, `hasPersonalCooldown`, `personalCooldownTime`,
   `personalCooldownTimeVariation`, `abandonedCooldownTime` and `abandonedCooldownTimeVariation`
-  (#832, ADR-0244) and the kind `crafters` (#831, ADR-0243). Later additions keep version 2 as
+  (#832, ADR-0244), the kind `crafters` (#831, ADR-0243) and the contract field `fixedRewards`
+  (#888, ADR-0254). Later additions keep version 2 as
   long as they are additive.
 - **A production import takes catalogs of the Channel `LIVE` only.** `PTU`, `EPTU`, `TECH-PREVIEW`
   and `HOTFIX` are confidential test Channels (ADR-0038).
@@ -1068,6 +1069,7 @@ that the rule on equal `guid` and `subContractGuid` above drops.
 | `pickupPlaces` | Up to five starmap objects the contract is offered at, each `starmapObjectGuid`, `objectType`, `place` (game text) |
 | `faction` | The `factionReputation` of the handler as stored: `guid`, Record `name` and `displayName` (game text), `null` when the handler names none |
 | `reputationGains` | The reputation granted on success; an amount may be negative |
+| `fixedRewards` | The payouts the contract states itself on success (`ContractResult_Reward`), each `currency` (`currencyType`, e.g. `UEC`), `amount` (`reward`), `max` and `plusBonuses` as stored; empty for a contract that pays through a calculated reward (see below) |
 | `minStandingGuid`, `maxStandingGuid` | The `minStanding` and `maxStanding` of the contract: the standings between which it is offered, entries of `reputationStandings`; `null` when absent. A sub contract shares the contract's |
 | `standingRequirements` | The reputation prerequisites (see "Standing") |
 | `cooldownLayer` | The level that states the cooldown fields: `handler`; `null` when none is stated (see "Cooldowns") |
@@ -1169,8 +1171,17 @@ elsewhere in the Archive:
   location, 85 only a `ContractPrerequisite_LocationProperty` (a variable the game fills in) and
   6 a locality that lists no object of the starmap.
 
-Not exported: a computed reward (`ContractResult_CalculatedReward` holds no value, ADR-0065) and
-descriptions.
+**Reward (ADR-0254).** The Archive states a payout in eight results of LIVE 4.10.2 only (four
+tutorial results with 40,000 UEC, two Eckhart Security contracts with 134,500 UEC,
+a Klescher contract in `MER`, a Wildstar race with `reward` 0 and `max` 4,500): the result
+`ContractResult_Reward` with a `MissionReward`. These are `fixedRewards`. The other 2,387 results
+of a contract are `ContractResult_CalculatedReward`, which holds only `missionResults`: no amount,
+no reference, no rule. The UEC figure community tools show for them (e.g. 48,250 for
+`HH_Pyro_LastLandings_Local_1box_Single_Courier`) occurs nowhere in the Archive, and contracts with
+the same template, difficulty ratings and reputation reward are shown with different figures, so
+the game computes it outside the data. It is not exported.
+
+Not exported: a computed reward (see above) and descriptions.
 
 **Standing (ADR-0237).** `minStandingGuid` and `maxStandingGuid` are the `minStanding` and
 `maxStanding` References of the contract, entries of `reputationStandings`; a sub contract has none

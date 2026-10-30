@@ -27,6 +27,19 @@ pub(super) fn legacy(set: [bool; 5], amounts: Vec<TestValue>) -> TestValue {
     )
 }
 
+pub(super) fn payout(set: [bool; 5], amount: i32) -> TestValue {
+    let reward = TestInstance::new("MissionReward")
+        .value("reward", TestValue::Int32(amount))
+        .value("max", TestValue::Int32(0))
+        .value("plusBonuses", TestValue::Bool(false))
+        .value("currencyType", TestValue::text("UEC"));
+    TestValue::Struct(
+        TestInstance::new("ContractResult_Reward")
+            .value("missionResults", flags(set))
+            .value("contractReward", TestValue::Struct(reward)),
+    )
+}
+
 pub(super) fn plain_record(guid: u128, kind: &str, path: &str) -> TestRecord {
     let name = path.rsplit('/').next().unwrap_or(path);
     TestRecord::new(

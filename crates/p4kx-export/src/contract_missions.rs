@@ -5,6 +5,7 @@ use schemars::JsonSchema;
 use serde::Serialize;
 
 use crate::contract::{LocalisedText, every_field_required};
+use crate::contract_reward::FixedReward;
 use crate::guid_text::CatalogGuid;
 use crate::mission_cooldown::CooldownLayer;
 
@@ -68,6 +69,10 @@ pub(crate) struct ContractEntry<'a> {
     /// first mission result (success) is set. A result that fires on failure only is left out; an
     /// amount may be negative (a success that costs standing with a rival, as stored).
     pub(crate) reputation_gains: Vec<ReputationGain<'a>>,
+    /// The payouts the contract states itself (`ContractResult_Reward`) for success, as stored;
+    /// empty for the contracts that pay through a calculated reward, whose amount the Archive
+    /// does not state.
+    pub(crate) fixed_rewards: Vec<FixedReward<'a>>,
     /// The `minStanding` of the contract: the lowest standing that is offered it, the `guid` of an
     /// entry of `reputationStandings`; `null` when the contract states none. A sub contract
     /// shares the contract's value.

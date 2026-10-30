@@ -39,6 +39,7 @@ pub(super) fn contracts() -> serde_json::Value {
         },
         "pickupPlaces": places,
         "reputationGains": gains,
+        "fixedRewards": [{"currency": "UEC", "amount": 40000, "max": 0, "plusBonuses": false}],
         "minStandingGuid": "62000000-0000-4000-8000-000000000001",
         "maxStandingGuid": null,
         "standingRequirements": [{

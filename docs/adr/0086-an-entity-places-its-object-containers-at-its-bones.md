@@ -54,6 +54,20 @@ vertices after the containers before it, and the hull's own vertices are counted
 used up the remaining containers are left out with `too_many_containers`, `too_many_parts` or
 `too_many_vertices`.
 
+## Verification
+
+`InteriorFit::new(assembly, tree, interior)` measures each container in the world: the box around
+its static models (a model file that is not a `.cga`), the functional hardpoints of the Assembly
+inside and outside it, and how far its animated parts (`.cga` models: doors, ramps, drawers) lie
+from it. Hardpoints are told by the item type of the Entity at the port, never by name: a
+`FlightController`, a `Seat`, a `CargoGrid` and a `Door` or `DockingAnimator`. The pilot seat is
+the seat of the same vehicle nearest to the flight controller. The real-Archive tests check, with
+0.5 m of slack, that the flight controller, the pilot seat, every cargo grid and every door of the
+Constellation and the Cutlass lie in the box of a container, and that every animated part lies
+at the room of its container. They hold: the placement rule above puts every container of both
+ships where its hardpoints are. A docked ship's flight controller sits at that ship's origin,
+below its cockpit, so only the controller of the root vehicle is checked.
+
 ## Open points
 
 The 0.05 m tolerance and the origin test are heuristics of the Records seen on LIVE. For the 261

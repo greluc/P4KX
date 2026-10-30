@@ -44,6 +44,22 @@ fn opened(archive: &Path) -> Result<Model, Box<dyn Error>> {
     Ok(model)
 }
 
+/// Opens an Archive of `entries` and creates an empty folder `out` next to it.
+pub(crate) fn setup_with(
+    entries: Vec<TestEntry>,
+) -> Result<(TempDir, Model, PathBuf), Box<dyn Error>> {
+    let dir = tempfile::tempdir()?;
+    let path = dir.path().join("Data.p4k");
+    entries
+        .into_iter()
+        .fold(ArchiveBuilder::new(), ArchiveBuilder::entry)
+        .write_to(&path)?;
+    let model = opened(&path)?;
+    let out = dir.path().join("out");
+    fs::create_dir(&out)?;
+    Ok((dir, model, out))
+}
+
 /// Opens the Archive of four Entries in a window and creates an empty folder `out` next to it.
 pub(crate) fn setup() -> Result<(TempDir, Model, PathBuf), Box<dyn Error>> {
     let dir = tempfile::tempdir()?;

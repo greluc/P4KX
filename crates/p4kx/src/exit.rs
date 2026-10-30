@@ -9,8 +9,8 @@ use p4kx_comparison::LineDiffError;
 use p4kx_export::{ActionMapError, CatalogError};
 use p4kx_extraction::cryxml::CryXmlError;
 use p4kx_extraction::{
-    ArchiveError, DataForgeError, DataForgeLoadError, FieldStatisticsError, LocalizationLoadError,
-    UnknownEntries,
+    ArchiveError, DataForgeError, DataForgeLoadError, FieldStatisticsError, FilterError,
+    LocalizationLoadError, UnknownEntries,
 };
 use p4kx_screens::ScreenError;
 
@@ -24,6 +24,7 @@ use crate::dcb_refs::{JsonWithTable, UnknownRecord};
 use crate::dcb_tags::UnknownTag;
 use crate::entity_glb::GlbOutputIsArchive;
 use crate::extract::NoMatch;
+use crate::filter_pair::ExcludedAll;
 use crate::grep::EmptySearchText;
 use crate::interior_glb::InteriorOutputIsArchive;
 use crate::key::InvalidKey;
@@ -45,7 +46,8 @@ pub(crate) const DIFFERENCES: u8 = 1;
 /// The command line is invalid, names an Entry the Archive does not contain (for a line diff:
 /// neither Archive contains), a file or geometry companion that does not exist, a mip level the
 /// texture, a chunk the chunk file or a LOD the model does not have, has a Filter that matches no
-/// Entry or Record, names an output that is one of its inputs or lies inside a Star Citizen
+/// Entry or Record, has Filter text that is too long or has too many wildcards, an empty
+/// exclusion Filter, or exclusion Filters that leave out every Entry the Filter matches, names an output that is one of its inputs or lies inside a Star Citizen
 /// installation, names a package output folder that exists and holds something else than an
 /// earlier package, names an armour `--loadout` that is neither an Entity nor an XML Loadout that
 /// can be read, has an invalid Query or a Query or field-statistics output that does not fit
@@ -91,7 +93,8 @@ pub(crate) const EXIT_CODES_HELP: &str = "Exit codes:
      Entities cannot be looked up (the triggers are still listed); compare: the Archives or the
      --diff Entry differ; chf diff: the CHF files differ
   2  invalid input: bad arguments, an Entry path the Archive does not contain (for --diff:
-     neither Archive contains), a Filter that matches no Entry or Record, a Channel path that
+     neither Archive contains), a Filter that matches no Entry or Record or whose --exclude Filters leave nothing, Filter text that is
+     too long or has too many wildcards, a Channel path that
      does not exist or was never added, a texture, sound, soundbank, chunk file, UI movie
      file, model or geometry companion that does not exist, a mip level the texture, a chunk
      the chunk file or a LOD the model does not have, an output that is one of its inputs or
@@ -145,6 +148,13 @@ pub(crate) fn for_compare_error(error: &anyhow::Error) -> ExitCode {
     }
 }
 
+/// Returns whether `error` is Filter text that is invalid or a Filter pair that selects nothing.
+fn is_filter_refusal(error: &anyhow::Error) -> bool {
+    error.downcast_ref::<NoMatch>().is_some()
+        || error.downcast_ref::<ExcludedAll>().is_some()
+        || error.downcast_ref::<FilterError>().is_some()
+}
+
 fn code_for(error: &anyhow::Error) -> u8 {
     if crate::key::is_key_error(error) {
         return KEY_ERROR;
@@ -184,7 +194,7 @@ fn code_for(error: &anyhow::Error) -> u8 {
         DATAFORGE_ERROR
     } else if error.downcast_ref::<UnknownEntries>().is_some()
         || error.downcast_ref::<InvalidPath>().is_some()
-        || error.downcast_ref::<NoMatch>().is_some()
+        || is_filter_refusal(error)
         || error.downcast_ref::<NoRecordMatch>().is_some()
         || is_export_conflict(error)
         || texture::is_invalid_input(error)

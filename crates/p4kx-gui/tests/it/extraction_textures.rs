@@ -53,7 +53,7 @@ fn opened(
     model.set_extraction_textures(textures);
     let mut harness = Harness::builder()
         .with_context_setup(p4kx_gui::theme::apply)
-        .with_size([1400.0, 1000.0])
+        .with_size([1400.0, 1200.0])
         .build_ui_state(
             |ui, model: &mut Model| {
                 ui::show(ui, model);
@@ -72,7 +72,7 @@ fn wait_until(harness: &mut Harness<'_, Model>, done: impl Fn(&Model) -> bool) -
 }
 
 fn settle(harness: &mut Harness<'_, Model>) {
-    harness.run_steps(2);
+    harness.run_steps(8);
 }
 
 fn extract_shown(harness: &mut Harness<'_, Model>, clicks: &[&str]) -> TestResult {

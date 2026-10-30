@@ -91,6 +91,13 @@ extraction-scope-heading = Einträge
 extraction-scope-selected = Ausgewählte ({ $number })
 extraction-scope-shown = Angezeigte ({ $number })
 extraction-scope-all = Ganzes Archiv ({ $number })
+extraction-exclude-heading = Auslassen
+extraction-exclude-hint = Ein Filter je Zeile: Glob mit * oder ?, sonst ein beliebiger Teil des Pfads
+extraction-exclude-too-long = Ein Filter ist länger als { $max } Zeichen.
+extraction-exclude-too-many-wildcards = Ein Filter hat mehr als { $max } Platzhalter (* und ?).
+extraction-exclude-too-many = Es sind mehr als { $max } Filter.
+extraction-exclude-empty = Ein Filter ist leer und ließe jeden Eintrag aus.
+extraction-exclude-nothing-left = Diese Filter lassen keinen Eintrag zum Extrahieren übrig.
 extraction-target-heading = Ziel
 extraction-target-new = Neuer Ordner in
 extraction-target-existing = Vorhandener Ordner
@@ -132,6 +139,11 @@ extraction-summary-changed-title = Extraktion gestoppt: Das Archiv hat sich geä
 extraction-summary-changed = Das Archiv hat sich während der Extraktion auf der Festplatte geändert. Bereits geschriebene Dateien können veraltet sein; lade das Archiv neu und extrahiere erneut.
 extraction-summary-counts = Extrahiert { $extracted }, übersprungen { $skipped }, fehlgeschlagen { $failed }, abgebrochen { $cancelled }
 extraction-summary-counts-converted = Extrahiert { $extracted } ({ $converted } umgewandelt), übersprungen { $skipped }, fehlgeschlagen { $failed }, abgebrochen { $cancelled }
+extraction-summary-excluded-parts =
+    { $count ->
+        [one] { $number } ausgelassener Teil-Eintrag einer Textur, die blieb, wurde zum Umwandeln der Textur trotzdem gelesen.
+       *[other] { $number } ausgelassene Teil-Einträge von Texturen, die blieben, wurden zum Umwandeln der Texturen trotzdem gelesen.
+    }
 extraction-summary-records = Records geschrieben { $written }, übersprungen { $skipped }, fehlgeschlagen { $failed }, abgebrochen { $cancelled }; { $errors } Fehlerwerte in { $erroneous } Records
 extraction-summary-target = Ziel: { $path }
 extraction-summary-failed = Fehlgeschlagen ({ $number })

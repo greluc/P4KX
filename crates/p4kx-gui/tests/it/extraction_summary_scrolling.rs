@@ -86,15 +86,15 @@ fn run(
         model.browser().is_some()
     })?;
     harness.get_by_label("Extract shown…").click();
-    harness.run_steps(2);
+    harness.run_steps(8);
     harness.get_by_label("Existing folder").click();
-    harness.run_steps(2);
+    harness.run_steps(8);
     if skipping {
         harness.get_by_label("Skip").click();
-        harness.run_steps(2);
+        harness.run_steps(8);
     }
     harness.get_by_label("Extract").click();
-    harness.run_steps(2);
+    harness.run_steps(8);
     harness.get_by_label("Extract whole Archive").click();
     wait_for_model(&mut harness, "the Extraction summary", |model| {
         model

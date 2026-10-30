@@ -12,8 +12,8 @@ use anyhow::{Context, Result};
 use p4kx_channels::channel_name;
 use p4kx_extraction::{
     Archive, ArchiveWatch, AudioConversion, Build, CancelToken, ConflictPolicy, DataForgeEntry,
-    Entry, ExtractOptions, ExtractionReport, Filter, Progress, TextureConversion, TextureGroups,
-    create_default_target, extract, select_entries,
+    Entry, ExtractOptions, ExtractionReport, Progress, TextureConversion, create_default_target,
+    extract, select_entries,
 };
 use thiserror::Error;
 
@@ -21,6 +21,7 @@ use crate::cli::{AudioOutput, Conflict, ExtractArgs, TextureOutput};
 use crate::dcb_export;
 use crate::exit;
 use crate::extract_report::{print_report, report_json};
+use crate::filter_pair;
 use crate::json;
 use crate::progress::ProgressLine;
 
@@ -213,26 +214,22 @@ pub(crate) const fn policy(conflict: Conflict) -> ConflictPolicy {
     }
 }
 
+/// Returns the Entries the arguments request; with `--convert`, notes on stderr the excluded parts
+/// of textures that stay, which the Conversion reads all the same.
 fn requested_entries<'a>(args: &ExtractArgs, archive: &'a Archive) -> Result<Vec<&'a Entry>> {
-    match &args.filter {
-        Some(text) => filtered_entries(archive, text),
-        None => Ok(select_entries(archive, &args.entries)?),
+    let Some(text) = &args.filter else {
+        return Ok(select_entries(archive, &args.entries)?);
+    };
+    let selected = filter_pair::extraction(archive, text, &args.exclude)?;
+    if args.convert && !selected.excluded_parts.is_empty() {
+        let _ignored = writeln!(
+            io::stderr().lock(),
+            "note: --exclude left out {} part Entries of textures that stay; --convert still reads \
+             them to build each texture",
+            selected.excluded_parts.len()
+        );
     }
-}
-
-/// Returns the Entries of `archive` the Filter `text` matches, and all Entries of each split
-/// texture one of them matches.
-///
-/// # Errors
-///
-/// Returns [`NoMatch`] when it matches none.
-pub(crate) fn filtered_entries<'a>(archive: &'a Archive, text: &str) -> Result<Vec<&'a Entry>> {
-    let groups = TextureGroups::build(archive);
-    let entries = Filter::new(text).select_with_parts(archive, &groups);
-    if entries.is_empty() {
-        return Err(NoMatch(text.to_owned()).into());
-    }
-    Ok(entries)
+    Ok(selected.entries)
 }
 
 /// Creates the target folder `out`, or a new default target folder in the current directory.

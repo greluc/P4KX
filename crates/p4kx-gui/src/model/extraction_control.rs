@@ -8,7 +8,7 @@ use p4kx_extraction::Entry;
 use p4kx_settings::{ExtractionAudio, ExtractionTextures};
 
 use super::Model;
-use crate::extraction::{Confirmation, Source, start};
+use crate::extraction::{Confirmation, Source, exclude, start};
 use crate::{Extraction, ExtractionScope, ExtractionSetup};
 
 impl Model {
@@ -139,19 +139,20 @@ impl Model {
                 .comparison
                 .view()
                 .and_then(|view| view.selection(side))
-                .map(Source::Changes),
+                .map(|selection| (Source::Changes(selection), 0)),
             _ => self.browser_source(),
         };
-        let Some(source) = source.filter(|source| source.len() > 0) else {
+        let Some((source, excluded_parts)) = source.filter(|(source, _)| source.len() > 0) else {
             return false;
         };
-        let Some(request) = self
+        let Some(mut request) = self
             .extraction_setup
             .as_ref()
             .and_then(|setup| setup.request(source))
         else {
             return false;
         };
+        request.excluded_parts = excluded_parts;
         self.extraction_folder = Some(request.folder.clone());
         self.extraction_conversion = request.convert;
         self.extraction_textures = request.textures;
@@ -161,25 +162,32 @@ impl Model {
         true
     }
 
-    /// Returns the Entries of the open Archive the setup covers, or `None` when they are not to
-    /// be extracted yet: none, the Archive changed on disk, or a whole-Archive Extraction that
-    /// now asks for confirmation.
-    fn browser_source(&mut self) -> Option<Source> {
+    /// Returns the Entries of the open Archive the setup covers without those its exclusion
+    /// matches, and the number of excluded parts of textures that stay, or `None` when they are
+    /// not to be extracted yet: none, the Archive changed on disk, an exclusion that is invalid
+    /// or leaves none, or a whole-Archive Extraction that now asks for confirmation.
+    fn browser_source(&mut self) -> Option<(Source, usize)> {
         if self.check_archive() {
             return None;
         }
         let (Some(setup), Some(browser)) = (&mut self.extraction_setup, &self.browser) else {
             return None;
         };
+        let exclusion = setup.exclusion().ok()?;
         let (index, ids) = browser.scope_source(setup.scope())?;
         if ids.is_empty() {
             return None;
         }
         let whole = Arc::ptr_eq(&index, browser.shared_index()) && ids.len() == index.len();
+        let Some(left) = exclude::leave_out(&index, ids, &exclusion) else {
+            setup.set_leaves_nothing();
+            return None;
+        };
         if whole && !setup.is_confirming() {
             setup.ask_confirmation(Confirmation {
-                entries: ids.len(),
-                bytes: ids
+                entries: left.ids.len(),
+                bytes: left
+                    .ids
                     .iter()
                     .filter_map(|&id| index.entry(id))
                     .map(Entry::uncompressed_size)
@@ -187,7 +195,14 @@ impl Model {
             });
             return None;
         }
-        Some(Source::Index { index, ids })
+        let excluded_parts = left.excluded_parts;
+        Some((
+            Source::Index {
+                index,
+                ids: left.ids,
+            },
+            excluded_parts,
+        ))
     }
 
     /// Returns the running or finished Extraction, or `None` when there is none.

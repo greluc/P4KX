@@ -6,8 +6,46 @@ use std::fmt;
 use p4kx_archive::{Archive, Entry};
 use p4kx_foundation::PathPattern;
 use rayon::prelude::*;
+use thiserror::Error;
 
 use crate::TextureGroups;
+
+/// The longest Filter text [`Filter::parse`] accepts, in bytes.
+pub const MAX_FILTER_LEN: usize = 1024;
+
+/// The most `*` and `?` wildcards [`Filter::parse`] accepts in one Filter.
+pub const MAX_FILTER_WILDCARDS: usize = 32;
+
+/// Filter text that [`Filter::parse`] or [`Exclusion::parse`](crate::Exclusion::parse) refuses.
+#[derive(Debug, Clone, PartialEq, Eq, Error)]
+pub enum FilterError {
+    /// The text is longer than [`MAX_FILTER_LEN`].
+    #[error("the Filter is {len} bytes long; at most {MAX_FILTER_LEN} are accepted")]
+    TooLong {
+        /// The length of the text in bytes.
+        len: usize,
+    },
+    /// The text holds more wildcards than [`MAX_FILTER_WILDCARDS`].
+    #[error(
+        "the Filter has {count} wildcards (* and ?); at most {MAX_FILTER_WILDCARDS} are accepted"
+    )]
+    TooManyWildcards {
+        /// The number of `*` and `?` in the text.
+        count: usize,
+    },
+    /// An exclusion Filter is empty and would leave out every Entry.
+    #[error("an exclusion Filter is empty and would leave out every Entry")]
+    EmptyExclusion,
+    /// More exclusion Filters were given than [`MAX_EXCLUSIONS`](crate::MAX_EXCLUSIONS).
+    #[error(
+        "{count} exclusion Filters were given; at most {} are accepted",
+        crate::MAX_EXCLUSIONS
+    )]
+    TooManyExclusions {
+        /// The number of exclusion Filters given.
+        count: usize,
+    },
+}
 
 /// Text that selects Entries by their path.
 ///
@@ -29,6 +67,29 @@ impl Filter {
             text: text.to_owned(),
             pattern: PathPattern::new(text),
         }
+    }
+
+    /// Creates the Filter for `text` typed by a person or read from outside: refuses text beyond
+    /// [`MAX_FILTER_LEN`] bytes or [`MAX_FILTER_WILDCARDS`] wildcards.
+    ///
+    /// Matching is a single pass without backtracking over earlier wildcards, so the limits bound
+    /// the work per path.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`FilterError::TooLong`] or [`FilterError::TooManyWildcards`].
+    pub fn parse(text: &str) -> Result<Self, FilterError> {
+        if text.len() > MAX_FILTER_LEN {
+            return Err(FilterError::TooLong { len: text.len() });
+        }
+        let count = text
+            .bytes()
+            .filter(|byte| matches!(byte, b'*' | b'?'))
+            .count();
+        if count > MAX_FILTER_WILDCARDS {
+            return Err(FilterError::TooManyWildcards { count });
+        }
+        Ok(Self::new(text))
     }
 
     /// Returns the text the Filter was created from.

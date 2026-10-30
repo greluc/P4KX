@@ -12,6 +12,7 @@ mod coverage;
 mod dataforge;
 mod dataforge_conversion;
 mod entry_tree;
+mod exclusion;
 mod extraction;
 mod filter;
 mod folder_links;

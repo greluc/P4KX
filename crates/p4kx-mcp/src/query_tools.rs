@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use std::sync::Arc;
-
 use p4kx_extraction::CancelToken;
 use p4kx_extraction::query::MAX_QUERY_LEN;
 use rmcp::handler::server::wrapper::Parameters;
@@ -52,10 +50,10 @@ impl Server {
         let _stops_the_selection = CancelOnDrop(cancel.clone());
         self.run_ordered(move |state| {
             capped("query", &params.query, MAX_QUERY_LEN)?;
-            let opened = state.archive(params.archive.as_deref())?;
+            let opened = state.forge(params.archive.as_deref())?;
             let listing = ("run_query", opened.version(), &params.query);
             let page = Page::new(&listing, params.cursor.as_deref(), params.limit)?;
-            let held = Arc::clone(&opened);
+            let held = opened.clone();
             opened.with_dataforge(move |forge, archive| {
                 let target = Target {
                     forge,

@@ -354,7 +354,8 @@ hologram` draws the hologram of a vehicle, which the window does not offer.
 
 - The tab bar has **Browse**, **Comparison**, **Query**, **Localisation**, **Tags**, **Search**,
   **Entities**, **Sounds**, **Characters** and **UI**. The sidebar lists the detected Channels
-  (Archive menu: **Open Archive…**, **Add folder…**, **Add Archive…**, **Recent Archives**), or you
+  (Archive menu: **Open Archive…**, **Open DataForge file…** for a `Game2.dcb` kept on its own,
+  **Add folder…**, **Add Archive…**, **Recent Archives**), or you
   drop a `Data.p4k` on the window.
 - The **Export** menu holds **Record export…**, **Export as GLB…** for a model, **Export
   Interior…** and the **Basetool catalog…**.

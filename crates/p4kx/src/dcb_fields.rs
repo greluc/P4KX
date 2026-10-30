@@ -6,12 +6,13 @@ use std::process::ExitCode;
 
 use anyhow::Result;
 use p4kx_extraction::query::Query;
-use p4kx_extraction::{DataForge, DataForgeEntry, FieldStat, FieldStatistics, Filter};
+use p4kx_extraction::{DataForge, FieldStat, FieldStatistics, Filter};
 
 use crate::cli::{DcbFieldsArgs, QueryFormat};
 use crate::dcb_export::FlatConflict;
 use crate::dcb_query::{InvalidQuery, compile_error};
 use crate::dcb_refs::JsonWithTable;
+use crate::forge_input::ForgeInput;
 use crate::{dcb_fields_out, exit};
 
 /// The words a Query starts with; a selection that starts with another word is a type name.
@@ -49,9 +50,8 @@ pub(crate) fn run(args: &DcbFieldsArgs, as_json: bool) -> Result<ExitCode> {
         .filter(|text| !text.is_empty())
         .map(parse_selection)
         .transpose()?;
-    let archive = crate::key::open(&args.archive)?;
-    let entry = DataForgeEntry::read(&archive)?;
-    let forge = entry.open()?;
+    let input = ForgeInput::open(&args.archive)?;
+    let forge = input.entry().open()?;
     let statistics = statistics(&forge, query.as_ref())?;
     let filter = args.path.as_deref().map(Filter::new);
     let fields: Vec<&FieldStat> = statistics

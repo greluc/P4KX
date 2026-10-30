@@ -11,8 +11,9 @@ use p4kx_extraction::{
 use serde::Serialize;
 
 use crate::cli::VerifyArgs;
-use crate::extract::{self, NoMatch};
+use crate::extract;
 use crate::failure_report::{FailureJson, MismatchJson, reason, unreadable, write_mismatch};
+use crate::no_match::NoMatch;
 use crate::progress::ProgressLine;
 use crate::{exit, json};
 

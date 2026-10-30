@@ -42,6 +42,7 @@ mod cli_cryxml;
 mod cli_dcb;
 mod cli_dcb_fields;
 mod cli_entity;
+mod cli_extract;
 mod cli_grep;
 mod cli_hologram;
 mod cli_interior;
@@ -88,6 +89,7 @@ mod exit;
 mod extract;
 mod extract_report;
 mod failure_report;
+mod filter_pair;
 mod forge_input;
 mod grep;
 mod grep_json;
@@ -108,6 +110,7 @@ mod model_bones;
 mod model_glb;
 mod model_info;
 mod model_text;
+mod no_match;
 mod notice;
 mod prefab;
 mod progress;
@@ -207,7 +210,7 @@ fn main() -> ExitCode {
 fn report(error: &anyhow::Error) {
     let mut stderr = io::stderr().lock();
     let _ignored = writeln!(stderr, "error: {error:#}");
-    if let Some(hint) = key::hint(error).or_else(|| extract::no_match_hint(error)) {
+    if let Some(hint) = key::hint(error).or_else(|| no_match::no_match_hint(error)) {
         let _ignored = writeln!(stderr, "hint: {hint}");
     }
 }

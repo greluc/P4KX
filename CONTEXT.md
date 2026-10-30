@@ -75,6 +75,13 @@ Text that selects Entries by path: a glob over the full path when it holds `*` o
 a substring anywhere in the path; case and separator kind do not matter.
 _Avoid_: query (a Query selects Records), search pattern
 
+**Exclusion Filter**:
+A Filter that leaves Entries out of a selection: an Entry is selected when the include Filter
+matches it and no exclusion Filter does. A split texture is left out with its parts when its header
+is; an excluded part of a texture that stays is not written, and a Conversion still reads it
+(ADR-0256).
+_Avoid_: negative filter, blacklist, ignore pattern
+
 **Content search**:
 A search for a text, as part of a longer one and ignoring case, in the string, localisation key and
 enum values of Records, in the texts of each language's `global.ini` and in the lines of text and

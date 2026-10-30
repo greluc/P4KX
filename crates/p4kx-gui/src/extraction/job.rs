@@ -64,6 +64,8 @@ pub(crate) struct Request {
     pub(crate) convert: bool,
     pub(crate) textures: ExtractionTextures,
     pub(crate) audio: ExtractionAudio,
+    /// The part Entries of textures that stay which the exclusion left out.
+    pub(crate) excluded_parts: usize,
 }
 
 type RunResult = Result<ExtractionSummary, String>;
@@ -265,7 +267,12 @@ fn write(
         watch: Some(watch),
     };
     let report = extract(archive, entries, &target, &options);
-    Ok(ExtractionSummary::new(target, &report))
+    let excluded_parts = if request.convert {
+        request.excluded_parts
+    } else {
+        0
+    };
+    Ok(ExtractionSummary::new(target, &report).with_excluded_parts(excluded_parts))
 }
 
 fn prepare_target(archive: &Archive, request: &Request) -> io::Result<PathBuf> {

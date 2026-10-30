@@ -28,26 +28,25 @@ enum Replacement<'a> {
 type Lookup<'x, 'a> = dyn Fn(&str, Option<&str>) -> Option<Replacement<'a>> + 'x;
 
 /// Returns `key` as a [`LocalisedText`] whose texts have every `~mission(Token[|Variant])`
-/// replaced by what `resolve` says for the token and the variant, with leading and trailing
-/// blanks removed. A token `resolve` returns `None` for, or whose key has no text in the
-/// language, becomes `[TOKEN]` in upper case. A replacement that holds tokens is expanded up to
-/// three levels deep; a title takes at most 64 replacements and about 4 KiB, and a token past
-/// either limit becomes `[TOKEN]` too.
-pub(crate) fn title<'a>(
+/// replaced by what `resolve` says for the token and the variant. A token `resolve` returns
+/// `None` for, or whose key has no text in the language, becomes `[TOKEN]` in upper case. A
+/// replacement that holds tokens is expanded up to three levels deep; a text takes at most 64
+/// replacements and about 4 KiB, and a token past either limit becomes `[TOKEN]` too.
+pub(crate) fn expand_text<'a>(
     key: Option<&'a str>,
     texts: &Texts<'a>,
     resolve: &dyn Fn(&str, Option<&str>) -> Option<Token<'a>>,
 ) -> LocalisedText<'a> {
-    let mut title = texts.localised(key);
-    title.en = title
+    let mut expanded = texts.localised(key);
+    expanded.en = expanded
         .en
         .take()
         .map(|text| render(text, texts, resolve, english));
-    title.de = title
+    expanded.de = expanded
         .de
         .take()
         .map(|text| render(text, texts, resolve, german));
-    title
+    expanded
 }
 
 fn english<'x>(text: &'x LocalisedText<'_>) -> Option<&'x str> {
@@ -65,18 +64,18 @@ fn render<'a>(
     pick: for<'x> fn(&'x LocalisedText<'a>) -> Option<&'x str>,
 ) -> Cow<'a, str> {
     if !text.contains(OPEN) {
-        return trimmed(text);
+        return text;
     }
     let lookup = |name: &str, variant: Option<&str>| match resolve(name, variant)? {
         Token::Key(key) => {
             let found = texts.localised(Some(key));
             pick(&found)
                 .filter(|found| !found.is_empty())
-                .map(|found| Replacement::Text(Cow::Owned(found.trim().to_owned())))
+                .map(|found| Replacement::Text(Cow::Owned(found.to_owned())))
         }
         Token::Placeholder(label) => Some(Replacement::Placeholder(label)),
     };
-    trimmed(Cow::Owned(expand_tokens(&text, &lookup)))
+    Cow::Owned(expand_tokens(&text, &lookup))
 }
 
 /// Replaces the tokens of `text` through `lookup`, within the depth, count and size limits.
@@ -149,20 +148,6 @@ fn expand(
     out.push(']');
 }
 
-fn trimmed(text: Cow<'_, str>) -> Cow<'_, str> {
-    match text {
-        Cow::Borrowed(text) => Cow::Borrowed(text.trim()),
-        Cow::Owned(text) => {
-            let trimmed = text.trim();
-            if trimmed.len() == text.len() {
-                Cow::Owned(text)
-            } else {
-                Cow::Owned(trimmed.to_owned())
-            }
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -172,7 +157,7 @@ mod tests {
             table
                 .iter()
                 .find(|(token, _)| *token == name)
-                .map(|(_, text)| Replacement::Text(Cow::Owned((*text).trim().to_owned())))
+                .map(|(_, text)| Replacement::Text(Cow::Borrowed(*text)))
         };
         expand_tokens(text, &lookup)
     }
@@ -207,11 +192,8 @@ mod tests {
     }
 
     #[test]
-    fn a_nested_replacement_is_expanded_and_trimmed() {
-        let out = run(
-            "<~mission(A)>",
-            &[("A", "  in ~mission(B)  "), ("B", " deep ")],
-        );
+    fn a_nested_replacement_is_expanded() {
+        let out = run("<~mission(A)>", &[("A", "in ~mission(B)"), ("B", "deep")]);
         assert_eq!(out, "<in deep>");
     }
 }

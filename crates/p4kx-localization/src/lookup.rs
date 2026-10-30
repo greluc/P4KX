@@ -37,6 +37,21 @@ pub fn decode_line_breaks(text: &str) -> Cow<'_, str> {
     }
 }
 
+/// Returns `text` as it is shown: [`decode_line_breaks`] applied, then leading and trailing white
+/// space, line breaks included, removed. Raw exports keep the text as stored and do not use it.
+#[must_use]
+pub fn display_text(text: &str) -> Cow<'_, str> {
+    match decode_line_breaks(text) {
+        Cow::Borrowed(decoded) => Cow::Borrowed(decoded.trim()),
+        Cow::Owned(mut decoded) => {
+            decoded.truncate(decoded.trim_end().len());
+            let leading = decoded.len() - decoded.trim_start().len();
+            decoded.drain(..leading);
+            Cow::Owned(decoded)
+        }
+    }
+}
+
 pub(crate) fn resolve<'a>(
     key: &str,
     language: Language,

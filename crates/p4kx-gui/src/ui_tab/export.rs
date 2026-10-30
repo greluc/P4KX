@@ -263,6 +263,7 @@ fn write_screen(
     let asked = StillRequest {
         screen: canvas,
         brand,
+        variables: &key.variables,
         raster: key.raster(),
         format: match request.format {
             UiFormat::Png => StillFormat::Png,

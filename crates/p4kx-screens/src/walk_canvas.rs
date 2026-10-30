@@ -134,6 +134,7 @@ impl Walk<'_, '_, '_, '_> {
         let mut uses = Uses::default();
         while let Some(canvas) = todo.pop() {
             uses = uses.or(self.sheet(&canvas).uses());
+            self.note_variables(&canvas);
             for widget in &canvas.widgets {
                 if let Some(style) = widget.stylesheet {
                     uses = uses.or(self.override_sheet(style).uses());

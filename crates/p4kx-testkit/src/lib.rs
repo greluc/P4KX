@@ -32,6 +32,7 @@ mod entity;
 mod entity_armour;
 mod entity_armour_loadout;
 mod entity_assembly;
+mod entity_bone;
 mod entity_cargo;
 mod entity_clothing;
 mod entity_dressed;
@@ -137,6 +138,9 @@ pub use entity::TestEntity;
 pub use entity_armour::{armour_entries, armour_female_skeleton, armour_male_skeleton};
 pub use entity_armour_loadout::{ARMOUR_XML_LOADOUT, armour_xml_loadout};
 pub use entity_assembly::{ASSEMBLY_GUN_PAINT, assembly_entries, hologram_entries};
+pub use entity_bone::{
+    BONE_THRUSTER, bone_thruster_definition, bone_thruster_entries, bone_thruster_housing,
+};
 pub use entity_cargo::{TestCapacity, closed_container_record, open_container_record};
 pub use entity_clothing::{TestZoneChunk, clothing_component};
 pub use entity_dressed::{
@@ -226,9 +230,9 @@ pub use real_archive::{
     real_archive_pair, real_archive_path,
 };
 pub use reference_output::{
-    REFERENCE_SHIP_MATRIX_VAR, REFERENCE_STARBREAKER_VAR, REFERENCE_UNFORGE_VAR,
-    REFERENCE_UNP4K_VAR, reference_ship_matrix_path, reference_starbreaker_path,
-    reference_unforge_path, reference_unp4k_path,
+    REFERENCE_SCMDB_VAR, REFERENCE_SHIP_MATRIX_VAR, REFERENCE_STARBREAKER_VAR,
+    REFERENCE_UNFORGE_VAR, REFERENCE_UNP4K_VAR, reference_scmdb_path, reference_ship_matrix_path,
+    reference_starbreaker_path, reference_unforge_path, reference_unp4k_path,
 };
 pub use rig_logic::{RIG_LOGIC_CHUNK, TestRigLogic};
 pub use screens::{SCREEN_COLOUR_SLOTS, screens_schema};

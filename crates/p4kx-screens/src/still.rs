@@ -10,6 +10,7 @@ use crate::compose::{ScreenComposer, TextSources};
 use crate::error::ScreenError;
 use crate::images::ImageSources;
 use crate::report::Report;
+use crate::variables::Variable;
 
 /// The file format a [`Still`] is written in.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -27,6 +28,8 @@ pub struct StillRequest<'a> {
     pub screen: &'a str,
     /// The manufacturer code whose colour style the canvas is drawn with.
     pub brand: Option<&'a str>,
+    /// The game variables the bindings are evaluated with instead of zero.
+    pub variables: &'a [Variable],
     /// The size of the image and what lies under it.
     pub raster: RasterOptions,
     /// The format the still is made for.
@@ -85,7 +88,7 @@ impl Still {
         if stopped() {
             return Err(ScreenError::Stopped);
         }
-        let mut composer = ScreenComposer::new(forge);
+        let mut composer = ScreenComposer::new(forge).with_variables(request.variables);
         if let Some(images) = images {
             composer = composer.with_images(images);
         }

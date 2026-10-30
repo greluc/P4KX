@@ -144,3 +144,15 @@ pub enum ValueError {
         needed: u64,
     },
 }
+
+impl ValueError {
+    /// Returns the GUID of the missing Record for a [`ValueError::DanglingReference`], `None` for
+    /// any other error.
+    #[must_use]
+    pub const fn dangling_guid(&self) -> Option<Guid> {
+        match self {
+            Self::DanglingReference { guid } => Some(*guid),
+            _ => None,
+        }
+    }
+}

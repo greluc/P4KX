@@ -153,6 +153,7 @@ pub(crate) fn run(args: &EntityGlbArgs, as_json: bool) -> Result<()> {
     let options = AssemblyOptions::default().with_lod(args.lod);
     let palettes = ForgePalettes::new(&forge);
     let assembly = Assembly::build_with_palettes(tree, &models, &palettes, &options)?;
+    crate::entity_root::check(&assembly)?;
     let assembly = if args.interior {
         crate::interior_forge::with_interior(assembly, (&archive, &forge), tree, args.lod)?
     } else {

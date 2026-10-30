@@ -22,7 +22,8 @@
 //! colours, geometry and flex settings. A screen is drawn in its state at rest: the bindings of
 //! each canvas, calculated with every game variable at zero and the parameters its canvas widget
 //! hands it, decide which widgets are instantiated and active and what their alpha is
-//! (ADR-0110).
+//! (ADR-0110). [`ScreenComposer::with_variables`] sets game variables to other values, such as
+//! `powerstate` to 1 for a screen that is on (ADR-0259); the [`Report`] lists them.
 //!
 //! Texts are drawn as glyph outlines of the fonts in [`TextSources`], which a caller reads from
 //! `fonts_en.gfx`: the font style of a widget and the cascade pick the font, size, letter and line
@@ -77,6 +78,7 @@ mod style;
 mod svg;
 mod text;
 mod transform;
+mod variables;
 mod walk;
 mod walk_canvas;
 mod walk_instance;
@@ -92,7 +94,10 @@ pub use error::ScreenError;
 pub use images::{ImageSources, LoadTexture, LoadVector};
 pub use inspect::ElementCount;
 pub use limits::Limits;
-pub use report::{Report, Unsupported};
+pub use report::{Report, Unsupported, VariableInForce};
 pub use screens::{EntityScreens, MovieUse, Screen};
 pub use still::{Still, StillFormat, StillRequest};
 pub use svg::MAX_SVG_BYTES;
+pub use variables::{
+    MAX_NAME_BYTES, MAX_VALUE_BYTES, MAX_VARIABLES, Variable, VariableError, check_variable_count,
+};

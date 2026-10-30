@@ -22,7 +22,12 @@ The first argument of nearly every command is the path of a `Data.p4k` Archive, 
   path (`*.xml`, `Data\Libs\*`, `*\defaultProfile.???`). Any other Filter matches when it occurs
   anywhere in the path (`Libs\Config`). Both ignore ASCII case and treat `\` and `/` alike; every
   other character, spaces and brackets included, is literal, and an empty Filter matches every
-  Entry. No match is not an error.
+  Entry. No match is not an error. `--exclude <filter>`, repeatable, leaves out the Entries an
+  exclusion Filter matches, with the same rules; a texture whose header it matches is left out with
+  its parts. With `--exclude`, a search that finds nothing is invalid input (exit 2) and the error
+  says whether the Filter matched none or the exclusion left out all it matched. `--json` lists the
+  exclusion Filters as `exclude`. A Filter is at most 1024 bytes with at most 32 `*` and `?`; an
+  empty or blank exclusion Filter is refused.
 - `p4kx grep <archive> <text> [--in records,loc,entries] [--filter <filter>] [--lang <language>,…]
   [--limit <n>] [--per-item <n>] [--format table|json]` finds a text in the contents: in the string,
   localisation key and enum values of all Records (with the field path), in the texts of each
@@ -92,6 +97,16 @@ The first argument of nearly every command is the path of a `Data.p4k` Archive, 
   with the converted output. Sounds and soundbanks are converted on a few threads of their own,
   within a memory budget of 1 GiB.
   `p4kx extract <archive> --filter <filter>` extracts every Entry the Filter matches instead; a Filter that matches nothing is invalid input and the error says what to try, e.g. that a glob must match the whole path.
+  `--exclude <filter>`, repeatable and only with `--filter`, leaves out every Entry an exclusion
+  Filter matches, with the rules of the Filter: `--filter 'Data\Objects\*' --exclude '*_lod?.cgam'`
+  extracts the models without their level-of-detail companions. A texture whose header an
+  exclusion Filter matches is left out with its parts; an excluded part of a texture that stays is
+  not written, and with `--convert`, which still reads it to build the texture, a note on stderr
+  gives their number. A pair that selects nothing is invalid input (exit 2), and the error says
+  whether the Filter matched none (`no Entry matches …`) or the exclusion left out all it matched
+  (`the exclusion Filters leave out all N Entries that … matches`). A Filter longer than 1024 bytes
+  or with more than 32 `*` and `?`, an empty or blank exclusion Filter and more than 64 of them are invalid
+  input too.
   `--threads <n>` limits the worker threads (default one per logical processor); more than about four rarely help on one disk (docs/performance.md).
 - `p4kx info <archive>` prints the Channel, the Build (branch, version, change number, BuildId)
   from the `build_manifest.id` next to the Archive, and the number, encryption and sizes of its
@@ -181,9 +196,12 @@ The first argument of nearly every command is the path of a `Data.p4k` Archive, 
   textures of every part as PNG, each image once, at the mip `--texture-mip <n>` picks for the
   whole Assembly. The tint palette of each part (its Entity's, else the default of its material
   library) gives the colours of the materials that take one, so liveries look right. Parts
-  whose Entity or geometry cannot be resolved are skipped and listed, and so are palettes and
-  textures that cannot be resolved; with `--json` the report has the shape described in
-  [docs/cli-json.md](cli-json.md). A docked vehicle such as a Merlin or an Archimedes is
+  below the Entity whose Entity or geometry cannot be resolved are skipped and listed, and so are
+  palettes and textures that cannot be resolved. When the geometry of the Entity itself is not in
+  the Archive (exit code 2) or cannot be read, also for want of its `.chrm` companion (exit code
+  3), the command fails naming the file and writes nothing; `entity package` does the same. With
+  `--json` the report has the shape described in [docs/cli-json.md](cli-json.md). A docked
+  vehicle such as a Merlin or an Archimedes is
   placed as one part, without the parts of its own Loadout, unless `--expand-docked-vehicles`
   places those parts too. `--interior` adds the ship's rooms:
   the socpak containers the Records of the ship and of its attached Entities name, each at its
@@ -460,13 +478,16 @@ The first argument of nearly every command is the path of a `Data.p4k` Archive, 
   and localisation keys it uses, and its widgets by element type with whether they are drawn; the
   UI movies the Entities name are listed after them. `--json` carries the same.
 - `p4kx ui render <archive> --screen <canvas> --out <file.png> [--svg] [--size …] [--background …]
-  [--brand <code>]` renders such a canvas, named by record path or GUID, as a still through the
+  [--brand <code>] [--var <name>=<value>]…` renders such a canvas, named by record path or GUID,
+  as a still through the
   GFx renderer: the layout of its widgets (sizes, margins, padding, flex containers, raw units)
   is computed from the Records and the boxes, circles and polygons are drawn in the colours of
   the style cascade (palette slots of the default and manufacturer style, style entries with type,
   tag, parent and ancestor selectors at rest). Texts, textures, vector graphics, lists, clones and
   every other widget type without a renderer are left out and listed, with the features the layout
-  approximates (exit code 1); no ActionScript is run.
+  approximates (exit code 1); no ActionScript is run. Every game variable is zero, so the MFD of a
+  cold ship is off; `--var powerstate=1` sets one (repeatable), and the report lists the variables
+  in force and those the screen does not read.
 - `p4kx chf to-json <file> [--out <file>] [--archive <Data.p4k>]` converts a CHF character file, e.g. one saved by the
   character customiser, to indented JSON on stdout or in `--out`: its inner versions (7 and 8
   are read), body type, face DNA with every face part named, item ports and material choices.
@@ -571,8 +592,8 @@ The first argument of nearly every command is the path of a `Data.p4k` Archive, 
 |------|---------|
 | 0 | Success: every requested Entry was extracted or already existed; `verify`: every Entry matched its checksum; `compare`: no differences |
 | 1 | Partial failure: some Entries or Records failed or were cancelled, the data of an Entry does not match its checksum (`verify`, `extract --verify`), the target or the settings cannot be written, a texture, sound, soundbank or model cannot be read, converted or written, a tag or definition of a UI movie cannot be read or written, `ui render` leaves an element out (skipped, drawn without an effect, or beyond a limit; for `--screen` also a widget type without a renderer or an approximated layout), `chf glb` or `character package` could not shape the head by its DNA (the output is written without the head), `wwise events` could not look up the Entities (the triggers are still listed), or `coverage` finds a listed item failing; `compare`: the Archives or the `--diff` Entry differ; `chf diff`: the CHF files differ |
-| 2 | Invalid input: bad arguments, an Entry path the Archive does not contain (for `compare --diff`: neither Archive contains), a Filter that matches no Entry or Record, a Channel path that does not exist or was never added, a texture, sound, soundbank, chunk file, UI movie, model or geometry companion file that does not exist, a mip level, chunk or LOD the file does not have, an output that is one of its inputs or lies inside a Star Citizen installation (the tool never writes there), a package folder that holds something other than an earlier package, an invalid Query, an Entity that no Record or several Records match, a malformed `--exclude` or `--replace`, an audio trigger no ATL definition has, an audio or localisation language the Archive holds nothing for, a `ui render` canvas that is empty, larger than 16384 pixels a side or 2^25 pixels, or not named by exactly one canvas Record, `--json` without `--out` for `cryxml` or `chf to-json`, a catalog `--out` ending in `.gz`, CHF JSON that is invalid, has an unknown version or cannot be stored as CHF, and a CHF file for `chf glb` or `character package` that holds no face DNA or whose DNA belongs to an unknown head rig |
-| 3 | The Archive, a socpak container in it or the input file cannot be read: missing, not an Archive, not CryXml, CHF, a chunk file or a UI movie, corrupt, a corrupt model or companion, with a CHF CRC-32C mismatch or unknown CHF version, also a `compare --diff` Entry that cannot be read, does not hold its stated size or holds corrupt CryXml, a `global.ini` of `catalog` or `loc` that is over 64 MiB, holds more than 1,048,576 keys or cannot be read (invalid bytes and lines without `=` are no error), and a prefab library that cannot be read; a missing texture, sound, soundbank, chunk file, UI movie or model file is 2 |
+| 2 | Invalid input: bad arguments, an Entry path the Archive does not contain (for `compare --diff`: neither Archive contains), a Filter that matches no Entry or Record, a Channel path that does not exist or was never added, a texture, sound, soundbank, chunk file, UI movie, model or geometry companion file that does not exist, the geometry of the Entity that `entity glb` or `entity package` exports when it does not exist, a mip level, chunk or LOD the file does not have, an output that is one of its inputs or lies inside a Star Citizen installation (the tool never writes there), a package folder that holds something other than an earlier package, an invalid Query, an Entity that no Record or several Records match, a malformed `--exclude` or `--replace`, an audio trigger no ATL definition has, an audio or localisation language the Archive holds nothing for, a `ui render` canvas that is empty, larger than 16384 pixels a side or 2^25 pixels, or not named by exactly one canvas Record, `--json` without `--out` for `cryxml` or `chf to-json`, a catalog `--out` ending in `.gz`, CHF JSON that is invalid, has an unknown version or cannot be stored as CHF, and a CHF file for `chf glb` or `character package` that holds no face DNA or whose DNA belongs to an unknown head rig |
+| 3 | The Archive, a socpak container in it or the input file cannot be read: missing, not an Archive, not CryXml, CHF, a chunk file or a UI movie, corrupt, a corrupt model or companion (for `entity glb` and `entity package` the geometry of the Entity itself, or its `.chrm` companion, that cannot be read), with a CHF CRC-32C mismatch or unknown CHF version, also a `compare --diff` Entry that cannot be read, does not hold its stated size or holds corrupt CryXml, a `global.ini` of `catalog` or `loc` that is over 64 MiB, holds more than 1,048,576 keys or cannot be read (invalid bytes and lines without `=` are no error), and a prefab library that cannot be read; a missing texture, sound, soundbank, chunk file, UI movie or model file is 2 |
 | 4 | The Archive changed on disk while it was open, e.g. updated by the RSI Launcher; the Extraction stopped, and Entries written before may be stale |
 | 5 | The DataForge cannot be read: the Archive holds none, its version is not supported or it is corrupt, or the Record of the Entity whose Loadout or audio is shown cannot be read |
 | 6 | `compare`: the report or the output cannot be written |

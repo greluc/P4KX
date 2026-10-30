@@ -29,7 +29,7 @@ expression: tree(&first)?
     <p4kx:value value="old"/>
   </tags>
   <parts>
-    <p4kx:error reason="the Reference refers to the Record 00000001-0002-0003-0004-000000000005, which does not exist"/>
+    <p4kx:error reason="the Reference refers to the Record 00000001-0002-0003-0004-000000000005, which does not exist" guid="00000001-0002-0003-0004-000000000005"/>
     <p4kx:null/>
   </parts>
 </Vehicle>

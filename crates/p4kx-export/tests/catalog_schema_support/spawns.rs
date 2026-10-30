@@ -18,7 +18,7 @@ pub(super) fn location_templates() -> serde_json::Value {
         "aiSpawnTags": [],
         "names": [{
             "tag": "Missions.Text.Name",
-            "nameKey": "@vehicle_NameAEGS_Reclaimer"
+            "displayName": {"key": "@vehicle_NameAEGS_Reclaimer", "en": "Aegis Reclaimer", "de": null}
         }],
         "entityClusterMemberGuid": null
     }])

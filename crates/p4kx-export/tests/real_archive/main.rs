@@ -40,6 +40,7 @@ mod real_archive_spawns;
 mod real_archive_starmap;
 mod real_archive_store_slugs;
 mod real_archive_tags;
+mod real_archive_texts;
 mod real_archive_variant_groups;
 mod real_archive_variant_keys;
 mod real_archive_variants;

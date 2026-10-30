@@ -1398,9 +1398,10 @@ pickup `MissionLocality` Records (see "Contracts").
 `missiondata/pu_locations` (one more of the type lies outside that folder, a test platform, and is
 not part of the kind): `guid`, `className`, `recordPath`, `disabled`, `isSecurityNetworkHost`, the
 `tags` (`generalTags`) a query matches, `producesTags`, `consumesTags` (`positiveTags` and
-`negativeTags`), `aiSpawnTags`, `names` (the `stringVariants`: `tag` and the localisation `nameKey`) and `entityClusterMemberGuid`.
-Not exported: the texts of the names (3,297 variants on LIVE), the NPC auto spawn settings, mission
-modules and limits and the security network manifest.
+`negativeTags`), `aiSpawnTags`, `names` (the `stringVariants`: `tag` and `displayName`, a game
+text; the German file lacks 3,246 of the 3,297 variants on LIVE, so `de` is `null` and the Basetool
+falls back to `en`) and `entityClusterMemberGuid`. Not exported: the NPC auto spawn settings,
+mission modules and limits and the security network manifest.
 
 Not exported: NPC spawn descriptions (`MissionPropertyValue_NPCSpawnDescriptions`), the
 `ObjectiveToken` structure of the templates, and SCMDB's own pools, waves and region lists, which
@@ -2315,20 +2316,27 @@ on `P4KX_DATA_P4K` and `P4KX_DATA_P4K_B`.
 - Every commodity `typeGuid` resolves to a `resourceGroups` entry, every `parentGuid` of a group to
   another one, and every blueprint `categoryGuid` to a `blueprintCategories` entry. On LIVE the
   catalog holds 19 groups (8 of them nested) and 21 categories, 14 of which carry blueprints.
-- Texts that carry a key (placeholder keys excluded), LIVE: English 27,751 of 27,889 resolve
-  (99.5 %), German 15,819 (56.7 %). The German file lacks a text for about 11,250 of 23,180 item
-  texts, so German `null` is common for items and the Basetool falls back to `en`; per kind:
+- Texts that carry a key (placeholder keys excluded), checked per kind against the Archive's own
+  `global.ini` files (ADR-0270): a key a file holds resolves in the catalog, a key it lacks is
+  `null` and the Basetool falls back to `en`. The verification prints the numbers per kind and
+  holds each kind to a baseline of the share it may lack. LIVE, keyed `name`, `description` and
+  location template `displayName` texts:
 
   | Kind | Keyed texts | Missing in en | Missing in de |
   |------|------------:|--------------:|--------------:|
   | manufacturers | 2,248 | 8 | 116 |
   | items | 23,179 | 118 | 11,252 |
-  | ships | 2,172 | 12 | 677 |
-  | commodities | 289 | 0 | 24 |
+  | ships | 2,130 | 12 | 657 |
+  | commodities | 339 | 0 | 74 |
   | blueprints | 1 | 0 | 1 |
+  | resourceGroups | 12 | 0 | 0 |
+  | gameplayProperties | 29 | 0 | 28 |
+  | starmapObjects | 2,041 | 73 | 1,357 |
+  | contracts | 5,130 | 22 | 5,130 |
+  | missionLocationTemplates | 3,211 | 274 | 3,160 |
 
-  The `p4kx catalog` summary counts them over all texts: English 38,004 resolved, 160 unresolved,
-  German 25,510 resolved, 12,654 unresolved, 23,665 placeholders in each.
+  The `p4kx catalog` summary counts them over all texts of the catalog: English 72,462 resolved,
+  585 unresolved, German 31,353 resolved, 41,694 unresolved, 23,717 placeholders in each.
 - Crafting, LIVE (the same on every Channel but for the counts): every blueprint has exactly one
   tier, equal to its `craftTimeSeconds`; 3 blueprints let the player choose fewer than offered
   (`BP_CRAFT_thp_light_legs_01_01_01`, `_03` and `_12`), 3 carry the factor 1.15 (the slaver arms

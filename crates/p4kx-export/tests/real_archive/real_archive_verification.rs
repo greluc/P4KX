@@ -14,7 +14,7 @@ use std::time::SystemTime;
 
 use p4kx_export::{
     CatalogOptions, CatalogSummary, Compression, DECOMPRESSED_LIMIT, EXCLUDED_TOKENS, Kind,
-    Language, PLACEHOLDER_KEYS, UPLOAD_LIMIT, catalog_schema, write_catalog,
+    UPLOAD_LIMIT, catalog_schema, write_catalog,
 };
 use p4kx_extraction::Archive;
 use p4kx_testkit::{real_archive_b_path, real_archive_path};
@@ -22,7 +22,9 @@ use serde_json::Value;
 
 use crate::real_archive_spawns::check_spawn_links;
 
-type TestResult = Result<(), Box<dyn Error>>;
+use crate::real_archive_texts::check_texts;
+
+pub(crate) type TestResult = Result<(), Box<dyn Error>>;
 
 const MINIMUM: [(Kind, usize); 41] = [
     (Kind::Manufacturers, 500),
@@ -67,8 +69,6 @@ const MINIMUM: [(Kind, usize); 41] = [
     (Kind::ContractShipSpawns, 400),
     (Kind::ContractLocationQueries, 1_500),
 ];
-const MIN_ENGLISH_SHARE: f64 = 0.95;
-const MIN_GERMAN_SHARE: f64 = 0.5;
 
 fn built(path: &Path) -> Result<(CatalogSummary, Value), Box<dyn Error>> {
     let archive = Archive::open_with_key(path, Some(p4kx_testkit::real_archive_key()?))?;
@@ -94,30 +94,10 @@ fn built(path: &Path) -> Result<(CatalogSummary, Value), Box<dyn Error>> {
     Ok((summary, catalog))
 }
 
-fn list(catalog: &Value, kind: Kind) -> Result<&Vec<Value>, String> {
+pub(crate) fn list(catalog: &Value, kind: Kind) -> Result<&Vec<Value>, String> {
     catalog[kind.name()]
         .as_array()
         .ok_or_else(|| format!("the {kind} array"))
-}
-
-#[expect(
-    clippy::cast_precision_loss,
-    reason = "a share of counts far below 2^52"
-)]
-fn ratio(part: usize, whole: usize) -> f64 {
-    if whole == 0 {
-        1.0
-    } else {
-        part as f64 / whole as f64
-    }
-}
-
-fn is_placeholder(key: &str) -> bool {
-    PLACEHOLDER_KEYS.iter().any(|placeholder| {
-        placeholder
-            .trim_start_matches('@')
-            .eq_ignore_ascii_case(key.trim_start_matches('@'))
-    })
 }
 
 fn has_excluded_token(text: &str) -> Option<&'static str> {
@@ -194,7 +174,7 @@ fn verify_catalog(path: &Path) -> Result<Value, Box<dyn Error>> {
         "within the decompressed limit"
     );
     check_leftovers(&catalog)?;
-    check_texts(summary, &catalog)?;
+    check_texts(path, &catalog)?;
     Ok(catalog)
 }
 
@@ -241,59 +221,6 @@ fn check_leftovers(catalog: &Value) -> TestResult {
                 );
             }
         }
-    }
-    Ok(())
-}
-
-fn check_texts(summary: &CatalogSummary, catalog: &Value) -> TestResult {
-    let mut keyed = 0_usize;
-    let mut english = 0_usize;
-    let mut german = 0_usize;
-    for kind in Kind::ALL {
-        let mut kind_keyed = 0_usize;
-        let mut kind_english = 0_usize;
-        let mut kind_german = 0_usize;
-        for entity in list(catalog, kind)? {
-            for field in ["name", "description"] {
-                let Some(text) = entity.get(field) else {
-                    continue;
-                };
-                let Some(key) = text.get("key").and_then(Value::as_str) else {
-                    continue;
-                };
-                if is_placeholder(key) {
-                    continue;
-                }
-                kind_keyed += 1;
-                kind_english += usize::from(text.get("en").is_some_and(Value::is_string));
-                kind_german += usize::from(text.get("de").is_some_and(Value::is_string));
-            }
-        }
-        print_line(&format!(
-            "{kind}: {kind_keyed} keyed texts, {} missing in en, {} missing in de",
-            kind_keyed - kind_english,
-            kind_keyed - kind_german
-        ));
-        keyed += kind_keyed;
-        english += kind_english;
-        german += kind_german;
-    }
-    let (english_share, german_share) = (ratio(english, keyed), ratio(german, keyed));
-    print_line(&format!(
-        "all kinds: {keyed} keyed texts, en {english} ({english_share:.3}), de {german} ({german_share:.3})"
-    ));
-    assert!(
-        english_share >= MIN_ENGLISH_SHARE,
-        "most texts resolve in en"
-    );
-    assert!(german_share >= MIN_GERMAN_SHARE, "most texts resolve in de");
-    for language in [Language::English, Language::German] {
-        let texts = summary.text(language).ok_or("a text summary")?;
-        assert!(texts.available, "the Archive holds {language}");
-        assert!(
-            texts.resolved > texts.unresolved,
-            "most {language} texts resolve: {texts:?}"
-        );
     }
     Ok(())
 }
@@ -361,7 +288,7 @@ fn check_links(catalog: &Value) -> TestResult {
     clippy::print_stdout,
     reason = "the measurements are the result of the verification"
 )]
-fn print_line(line: &str) {
+pub(crate) fn print_line(line: &str) {
     println!("{line}");
 }
 

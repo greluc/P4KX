@@ -94,7 +94,7 @@ pub(crate) fn read<'f>(
         skipped: 0,
         failures,
         pools,
-        templates: location_template::read(forge, index.tags(), filter, cancel)?,
+        templates: location_template::read(forge, texts, index.tags(), filter, cancel)?,
     };
     if records.is_empty() {
         return Ok(missions);

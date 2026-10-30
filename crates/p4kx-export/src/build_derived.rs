@@ -35,7 +35,6 @@ pub(crate) fn add_contracts<'f>(
     collected.add_contracts(missions.contracts, missions.skipped, missions.failures);
     let templates = location_template::read(
         forge,
-        texts,
         &TagTree::build(forge),
         options.filter,
         options.cancel,

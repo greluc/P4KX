@@ -1312,9 +1312,10 @@ pickup `MissionLocality` Records (see "Contracts").
 `missiondata/pu_locations` (one more of the type lies outside that folder, a test platform, and is
 not part of the kind): `guid`, `className`, `recordPath`, `disabled`, `isSecurityNetworkHost`, the
 `tags` (`generalTags`) a query matches, `producesTags`, `consumesTags` (`positiveTags` and
-`negativeTags`), `aiSpawnTags`, `names` (the `stringVariants`: `tag` and `displayName`, a game
-text) and `entityClusterMemberGuid`. Not exported: the NPC auto spawn settings, mission modules and
-limits and the security network manifest.
+`negativeTags`), `aiSpawnTags`, `names` (the `stringVariants`: `tag` and the localisation `nameKey`) and `entityClusterMemberGuid`.
+Not exported: the texts of the names (3,297 variants on LIVE, 3,246 without a German text, which
+would sink the share of resolved German texts below the gate of the real-Archive verification),
+the NPC auto spawn settings, mission modules and limits and the security network manifest.
 
 Not exported: NPC spawn descriptions (`MissionPropertyValue_NPCSpawnDescriptions`), the
 `ObjectiveToken` structure of the templates, and SCMDB's own pools, waves and region lists, which

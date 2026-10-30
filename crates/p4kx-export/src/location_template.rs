@@ -9,14 +9,13 @@ use schemars::JsonSchema;
 use serde::Serialize;
 
 use crate::blueprint::as_struct;
-use crate::contract::{LocalisedText, every_field_required};
+use crate::contract::every_field_required;
 use crate::guid_text::{CatalogGuid, sort_by_guid};
 use crate::mission_layers::{items, key, one};
 use crate::record_fields::{boolean, class_name, reference};
 use crate::selection::{Kind, is_kind_leftover};
 use crate::spawn_model::{TagPaths, TagTerm};
 use crate::spawn_read::Reader;
-use crate::texts::Texts;
 use crate::{CatalogError, CatalogFailure};
 
 /// A mission location template: a `MissionLocationTemplate` Record under
@@ -57,9 +56,9 @@ pub(crate) struct MissionLocationTemplate<'a> {
 pub(crate) struct LocationName<'a> {
     /// The tag path of the variant, e.g. `Missions.Text.Name`; `null` when it names none.
     pub(crate) tag: Option<String>,
-    /// The text of the variant.
-    #[schemars(extend("x-gameText" = true))]
-    pub(crate) display_name: LocalisedText<'a>,
+    /// The localisation key of the text, `null` when it names none. The text itself is not
+    /// exported.
+    pub(crate) name_key: Option<&'a str>,
 }
 
 /// The location templates of a DataForge and what was left out.
@@ -83,7 +82,6 @@ enum Piece<'f> {
 /// Returns [`CatalogError::Cancelled`] once `cancel` is cancelled.
 pub(crate) fn read<'f>(
     forge: &'f DataForge<'f>,
-    texts: &Texts<'f>,
     tags: &TagTree,
     filter: Option<&Filter>,
     cancel: Option<&CancelToken>,
@@ -103,7 +101,7 @@ pub(crate) fn read<'f>(
             if cancel.is_some_and(CancelToken::is_cancelled) {
                 return Err(CatalogError::Cancelled);
             }
-            Ok(piece(trees, record, texts, tags)
+            Ok(piece(trees, record, tags)
                 .unwrap_or_else(|source| Some(Piece::Failed(CatalogFailure::of(record, &source)))))
         })
         .filter_map(Result::transpose)
@@ -127,7 +125,6 @@ pub(crate) fn read<'f>(
 fn piece<'f>(
     trees: &mut TreeBuilder<'f>,
     record: &Record<'f>,
-    texts: &Texts<'f>,
     tags: &TagTree,
 ) -> Result<Option<Piece<'f>>, DataForgeError> {
     let rule = Kind::MissionLocationTemplates.records();
@@ -151,7 +148,7 @@ fn piece<'f>(
         produces_tags: term(&reader, data, "producesTags"),
         consumes_tags: term(&reader, data, "consumesTags"),
         ai_spawn_tags: reader.tag_list(data, "aiSpawnTags"),
-        names: names(&reader, texts, data),
+        names: names(&reader, data),
         entity_cluster_member_guid: reference(data, "entityClusterMember"),
     }))))
 }
@@ -164,18 +161,14 @@ fn term(reader: &Reader<'_, '_>, data: Option<&StructValue<'_>>, name: &str) -> 
     }
 }
 
-fn names<'f>(
-    reader: &Reader<'_, 'f>,
-    texts: &Texts<'f>,
-    data: Option<&StructValue<'f>>,
-) -> Vec<LocationName<'f>> {
+fn names<'f>(reader: &Reader<'_, 'f>, data: Option<&StructValue<'f>>) -> Vec<LocationName<'f>> {
     let variants = one(data, "stringVariants");
     items(variants, "variants")
         .iter()
         .filter_map(as_struct)
         .map(|variant| LocationName {
             tag: reader.tag_path(Some(variant), "tag"),
-            display_name: texts.localised(key(Some(variant), "string")),
+            name_key: key(Some(variant), "string"),
         })
         .collect()
 }

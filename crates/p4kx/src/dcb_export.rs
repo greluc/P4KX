@@ -12,13 +12,8 @@ use p4kx_export::{
     write_record_export,
 };
 use p4kx_extraction::{
-<<<<<<< HEAD
     Archive, DataForge, Filter, LanguageTexts, LocalizationSet, Record, RecordExportReport,
-    TagResolver, TagTree, TextResolver, export_combined,
-=======
-    Archive, DataForge, DataForgeEntry, Filter, LanguageTexts, LocalizationSet, Record,
-    RecordExportReport, RecordRenamed, TagResolver, TagTree, TextResolver, export_combined,
->>>>>>> origin/main
+    RecordRenamed, TagResolver, TagTree, TextResolver, export_combined,
 };
 use serde::Serialize;
 use thiserror::Error;

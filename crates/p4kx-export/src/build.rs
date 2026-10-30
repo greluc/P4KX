@@ -269,6 +269,7 @@ fn assemble<R>(
         mission_types: collected.mission_kinds.types,
         mission_localities: collected.mission_kinds.localities,
         contract_scenarios: collected.mission_kinds.scenarios,
+        cargo_manifests: collected.mission_kinds.manifests,
         loot_tables: collected.loot_kinds.tables,
         loot_archetypes: collected.loot_kinds.archetypes,
         loot_pool_filters: collected.loot_kinds.filters,

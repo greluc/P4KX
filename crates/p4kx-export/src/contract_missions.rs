@@ -5,6 +5,7 @@ use schemars::JsonSchema;
 use serde::Serialize;
 
 use crate::contract::{LocalisedText, every_field_required};
+use crate::contract_hauling::HaulingOrder;
 use crate::guid_text::CatalogGuid;
 use crate::mission_cooldown::CooldownLayer;
 
@@ -96,6 +97,12 @@ pub(crate) struct ContractEntry<'a> {
     /// The `abandonedCooldownTimeVariation`, as stored, in the unit of `personalCooldownTime`;
     /// `null` when absent.
     pub(crate) abandoned_cooldown_time_variation: Option<f32>,
+    /// What the contract has to haul: per `missionVariableName` the hauling orders property of the
+    /// nearest level (sub contract, contract, handler, template), then the orders of the hauling
+    /// objectives of the template, else of the `MissionBrokerEntry`. Empty for a contract that
+    /// hauls nothing. Where to pick up and drop off is not stated here: the game fills those
+    /// properties in when the mission starts.
+    pub(crate) hauling_orders: Vec<HaulingOrder<'a>>,
 }
 
 /// The level at which a reputation prerequisite is stated.

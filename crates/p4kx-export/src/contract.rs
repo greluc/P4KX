@@ -8,6 +8,7 @@ use serde::Serialize;
 
 use crate::guid_text::CatalogGuid;
 
+pub(crate) use crate::contract_cargo::CargoManifest;
 pub(crate) use crate::contract_crafter::Crafter;
 pub(crate) use crate::contract_crafting::{
     Blueprint, BlueprintCategory, Commodity, Ingredient, ResourceGroup,
@@ -126,6 +127,8 @@ pub(crate) struct Catalog<'a> {
     pub(crate) mission_localities: Vec<MissionLocality<'a>>,
     /// The contract scenarios with their reward tiers, ordered by GUID.
     pub(crate) contract_scenarios: Vec<ContractScenario<'a>>,
+    /// The cargo manifests, how the game fills the cargo grid of a spawned ship, ordered by GUID.
+    pub(crate) cargo_manifests: Vec<CargoManifest<'a>>,
     /// The loot tables with the weighted archetypes of each, ordered by GUID.
     pub(crate) loot_tables: Vec<LootTable<'a>>,
     /// The loot archetypes with the weighted selectors of each, ordered by GUID.
@@ -254,6 +257,8 @@ pub(crate) struct Completeness<'a> {
     pub(crate) mission_localities: KindCompleteness<'a>,
     /// The completeness of `contractScenarios`.
     pub(crate) contract_scenarios: KindCompleteness<'a>,
+    /// The completeness of `cargoManifests`.
+    pub(crate) cargo_manifests: KindCompleteness<'a>,
     /// The completeness of `lootTables`.
     pub(crate) loot_tables: KindCompleteness<'a>,
     /// The completeness of `lootArchetypes`.
@@ -308,6 +313,7 @@ impl<'a> Completeness<'a> {
             mission_types: completeness,
             mission_localities: completeness,
             contract_scenarios: completeness,
+            cargo_manifests: completeness,
             loot_tables: completeness,
             loot_archetypes: completeness,
             loot_pool_filters: completeness,

@@ -18,12 +18,8 @@ pub(crate) fn minimal_catalog() -> serde_json::Value {
     json!({
         "schemaVersion": 2,
         "source": {
-            "channel": null,
-            "build": null,
-            "archiveSize": 0,
-            "archiveModified": null,
-            "toolVersion": "0.1.0",
-            "exportedAt": "2026-10-18T00:00:00Z"
+            "channel": null, "build": null, "archiveSize": 0, "archiveModified": null,
+            "toolVersion": "0.1.0", "exportedAt": "2026-10-18T00:00:00Z"
         },
         "completeness": {
             "manufacturers": {"status": "complete"},
@@ -57,6 +53,7 @@ pub(crate) fn minimal_catalog() -> serde_json::Value {
             "missionTypes": {"status": "complete"},
             "missionLocalities": {"status": "complete"},
             "contractScenarios": {"status": "complete"},
+            "cargoManifests": {"status": "complete"},
             "lootTables": {"status": "complete"},
             "lootArchetypes": {"status": "complete"},
             "lootPoolFilters": {"status": "complete"},
@@ -298,6 +295,7 @@ pub(crate) fn minimal_catalog() -> serde_json::Value {
         "missionTypes": reputation::mission_types(),
         "missionLocalities": reputation::localities(),
         "contractScenarios": reputation::scenarios(),
+        "cargoManifests": contracts::manifests(),
         "lootTables": loot::tables(),
         "lootArchetypes": loot::archetypes(),
         "lootPoolFilters": loot::filters(),

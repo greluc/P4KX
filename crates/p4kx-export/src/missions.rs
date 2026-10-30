@@ -8,10 +8,12 @@ use p4kx_extraction::{
 use rayon::prelude::*;
 
 use crate::blueprint::as_struct;
+use crate::contract_hauling::HaulingOrder;
 use crate::contract_missions::{ContractEntry, ContractFaction, PickupPlace, ReputationGain};
 use crate::contract_starmap::StarmapObject;
 use crate::guid_text::CatalogGuid;
 use crate::mission_cooldown::Cooldown;
+use crate::mission_hauling::HaulingLevels;
 use crate::mission_index::{Broker, MissionIndex, Template};
 use crate::mission_layers::{Layer, Prop, Property, items, one};
 use crate::mission_places::{Places, Where};
@@ -206,6 +208,7 @@ impl<'f> Parent<'_, 'f> {
         let contract_layer = Layer::read(one(Some(self.contract), "paramOverrides"));
         let broker = reference(Some(self.contract), "missionBrokerEntry")
             .and_then(|guid| index.broker(guid.0));
+        let broker_location = broker.and_then(|broker| broker.location);
         let shared = Shared {
             gains: gains(self.contract, index),
             standing: Standing::read(self.handler, self.contract),
@@ -224,22 +227,22 @@ impl<'f> Parent<'_, 'f> {
                 .as_ref()
                 .filter(|own| !own.is_empty())
                 .map_or_else(|| inherited.to_vec(), |own| vec![own]);
-            let mut pickup = context.places.pickup(index, &wheres);
-            if pickup.is_empty()
-                && let Some(location) = broker.and_then(|broker| broker.location)
-            {
-                let at_broker = Where {
-                    localities: Vec::new(),
-                    locations: vec![location],
-                };
-                pickup = context.places.pickup(index, &[&at_broker]);
-            }
+            let pickup = context
+                .places
+                .pickup_or_broker(index, &wheres, broker_location);
+            let hauling = HaulingLevels::of(
+                sub_layer.as_ref(),
+                &contract_layer,
+                self.handler_layer,
+                template_data,
+                broker,
+            );
             self.entry(
                 sub,
                 &levels,
                 template,
                 (template_data, broker),
-                (&shared, pickup),
+                (&shared, pickup, hauling.orders()),
                 context,
             )
         };
@@ -265,7 +268,11 @@ impl<'f> Parent<'_, 'f> {
         levels: &[&Layer<'f>],
         template: Option<p4kx_extraction::Guid>,
         (template_data, broker): (Option<&Template<'f>>, Option<&Broker<'f>>),
-        (shared, pickup): (&Shared<'f>, Vec<PickupPlace<'f>>),
+        (shared, pickup, hauling_orders): (
+            &Shared<'f>,
+            Vec<PickupPlace<'f>>,
+            Vec<HaulingOrder<'f>>,
+        ),
         context: &Context<'_, 'f>,
     ) -> ContractEntry<'f> {
         let (index, texts) = (context.index, context.texts);
@@ -324,6 +331,7 @@ impl<'f> Parent<'_, 'f> {
             personal_cooldown_time_variation: shared.cooldown.personal_time_variation,
             abandoned_cooldown_time: shared.cooldown.abandoned_time,
             abandoned_cooldown_time_variation: shared.cooldown.abandoned_time_variation,
+            hauling_orders,
         }
     }
 

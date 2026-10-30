@@ -105,6 +105,8 @@ pub enum Kind {
     MissionLocalities,
     /// Contract scenarios: `ScenarioProgress` Records under `contracts/contractscenarios`.
     ContractScenarios,
+    /// Cargo manifests: `CargoManifest` Records under `cargomanifest`.
+    CargoManifests,
     /// Loot tables: `LootTableV3Record` Records under `lootgeneration/loottables`.
     LootTables,
     /// Loot archetypes: `LootArchetypeV3Record` Records under `lootgeneration/lootarchetypes`.
@@ -132,7 +134,7 @@ pub enum Kind {
 
 impl Kind {
     /// Every kind, in the order of the catalog.
-    pub const ALL: [Self; 39] = [
+    pub const ALL: [Self; 40] = [
         Self::Manufacturers,
         Self::Items,
         Self::Ships,
@@ -164,6 +166,7 @@ impl Kind {
         Self::MissionTypes,
         Self::MissionLocalities,
         Self::ContractScenarios,
+        Self::CargoManifests,
         Self::LootTables,
         Self::LootArchetypes,
         Self::LootPoolFilters,
@@ -209,6 +212,7 @@ impl Kind {
             Self::MissionTypes => "missionTypes",
             Self::MissionLocalities => "missionLocalities",
             Self::ContractScenarios => "contractScenarios",
+            Self::CargoManifests => "cargoManifests",
             Self::LootTables => "lootTables",
             Self::LootArchetypes => "lootArchetypes",
             Self::LootPoolFilters => "lootPoolFilters",

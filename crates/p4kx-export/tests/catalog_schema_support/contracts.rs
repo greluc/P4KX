@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-//! One contract with a pickup place and a reputation gain.
+//! One contract with a pickup place, a reputation gain and a hauling order, and a cargo manifest.
 
 use serde_json::json;
 
@@ -54,6 +54,52 @@ pub(super) fn contracts() -> serde_json::Value {
         "personalCooldownTime": 2880.0,
         "personalCooldownTimeVariation": 60.0,
         "abandonedCooldownTime": 30.0,
-        "abandonedCooldownTimeVariation": null
+        "abandonedCooldownTimeVariation": null,
+        "haulingOrders": orders()
+    }])
+}
+
+fn orders() -> serde_json::Value {
+    json!([{
+        "source": "contract",
+        "variableName": "HaulingOverride",
+        "requirements": [{"options": [[{
+            "kind": "resource",
+            "resourceGuid": "f5000000-0000-4000-8000-000000000001",
+            "entityClassGuid": null,
+            "entityClassesGuid": null,
+            "minScu": 4,
+            "maxScu": 8,
+            "maxContainerSize": 16,
+            "minAmount": null,
+            "maxAmount": null
+        }]]}]
+    }])
+}
+
+pub(super) fn manifests() -> serde_json::Value {
+    json!([{
+        "guid": "f7000000-0000-4000-8000-000000000001",
+        "className": "LegalCargo_Even",
+        "recordPath": "libs/foundry/records/cargomanifest/civilian/legalcargo_even",
+        "fillType": "even",
+        "minCapacityRange": 0.45,
+        "maxCapacityRange": 0.5,
+        "lockCargoGridsOnSpawn": false,
+        "resources": [{
+            "resourceGuid": "f5000000-0000-4000-8000-000000000001",
+            "probability": 1.0,
+            "minAllocation": null,
+            "maxAllocation": null
+        }],
+        "spawnRules": [{
+            "kind": "entities",
+            "probability": 1.0,
+            "entityGuids": ["f6000000-0000-4000-8000-000000000001"],
+            "resourceGuids": [],
+            "quantityAlgorithm": "CargoManifestFixedQuantityDef",
+            "quantity": 30,
+            "proportion": null
+        }]
     }])
 }

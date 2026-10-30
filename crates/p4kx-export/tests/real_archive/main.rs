@@ -17,6 +17,7 @@ mod real_archive_crafting_details;
 mod real_archive_gear_stats;
 mod real_archive_gear_trace;
 mod real_archive_grade;
+mod real_archive_hauling;
 mod real_archive_insurance;
 mod real_archive_item_stats;
 mod real_archive_items;

@@ -278,7 +278,8 @@ impl<'f> Collected<'f> {
                     | Kind::ReputationContexts
                     | Kind::MissionTypes
                     | Kind::MissionLocalities
-                    | Kind::ContractScenarios => self.mission_kinds.count(kind),
+                    | Kind::ContractScenarios
+                    | Kind::CargoManifests => self.mission_kinds.count(kind),
                     Kind::LootTables
                     | Kind::LootArchetypes
                     | Kind::LootPoolFilters

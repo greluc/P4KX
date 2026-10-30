@@ -123,6 +123,10 @@ impl Kind {
                 prefixes: &["libs/foundry/records/contracts/contractscenarios/"],
                 type_name: "ScenarioProgress",
             },
+            Self::CargoManifests => KindRule {
+                prefixes: &["libs/foundry/records/cargomanifest/"],
+                type_name: "CargoManifest",
+            },
             Self::LootTables => KindRule {
                 prefixes: &["libs/foundry/records/lootgeneration/loottables/"],
                 type_name: "LootTableV3Record",

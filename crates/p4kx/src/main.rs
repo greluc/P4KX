@@ -11,7 +11,6 @@ mod audio;
 mod bnk;
 mod bnk_objects;
 mod bnk_objects_text;
-mod bnk_objects_view;
 mod catalog;
 mod catalog_input;
 mod catalog_json;

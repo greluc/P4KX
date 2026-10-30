@@ -67,7 +67,23 @@ impl HircKind {
             Self::Other(_) => "other",
         }
     }
+
+    /// Returns the kinds this reader names, in type byte order.
+    pub fn known() -> impl Iterator<Item = Self> {
+        (FIRST_KNOWN_TYPE..=LAST_KNOWN_TYPE).map(Self::from_byte)
+    }
+
+    /// Returns the kind whose [`slug`](Self::slug) is `slug`; `None` for `other` and for text
+    /// that names no kind.
+    #[must_use]
+    pub fn from_slug(slug: &str) -> Option<Self> {
+        Self::known().find(|kind| kind.slug() == slug)
+    }
 }
+
+/// The type bytes [`HircKind::from_byte`] names, as banks of version 128 and later number them.
+const FIRST_KNOWN_TYPE: u8 = 1;
+const LAST_KNOWN_TYPE: u8 = 22;
 
 impl HircObject {
     /// Returns how far the reader decodes the object.
@@ -115,5 +131,25 @@ impl HircObject {
         ids.iter()
             .copied()
             .chain(sources.iter().map(|source| source.source_id))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn every_known_kind_is_found_by_its_slug() {
+        assert_eq!(HircKind::known().count(), 22, "the kinds of the type table");
+        for kind in HircKind::known() {
+            assert_eq!(HircKind::from_slug(kind.slug()), Some(kind), "{kind}");
+        }
+    }
+
+    #[test]
+    fn other_and_unknown_text_name_no_kind() {
+        for text in ["other", "", "Sound", "music_track", "music-track "] {
+            assert_eq!(HircKind::from_slug(text), None, "{text:?}");
+        }
     }
 }

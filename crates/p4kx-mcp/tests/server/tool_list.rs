@@ -31,6 +31,7 @@ fn the_tool_list_holds_the_archive_and_dataforge_tools_all_read_only() -> TestRe
             "list_entries",
             "list_enums",
             "list_model_items",
+            "list_soundbank_objects",
             "list_soundbank_wems",
             "list_structs",
             "mtl_summary",
@@ -44,6 +45,14 @@ fn the_tool_list_holds_the_archive_and_dataforge_tools_all_read_only() -> TestRe
         ],
         "the Archive, DataForge, model and audio tools"
     );
+    Ok(())
+}
+
+#[test]
+fn every_tool_is_annotated_read_only_and_declares_its_result_shape() -> TestResult {
+    let install = Install::standard()?;
+    let mut server = install.serve(&[])?;
+    let tools = server.tools()?;
     for tool in &tools {
         let annotations = tool.get("annotations").cloned().unwrap_or_default();
         assert_eq!(
@@ -91,6 +100,7 @@ fn the_tools_that_return_game_content_say_it_may_be_forwarded_and_not_redistribu
         "search_audio_triggers",
         "get_entity_sounds",
         "resolve_audio_trigger",
+        "list_soundbank_objects",
         "list_soundbank_wems",
         "get_wem_info",
         "get_audio_excerpt",

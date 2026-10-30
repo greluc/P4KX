@@ -86,6 +86,29 @@ pub(crate) struct SoundbankParams {
     pub(crate) limit: Option<u32>,
 }
 
+/// The arguments of `list_soundbank_objects`.
+#[derive(Debug, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct SoundbankObjectsParams {
+    /// A Channel name such as `LIVE`, or the absolute path of a `.p4k` file; omit it for the
+    /// Archive the server was started with.
+    pub(crate) archive: Option<String>,
+    /// The Entry path of the soundbank, e.g. `Data/Sounds/wwise/Ship.bnk`, as
+    /// `search_audio_triggers` and `resolve_audio_trigger` give it; case and separator kind do
+    /// not matter.
+    pub(crate) soundbank: String,
+    /// Lists only objects of this type, as the `type` of a listed object names it, e.g.
+    /// `music-playlist`, `sound`, `event`; omit it for every type.
+    #[serde(rename = "type")]
+    pub(crate) kind: Option<String>,
+    /// Lists only the object with this ID.
+    pub(crate) id: Option<u32>,
+    /// The `next_cursor` of the previous page; omit it for the first page.
+    pub(crate) cursor: Option<String>,
+    /// The page size, 100 by default, at most 1000.
+    pub(crate) limit: Option<u32>,
+}
+
 /// The arguments of `get_wem_info`.
 #[derive(Debug, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]

@@ -5,11 +5,10 @@ use std::fmt::{self, Display};
 use std::io::{self, Write};
 
 use p4kx_extraction::HircLayout;
-use p4kx_extraction::text_line::one_line;
-
-use crate::bnk_objects_view::{
+use p4kx_extraction::hirc_view::{
     ClipView, Detail, ItemView, ObjectView, SegmentDetail, SoundDetail, TrackDetail,
 };
+use p4kx_extraction::text_line::one_line;
 
 const INDENT: &str = "    ";
 const NO_PARENT: &str = "-";

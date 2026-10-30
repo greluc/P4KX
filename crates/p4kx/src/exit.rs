@@ -25,6 +25,7 @@ use crate::dcb_query::{InvalidQuery, JsonNeedsJsonFormat, OutputIsArchive, Unrea
 use crate::dcb_refs::{JsonWithTable, UnknownRecord};
 use crate::dcb_tags::UnknownTag;
 use crate::entity_glb::GlbOutputIsArchive;
+use crate::entity_root::RootGeometryError;
 use crate::filter_pair::ExcludedAll;
 use crate::grep::EmptySearchText;
 use crate::interior_glb::InteriorOutputIsArchive;
@@ -98,7 +99,8 @@ pub(crate) const EXIT_CODES_HELP: &str = "Exit codes:
      neither Archive contains), a Filter that matches no Entry or Record or whose --exclude
      Filters leave nothing, Filter text that is too long or has too many wildcards, a Channel
      path that does not exist or was never added, a texture, sound, soundbank, chunk file, UI movie
-     file, model or geometry companion that does not exist, a mip level the texture, a chunk
+     file, model or geometry companion that does not exist, the geometry of the Entity that
+     entity glb or entity package exports when it does not exist, a mip level the texture, a chunk
      the chunk file or a LOD the model does not have, an output that is one of its inputs or
      lies inside a Star Citizen installation (the tool never writes there), a package folder
      that exists and holds something else than an earlier package, --json without --out
@@ -119,7 +121,9 @@ pub(crate) const EXIT_CODES_HELP: &str = "Exit codes:
      Record of another type name, or whose side is below 1 or above 16384 pixels, or a prefab
      library or prefab the Archive lacks
   3  the Archive or the input file cannot be read: missing, not an Archive, not CryXml, not a
-     chunk or CHF file or UI movie, corrupt, a corrupt model or companion, with a CHF CRC-32C
+     chunk or CHF file or UI movie, corrupt, a corrupt model or companion (for entity glb and
+     entity package the geometry of the Entity itself, or its .chrm companion, that cannot be
+     read), with a CHF CRC-32C
      mismatch or unknown CHF version, a sound, soundbank, chunk file or UI movie too large to
      read into memory, or with unreadable Entry data, also a socpak container that cannot be
      opened, a --diff Entry that cannot be read or holds corrupt CryXml, a global.ini of the
@@ -244,6 +248,9 @@ fn is_unreadable_skeleton_or_prefab_library(error: &anyhow::Error) -> bool {
     matches!(
         error.downcast_ref::<AssemblyError>(),
         Some(AssemblyError::Body { .. })
+    ) || matches!(
+        error.downcast_ref::<RootGeometryError>(),
+        Some(RootGeometryError::Unreadable { .. })
     ) || crate::prefab::is_archive_error(error)
 }
 
@@ -273,6 +280,10 @@ fn is_output_or_query_error(error: &anyhow::Error) -> bool {
         || error.downcast_ref::<UnknownTag>().is_some()
         || error.downcast_ref::<OutputIsArchive>().is_some()
         || error.downcast_ref::<GlbOutputIsArchive>().is_some()
+        || matches!(
+            error.downcast_ref::<RootGeometryError>(),
+            Some(RootGeometryError::Missing { .. })
+        )
         || matches!(
             error.downcast_ref::<OffscreenError>(),
             Some(OffscreenError::Empty | OffscreenError::TooLarge { .. })

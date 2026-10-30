@@ -346,7 +346,8 @@ stable code, `skipped` and `reason`, text for people. The kinds are `unresolved`
 names an Entity that cannot be resolved, so the port holds no part), `no_geometry` (the Entity's
 Record, or the landing gear, names no model; the part stays as an empty node), `geometry_missing` and
 `geometry_unreadable` (the model is not in the Archive or cannot be read, or its character
-definition names none; the part stays as an empty node), `sub_geometry_missing` (the
+definition names none; the part stays as an empty node; for the Entity itself the command fails
+with exit code 2 or 3 instead and writes nothing, ADR-0255), `sub_geometry_missing` (the
 sub-geometry the port's flags choose is not in the Archive, so the part keeps the main geometry of
 its Entity; a note, `skipped` is false), `body_geometry_missing` (the sub-geometry tagged for the
 body of the character is not in the Archive; the part has no model, the placeholder main geometry
@@ -356,6 +357,9 @@ model; a note, `skipped` is false), `attachments_left_out` (the geometry is
 a character definition, `.cdf`: its skin, else its first attachment, is the part's model, its bone
 attachments are drawn as nodes below the part, and the files of the other attachments, or of a bone
 attachment that cannot be read, are not drawn; reported once per definition, `skipped` is false),
+`skeleton_missing` and `skeleton_unreadable` (the skeleton file, `Model File`, of a character
+definition is not in the Archive, is larger than 16 MiB or cannot be read as a model; the skin
+is still the part's model; reported once per definition, `skipped` is false),
 `material_library` (the library is missing or unreadable; the part is
 drawn with the default material; reported once per library, for the first part that draws with
 it), `palette` (a tint palette the Entity or its library names

@@ -83,6 +83,7 @@ mod entity_ignored;
 mod entity_json;
 mod entity_outfit;
 mod entity_package;
+mod entity_root;
 mod entity_vehicle;
 mod exit;
 mod extract;

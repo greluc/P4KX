@@ -57,6 +57,7 @@ mod dcb_refs;
 mod dcb_tags;
 mod entity_audio;
 mod entity_changes;
+mod entity_creature;
 mod entity_glb;
 mod entity_glb_body;
 mod entity_glb_interior;

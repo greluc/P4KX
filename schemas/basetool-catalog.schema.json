@@ -1849,6 +1849,32 @@
       ],
       "type": "object"
     },
+    "FilterEffect": {
+      "description": "The filter change of a `MiningFilterItemModifierParams`.",
+      "properties": {
+        "filterModifier": {
+          "description": "`filterParams.filterModifier.value`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "lifetime": {
+          "description": "`modifierLifetime.lifetime`, in seconds; `null` for a modifier that lasts.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "filterModifier",
+        "lifetime"
+      ],
+      "type": "object"
+    },
     "FireAction": {
       "description": "One fire mode of a weapon.",
       "properties": {
@@ -1895,11 +1921,26 @@
             "null"
           ]
         },
+        "fullDamageRange": {
+          "description": "`fullDamageRange` of a beam, in metres: the distance up to which it does full damage.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
         "heatPerShot": {
           "description": "`heatPerShot`.",
           "format": "float",
           "type": [
             "number",
+            "null"
+          ]
+        },
+        "hitType": {
+          "description": "`hitType` of a beam, e.g. `ElectricArc` for a mining beam and `Extraction` for an\nextraction beam. A closed set the game may extend; the schema keeps a string.",
+          "type": [
+            "string",
             "null"
           ]
         },
@@ -1940,6 +1981,14 @@
             }
           ],
           "description": "`launchParams.spreadParams`; `null` for a mode without one."
+        },
+        "zeroDamageRange": {
+          "description": "`zeroDamageRange` of a beam, in metres: the distance from which it does no damage.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
         }
       },
       "required": [
@@ -1948,12 +1997,50 @@
         "cooldownTime",
         "damagePerSecond",
         "fireRate",
+        "fullDamageRange",
         "heatPerShot",
+        "hitType",
         "kind",
         "name",
         "overchargeTime",
         "pellets",
-        "spread"
+        "spread",
+        "zeroDamageRange"
+      ],
+      "type": "object"
+    },
+    "FireActionModifier": {
+      "description": "The damage multiplier an `ItemWeaponModifiersParams` applies to one fire action of the laser.",
+      "properties": {
+        "damageMultiplier": {
+          "description": "`weaponModifier.weaponStats.damageMultiplier`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "fireActionIndex": {
+          "description": "`fireActionIndex`, the index into the laser's `fireActions` as stored.",
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "lifetime": {
+          "description": "`modifierLifetime.lifetime`, in seconds; `null` for a modifier that lasts.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "damageMultiplier",
+        "fireActionIndex",
+        "lifetime"
       ],
       "type": "object"
     },
@@ -2767,7 +2854,7 @@
       "type": "object"
     },
     "ItemStats": {
-      "description": "The typed stat blocks of an item, raw facts of the Archive (ADR-0065, ADR-0072).\n\nEvery block is `null` for an item that does not have it; the item has `stats` only when it\nhas at least one block: `weapon`, `shield`, `quantumDrive`, `powerPlant`, `cooler`, `missile`,\n`armor`, `clothing`, `radar`, `tractorBeam` or `weaponModifier`. No value is derived: a number\nis what the Archive states, in the unit the game stores it; a value that is not a finite\nnumber is `null`.",
+      "description": "The typed stat blocks of an item, raw facts of the Archive (ADR-0065, ADR-0072).\n\nEvery block is `null` for an item that does not have it; the item has `stats` only when it\nhas at least one block: `weapon`, `shield`, `quantumDrive`, `powerPlant`, `cooler`, `missile`,\n`armor`, `clothing`, `radar`, `tractorBeam`, `weaponModifier`, `miningLaser` or\n`miningModifier`. No value is derived: a number\nis what the Archive states, in the unit the game stores it; a value that is not a finite\nnumber is `null`.",
       "properties": {
         "armor": {
           "anyOf": [
@@ -2809,6 +2896,28 @@
             "number",
             "null"
           ]
+        },
+        "miningLaser": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MiningLaserStats"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The mining laser block, from `SEntityComponentMiningLaserParams`: ship lasers and the FPS\nmining tool."
+        },
+        "miningModifier": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MiningModifierStats"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The mining module or gadget block, from the `EntityComponentAttachableModifierParams` that\nholds a mining modifier."
         },
         "missile": {
           "anyOf": [
@@ -2911,6 +3020,8 @@
         "clothing",
         "cooler",
         "health",
+        "miningLaser",
+        "miningModifier",
         "missile",
         "powerPlant",
         "quantumDrive",
@@ -4160,6 +4271,35 @@
       ],
       "type": "object"
     },
+    "MiningEffect": {
+      "description": "The mining modifiers one `ItemMiningModifierParams` or `ItemMineableRockModifierParams`\napplies.",
+      "properties": {
+        "lifetime": {
+          "description": "`modifierLifetime.lifetime`, in seconds; `null` for a modifier that lasts.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "modifiers": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MiningModifierValues"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "`MiningLaserModifier`; `null` without it."
+        }
+      },
+      "required": [
+        "lifetime",
+        "modifiers"
+      ],
+      "type": "object"
+    },
     "MiningGlobalParams": {
       "description": "The mining parameters of one kind of miner: a `MiningGlobalParams` Record under `mining`. Each\nnumber is that of the Record, unchanged, and `null` when the Record states none. The effects,\nsounds and the default explosion of the Record are not exported.",
       "properties": {
@@ -4432,6 +4572,237 @@
         "resistanceCurveFactor",
         "terrainFactorStaticThreshold",
         "wasteResourceTypeGuid"
+      ],
+      "type": "object"
+    },
+    "MiningLaserStats": {
+      "description": "A mining laser, raw facts of `SEntityComponentMiningLaserParams` (ADR-0259).\n\nThe beams are fire modes of `weapon.fireActions`: their `hitType`, `fullDamageRange`,\n`zeroDamageRange` and `damagePerSecond`.",
+      "properties": {
+        "filterModifier": {
+          "description": "`filterParams.filterModifier.value`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "globalParamsGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The `MiningLaserGlobalParams` Record `globalParams` links to."
+        },
+        "modifiers": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MiningModifierValues"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "`miningLaserModifiers`; `null` without them."
+        },
+        "throttleLerpSpeed": {
+          "description": "`throttleLerpSpeed`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "throttleMinimum": {
+          "description": "`throttleMinimum`, the lowest throttle as a fraction of 1.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "usesPowerThrottle": {
+          "description": "`usesPowerThrottle`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "filterModifier",
+        "globalParamsGuid",
+        "modifiers",
+        "throttleLerpSpeed",
+        "throttleMinimum",
+        "usesPowerThrottle"
+      ],
+      "type": "object"
+    },
+    "MiningModifierStats": {
+      "description": "A mining module or gadget, raw facts of the `EntityComponentAttachableModifierParams` that\nholds a mining modifier (ADR-0259).",
+      "properties": {
+        "activationMethod": {
+          "description": "`activationMethod`, e.g. `ActivateOnAttach` for a passive module and `ActivateOnDemand`\nfor an active module or a gadget. A closed set the game may extend; the schema keeps a\nstring.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "canInterrupt": {
+          "description": "`canInterrupt`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "charges": {
+          "description": "`charges`; -1 for a gadget that is not used up.",
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "filter": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FilterEffect"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The first `MiningFilterItemModifierParams`; `null` without one."
+        },
+        "fireActionModifiers": {
+          "description": "The `ItemWeaponModifiersParams` in stored order: the multiplier per fire action.",
+          "items": {
+            "$ref": "#/$defs/FireActionModifier"
+          },
+          "type": "array"
+        },
+        "isInterruptible": {
+          "description": "`isInterruptible`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "laser": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MiningEffect"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The first `ItemMiningModifierParams`: the change to the laser; `null` without one."
+        },
+        "rock": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MiningEffect"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The first `ItemMineableRockModifierParams`: the change to the rock; `null` without one."
+        }
+      },
+      "required": [
+        "activationMethod",
+        "canInterrupt",
+        "charges",
+        "filter",
+        "fireActionModifiers",
+        "isInterruptible",
+        "laser",
+        "rock"
+      ],
+      "type": "object"
+    },
+    "MiningModifierValues": {
+      "description": "The values of a `MiningLaserModifiers` struct, each the `value` of a\n`FloatModifierMultiplicative` as stored, in percent; `null` for a modifier the struct leaves\nunset.",
+      "properties": {
+        "catastrophicChargeWindowRate": {
+          "description": "`catastrophicChargeWindowRateModifier`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "clusterFactor": {
+          "description": "`clusterFactorModifier`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "instability": {
+          "description": "`laserInstability`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "isOptimalRateGood": {
+          "description": "`isOptimalRateGood`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "optimalChargeWindowRate": {
+          "description": "`optimalChargeWindowRateModifier`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "optimalChargeWindowSize": {
+          "description": "`optimalChargeWindowSizeModifier`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "resistance": {
+          "description": "`resistanceModifier`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "shatterDamage": {
+          "description": "`shatterdamageModifier`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "catastrophicChargeWindowRate",
+        "clusterFactor",
+        "instability",
+        "isOptimalRateGood",
+        "optimalChargeWindowRate",
+        "optimalChargeWindowSize",
+        "resistance",
+        "shatterDamage"
       ],
       "type": "object"
     },

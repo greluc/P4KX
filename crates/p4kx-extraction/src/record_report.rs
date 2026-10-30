@@ -6,7 +6,7 @@ use std::fmt;
 use p4kx_dataforge::{Annotations, DataForgeError, Guid, TagResolver, TextResolver};
 use thiserror::Error;
 
-use crate::{CancelToken, ConflictPolicy, ExtractionError};
+use crate::{CancelToken, ConflictPolicy, ExtractionError, NameRule};
 
 /// The settings of one Record export.
 #[derive(Clone, Copy, Default)]
@@ -107,12 +107,64 @@ impl RecordFailure {
     }
 }
 
+/// Why the file of a Record does not follow its name or record path.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Error)]
+#[non_exhaustive]
+pub enum RenameCause {
+    /// The Record name is no valid file name, so the GUID names the file.
+    #[error("the Record name is no valid file name ({0}); the GUID names the file")]
+    Name(NameRule),
+    /// A part of the record path is no valid file name, so it was escaped or, when no escape
+    /// fits, the Record was put into the folder `%long`.
+    #[error("the record path is no valid file name ({0}); the file name is escaped")]
+    Path(NameRule),
+}
+
+/// One Record whose file does not follow its name or record path.
+#[derive(Debug, Clone)]
+pub struct RecordRenamed {
+    guid: Guid,
+    record_path: String,
+    cause: RenameCause,
+}
+
+impl RecordRenamed {
+    /// Creates the note for the Record with `guid` at `record_path`.
+    #[must_use]
+    pub const fn new(guid: Guid, record_path: String, cause: RenameCause) -> Self {
+        Self {
+            guid,
+            record_path,
+            cause,
+        }
+    }
+
+    /// Returns the GUID of the Record.
+    #[must_use]
+    pub const fn guid(&self) -> Guid {
+        self.guid
+    }
+
+    /// Returns the record path as the DataForge states it.
+    #[must_use]
+    pub fn record_path(&self) -> &str {
+        &self.record_path
+    }
+
+    /// Returns why the file differs.
+    #[must_use]
+    pub const fn cause(&self) -> RenameCause {
+        self.cause
+    }
+}
+
 /// The outcome of a Record export.
 #[derive(Debug, Default)]
 pub struct RecordExportReport {
     pub(crate) written: usize,
     pub(crate) skipped: Vec<String>,
     pub(crate) failures: Vec<RecordFailure>,
+    pub(crate) renamed: Vec<RecordRenamed>,
     pub(crate) cancelled: usize,
     pub(crate) error_values: usize,
     pub(crate) records_with_errors: usize,
@@ -135,6 +187,13 @@ impl RecordExportReport {
     #[must_use]
     pub fn failures(&self) -> &[RecordFailure] {
         &self.failures
+    }
+
+    /// Returns the selected Records whose file does not follow their name or record path because
+    /// it is no valid file name on both Linux and Windows.
+    #[must_use]
+    pub fn renamed(&self) -> &[RecordRenamed] {
+        &self.renamed
     }
 
     /// Returns the number of Records not written because the run was cancelled.

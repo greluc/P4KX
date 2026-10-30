@@ -8,8 +8,8 @@ use std::fs;
 use std::path::Path;
 
 use p4kx_extraction::{
-    CancelToken, DataForge, DataForgeError, ExtractionError, RecordExportError,
-    RecordExportOptions, RecordExportReport, export_records,
+    CancelToken, DataForge, DataForgeError, RecordExportError, RecordExportOptions,
+    RecordExportReport, export_records,
 };
 use p4kx_testkit::{DataForgeBuilder, TestRecord, TestStruct, TestType, TestValue};
 
@@ -118,7 +118,7 @@ fn a_shared_record_whose_file_another_record_takes_gets_its_guid() -> TestResult
     Ok(())
 }
 #[test]
-fn a_record_path_that_leaves_the_target_is_rejected() -> TestResult {
+fn a_record_path_that_leaves_the_target_is_escaped_inside_it() -> TestResult {
     let bytes = builder([
         item(1, "Item.Evil", "../evil.xml"),
         item(2, "Item.Drive", "C:/evil.xml"),
@@ -133,17 +133,11 @@ fn a_record_path_that_leaves_the_target_is_rejected() -> TestResult {
 
     assert_eq!(
         files(dir.path())?,
-        ["out/fine.xml"],
+        ["out/.%2E/evil.xml", "out/C%3A/evil.xml", "out/fine.xml"],
         "nothing leaves the target"
     );
-    assert_eq!(report.failures().len(), 2, "both are reported");
-    assert!(
-        report.failures().iter().all(|failure| matches!(
-            failure.error(),
-            RecordExportError::Write(ExtractionError::UnsafePath)
-        )),
-        "{report:?}"
-    );
+    assert!(report.is_complete(), "{report:?}");
+    assert_eq!(report.renamed().len(), 2, "both are reported");
     Ok(())
 }
 

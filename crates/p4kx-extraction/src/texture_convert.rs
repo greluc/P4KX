@@ -117,7 +117,7 @@ impl EntryWriter<'_> {
             Err(error) => Some(error),
         };
         let raw = self.textures.keep_raw || failure.is_some();
-        let failure = failure.filter(|error| !matches!(error, ExtractionError::UnsafePath));
+        let failure = failure.filter(|error| !error.is_path_error());
         let cancelled = done.cancelled();
         let (raw_entries, converted): (Vec<_>, Vec<_>) = job
             .entries()

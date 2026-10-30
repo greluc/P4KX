@@ -10,9 +10,7 @@ use egui::{Key, Modifiers};
 use egui_kittest::Harness;
 use egui_kittest::kittest::{NodeT, Queryable};
 use p4kx_gui::{Extraction, ExtractionStatus, Language, Model, ui};
-use p4kx_testkit::{
-    ArchiveBuilder, DataForgeBuilder, TestEntry, TestRecord, TestStruct, TestType, TestValue,
-};
+use p4kx_testkit::{ArchiveBuilder, DataForgeBuilder, TestEntry, TestRecord, TestStruct, TestType};
 use tempfile::TempDir;
 
 use crate::waiting::{RunQuiet, wait_for_model};
@@ -24,18 +22,18 @@ const COUNT: u128 = 30;
 fn database() -> Vec<u8> {
     (1..=COUNT)
         .fold(
-            DataForgeBuilder::new()
-                .structure(TestStruct::new("Item").field("label", TestType::String)),
+            DataForgeBuilder::new().structure(
+                TestStruct::new("Odd")
+                    .field("a", TestType::Int8)
+                    .declared_size(3),
+            ),
             |builder, n| {
-                builder.record(
-                    TestRecord::new(
-                        n,
-                        "Item",
-                        format!("item{n:02}"),
-                        format!("../evil{n:02}.xml"),
-                    )
-                    .value("label", TestValue::text("Evil")),
-                )
+                builder.record(TestRecord::new(
+                    n,
+                    "Odd",
+                    format!("odd{n:02}"),
+                    format!("odd{n:02}.xml"),
+                ))
             },
         )
         .build()

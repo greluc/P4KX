@@ -17,7 +17,8 @@ import bpy
 from .graph_groups import group_spec
 from .graph_spec import GraphSpec, Socket
 from .material_graph import BuildContext, build_graph
-from .material_model import BLACK, DIELECTRIC, WHITE, MaterialDesc, Palette, TextureSlot
+from .material_basic import basic_description
+from .material_model import Palette
 from .material_pairing import INDEX_PROPERTY, index_of, pair_by_index
 from .package import Mesh, Package, PackageError, Texture, resolve_file
 
@@ -28,7 +29,6 @@ _COLOUR_SPACE_NAMES = {"srgb": "sRGB", "linear": "Non-Color"}
 _ALPHA_MODES = {"opacity": "STRAIGHT", "smoothness": "CHANNEL_PACKED", "none": "NONE"}
 _COLUMN = 280.0
 _ROW = 260.0
-BASIC_USAGES = frozenset({"diffuse", "normal", "specular"})
 
 
 class ImageCache:
@@ -187,36 +187,6 @@ def apply_textures(
     """
     spec = build_graph(basic_description(described, package), _context(package))
     build_tree(material, spec, images)
-
-
-def basic_description(described: MeshMaterial, package: Package) -> MaterialDesc:
-    """Returns a neutral ``Illum`` description with the textures written for ``described``."""
-    slots = tuple(
-        TextureSlot(slot=role, file="", usage=role, texture=texture_id)
-        for role, texture_id in described.textures.items()
-        if role in BASIC_USAGES and texture_id in package.textures
-    )
-    diffuse = next((s for s in slots if s.usage == "diffuse"), None)
-    opacity = diffuse is not None and package.textures[diffuse.texture or ""].alpha == "opacity"
-    return MaterialDesc(
-        id=f"basic{described.index}",
-        name=described.name,
-        shader="Illum",
-        gen_mask=frozenset(),
-        surface_type="",
-        two_sided=False,
-        no_draw=False,
-        diffuse=WHITE,
-        specular=DIELECTRIC,
-        emissive=BLACK,
-        shininess=0.0,
-        opacity=1.0,
-        alpha_test=0.0,
-        glow=0.0,
-        alpha_mode="blend" if opacity else "opaque",
-        palette=None,
-        textures=slots,
-    )
 
 
 def _context(package: Package, palette: Palette | None = None) -> BuildContext:

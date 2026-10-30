@@ -58,7 +58,6 @@ fn an_entry_with_a_character_windows_forbids_is_reported_with_the_character() ->
         ("a\u{1}b.txt", NameRule::ForbiddenCharacter('\u{1}')),
         ("a\u{1F}b.txt", NameRule::ForbiddenCharacter('\u{1F}')),
         ("trailing.", NameRule::TrailingDotOrSpace),
-        ("con.txt", NameRule::DeviceName),
     ];
     let mut names: Vec<&str> = cases.iter().map(|(name, _)| *name).collect();
     names.push("fine.txt");

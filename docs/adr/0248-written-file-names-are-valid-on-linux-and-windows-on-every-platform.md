@@ -17,7 +17,7 @@ Decided for issue #861. Refines ADR-0008 (Record files by record path).
   on the other. It runs in time linear in the length of the part and allocates nothing.
 - Entry paths and Record names and paths use this function, so the two cannot drift apart.
 - An Entry whose path fails is not written. The report names the Entry and the rule
-  (`ExtractionError::InvalidName`, or `UnsafePath` for an empty or dot part); the run goes on.
+  (`ExtractionError::InvalidName`, or `UnsafePath` for an empty part, a dot part or a device name); the run goes on.
 - Two Entries of a run whose paths differ only in case are a collision on every platform: the
   first one in Archive order is written, a later one fails with `ExtractionError::CaseCollision`
   naming the first. Windows file systems compare names case-insensitively, so one would otherwise

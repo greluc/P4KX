@@ -7,14 +7,16 @@ use crate::ExtractionError;
 use crate::portable_name::{NameRule, check_part, hex_digit};
 
 /// Returns the path below the target an Entry is written to, or why it is not written: a part
-/// that is empty or a dot part could leave the target ([`ExtractionError::UnsafePath`]), any other
+/// that is empty, a dot part or a device name could leave the target ([`ExtractionError::UnsafePath`]), any other
 /// part must be a valid file name on Linux and Windows ([`ExtractionError::InvalidName`]).
 pub(crate) fn relative_path(entry_path: &str) -> Result<PathBuf, ExtractionError> {
     let mut relative = PathBuf::new();
     for part in entry_path.split(['\\', '/']) {
         match check_part(part) {
             Ok(()) => relative.push(part),
-            Err(NameRule::Empty | NameRule::DotPart) => return Err(ExtractionError::UnsafePath),
+            Err(NameRule::Empty | NameRule::DotPart | NameRule::DeviceName) => {
+                return Err(ExtractionError::UnsafePath);
+            }
             Err(rule) => {
                 return Err(ExtractionError::InvalidName {
                     part: part.to_owned(),
@@ -106,7 +108,18 @@ mod tests {
 
     #[test]
     fn paths_that_could_leave_the_target_are_unsafe() {
-        for path in ["..", "a\\..\\..\\b", ".\\a", "\\a", "a\\\\b", ""] {
+        for path in [
+            "..",
+            "a\\..\\..\\b",
+            ".\\a",
+            "\\a",
+            "a\\\\b",
+            "",
+            "a\\NUL",
+            "nul.txt",
+            "COM\u{B9}",
+            "CONOUT$",
+        ] {
             assert!(
                 matches!(relative_path(path), Err(ExtractionError::UnsafePath)),
                 "{path:?} is unsafe"
@@ -123,10 +136,6 @@ mod tests {
             ("a\\\0b", NameRule::ForbiddenCharacter('\0')),
             ("a\\b.", NameRule::TrailingDotOrSpace),
             ("a\\b ", NameRule::TrailingDotOrSpace),
-            ("a\\NUL", NameRule::DeviceName),
-            ("nul.txt", NameRule::DeviceName),
-            ("COM\u{B9}", NameRule::DeviceName),
-            ("CONOUT$", NameRule::DeviceName),
         ];
         for (path, expected) in cases {
             assert!(

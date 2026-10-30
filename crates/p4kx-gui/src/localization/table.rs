@@ -5,7 +5,7 @@ use std::cmp::Ordering;
 
 use p4kx_extraction::{
     Archive, Language, LocalizationError, LocalizationLoadError, LocalizationSet,
-    MAX_GLOBAL_INI_KEYS, OwnedTextSet, TextSet, decode_line_breaks,
+    MAX_GLOBAL_INI_KEYS, OwnedTextSet, TextSet, display_text,
 };
 
 /// The localisation keys of every language of an Archive with their texts, read once.
@@ -117,7 +117,7 @@ impl LocalizationTable {
     #[must_use]
     pub fn decoded_text(&self, row: u32, language: Language) -> Option<String> {
         self.text(row, language)
-            .map(|text| decode_line_breaks(text).into_owned())
+            .map(|text| display_text(text).into_owned())
     }
 
     /// Returns what was noticed reading the files: invalid bytes that were replaced and lines

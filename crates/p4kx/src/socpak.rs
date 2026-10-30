@@ -12,7 +12,7 @@ use serde::Serialize;
 use crate::cli::{SocpakAction, SocpakArgs, SocpakSource};
 use crate::extract::{self, Settings};
 use crate::json::{self, EntryJson};
-use crate::{exit, list, verify};
+use crate::{exit, filter_pair, list, verify};
 
 #[derive(Serialize)]
 struct ListJson<'a> {
@@ -53,7 +53,7 @@ pub(crate) fn run(args: &SocpakArgs, as_json: bool) -> Result<ExitCode> {
         } => {
             let (container, _) = open(source)?;
             let entries = match filter {
-                Some(text) => extract::filtered_entries(&container, text)?,
+                Some(text) => filter_pair::extraction(&container, text, &[])?.entries,
                 None => container.entries().iter().collect(),
             };
             let settings = Settings {

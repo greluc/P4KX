@@ -57,7 +57,7 @@ The rule is ADR-0054 (amending ADR-0002):
 Identifiers, short names and fact values may reach third parties; descriptions and lore may not.
 The game texts of the catalog are every `description` and every `displayType`, the `name` of a
 starmap object (a place name that comes from localisation, by the owner's decision for #321), and
-the `title`, `description`, `missionType`, `contractor`, the `displayName` of a contract's faction and the `place`
+the `title`, `missionType`, `contractor`, the `displayName` of a contract's faction and the `place`
 of a pickup place of a contract, the `processName` of a refining process and the `depositName`
 of a mineable composition, the `displayName` of a faction, a reputation scope and a reputation
 standing and the `typeName` of a mission type, each with
@@ -1116,11 +1116,6 @@ contract, handler), else the `description` of the broker entry; the template sta
 `displayString` slots carry no label. `~mission(…)` tokens, limits and trimming are those of the
 title. It is a game text (`x-gameText`) like the title, and like every game text it must not be
 passed on to third parties: the Basetool keeps it for its logged-in members.
-On LIVE 4.10 (2026-10-30) 5,130 of the 5,175 entries have a description (5,108 with an English
-text). 1,718 keep a token the catalog cannot state (e.g. `[SCRIPAMOUNT]` 628, `[CONTRACTOR]` 442,
-`[FUELRATE]` 212: run-time values), besides the placeholders `[LOCATION]`, `[TARGET]` and `[SHIP]`.
-The descriptions add about 4.1 MB; the plain catalog of LIVE is 166.9 MB, the upload stays
-`.json.zst`.
 
 **Broker entry.** A contract that names a `missionBrokerEntry` and has no template (on LIVE the 419
 `Covalex_HaulCargo_Career` contracts and their two sub contracts) takes what the layers and the

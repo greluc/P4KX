@@ -4,9 +4,9 @@
 use p4kx_testkit::{DataForgeBuilder, TestInstance, TestRecord, TestValue};
 
 use super::{
-    AFFINITY, BROKER, DELIVERY, FACTION, FACTION_SCOPE, LOC_A, LOC_B, LOSS, OBJ_PLANET, OBJ_STAR,
-    OBJ_STATION, OBJ_SYSTEM, RANK_FIFTY, RANK_TWO_HUNDRED, TYPE_PLANET, TYPE_STAR, TYPE_STATION,
-    TYPE_SYSTEM,
+    AFFINITY, BOUNTY, BROKER, DELIVERY, FACTION, FACTION_SCOPE, LOC_A, LOC_B, LOSS, OBJ_PLANET,
+    OBJ_STAR, OBJ_STATION, OBJ_SYSTEM, RANK_FIFTY, RANK_TWO_HUNDRED, TYPE_PLANET, TYPE_STAR,
+    TYPE_STATION, TYPE_SYSTEM,
 };
 
 fn flags(set: [bool; 5]) -> TestValue {
@@ -16,6 +16,29 @@ fn flags(set: [bool; 5]) -> TestValue {
                 TestValue::Struct(TestInstance::new("Bool").value("value", TestValue::Bool(value)))
             })
             .collect(),
+    )
+}
+
+/// The overrides of the bounty handler: a title, a description and the bounty mission type.
+pub(super) fn bounty_params() -> TestValue {
+    let string = |name: &str, key: &str| {
+        TestValue::Struct(
+            TestInstance::new("ContractStringParam")
+                .value("param", TestValue::text(name))
+                .value("value", TestValue::text(key)),
+        )
+    };
+    TestValue::Struct(
+        TestInstance::new("ContractParamOverrides")
+            .value("missionTypeOverride", TestValue::Reference(BOUNTY))
+            .value(
+                "stringParamOverrides",
+                TestValue::Array(vec![
+                    string("Title", "@title_handler"),
+                    string("Description", "@desc_handler"),
+                ]),
+            )
+            .value("propertyOverrides", TestValue::Array(Vec::new())),
     )
 }
 

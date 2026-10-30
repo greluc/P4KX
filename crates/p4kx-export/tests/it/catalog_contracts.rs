@@ -193,17 +193,17 @@ fn a_contract_without_a_template_takes_title_type_and_place_from_its_broker_entr
 fn the_description_is_resolved_like_the_title_and_falls_back_to_the_broker_entry() -> TestResult {
     let (_, catalog) = build(None)?;
     assert_eq!(
-        entry(&catalog, A, None)?["description"],
+        entry(&catalog, C, None)?["description"],
         json!({
-            "key": "@desc_a",
-            "en": "Bring Scrap to [LOCATION] [MISSING]",
+            "key": "@desc_handler",
+            "en": "Wanted [MISSING].\nReward on delivery.",
             "de": null
         }),
-        "tokens are replaced and the blanks removed"
+        "tokens are replaced, line breaks decoded and the blanks removed"
     );
     assert_eq!(entry(&catalog, E, None)?["description"]["en"], "Haul it");
     assert_eq!(
-        entry(&catalog, C, None)?["description"],
+        entry(&catalog, A, None)?["description"],
         json!({"key": null, "en": null, "de": null}),
         "a contract that states none"
     );

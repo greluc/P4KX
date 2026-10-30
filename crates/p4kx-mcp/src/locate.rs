@@ -14,7 +14,24 @@ use crate::error::{ToolError, capped};
 
 /// The longest `archive` argument accepted, in bytes.
 pub(crate) const MAX_ARCHIVE_LEN: usize = 4096;
-const ARCHIVE_EXTENSION: &str = "p4k";
+
+/// The kind of file an `archive` argument may name.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Accepts {
+    /// A `.p4k` Archive.
+    Archive,
+    /// A `.p4k` Archive or a `.dcb` DataForge file, for the DataForge tools.
+    Forge,
+}
+
+impl Accepts {
+    const fn extensions(self) -> &'static [&'static str] {
+        match self {
+            Self::Archive => &["p4k"],
+            Self::Forge => &["p4k", "dcb"],
+        }
+    }
+}
 
 /// Where Channels are looked for: the default Library folder, the launcher folder and the
 /// settings file with the manual entries.
@@ -88,8 +105,8 @@ impl Locations {
     }
 
     /// Returns the Archive path `text` names: a detected Channel by name, ignoring ASCII case,
-    /// or the absolute local path of an existing `.p4k` file.
-    pub(crate) fn resolve(&self, text: &str) -> Result<PathBuf, ToolError> {
+    /// or the absolute local path of an existing file of the kind `accepts`.
+    pub(crate) fn resolve(&self, text: &str, accepts: Accepts) -> Result<PathBuf, ToolError> {
         let text = capped("archive", text, MAX_ARCHIVE_LEN)?;
         if is_channel_name(text) {
             let channels = self.channels()?;
@@ -106,7 +123,7 @@ impl Locations {
                         .join(", "),
                 });
         }
-        archive_path(text)
+        archive_path(text, accepts)
     }
 }
 
@@ -114,7 +131,7 @@ fn is_channel_name(text: &str) -> bool {
     !text.is_empty() && !text.contains(['\\', '/', ':', '\0'])
 }
 
-fn archive_path(text: &str) -> Result<PathBuf, ToolError> {
+fn archive_path(text: &str, accepts: Accepts) -> Result<PathBuf, ToolError> {
     let path = Path::new(text);
     let local = path.is_absolute()
         && !text.contains('\0')
@@ -124,26 +141,31 @@ fn archive_path(text: &str) -> Result<PathBuf, ToolError> {
             Component::Normal(name) => !name.as_encoded_bytes().contains(&b':'),
             Component::CurDir | Component::ParentDir => false,
         })
-        && has_archive_extension(path);
+        && has_extension(path, accepts);
     if !local {
         return Err(ToolError::NotAnArchivePath(text.to_owned()));
     }
     if !path.is_file() {
         return Err(ToolError::Missing(path.to_path_buf()));
     }
-    if !resolves_locally(path) {
+    if !resolves_locally(path, accepts) {
         return Err(ToolError::NotLocal(path.to_path_buf()));
     }
     Ok(path.to_path_buf())
 }
 
-fn has_archive_extension(path: &Path) -> bool {
-    path.extension()
-        .is_some_and(|extension| extension.eq_ignore_ascii_case(ARCHIVE_EXTENSION))
+fn has_extension(path: &Path, accepts: Accepts) -> bool {
+    path.extension().is_some_and(|extension| {
+        accepts
+            .extensions()
+            .iter()
+            .any(|wanted| extension.eq_ignore_ascii_case(wanted))
+    })
 }
 
-/// Returns whether `path`, with every link followed, is a `.p4k` file on a local drive.
-fn resolves_locally(path: &Path) -> bool {
+/// Returns whether `path`, with every link followed, is a file of the kind `accepts` on a local
+/// drive.
+fn resolves_locally(path: &Path, accepts: Accepts) -> bool {
     let Ok(canonical) = std::fs::canonicalize(path) else {
         return false;
     };
@@ -152,12 +174,30 @@ fn resolves_locally(path: &Path) -> bool {
             canonical.components().next(),
             Some(Component::Prefix(prefix)) if matches!(prefix.kind(), Prefix::VerbatimDisk(_))
         );
-    on_local_drive && has_archive_extension(&canonical)
+    on_local_drive && has_extension(&canonical, accepts)
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{ToolError, archive_path, is_channel_name};
+    use super::{Accepts, ToolError, archive_path, is_channel_name};
+
+    #[test]
+    fn a_dcb_file_is_a_path_for_the_dataforge_tools_only() {
+        let text = if cfg!(windows) {
+            r"C:\p4kx-mcp-missing\Game2.dcb"
+        } else {
+            "/p4kx-mcp-missing/Game2.dcb"
+        };
+
+        assert!(matches!(
+            archive_path(text, Accepts::Archive),
+            Err(ToolError::NotAnArchivePath(_))
+        ));
+        assert!(matches!(
+            archive_path(text, Accepts::Forge),
+            Err(ToolError::Missing(_))
+        ));
+    }
 
     #[test]
     fn plain_names_are_channel_names() {
@@ -189,7 +229,10 @@ mod tests {
         ];
         for text in rejected {
             assert!(
-                matches!(archive_path(text), Err(ToolError::NotAnArchivePath(_))),
+                matches!(
+                    archive_path(text, Accepts::Forge),
+                    Err(ToolError::NotAnArchivePath(_))
+                ),
                 "{text} is rejected"
             );
         }
@@ -203,7 +246,10 @@ mod tests {
             "/p4kx-mcp-missing/Data.P4K"
         };
         assert!(
-            matches!(archive_path(text), Err(ToolError::Missing(_))),
+            matches!(
+                archive_path(text, Accepts::Archive),
+                Err(ToolError::Missing(_))
+            ),
             "{text} is missing"
         );
     }

@@ -87,6 +87,7 @@ mod exit;
 mod extract;
 mod extract_report;
 mod failure_report;
+mod forge_input;
 mod grep;
 mod grep_json;
 mod grep_table;

@@ -12,6 +12,7 @@ from pathlib import Path
 import bpy
 from mathutils import Quaternion, Vector
 
+from .glass_tint import drop_tint_without_colours
 from .lights import gltf_to_blender_light_quaternion, light_settings
 from .materials import ImageCache, apply_materials
 from .light_model import Light
@@ -135,6 +136,7 @@ def _import_glb(
         return False
     created = [material for material in bpy.data.materials if material not in before["materials"]]
     apply_materials(created, package, mesh, images)
+    drop_tint_without_colours(created, [o for o in bpy.data.objects if o not in before["objects"]])
     return True
 
 
@@ -221,7 +223,7 @@ def _gltf_context(context: bpy.types.Context) -> AbstractContextManager[object]:
 def _drop_vertex_colour_tint(material: bpy.types.Material) -> None:
     """Takes the vertex colours, which are the engine's masks, out of the base colour."""
     tree = material.node_tree
-    if tree is None:
+    if tree is None or "p4kx_family" in material:
         return
     for link in list(tree.links):
         mix = link.from_node

@@ -21,6 +21,12 @@ pub struct ArchiveChanged {
 }
 
 impl ArchiveChanged {
+    pub(crate) fn of(path: &Path) -> Self {
+        Self {
+            path: path.to_path_buf(),
+        }
+    }
+
     /// Returns the path of the Archive.
     #[must_use]
     pub fn path(&self) -> &Path {

@@ -135,6 +135,16 @@ fn generator_structs() -> Vec<TestStruct> {
             .parent("ContractResult")
             .array("missionResults", class("Bool"))
             .array("contractResultReputationAmounts", class("ReputationAmount")),
+        TestStruct::new("ContractResult_Reward")
+            .parent("ContractResult")
+            .array("missionResults", class("Bool"))
+            .field("contractReward", pointer("MissionReward")),
+        TestStruct::new("MissionReward").field("reward", TestType::Int32),
+        TestStruct::new("MissionRewardWithCurrency")
+            .parent("MissionReward")
+            .field("max", TestType::Int32)
+            .field("plusBonuses", TestType::Bool)
+            .field("currencyType", TestType::Enum("ECurrency".to_owned())),
         TestStruct::new("ContractResult_CompletionTags").parent("ContractResult"),
         TestStruct::new("Bool").field("value", TestType::Bool),
         TestStruct::new("ReputationAmount")

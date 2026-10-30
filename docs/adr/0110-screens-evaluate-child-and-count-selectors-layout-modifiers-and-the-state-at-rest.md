@@ -59,8 +59,9 @@ listed at the end.
   have a flex container. A behaviour keeps the amount of the size it replaces unless the entry
   sets one; `Auto` takes the size from the content. Numbers are finite and held to ±10^6.
 - **The state at rest** is what the `operations` of a canvas give its widgets when every game
-  variable has its zero value: false, 0, an empty text. Component parameters take the value the
-  holding canvas widget names (`paramInputValues`) or binds to a `ParamInput` field, else their
+  variable has its zero value (false, 0, an empty text), unless the caller sets it (ADR-0259).
+  Component parameters take the value the holding canvas widget names (`paramInputValues`) or
+  binds to a `ParamInput` field, else their
   `defaultValue`. The graph is evaluated per canvas and per set of parameters, once, with the
   nodes listed above; a node that is not evaluated, an input that is not connected, a cycle, a
   chain deeper than 128 and a number that is not finite make the value unknown, and the widget
@@ -108,7 +109,8 @@ animations and transitions, the bound number fields of layout and colour (`SizeX
 canvas), the colour palette of a `stylesheetOverride`, the modular kit as components of their own
 (its widgets are drawn as the Records say, with the styles above), `LayoutPolicy`
 and the `Min`/`Max` behaviours as modifiers, game variables that have a value at rest other than
-zero (the power state of a ship is 0 here, so its MFD is off), the nodes of the graph that are not
+zero (the power state of a ship is 0 here, so its MFD is off; a caller sets them, ADR-0259), the
+nodes of the graph that are not
 listed (localisation, timestamps, waveforms, colour and tag switches) and `IntegerFromNumber`.
 
 ## Guesses, unverified against the game
@@ -123,8 +125,9 @@ canvas.
 
 - Leaving variables unknown and evaluating three-valued: almost every graph reads a variable, so
   the screen would keep every state at once, which is what the issue wants to end.
-- Letting a caller set the variables of a screen: the right way to show an MFD that is on, and a
-  follow-up; the zero state is the one that needs no data.
+- Letting a caller set the variables of a screen: the right way to show an MFD that is on. The zero
+  state is the one that needs no data and stays the default; ADR-0259 lets a caller set variables
+  (`p4kx ui render --var powerstate=1`, and the state choice of the UI tab).
 - Running the graph at the cascade, per widget: the same graph would be read for every row and
   every nested instance; one evaluation per canvas and set of parameters is enough, since the
   results only depend on those.

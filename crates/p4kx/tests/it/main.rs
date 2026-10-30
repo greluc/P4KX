@@ -75,6 +75,7 @@ mod extract_audio;
 mod extract_conflicts;
 mod extract_convert;
 mod extract_convert_dataforge;
+mod extract_exclude;
 mod extract_textures;
 mod grep;
 mod info;

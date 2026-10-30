@@ -8,6 +8,7 @@ use p4kx_dataforge::Guid;
 use crate::bindings::ParamValues;
 use crate::canvas::Canvas;
 use crate::elements;
+use crate::report::VariableInForce;
 use crate::rest::{AtRest, RestParams};
 use crate::style::{Modifiers, Subject};
 use crate::walk::Walk;
@@ -59,12 +60,46 @@ impl Walk<'_, '_, '_, '_> {
         let state = if let Some(known) = self.at_rest.get(&key) {
             Rc::clone(known)
         } else {
-            let state = Rc::new(AtRest::of(&canvas.operations, &inputs));
+            let state = Rc::new(AtRest::of(&canvas.operations, &inputs, self.variables));
             self.note_rest(canvas, &state);
             self.at_rest.insert(key, Rc::clone(&state));
             state
         };
         self.rests.push(state);
+    }
+
+    /// Remembers the paths the game variables of `canvas` are bound to, so that a setting that no
+    /// canvas of the screen reads can be told.
+    pub(crate) fn note_variables(&mut self, canvas: &Canvas) {
+        if self.variables.is_empty() {
+            return;
+        }
+        self.known_variables
+            .extend(canvas.operations.variable_names().map(str::to_owned));
+    }
+
+    /// Returns the variables that were set, the last setting of each name, and whether a canvas
+    /// of the screen reads it.
+    pub(crate) fn variables_in_force(&self) -> Vec<VariableInForce> {
+        let mut forced: Vec<VariableInForce> = Vec::new();
+        for variable in self.variables {
+            let entry = VariableInForce {
+                name: variable.name().to_owned(),
+                value: variable.value().to_owned(),
+                used: self
+                    .known_variables
+                    .iter()
+                    .any(|path| variable.matches(path)),
+            };
+            match forced
+                .iter_mut()
+                .find(|other| other.name.eq_ignore_ascii_case(&entry.name))
+            {
+                Some(other) => *other = entry,
+                None => forced.push(entry),
+            }
+        }
+        forced
     }
 
     fn note_rest(&mut self, canvas: &Canvas, state: &AtRest) {
@@ -114,9 +149,13 @@ impl Walk<'_, '_, '_, '_> {
                 .last()
                 .is_some_and(|state| state.active(index) == Some(false));
         if bound_off && canvas.roots.contains(&index) {
-            let reason = format!(
-                "not drawn at rest: {field} is bound to game variables, which are zero at rest"
-            );
+            let reason = if self.variables.is_empty() {
+                format!(
+                    "not drawn at rest: {field} is bound to game variables, which are zero at rest"
+                )
+            } else {
+                format!("not drawn: {field} is bound to game variables, whose values leave it off")
+            };
             self.cx.report.note("Binding", &reason, &widget.name);
         }
     }

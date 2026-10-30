@@ -344,6 +344,21 @@ fn only_the_reputation_a_contract_grants_on_success_is_listed() -> TestResult {
 }
 
 #[test]
+fn a_payout_the_contract_states_is_listed_as_stored_and_only_for_success() -> TestResult {
+    let (_, catalog) = build(None)?;
+    assert_eq!(
+        entry(&catalog, A, None)?["fixedRewards"],
+        json!([
+            {"currency": "UEC", "amount": 40000, "max": 0, "plusBonuses": false},
+            {"currency": null, "amount": 7, "max": null, "plusBonuses": null}
+        ]),
+        "the failure payout of 1000 is not listed; fields the reward lacks are null"
+    );
+    assert_eq!(entry(&catalog, B, None)?["fixedRewards"], json!([]));
+    Ok(())
+}
+
+#[test]
 fn an_entry_carries_its_record_template_handler_and_flags() -> TestResult {
     let (_, catalog) = build(None)?;
     let first = entry(&catalog, A, None)?;

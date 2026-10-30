@@ -13,7 +13,7 @@ use p4kx_extraction::{
 };
 use p4kx_screens::{
     ImageSources, MAX_SVG_BYTES, Report, ScreenComposer, Still, StillFormat, StillRequest,
-    TextSources,
+    TextSources, Variable, check_variable_count,
 };
 use serde::Serialize;
 
@@ -22,6 +22,7 @@ use crate::{exit, json};
 pub(crate) struct Options<'a> {
     pub(crate) screen: &'a str,
     pub(crate) brand: Option<&'a str>,
+    pub(crate) variables: &'a [Variable],
     pub(crate) lang: Option<Language>,
     pub(crate) out: &'a Path,
     pub(crate) size: Option<CanvasSize>,
@@ -89,6 +90,7 @@ fn draw(archive: &Archive, options: &Options<'_>) -> Result<Still> {
     let request = StillRequest {
         screen: options.screen,
         brand: options.brand,
+        variables: options.variables,
         raster: RasterOptions {
             size: options.size.unwrap_or(CanvasSize::Stage),
             background: options.background,
@@ -117,6 +119,7 @@ fn draw(archive: &Archive, options: &Options<'_>) -> Result<Still> {
 
 /// Runs `p4kx ui render --screen`.
 pub(crate) fn run(archive: &Path, options: &Options<'_>, as_json: bool) -> Result<ExitCode> {
+    check_variable_count(options.variables.len())?;
     let archive = crate::key::open(archive)?;
     let still = draw(&archive, options)?;
     write_bytes_replacing(options.out, &still.encode()?)?;
@@ -176,6 +179,12 @@ fn print_report(options: &Options<'_>, still: &Still, skipped: &[SkippedJson]) -
             entry.examples.join(", ")
         )?;
     }
+    for name in report.unknown_variables() {
+        writeln!(
+            stderr,
+            "unknown game variable: {name} (no operation of the screen reads it)"
+        )?;
+    }
     for canvas in &report.missing_canvases {
         writeln!(stderr, "canvas not drawn: {canvas}")?;
     }
@@ -186,8 +195,17 @@ fn print_report(options: &Options<'_>, still: &Still, skipped: &[SkippedJson]) -
         )?;
     }
     drop(stderr);
+    let mut stdout = io::stdout().lock();
+    if !report.variables.is_empty() {
+        let forced: Vec<String> = report
+            .variables
+            .iter()
+            .map(|variable| format!("{}={}", variable.name, variable.value))
+            .collect();
+        writeln!(stdout, "game variables in force: {}", forced.join(", "))?;
+    }
     writeln!(
-        io::stdout().lock(),
+        stdout,
         "rendered {} into {}, {width} x {height} px; {} widgets in {} canvases, {} shapes, {} texts drawn and {} left out, {} images drawn and {} left out, {} kinds of element left out",
         options.screen,
         options.out.display(),

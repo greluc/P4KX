@@ -380,6 +380,44 @@ def test_a_specular_map_drives_metallic_colour_and_level_per_texel() -> None:
     assert graph.linked(colour.key, "Factor") == metallic
 
 
+def _specular_map_material(**values: object) -> GraphSpec:
+    return single(
+        [
+            description(
+                "x0001",
+                "Illum",
+                textures=[slot("TexSlot1", "diffuse", "t0001"), slot("TexSlot4", "specular", "t0002")],
+                **values,
+            )
+        ]
+    )
+
+
+def test_a_specular_map_is_multiplied_by_the_specular_colour() -> None:
+    graph = _specular_map_material(specular=[0.061] * 3)
+    reflected = next(
+        n
+        for n in graph.nodes
+        if n.kind == "ShaderNodeMix" and n.props["blend_type"] == "MULTIPLY" and n.inputs.get("B") == (0.061,) * 3
+    )
+    texture = graph.linked(reflected.key, "A")
+    assert texture is not None and graph.node(texture.key).kind == "ShaderNodeTexImage"
+    metallic = graph.linked("bsdf", "Metallic")
+    assert metallic is not None
+    ramp = graph.node(metallic.key)
+    grey = graph.linked(ramp.key, "Value")
+    assert grey is not None and graph.linked(grey.key, "Color") == Ref(reflected.key, "Result")
+    colour = graph.linked("bsdf", "Base Color")
+    assert colour is not None and graph.linked(colour.key, "B") == Ref(reflected.key, "Result")
+
+
+def test_a_bright_specular_colour_keeps_the_map_a_metal() -> None:
+    graph = _specular_map_material(specular=[1.0] * 3)
+    assert graph.linked("bsdf", "Metallic") is not None
+    reflected = next(n for n in graph.nodes if n.kind == "ShaderNodeMix" and n.props["blend_type"] == "MULTIPLY")
+    assert reflected.inputs["B"] == (1.0, 1.0, 1.0)
+
+
 def test_a_long_parameter_name_is_not_kept_as_a_property() -> None:
     long_name = "P" * 80
     raw = description(

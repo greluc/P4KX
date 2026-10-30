@@ -70,10 +70,9 @@ const MINIMUM: [(Kind, usize); 41] = [
     (Kind::ContractLocationQueries, 1_500),
 ];
 
-fn built(path: &Path) -> Result<(CatalogSummary, Value), Box<dyn Error>> {
-    let archive = Archive::open_with_key(path, Some(p4kx_testkit::real_archive_key()?))?;
+fn built(archive: &Archive) -> Result<(CatalogSummary, Value), Box<dyn Error>> {
     let (summary, frame) = write_catalog(
-        &archive,
+        archive,
         &CatalogOptions::new(SystemTime::now()),
         Compression::ZSTD,
         || Ok(Vec::new()),
@@ -113,8 +112,9 @@ fn has_excluded_token(text: &str) -> Option<&'static str> {
     clippy::too_many_lines,
     reason = "the checks of one Archive follow each other"
 )]
-fn verify_catalog(path: &Path) -> Result<Value, Box<dyn Error>> {
-    let (summary, catalog) = built(path)?;
+fn verify_catalog(path: &Path, baselined: bool) -> Result<Value, Box<dyn Error>> {
+    let archive = Archive::open_with_key(path, Some(p4kx_testkit::real_archive_key()?))?;
+    let (summary, catalog) = built(&archive)?;
     let summary = &summary;
     let validator = jsonschema::draft202012::new(&catalog_schema())?;
     assert!(
@@ -174,7 +174,7 @@ fn verify_catalog(path: &Path) -> Result<Value, Box<dyn Error>> {
         "within the decompressed limit"
     );
     check_leftovers(&catalog)?;
-    check_texts(path, &catalog)?;
+    check_texts(&archive, &catalog, baselined)?;
     Ok(catalog)
 }
 
@@ -312,7 +312,7 @@ fn report(path: &Path, summary: &CatalogSummary) {
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn the_catalog_of_a_real_archive_is_complete_plausible_and_within_the_limit() -> TestResult {
     let path = real_archive_path()?;
-    check_links(&verify_catalog(&path)?)
+    check_links(&verify_catalog(&path, true)?)
 }
 
 #[test]
@@ -321,5 +321,5 @@ fn the_catalog_of_a_second_real_archive_is_complete_plausible_and_within_the_lim
     let Some(path) = real_archive_b_path() else {
         return Ok(());
     };
-    check_links(&verify_catalog(&path)?)
+    check_links(&verify_catalog(&path, false)?)
 }

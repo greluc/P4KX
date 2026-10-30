@@ -9,6 +9,7 @@ mod real_action_map;
 mod real_audio_loop;
 mod real_blender_packages;
 mod real_bnk_objects;
+mod real_dcb_file;
 mod real_query_prefixes;
 mod real_relief_decals;
 mod real_render_to_texture;

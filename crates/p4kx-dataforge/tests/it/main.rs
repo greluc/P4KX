@@ -50,6 +50,7 @@ mod reference_index_queries;
 mod references;
 mod references_derived;
 mod ships;
+mod sniff;
 mod survey;
 mod tag_limits;
 mod tag_lookup;

@@ -5,10 +5,10 @@ use std::io::{self, Write};
 use std::process::ExitCode;
 
 use anyhow::Result;
-use p4kx_extraction::DataForgeEntry;
 use serde::Serialize;
 
 use crate::cli::{DcbArgs, DcbCommand, DcbInfoArgs};
+use crate::forge_input::ForgeInput;
 use crate::{dcb_export, dcb_fields, dcb_query, dcb_refs, dcb_tags, exit, json};
 
 #[derive(Serialize)]
@@ -35,12 +35,11 @@ pub(crate) fn run(args: &DcbArgs, as_json: bool) -> Result<ExitCode> {
 
 /// Prints the DataForge version and its number of Records, structs and enums.
 fn info(args: &DcbInfoArgs, as_json: bool) -> Result<()> {
-    let archive = crate::key::open(&args.archive)?;
-    let entry = DataForgeEntry::read(&archive)?;
-    let forge = entry.open()?;
+    let input = ForgeInput::open(&args.archive)?;
+    let forge = input.entry().open()?;
     let summary = Summary {
-        archive: json::path(archive.path()),
-        entry: entry.path(),
+        archive: json::path(input.path()),
+        entry: input.entry().path(),
         version: forge.version(),
         record_count: forge.record_count(),
         struct_count: forge.struct_count(),
@@ -49,14 +48,15 @@ fn info(args: &DcbInfoArgs, as_json: bool) -> Result<()> {
     if as_json {
         json::print(&summary)?;
     } else {
-        print_lines(&summary)?;
+        print_lines(&summary, input.archive().is_some())?;
     }
     Ok(())
 }
 
-fn print_lines(summary: &Summary<'_>) -> io::Result<()> {
+fn print_lines(summary: &Summary<'_>, from_archive: bool) -> io::Result<()> {
+    let source = if from_archive { "Archive" } else { "File" };
     let lines = [
-        ("Archive", summary.archive.clone()),
+        (source, summary.archive.clone()),
         ("Entry", summary.entry.to_owned()),
         ("Version", summary.version.to_string()),
         ("Records", summary.record_count.to_string()),

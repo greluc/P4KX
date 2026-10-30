@@ -46,7 +46,7 @@ impl Server {
                 capped("path", path, MAX_PATH_LEN)?;
             }
             let selector = Selector::new(params.guid, params.path)?;
-            let opened = state.archive(params.archive.as_deref())?;
+            let opened = state.forge(params.archive.as_deref())?;
             let listing = ("get_record", opened.version(), &selector);
             let page = Page::new(&listing, params.cursor.as_deref(), None)?;
             opened
@@ -81,7 +81,7 @@ impl Server {
             if let Some(type_name) = &params.type_name {
                 capped("type", type_name, MAX_NAME_LEN)?;
             }
-            let opened = state.archive(params.archive.as_deref())?;
+            let opened = state.forge(params.archive.as_deref())?;
             let listing = (
                 "search_records",
                 opened.version(),
@@ -120,7 +120,7 @@ impl Server {
             if let Some(name) = &params.name {
                 capped("name", name, MAX_NAME_LEN)?;
             }
-            let opened = state.archive(params.archive.as_deref())?;
+            let opened = state.forge(params.archive.as_deref())?;
             let listing = ("list_structs", opened.version(), &params.name);
             let page = Page::new(&listing, params.cursor.as_deref(), params.limit)?;
             opened.with_dataforge(move |forge, archive| {
@@ -152,7 +152,7 @@ impl Server {
             if let Some(name) = &params.name {
                 capped("name", name, MAX_NAME_LEN)?;
             }
-            let opened = state.archive(params.archive.as_deref())?;
+            let opened = state.forge(params.archive.as_deref())?;
             let listing = ("list_enums", opened.version(), &params.name);
             let page = Page::new(&listing, params.cursor.as_deref(), params.limit)?;
             opened.with_dataforge(move |forge, archive| {

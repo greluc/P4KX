@@ -13,6 +13,7 @@ mod audio_wem;
 mod channel_notice;
 mod containers;
 mod dataforge_cache;
+mod dataforge_file;
 mod definitions;
 mod entity_loadout;
 mod entries;

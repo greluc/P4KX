@@ -22,10 +22,12 @@ pub(crate) struct CatalogState {
 
 impl Model {
     /// Returns whether a Basetool catalog can be created: the open Archive has a DataForge that
-    /// did not fail to load, and no catalog is being created.
+    /// did not fail to load, no catalog is being created, and the DataForge is not a file on
+    /// its own, since the catalog reads Entries too.
     #[must_use]
     pub fn catalog_available(&self) -> bool {
         self.has_dataforge()
+            && !self.is_dataforge_file()
             && !self
                 .catalog
                 .run

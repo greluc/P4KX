@@ -3533,6 +3533,7 @@ version = "0.4.1"
 dependencies = [
  "crc32fast",
  "p4kx-archive",
+ "p4kx-assembly",
  "p4kx-audio",
  "p4kx-character",
  "p4kx-chunks",

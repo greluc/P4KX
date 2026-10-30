@@ -132,9 +132,10 @@ pub use p4kx_archive::{
 };
 pub use p4kx_audio::{
     ActionTarget, BankError, BankHeader, BankWarning, Container, ContainerKind, EmbeddedWem,
-    HircKind, HircObject, HircValue, MediaStorage, MusicClip, MusicMarker, MusicMeter, MusicNode,
-    MusicPlaylist, MusicPlaylistItem, MusicSegment, MusicStinger, MusicSwitch, MusicTrack,
-    MusicTrackKind, MusicTrackSwitch, PlayBank, Section, SectionId, SoundSource, Soundbank,
+    HircKind, HircLayout, HircObject, HircValue, MediaStorage, MusicClip, MusicGroupKind,
+    MusicMarker, MusicMeter, MusicNode, MusicPlayMode, MusicPlaylist, MusicPlaylistItem,
+    MusicSegment, MusicStinger, MusicSwitch, MusicTrack, MusicTrackKind, MusicTrackSwitch,
+    PlayBank, Section, SectionId, SoundSource, Soundbank,
 };
 pub use p4kx_audio::{
     AudioError, ByteOrder, Codebooks, Codec, MediaClass, OggReport, OpusError, VorbisError,

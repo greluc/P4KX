@@ -10,6 +10,7 @@ mod bnk;
 mod bnk_containers;
 mod bnk_corrupt;
 mod bnk_hirc;
+mod bnk_layout;
 mod bnk_music;
 mod bnk_quirks;
 mod bnk_sound_layout;

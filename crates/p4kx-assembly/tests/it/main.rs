@@ -66,6 +66,7 @@ mod model_cache;
 mod npc_body_followups;
 mod npc_body_zones;
 mod npc_clothing;
+mod npc_face_tags;
 mod npc_head;
 mod port_flag_fallback;
 mod port_flag_geometry;

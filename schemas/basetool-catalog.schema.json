@@ -878,7 +878,7 @@
               "type": "null"
             }
           ],
-          "description": "The `AvailableInPrison` parameter of the first of sub contract, contract and handler that\noverrides it, else `availableInPrison` of the handler's `defaultAvailability`; `null` when\nnone states it."
+          "description": "Parameter `AvailableInPrison`; base: `availableInPrison` of the handler's\n`defaultAvailability`."
         },
         "buyInAmount": {
           "description": "The `contractBuyInAmount` of the contract's `contractResults`, as stored; `null` when\nabsent. A sub contract shares the contract's value.",
@@ -897,7 +897,7 @@
               "type": "null"
             }
           ],
-          "description": "The `CanBeShared` parameter of the first of sub contract, contract and handler that\noverrides it, else the `canBeShared` of the template's contract class; `null` when none\nstates it."
+          "description": "Parameter `CanBeShared`; base: `canBeShared` of the template's contract class."
         },
         "canReacceptAfterAbandoning": {
           "anyOf": [
@@ -908,7 +908,7 @@
               "type": "null"
             }
           ],
-          "description": "The `CanReacceptAfterAbandoning` parameter of the first of sub contract, contract and\nhandler that overrides it, else `canReacceptAfterAbandoning` of the handler's\n`defaultAvailability`; `null` when none states it."
+          "description": "Parameter `CanReacceptAfterAbandoning`; base: `canReacceptAfterAbandoning` of the handler's\n`defaultAvailability`."
         },
         "canReacceptAfterFailing": {
           "anyOf": [
@@ -919,7 +919,7 @@
               "type": "null"
             }
           ],
-          "description": "The `CanReacceptAfterFailing` parameter of the first of sub contract, contract and handler\nthat overrides it, else `canReacceptAfterFailing` of the handler's `defaultAvailability`;\n`null` when none states it."
+          "description": "Parameter `CanReacceptAfterFailing`; base: `canReacceptAfterFailing` of the handler's\n`defaultAvailability`."
         },
         "contractor": {
           "$ref": "#/$defs/LocalisedText",
@@ -982,7 +982,7 @@
               "type": "null"
             }
           ],
-          "description": "The `HideInMobiGlas` parameter of the first of sub contract, contract and handler that\noverrides it, else `hideInMobiGlas` of the handler's `defaultAvailability`; `null` when\nnone states it."
+          "description": "Parameter `HideInMobiGlas`; base: `hideInMobiGlas` of the handler's `defaultAvailability`."
         },
         "illegal": {
           "anyOf": [
@@ -993,7 +993,7 @@
               "type": "null"
             }
           ],
-          "description": "The `Illegal` parameter of the first of sub contract, contract and handler that overrides\nit, else the `illegal` flag of the template's display info; `null` when none states it."
+          "description": "Parameter `Illegal`; base: `illegal` of the template's display info."
         },
         "maxPlayersPerInstance": {
           "anyOf": [
@@ -1004,7 +1004,7 @@
               "type": "null"
             }
           ],
-          "description": "The `MaxPlayersPerInstance` parameter of the first of sub contract, contract and handler\nthat overrides it, else `maxPlayersPerInstance` of the handler's `defaultAvailability`;\n`null` when none states it. A negative value is as stored."
+          "description": "Parameter `MaxPlayersPerInstance`; base: `maxPlayersPerInstance` of the handler's\n`defaultAvailability`. A negative value is as stored."
         },
         "maxStandingGuid": {
           "anyOf": [
@@ -1060,7 +1060,7 @@
               "type": "null"
             }
           ],
-          "description": "The `OnceOnly` parameter of the first of sub contract, contract and handler that overrides\nit, else `onceOnly` of the handler's `defaultAvailability`; `null` when none states it."
+          "description": "Parameter `OnceOnly`; base: `onceOnly` of the handler's `defaultAvailability`."
         },
         "personalCooldownTime": {
           "description": "The `personalCooldownTime`, as stored; `null` when absent. The Archive does not state the\nunit; the value range (up to 2880) fits minutes.",
@@ -1137,7 +1137,7 @@
           "description": "The GUID of the `ContractTemplate` Record the contract names, `null` when it names none."
         },
         "timeToComplete": {
-          "description": "The `timeToComplete` of the contract's `contractResults`, as stored, in floating point;\n`null` when absent. A sub contract shares the contract's value. The Archive states no\nunit; the values (10 to 30 for most contracts) fit minutes.",
+          "description": "The `timeToComplete` of the contract's `contractResults`, as stored, in floating point;\n`null` when absent. A sub contract shares the contract's value. The Archive states no unit.",
           "format": "float",
           "type": [
             "number",

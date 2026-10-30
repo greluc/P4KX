@@ -30,6 +30,11 @@ pub(crate) struct Levels<'a, 'f> {
 }
 
 impl<'f> Levels<'_, 'f> {
+    /// Returns the layers, nearest first.
+    pub(crate) fn iter(&self) -> impl Iterator<Item = &Layer<'f>> {
+        self.labelled().map(|(_, layer)| layer)
+    }
+
     fn labelled(&self) -> impl Iterator<Item = (FactLayer, &Layer<'f>)> {
         self.sub
             .map(|layer| (FactLayer::SubContract, layer))

@@ -47,8 +47,10 @@ The rule is ADR-0054 (amending ADR-0002):
   (#830, ADR-0242), the kinds `legacyLootTables` and `legacyLootArchetypes` (#818, ADR-0238), the
   contract fields `cooldownLayer`, `hasPersonalCooldown`, `personalCooldownTime`,
   `personalCooldownTimeVariation`, `abandonedCooldownTime` and `abandonedCooldownTimeVariation`
-  (#832, ADR-0244) and the kind `crafters` (#831, ADR-0243). Later additions keep version 2 as
-  long as they are additive.
+  (#832, ADR-0244), the kind `crafters` (#831, ADR-0243) and the contract fields `timeToComplete`,
+  `buyInAmount`, `canBeShared`, `illegal`, `onceOnly`, `maxPlayersPerInstance`, `availableInPrison`,
+  `canReacceptAfterAbandoning`, `canReacceptAfterFailing`, `hideInMobiGlas` and `requiredIntros`
+  (#898, ADR-0263). Later additions keep version 2 as long as they are additive.
 - **A production import takes catalogs of the Channel `LIVE` only.** `PTU`, `EPTU`, `TECH-PREVIEW`
   and `HOTFIX` are confidential test Channels (ADR-0038).
 
@@ -1074,7 +1076,7 @@ that the rule on equal `guid` and `subContractGuid` above drops.
 | `hasPersonalCooldown` | The `hasPersonalCooldown` flag, `null` when absent |
 | `personalCooldownTime`, `personalCooldownTimeVariation` | The personal cooldown and its variation, as stored (unit: see "Cooldowns"); `null` when absent |
 | `abandonedCooldownTime`, `abandonedCooldownTimeVariation` | The cooldown after the contract was abandoned and its variation, as stored; `null` when absent |
-| `timeToComplete`, `buyInAmount` | The `timeToComplete` (floating point) and the `contractBuyInAmount` of the contract's `contractResults`, as stored; a sub contract shares the contract's. The Archive states no unit; `timeToComplete` fits minutes |
+| `timeToComplete`, `buyInAmount` | The `timeToComplete` (floating point) and the `contractBuyInAmount` of the contract's `contractResults`, as stored; a sub contract shares the contract's. The Archive states no unit |
 | `canBeShared`, `illegal`, `onceOnly`, `maxPlayersPerInstance`, `availableInPrison`, `canReacceptAfterAbandoning`, `canReacceptAfterFailing`, `hideInMobiGlas` | Each `{value, layer}` with `layer` `subContract`, `contract`, `handler` or `template` (see "Contract facts"), `null` when no level states it |
 | `requiredIntros` | The completion tags the contract requires with the intro contracts that grant each (see "Contract facts") |
 

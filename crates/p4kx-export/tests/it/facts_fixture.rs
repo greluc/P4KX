@@ -18,6 +18,7 @@ pub(crate) const OVERRIDDEN: u128 = 0x2100_0000_0000_4000_8000_0000_0000_0002;
 pub(crate) const INTRO: u128 = 0x2100_0000_0000_4000_8000_0000_0000_0003;
 pub(crate) const GATED: u128 = 0x2100_0000_0000_4000_8000_0000_0000_0004;
 pub(crate) const FAILS_ONLY: u128 = 0x2100_0000_0000_4000_8000_0000_0000_0005;
+pub(crate) const STRIPPED: u128 = 0x2100_0000_0000_4000_8000_0000_0000_0006;
 pub(crate) const SUB: u128 = 0x2200_0000_0000_4000_8000_0000_0000_0001;
 pub(crate) const SUB_DIRECT: u128 = 0x2200_0000_0000_4000_8000_0000_0000_0002;
 pub(crate) const TAG: u128 = 0x2300_0000_0000_4000_8000_0000_0000_0001;
@@ -31,6 +32,45 @@ fn pointer(name: &str) -> TestType {
 
 fn class(name: &str) -> TestType {
     TestType::Class(name.to_owned())
+}
+
+fn handler_structs() -> Vec<TestStruct> {
+    vec![
+        TestStruct::new("ContractGenerator").array("generators", pointer("ContractHandler")),
+        TestStruct::new("ContractHandler"),
+        TestStruct::new("ContractHandler_Bare")
+            .parent("ContractHandler")
+            .field("debugName", TestType::String)
+            .array("contracts", class("BareContract")),
+        TestStruct::new("BareContract")
+            .field("id", TestType::Guid)
+            .field("debugName", TestType::String),
+        TestStruct::new("ContractHandler_Career")
+            .parent("ContractHandler")
+            .field("debugName", TestType::String)
+            .field("defaultAvailability", class("ContractAvailability"))
+            .field("contractParams", class("ContractParamOverrides"))
+            .array("contracts", class("CareerContract"))
+            .array("introContracts", class("CareerContract")),
+        TestStruct::new("ContractAvailability")
+            .field("onceOnly", TestType::Bool)
+            .field("maxPlayersPerInstance", TestType::Int32)
+            .field("availableInPrison", TestType::Bool)
+            .field("canReacceptAfterAbandoning", TestType::Bool)
+            .field("canReacceptAfterFailing", TestType::Bool)
+            .field("hideInMobiGlas", TestType::Bool)
+            .array("prerequisites", pointer("ContractPrerequisite")),
+    ]
+}
+
+fn prerequisite_structs() -> Vec<TestStruct> {
+    vec![
+        TestStruct::new("ContractPrerequisite"),
+        TestStruct::new("ContractPrerequisite_CompletedContractTags")
+            .parent("ContractPrerequisite")
+            .field("requiredCompletedContractTags", class("TagList")),
+        TestStruct::new("TagList").array("tags", TestType::Reference),
+    ]
 }
 
 fn contract_structs() -> Vec<TestStruct> {
@@ -50,28 +90,6 @@ fn contract_structs() -> Vec<TestStruct> {
         sub = sub.array(field, class(kind));
     }
     vec![
-        TestStruct::new("ContractGenerator").array("generators", pointer("ContractHandler")),
-        TestStruct::new("ContractHandler"),
-        TestStruct::new("ContractHandler_Career")
-            .parent("ContractHandler")
-            .field("debugName", TestType::String)
-            .field("defaultAvailability", class("ContractAvailability"))
-            .field("contractParams", class("ContractParamOverrides"))
-            .array("contracts", class("CareerContract"))
-            .array("introContracts", class("CareerContract")),
-        TestStruct::new("ContractAvailability")
-            .field("onceOnly", TestType::Bool)
-            .field("maxPlayersPerInstance", TestType::Int32)
-            .field("availableInPrison", TestType::Bool)
-            .field("canReacceptAfterAbandoning", TestType::Bool)
-            .field("canReacceptAfterFailing", TestType::Bool)
-            .field("hideInMobiGlas", TestType::Bool)
-            .array("prerequisites", pointer("ContractPrerequisite")),
-        TestStruct::new("ContractPrerequisite"),
-        TestStruct::new("ContractPrerequisite_CompletedContractTags")
-            .parent("ContractPrerequisite")
-            .field("requiredCompletedContractTags", class("TagList")),
-        TestStruct::new("TagList").array("tags", TestType::Reference),
         overrides,
         TestStruct::new("ContractBoolParam")
             .field("param", TestType::String)
@@ -219,10 +237,17 @@ fn contracts() -> Vec<TestValue> {
         .value(
             "subContracts",
             TestValue::Array(vec![
-                TestValue::Struct(sub_contract(SUB, "Sub").value(
-                    "boolParamOverrides",
-                    TestValue::Array(vec![flag("canbeshared", false)]),
-                )),
+                TestValue::Struct(
+                    sub_contract(SUB, "Sub")
+                        .value(
+                            "boolParamOverrides",
+                            TestValue::Array(vec![flag("canbeshared", false)]),
+                        )
+                        .value(
+                            "additionalPrerequisites",
+                            TestValue::Array(vec![requires(&[TAG])]),
+                        ),
+                ),
                 TestValue::Struct(sub_contract(SUB_DIRECT, "SubDirect").value(
                     "boolParamOverrides",
                     TestValue::Array(vec![flag("OnceOnly", true)]),
@@ -243,6 +268,21 @@ fn contracts() -> Vec<TestValue> {
         .collect()
 }
 
+fn stripped_handler() -> TestValue {
+    TestValue::Struct(
+        TestInstance::new("ContractHandler_Bare")
+            .value("debugName", TestValue::text("Stripped"))
+            .value(
+                "contracts",
+                TestValue::Array(vec![TestValue::Struct(
+                    TestInstance::new("BareContract")
+                        .value("id", TestValue::Guid(STRIPPED))
+                        .value("debugName", TestValue::text("Stripped")),
+                )]),
+            ),
+    )
+}
+
 fn intro_contract() -> TestValue {
     TestValue::Struct(
         contract(INTRO, "Intro").value("contractResults", terms(0.0, 0, vec![grants(true, TAG)])),
@@ -261,6 +301,7 @@ fn handler() -> TestValue {
                         .value("maxPlayersPerInstance", TestValue::Int32(1))
                         .value("canReacceptAfterAbandoning", TestValue::Bool(true))
                         .value("canReacceptAfterFailing", TestValue::Bool(false))
+                        .value("hideInMobiGlas", TestValue::Bool(false))
                         .value(
                             "prerequisites",
                             TestValue::Array(vec![requires(&[FAIL_TAG])]),
@@ -312,13 +353,19 @@ fn tag(guid: u128, name: &str) -> TestRecord {
 }
 
 fn database() -> DataForgeBuilder {
-    let builder = [contract_structs(), result_structs(), template_structs()]
-        .into_iter()
-        .flatten()
-        .fold(
-            DataForgeBuilder::new().version(8),
-            DataForgeBuilder::structure,
-        );
+    let builder = [
+        handler_structs(),
+        contract_structs(),
+        prerequisite_structs(),
+        result_structs(),
+        template_structs(),
+    ]
+    .into_iter()
+    .flatten()
+    .fold(
+        DataForgeBuilder::new().version(8),
+        DataForgeBuilder::structure,
+    );
     builder
         .record(template())
         .record(tag(TAG, "intro_done"))
@@ -330,7 +377,10 @@ fn database() -> DataForgeBuilder {
                 "ContractGenerator.facts",
                 "libs/foundry/records/contracts/contractgenerator/facts.xml",
             )
-            .value("generators", TestValue::Array(vec![handler()])),
+            .value(
+                "generators",
+                TestValue::Array(vec![handler(), stripped_handler()]),
+            ),
         )
 }
 

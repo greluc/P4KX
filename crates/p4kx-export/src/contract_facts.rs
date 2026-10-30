@@ -47,47 +47,38 @@ pub(crate) struct RequiredIntro {
     pub(crate) intro_contracts: Vec<CatalogGuid>,
 }
 
-/// The contract facts of an entry: the values the Archive states per contract and, where more than
-/// one level can state one, the level that does.
+/// The contract facts of an entry. The `Stated` values are read from the nearest of the
+/// sub contract, the contract and the handler that overrides the parameter of the same name (case
+/// is ignored), else from the base value named on the field; a sub contract states its
+/// parameters directly. `null` means no level states the value.
 #[derive(Debug, Clone, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct ContractFacts {
     /// The `timeToComplete` of the contract's `contractResults`, as stored, in floating point;
-    /// `null` when absent. A sub contract shares the contract's value. The Archive states no
-    /// unit; the values (10 to 30 for most contracts) fit minutes.
+    /// `null` when absent. A sub contract shares the contract's value. The Archive states no unit.
     pub(crate) time_to_complete: Option<f32>,
     /// The `contractBuyInAmount` of the contract's `contractResults`, as stored; `null` when
     /// absent. A sub contract shares the contract's value.
     pub(crate) buy_in_amount: Option<i64>,
-    /// The `CanBeShared` parameter of the first of sub contract, contract and handler that
-    /// overrides it, else the `canBeShared` of the template's contract class; `null` when none
-    /// states it.
+    /// Parameter `CanBeShared`; base: `canBeShared` of the template's contract class.
     pub(crate) can_be_shared: Option<Stated<bool>>,
-    /// The `Illegal` parameter of the first of sub contract, contract and handler that overrides
-    /// it, else the `illegal` flag of the template's display info; `null` when none states it.
+    /// Parameter `Illegal`; base: `illegal` of the template's display info.
     pub(crate) illegal: Option<Stated<bool>>,
-    /// The `OnceOnly` parameter of the first of sub contract, contract and handler that overrides
-    /// it, else `onceOnly` of the handler's `defaultAvailability`; `null` when none states it.
+    /// Parameter `OnceOnly`; base: `onceOnly` of the handler's `defaultAvailability`.
     pub(crate) once_only: Option<Stated<bool>>,
-    /// The `MaxPlayersPerInstance` parameter of the first of sub contract, contract and handler
-    /// that overrides it, else `maxPlayersPerInstance` of the handler's `defaultAvailability`;
-    /// `null` when none states it. A negative value is as stored.
+    /// Parameter `MaxPlayersPerInstance`; base: `maxPlayersPerInstance` of the handler's
+    /// `defaultAvailability`. A negative value is as stored.
     pub(crate) max_players_per_instance: Option<Stated<i64>>,
-    /// The `AvailableInPrison` parameter of the first of sub contract, contract and handler that
-    /// overrides it, else `availableInPrison` of the handler's `defaultAvailability`; `null` when
-    /// none states it.
+    /// Parameter `AvailableInPrison`; base: `availableInPrison` of the handler's
+    /// `defaultAvailability`.
     pub(crate) available_in_prison: Option<Stated<bool>>,
-    /// The `CanReacceptAfterAbandoning` parameter of the first of sub contract, contract and
-    /// handler that overrides it, else `canReacceptAfterAbandoning` of the handler's
-    /// `defaultAvailability`; `null` when none states it.
+    /// Parameter `CanReacceptAfterAbandoning`; base: `canReacceptAfterAbandoning` of the handler's
+    /// `defaultAvailability`.
     pub(crate) can_reaccept_after_abandoning: Option<Stated<bool>>,
-    /// The `CanReacceptAfterFailing` parameter of the first of sub contract, contract and handler
-    /// that overrides it, else `canReacceptAfterFailing` of the handler's `defaultAvailability`;
-    /// `null` when none states it.
+    /// Parameter `CanReacceptAfterFailing`; base: `canReacceptAfterFailing` of the handler's
+    /// `defaultAvailability`.
     pub(crate) can_reaccept_after_failing: Option<Stated<bool>>,
-    /// The `HideInMobiGlas` parameter of the first of sub contract, contract and handler that
-    /// overrides it, else `hideInMobiGlas` of the handler's `defaultAvailability`; `null` when
-    /// none states it.
+    /// Parameter `HideInMobiGlas`; base: `hideInMobiGlas` of the handler's `defaultAvailability`.
     pub(crate) hide_in_mobi_glas: Option<Stated<bool>>,
     /// The `ContractPrerequisite_CompletedContractTags` tags of the handler, the contract and the
     /// sub contract, in that order and as stored, each with the intro contracts that grant the tag.

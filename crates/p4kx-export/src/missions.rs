@@ -227,19 +227,12 @@ impl<'f> Parent<'_, 'f> {
         let make = |sub: Option<&StructValue<'f>>| {
             let sub_layer =
                 sub.map(|sub| Layer::read(one(Some(sub), "paramOverrides").or(Some(sub))));
-            let levels: Vec<&Layer<'f>> = sub_layer
-                .iter()
-                .chain([&contract_layer, self.handler_layer])
-                .collect();
-            let facts = shared.facts.facts(
-                sub,
-                &Levels {
-                    sub: sub_layer.as_ref(),
-                    contract: &contract_layer,
-                    handler: self.handler_layer,
-                },
-                template_data,
-            );
+            let levels = Levels {
+                sub: sub_layer.as_ref(),
+                contract: &contract_layer,
+                handler: self.handler_layer,
+            };
+            let facts = shared.facts.facts(sub, &levels, template_data);
             let pickup = self.pickup(sub, &contract_where, broker, context);
             self.entry(
                 sub,
@@ -296,7 +289,7 @@ impl<'f> Parent<'_, 'f> {
     fn entry(
         &self,
         sub: Option<&StructValue<'f>>,
-        levels: &[&Layer<'f>],
+        levels: &Levels<'_, 'f>,
         template: Option<p4kx_extraction::Guid>,
         (template_data, broker): (Option<&Template<'f>>, Option<&Broker<'f>>),
         (shared, pickup, facts): (&Shared<'f>, Vec<PickupPlace<'f>>, ContractFacts),

@@ -28,18 +28,15 @@ Decided for issue #898. Evidence: LIVE 4.10 (2026-10-30), the `ContractGenerator
   `introContracts` array whose success result (`ContractResult_CompletionTags`, first
   `missionResults` entry set) grants the tag. A tag no intro contract grants has an empty list.
   The catalog does not decide how the levels combine.
-- The excluded tags (`excludedCompletedContractTags`) are not exported. SCMDB's own intro list
-  follows them for some contracts, where a contract is offered only until its intro is completed,
-  the opposite of a requirement; the catalog states requirements only.
+- The excluded tags (`excludedCompletedContractTags`) are not exported: a contract offered only
+  until its intro is completed is the opposite of a requirement, and the catalog states
+  requirements only. `ContractPrerequisite_CompletedContractTags` has no `exclude` flag (its
+  fields are `includePrerequisiteWhenSharing`, `requiredCountValue` and `excludedCountValue`).
 
 ## Consequences
 
 - A consumer sees which level states each fact and can tell a game default (`handler`, `template`)
   from a deliberate override (`contract`, `subContract`).
-- The values equal SCMDB's for `buyInAmount` on all 1,856 shared entries and for `timeToComplete` on
-  all but the legacy entries SCMDB leaves out. Other differences trace to SCMDB's own reading
-  (the legacy Covalex contracts, handlers of the same debug name); nothing of SCMDB enters the
-  repository.
 - On LIVE 4.10 the 5,175 entries state `onceOnly`, `maxPlayersPerInstance`, `availableInPrison`
   and the re-accept flags at 5,162 to 5,175 entries through the handler, and `illegal` and
   `canBeShared` at all but about 420 (the legacy contracts without a template). 598 entries have a

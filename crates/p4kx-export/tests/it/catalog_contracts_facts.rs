@@ -18,6 +18,7 @@ const BARE: &str = "21000000-0000-4000-8000-000000000001";
 const OVERRIDDEN: &str = "21000000-0000-4000-8000-000000000002";
 const INTRO: &str = "21000000-0000-4000-8000-000000000003";
 const GATED: &str = "21000000-0000-4000-8000-000000000004";
+const STRIPPED: &str = "21000000-0000-4000-8000-000000000006";
 const SUB: &str = "22000000-0000-4000-8000-000000000001";
 const SUB_DIRECT: &str = "22000000-0000-4000-8000-000000000002";
 const TAG: &str = "23000000-0000-4000-8000-000000000001";
@@ -129,6 +130,53 @@ fn a_contract_that_requires_nothing_inherits_the_handler_requirement_only() -> T
     assert_eq!(
         entry(&catalog, BARE, None)?["requiredIntros"],
         json!([{"level": "handler", "tagGuid": FAIL_TAG, "introContracts": []}])
+    );
+    Ok(())
+}
+
+#[test]
+fn a_sub_contract_lists_the_tags_it_requires_after_those_of_its_handler_and_contract() -> TestResult
+{
+    let catalog = catalog()?;
+    assert_eq!(
+        entry(&catalog, OVERRIDDEN, Some(SUB))?["requiredIntros"],
+        json!([
+            {"level": "handler", "tagGuid": FAIL_TAG, "introContracts": []},
+            {"level": "subContract", "tagGuid": TAG, "introContracts": [INTRO]},
+        ])
+    );
+    Ok(())
+}
+
+#[test]
+fn a_handler_parameter_wins_over_its_default_availability() -> TestResult {
+    let catalog = catalog()?;
+    assert_eq!(
+        entry(&catalog, BARE, None)?["hideInMobiGlas"],
+        at(true, "handler")
+    );
+    Ok(())
+}
+
+#[test]
+fn a_contract_without_template_results_or_availability_gives_null_everywhere() -> TestResult {
+    let catalog = catalog()?;
+    assert_fields(
+        entry(&catalog, STRIPPED, None)?,
+        &json!({
+            "templateGuid": null,
+            "timeToComplete": null,
+            "buyInAmount": null,
+            "canBeShared": null,
+            "illegal": null,
+            "onceOnly": null,
+            "maxPlayersPerInstance": null,
+            "availableInPrison": null,
+            "canReacceptAfterAbandoning": null,
+            "canReacceptAfterFailing": null,
+            "hideInMobiGlas": null,
+            "requiredIntros": [],
+        }),
     );
     Ok(())
 }

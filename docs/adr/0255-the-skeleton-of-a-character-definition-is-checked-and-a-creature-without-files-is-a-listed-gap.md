@@ -9,7 +9,7 @@ over LIVE.
 
 A creature class is found by structure: an Entity whose main geometry is a character file
 (`.cdf`, `.chr` or `.skin`) outside `Objects/Characters/Human`, the folder the skeletons of
-`BodyVariant` lie in. `Geometry::is_nonhuman_character_file` is that rule. It also matches
+`BodyVariant` lie in. `Geometry::is_rigged_file_outside_human_rigs` is that rule. It also matches
 Vanduul and Banu characters and animated props (thrusters, weapons with a rigged part); the
 census groups them by file kind and geometry folder, never by class name. Real-Archive tests pick
 their Entities from the census, by class order.
@@ -21,11 +21,12 @@ their Entities from the census, by class order.
   a model. A missing geometry companion of the skeleton is no problem, a skeleton is read for its
   bones. The result travels with the model as `ProvidedModel::skeleton`.
 - **Two notes, not errors.** `skeleton_missing` and `skeleton_unreadable` are Issues with
-  `skipped` false: the skin is still the part's model, as before. A key problem stays fatal.
-- **A geometry the Archive lacks stays a skipped part.** An Entity whose own geometry file is
-  missing or unreadable (`geometry_missing`, `geometry_unreadable`, which names a missing `.chrm`
-  or `.skinm`) gives a valid GLB without meshes, or a Blender package without meshes, exit code
-  0, and the Issue names the file. No command fails for a part that cannot be drawn; the output
+  `skipped` false: the skin is still the part's model. A key problem stays fatal.
+- **A geometry that cannot be drawn is a skipped part, also for the root.** An Entity whose own
+  geometry file is missing or unreadable (`geometry_missing`, `geometry_unreadable`, which names
+  a missing `.chrm` or `.skinm`) gives a valid GLB without meshes, or a Blender package without
+  meshes, exit code 0, and a skipped Issue that names the file. This is deliberate: no command
+  fails for a part that cannot be drawn, the Entities of one Loadout behave alike, and the output
   file is written only when complete.
 - **A creature is drawn static.** Its skins are placed in the bind pose, ADR-0224; no joints,
   weights or animations are written for an Entity.

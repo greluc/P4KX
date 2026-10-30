@@ -126,7 +126,7 @@ fn every_nonhuman_character_entity_exports_to_a_valid_glb_and_the_census_lists_w
         let Some(geometry) = tree.geometry() else {
             continue;
         };
-        if !geometry.is_nonhuman_character_file() {
+        if !geometry.is_rigged_file_outside_human_rigs() {
             continue;
         }
         let assembly =

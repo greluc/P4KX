@@ -198,11 +198,10 @@ fn a_damaged_creature_file_is_unreadable_and_leaves_no_partial_output() -> TestR
         run.stdout
     );
     check_glb(&std::fs::read(&out)?)?;
-    assert!(
-        std::fs::read_dir(dir.path())?
-            .filter_map(Result::ok)
-            .all(|entry| !entry.file_name().to_string_lossy().ends_with(".part")),
-        "no temporary file is left"
-    );
+    let mut files: Vec<String> = std::fs::read_dir(dir.path())?
+        .map(|entry| entry.map(|entry| entry.file_name().to_string_lossy().into_owned()))
+        .collect::<Result<_, _>>()?;
+    files.sort();
+    assert_eq!(files, ["Data.p4k", "creature.glb"]);
     Ok(())
 }

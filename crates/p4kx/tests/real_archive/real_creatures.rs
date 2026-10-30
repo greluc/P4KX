@@ -55,7 +55,7 @@ fn pick() -> Result<Picks, Box<dyn Error>> {
             let tree = resolver.resolve(&record).ok()?;
             let geometry = tree
                 .geometry()
-                .filter(|geometry| geometry.is_nonhuman_character_file())?;
+                .filter(|geometry| geometry.is_rigged_file_outside_human_rigs())?;
             let path = geometry.path().to_owned();
             Some((tree, path))
         })
@@ -159,8 +159,9 @@ fn a_creature_with_its_skeleton_exports_to_a_valid_glb_and_package() -> TestResu
 fn a_creature_whose_geometry_the_archive_lacks_exports_an_empty_scene_that_names_the_file()
 -> TestResult {
     let Some(pick) = pick()?.absent else {
-        println!("every character file the Records name is in this Archive");
-        return Ok(());
+        return Err(
+            "the Archive holds no skeleton-rooted Entity whose skeleton file is missing".into(),
+        );
     };
     let scratch = Scratch::new("creature-absent")?;
     let out = scratch.path().join("creature.glb");

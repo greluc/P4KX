@@ -186,13 +186,10 @@ impl Geometry {
         self.palette.as_ref()
     }
 
-    /// Returns whether the model file is a character file, a character definition (`.cdf`), a
-    /// skeleton (`.chr`) or a skin (`.skin`), outside the folder of the human body rigs: a
-    /// creature, a Vanduul or Banu character, or an animated prop. The human bodies and their
-    /// armour live below `Objects/Characters/Human`, where
-    /// [`BodyVariant::skeleton`](crate::BodyVariant::skeleton) points.
+    /// Returns whether the model file is a `.cdf`, `.chr` or `.skin` file outside
+    /// `Objects/Characters/Human`, the folder of the human body rigs.
     #[must_use]
-    pub fn is_nonhuman_character_file(&self) -> bool {
+    pub fn is_rigged_file_outside_human_rigs(&self) -> bool {
         let relative = self.path.trim_start_matches(['/', '\\']);
         let relative = if starts_with_path(relative, DATA_FOLDER) {
             relative.get(DATA_FOLDER.len()..).unwrap_or_default()
@@ -291,8 +288,8 @@ mod tests {
     fn the_human_skeletons_lie_in_the_human_rig_folder() {
         for body in BodyVariant::ALL {
             assert!(body.skeleton().starts_with(HUMAN_RIGS), "{body:?}");
-            assert!(!geometry(body.skeleton()).is_nonhuman_character_file());
-            assert!(!geometry(body.skin()).is_nonhuman_character_file());
+            assert!(!geometry(body.skeleton()).is_rigged_file_outside_human_rigs());
+            assert!(!geometry(body.skin()).is_rigged_file_outside_human_rigs());
         }
     }
 
@@ -304,7 +301,7 @@ mod tests {
             "/Objects/Characters/Vanduul/drone/body.skin",
             "Objects/Spaceships/Thrusters/nozzle.cdf",
         ] {
-            assert!(geometry(path).is_nonhuman_character_file(), "{path}");
+            assert!(geometry(path).is_rigged_file_outside_human_rigs(), "{path}");
         }
         for path in [
             "Data/Objects/Characters/Human/male_v7/export/bhm_skeleton_v7.chr",
@@ -313,7 +310,10 @@ mod tests {
             "Objects/Characters/Creatures/x/x.cgf",
             "Objects/Characters/Creatures/x/skin",
         ] {
-            assert!(!geometry(path).is_nonhuman_character_file(), "{path}");
+            assert!(
+                !geometry(path).is_rigged_file_outside_human_rigs(),
+                "{path}"
+            );
         }
     }
 }

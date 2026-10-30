@@ -46,6 +46,9 @@ fn collect<'f>(action: &StructValue<'f>, actions: &mut Vec<FireAction<'f>>) {
         charge_time: value("chargeTime"),
         overcharge_time: value("overchargeTime"),
         cooldown_time: value("cooldownTime"),
+        hit_type: text(Some(action), "hitType").or_else(|| text(inner, "hitType")),
+        full_damage_range: value("fullDamageRange"),
+        zero_damage_range: value("zeroDamageRange"),
         damage_per_second: damage(structure(Some(action), "damagePerSecond"))
             .or_else(|| damage(structure(inner, "damagePerSecond"))),
         spread: spread(launch).or_else(|| spread(Some(action))),

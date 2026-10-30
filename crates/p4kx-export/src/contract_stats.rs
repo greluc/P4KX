@@ -8,14 +8,15 @@ use crate::contract::every_field_required;
 use crate::contract_stats_gear::{
     ArmorStats, ClothingStats, RadarStats, TractorBeamStats, WeaponModifierStats,
 };
+use crate::contract_stats_mining::{MiningLaserStats, MiningModifierStats};
 
 /// The typed stat blocks of an item, raw facts of the Archive (ADR-0065, ADR-0072).
 ///
 /// Every block is `null` for an item that does not have it; the item has `stats` only when it
 /// has at least one block: `weapon`, `shield`, `quantumDrive`, `powerPlant`, `cooler`, `missile`,
-/// `armor`, `clothing`, `radar`, `tractorBeam` or `weaponModifier`. No value is derived: a number
-/// is what the Archive states, in the unit the game stores it; a value that is not a finite
-/// number is `null`.
+/// `armor`, `clothing`, `radar`, `tractorBeam`, `weaponModifier`, `miningLaser` or
+/// `miningModifier`. No value is derived: a number is what the Archive states, in the unit the
+/// game stores it; a value that is not a finite number is `null`.
 #[derive(Debug, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 #[schemars(transform = every_field_required)]
@@ -43,6 +44,12 @@ pub(crate) struct ItemStats<'a> {
     /// The tractor and salvage multipliers of an attachment, from
     /// `EntityComponentAttachableModifierParams`.
     pub(crate) weapon_modifier: Option<WeaponModifierStats>,
+    /// The mining laser block, from `SEntityComponentMiningLaserParams`: ship lasers and the FPS
+    /// mining tool.
+    pub(crate) mining_laser: Option<MiningLaserStats>,
+    /// The mining module or gadget block, from the `EntityComponentAttachableModifierParams` that
+    /// holds a mining modifier.
+    pub(crate) mining_modifier: Option<MiningModifierStats<'a>>,
     /// The hit points, from `SHealthComponentParams.Health`.
     pub(crate) health: Option<f32>,
     /// The states of `ItemResourceComponentParams` in stored order: signatures and resource flows.
@@ -124,8 +131,8 @@ pub(crate) struct FireAction<'a> {
     /// `overchargeTime`, `cooldownTime`, `name` and `launchParams` are read from the fire mode and,
     /// where it has none of its own, from its `weaponAction`.
     pub(crate) fire_rate: Option<f32>,
-    /// `launchParams.pelletCount` (`pellets` where a Record states that instead), the projectiles of
-    /// one shot.
+    /// `launchParams.pelletCount` (`pellets` where a Record states that instead), the projectiles
+    /// of one shot.
     pub(crate) pellets: Option<i64>,
     /// `launchParams.ammoCost`, the rounds one shot uses.
     pub(crate) ammo_cost: Option<i64>,
@@ -137,6 +144,13 @@ pub(crate) struct FireAction<'a> {
     pub(crate) overcharge_time: Option<f32>,
     /// `cooldownTime` of the fire mode, when stated, in seconds.
     pub(crate) cooldown_time: Option<f32>,
+    /// `hitType` of a beam, e.g. `ElectricArc` for a mining beam and `Extraction` for an
+    /// extraction beam. A closed set the game may extend; the schema keeps a string.
+    pub(crate) hit_type: Option<&'a str>,
+    /// `fullDamageRange` of a beam, in metres: the distance up to which it does full damage.
+    pub(crate) full_damage_range: Option<f32>,
+    /// `zeroDamageRange` of a beam, in metres: the distance from which it does no damage.
+    pub(crate) zero_damage_range: Option<f32>,
     /// `damagePerSecond`, the damage a beam does each second; `null` for a mode without one.
     pub(crate) damage_per_second: Option<Damage>,
     /// `launchParams.spreadParams`; `null` for a mode without one.

@@ -2,8 +2,9 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 //! A synthetic Archive with one item of each gear stat kind: armour, clothing, radar, tractor
-//! beam, salvage modifier and a beam weapon.
+//! beam, salvage modifier, a beam weapon and the mining laser, module and gadget.
 
+mod mining;
 mod structures;
 
 use std::error::Error;
@@ -14,6 +15,7 @@ use p4kx_testkit::{
     TestValue,
 };
 
+pub(crate) use mining::{GADGET, LASER, LASER_RANGE, LASER_TWIN, MODULE, MODULE_INSTABILITY};
 use structures::database;
 
 pub(crate) const ARMOR: u128 = 0x1000_0000_0000_4000_8000_0000_0000_0001;
@@ -302,7 +304,7 @@ fn modifiers(salvage: bool) -> TestValue {
 }
 
 fn records() -> Vec<TestRecord> {
-    vec![
+    let mut records = vec![
         resistance_record(),
         entity(ARMOR, "armor", "Char_Armor_Torso", vec![armor(RESISTANCE)]),
         entity(
@@ -334,7 +336,9 @@ fn records() -> Vec<TestRecord> {
             "SalvageModifier",
             vec![modifiers(false)],
         ),
-    ]
+    ];
+    records.extend(mining::records());
+    records
 }
 
 /// Writes the fixture Archive into `dir` and returns its path.

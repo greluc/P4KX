@@ -128,7 +128,12 @@ impl ModelCache {
     }
 
     fn store(&self, key: String, lod: u32, model: &ProvidedModel) {
-        let bytes = bytes_of(&model.model);
+        let bytes = model
+            .attachments
+            .iter()
+            .fold(bytes_of(&model.model), |sum, attached| {
+                sum.saturating_add(bytes_of(&attached.model))
+            });
         if bytes > self.limit {
             return;
         }

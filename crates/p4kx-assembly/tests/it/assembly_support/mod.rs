@@ -34,15 +34,19 @@ pub(crate) fn assemble(
     entity: &str,
     lod: u32,
 ) -> Result<Assembly, Box<dyn Error>> {
+    assemble_with(archive, entity, &AssemblyOptions::default().with_lod(lod))
+}
+
+pub(crate) fn assemble_with(
+    archive: &Archive,
+    entity: &str,
+    options: &AssemblyOptions,
+) -> Result<Assembly, Box<dyn Error>> {
     let entry = DataForgeEntry::read(archive)?;
     let forge = entry.open()?;
     let mut resolver = LoadoutResolver::new(&forge);
     let record = resolver.entities().find(entity)?;
     let tree = resolver.resolve(&record)?;
     let models = ArchiveModels::new(archive);
-    Ok(Assembly::build(
-        &tree,
-        &models,
-        &AssemblyOptions::default().with_lod(lod),
-    )?)
+    Ok(Assembly::build(&tree, &models, options)?)
 }

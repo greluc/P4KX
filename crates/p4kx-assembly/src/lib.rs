@@ -66,14 +66,17 @@
 mod animation_folders;
 mod armour;
 mod assembly;
+mod attached;
 pub mod audio;
 mod build;
+mod build_attachments;
 mod build_gear;
 mod build_models;
 mod build_palettes;
 mod build_zones;
 mod catalogue;
 mod cdf;
+mod cdf_bone;
 mod changes;
 mod chf_names;
 mod compat;
@@ -129,6 +132,7 @@ pub use assembly::{
     Assembly, AssemblyOptions, MAX_ASSEMBLY_DEPTH, MAX_ASSEMBLY_PARTS, MAX_ASSEMBLY_VERTICES, Part,
     Placement,
 };
+pub use attached::AttachedModel;
 pub use catalogue::{EntityCatalogue, EntityKind, EntitySummary};
 pub use changes::{ChangeError, ChangedLoadout, LoadoutChanges, PortChange, ReplacementMismatch};
 pub use chf_names::archive_names;
@@ -163,7 +167,7 @@ pub use prefab::{
     MAX_PREFAB_VISITS, PrefabError, PrefabFile, PrefabIssue, PrefabIssueKind, PrefabSet,
     ResolvedObject, ResolvedPrefab,
 };
-pub use provider::{ArchiveModels, ModelFailure, ModelProvider, ProvidedModel};
+pub use provider::{ArchiveModels, ModelFailure, ModelProvider, ProvidedAttachment, ProvidedModel};
 pub use resolver::LoadoutResolver;
 pub use spec::LoadoutOrigin;
 pub use tree::{Attachment, EntityNode, PortNode, PortSource, Target, Unresolved};

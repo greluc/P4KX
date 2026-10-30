@@ -9,9 +9,22 @@ use crate::LoadoutEntry;
 use crate::entities::class_name_of;
 use crate::spec::LoadoutOrigin;
 use crate::{
-    Geometry, Incompatibility, ItemFacts, LandingGear, LoadoutError, ObjectContainerRef,
-    PortConstraints, PortDefinition, PortVisibility, VehicleImplementation, ZoneChunk,
+    BodyVariant, Geometry, Incompatibility, ItemFacts, LandingGear, LoadoutError,
+    ObjectContainerRef, PortConstraints, PortDefinition, PortVisibility, VehicleImplementation,
+    ZoneChunk,
 };
+
+/// How the geometry of an Entity in a Loadout tree was chosen.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub(crate) enum GeometryChoice {
+    /// The Record's main geometry, nothing chose another.
+    #[default]
+    Main,
+    /// The flags of the port the Entity sits at chose a sub-geometry.
+    Flag,
+    /// The body of the character wearing the Entity chose a sub-geometry.
+    Body(BodyVariant),
+}
 
 /// One Entity in a Loadout tree: its Record and its ports with what they hold.
 #[derive(Debug, Clone, PartialEq)]
@@ -23,6 +36,7 @@ pub struct EntityNode {
     pub(crate) issues: Vec<LoadoutError>,
     pub(crate) geometry: Option<Geometry>,
     pub(crate) fallback: Option<Geometry>,
+    pub(crate) choice: GeometryChoice,
     pub(crate) vehicle: Option<Arc<VehicleImplementation>>,
     pub(crate) landing_gear: Arc<[LandingGear]>,
     pub(crate) docked_vehicle: bool,

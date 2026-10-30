@@ -61,6 +61,7 @@ mod mtl_load;
 mod mtl_parse;
 mod mtl_raw;
 mod mtl_relief;
+mod mtl_render_to_texture;
 mod mtl_texture;
 mod mtl_xml;
 mod nmc;

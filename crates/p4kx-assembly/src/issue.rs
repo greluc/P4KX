@@ -62,6 +62,15 @@ pub enum IssueKind {
         /// The path of the sub-geometry.
         path: String,
     },
+    /// The sub-geometry tagged for the body of the character does not exist, so the part has no
+    /// model; the main geometry, a placeholder, is not drawn instead.
+    #[error("the {body} sub-geometry {path} does not exist")]
+    BodyGeometryMissing {
+        /// The body variant the sub-geometry is tagged for, e.g. `Male`.
+        body: String,
+        /// The path of the sub-geometry.
+        path: String,
+    },
     /// The geometry file cannot be read as a model, so the part has no model.
     #[error("the geometry {path} cannot be read: {reason}")]
     GeometryUnreadable {
@@ -227,7 +236,8 @@ pub enum IssueKind {
     /// Worn clothing covers these zones of the body, so the body's triangles in them are left out.
     #[error("the body zones {} are covered by the clothing and left out", .0.join(", "))]
     BodyZonesHidden(Vec<String>),
-    /// The body's submeshes do not fit its zone table, so no body triangles are left out.
+    /// The body has no part to cut or its submeshes do not fit its zone table, so no body
+    /// triangles are left out.
     #[error("the body cannot be cut by zone: {0}")]
     BodyZonesUnknown(String),
     /// This many layered materials of the part have no diffuse map, neither their own nor one in

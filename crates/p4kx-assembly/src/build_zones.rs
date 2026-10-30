@@ -10,7 +10,6 @@ use crate::armour::{covered, uncovered};
 use crate::build::issue;
 use crate::build_models::Loaded;
 use crate::flatten::Draft;
-use crate::node_body::body_of;
 use crate::{BodyVariant, EntityNode, Issue, IssueKind};
 
 const BODY_TYPE: &str = "Char_Body";
@@ -38,7 +37,7 @@ impl<'t> BodyCut<'t> {
         chosen: &[Option<&Loaded>],
         issues: &mut Vec<Issue>,
     ) -> Option<Self> {
-        let variant = body_of(tree.ports())?;
+        let variant = tree.character_body()?.variant();
         let covered = covered(
             drafts
                 .iter()

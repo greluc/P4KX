@@ -28,6 +28,7 @@ fn object(id: u8, class_name: &'static str, entity_name: Option<&str>) -> Starma
         entity_name: entity_name.map(str::to_owned),
         placed_under_guid: None,
         position: None,
+        mining_claim: false,
     }
 }
 

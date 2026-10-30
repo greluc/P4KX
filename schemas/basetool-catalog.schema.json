@@ -68,6 +68,51 @@
       ],
       "type": "object"
     },
+    "AreaModifier": {
+      "description": "One modifier of an area.",
+      "properties": {
+        "geometryTagGuids": {
+          "description": "The GUIDs of the `Tag` Records of `geometries`, in stored order.",
+          "items": {
+            "$ref": "#/$defs/Guid"
+          },
+          "type": "array"
+        },
+        "groupIndex": {
+          "description": "The index in `groups` of the group the modified element is in; `null` when the weak\npointer `harvestableElement` does not point into this Record.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "harvestableIndex": {
+          "description": "The index in the group's `harvestables` of the modified element.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "modifier": {
+          "description": "`harvestableModifier`, from 0 to 2 on LIVE.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "geometryTagGuids",
+        "groupIndex",
+        "harvestableIndex",
+        "modifier"
+      ],
+      "type": "object"
+    },
     "ArmorStats": {
       "description": "The suit armour of an item, raw facts of `SCItemSuitArmorParams` (ADR-0072).",
       "properties": {
@@ -365,6 +410,35 @@
       ],
       "type": "object"
     },
+    "CategoryRule": {
+      "description": "A polymorphic struct that names blueprint categories: the condition of a modifier or the\navailability of a queue.",
+      "properties": {
+        "blueprintCategoryGuids": {
+          "description": "The `guid`s of the `blueprintCategories` entries `categories` links to, in stored order;\n`[]` for `none` and `unknown`.",
+          "items": {
+            "$ref": "#/$defs/Guid"
+          },
+          "type": "array"
+        },
+        "kind": {
+          "description": "Which struct it is, as the parent field documents; `unknown` keeps an unrecognised struct\nwithout values. A closed set the game may extend, so the schema keeps a string.",
+          "type": "string"
+        },
+        "structName": {
+          "description": "The name of the struct; `null` when the field holds none.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "blueprintCategoryGuids",
+        "kind",
+        "structName"
+      ],
+      "type": "object"
+    },
     "ClothingStats": {
       "description": "The worn properties of an item, raw facts of `SCItemClothingParams`.",
       "properties": {
@@ -522,33 +596,97 @@
           "$ref": "#/$defs/KindCompleteness",
           "description": "The completeness of `commodities`."
         },
+        "contractScenarios": {
+          "$ref": "#/$defs/KindCompleteness",
+          "description": "The completeness of `contractScenarios`."
+        },
         "contracts": {
           "$ref": "#/$defs/KindCompleteness",
           "description": "The completeness of `contracts`."
+        },
+        "crafters": {
+          "$ref": "#/$defs/KindCompleteness",
+          "description": "The completeness of `crafters`."
         },
         "dismantleProcesses": {
           "$ref": "#/$defs/KindCompleteness",
           "description": "The completeness of `dismantleProcesses`."
         },
+        "factionReputations": {
+          "$ref": "#/$defs/KindCompleteness",
+          "description": "The completeness of `factionReputations`."
+        },
         "gameplayProperties": {
           "$ref": "#/$defs/KindCompleteness",
           "description": "The completeness of `gameplayProperties`."
+        },
+        "harvestableLocations": {
+          "$ref": "#/$defs/KindCompleteness",
+          "description": "The completeness of `harvestableLocations`."
+        },
+        "harvestableProviderPresets": {
+          "$ref": "#/$defs/KindCompleteness",
+          "description": "The completeness of `harvestableProviderPresets`."
         },
         "items": {
           "$ref": "#/$defs/KindCompleteness",
           "description": "The completeness of `items`."
         },
+        "legacyLootArchetypes": {
+          "$ref": "#/$defs/KindCompleteness",
+          "description": "The completeness of `legacyLootArchetypes`."
+        },
+        "legacyLootTables": {
+          "$ref": "#/$defs/KindCompleteness",
+          "description": "The completeness of `legacyLootTables`."
+        },
         "loadouts": {
           "$ref": "#/$defs/KindCompleteness",
           "description": "The completeness of `loadouts`."
+        },
+        "lootArchetypes": {
+          "$ref": "#/$defs/KindCompleteness",
+          "description": "The completeness of `lootArchetypes`."
+        },
+        "lootContainers": {
+          "$ref": "#/$defs/KindCompleteness",
+          "description": "The completeness of `lootContainers`."
+        },
+        "lootPoolFilters": {
+          "$ref": "#/$defs/KindCompleteness",
+          "description": "The completeness of `lootPoolFilters`."
+        },
+        "lootTables": {
+          "$ref": "#/$defs/KindCompleteness",
+          "description": "The completeness of `lootTables`."
         },
         "manufacturers": {
           "$ref": "#/$defs/KindCompleteness",
           "description": "The completeness of `manufacturers`."
         },
+        "mineableCompositions": {
+          "$ref": "#/$defs/KindCompleteness",
+          "description": "The completeness of `mineableCompositions`."
+        },
         "mineableElements": {
           "$ref": "#/$defs/KindCompleteness",
           "description": "The completeness of `mineableElements`."
+        },
+        "mineableEntities": {
+          "$ref": "#/$defs/KindCompleteness",
+          "description": "The completeness of `mineableEntities`."
+        },
+        "miningGlobalParams": {
+          "$ref": "#/$defs/KindCompleteness",
+          "description": "The completeness of `miningGlobalParams`."
+        },
+        "missionLocalities": {
+          "$ref": "#/$defs/KindCompleteness",
+          "description": "The completeness of `missionLocalities`."
+        },
+        "missionTypes": {
+          "$ref": "#/$defs/KindCompleteness",
+          "description": "The completeness of `missionTypes`."
         },
         "paints": {
           "$ref": "#/$defs/KindCompleteness",
@@ -565,6 +703,18 @@
         "refiningProcesses": {
           "$ref": "#/$defs/KindCompleteness",
           "description": "The completeness of `refiningProcesses`."
+        },
+        "reputationContexts": {
+          "$ref": "#/$defs/KindCompleteness",
+          "description": "The completeness of `reputationContexts`."
+        },
+        "reputationScopes": {
+          "$ref": "#/$defs/KindCompleteness",
+          "description": "The completeness of `reputationScopes`."
+        },
+        "reputationStandings": {
+          "$ref": "#/$defs/KindCompleteness",
+          "description": "The completeness of `reputationStandings`."
         },
         "resourceGroups": {
           "$ref": "#/$defs/KindCompleteness",
@@ -585,6 +735,10 @@
         "starmapObjects": {
           "$ref": "#/$defs/KindCompleteness",
           "description": "The completeness of `starmapObjects`."
+        },
+        "subHarvestableMultiConfigs": {
+          "$ref": "#/$defs/KindCompleteness",
+          "description": "The completeness of `subHarvestableMultiConfigs`."
         }
       },
       "required": [
@@ -592,32 +746,144 @@
         "blueprintPools",
         "blueprints",
         "commodities",
+        "contractScenarios",
         "contracts",
+        "crafters",
         "dismantleProcesses",
+        "factionReputations",
         "gameplayProperties",
+        "harvestableLocations",
+        "harvestableProviderPresets",
         "items",
+        "legacyLootArchetypes",
+        "legacyLootTables",
         "loadouts",
+        "lootArchetypes",
+        "lootContainers",
+        "lootPoolFilters",
+        "lootTables",
         "manufacturers",
+        "mineableCompositions",
         "mineableElements",
+        "mineableEntities",
+        "miningGlobalParams",
+        "missionLocalities",
+        "missionTypes",
         "paints",
         "qualityDistributions",
         "qualityQuantizations",
         "refiningProcesses",
+        "reputationContexts",
+        "reputationScopes",
+        "reputationStandings",
         "resourceGroups",
         "shipStoreSlugs",
         "ships",
         "shops",
-        "starmapObjects"
+        "starmapObjects",
+        "subHarvestableMultiConfigs"
+      ],
+      "type": "object"
+    },
+    "CompositionPart": {
+      "description": "One part of a mineable composition: an element with the range of its share.",
+      "properties": {
+        "curveExponent": {
+          "description": "`curveExponent`, from 1 to 5 on LIVE.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "maxPercentage": {
+          "description": "`maxPercentage`, from 5 to 100 on LIVE.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "minPercentage": {
+          "description": "`minPercentage`, from 1 to 100 on LIVE.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "mineableElementGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The GUID of the `MineableElement` Record the Reference `mineableElement` links to; `null`\nfor a null Reference. The catalog lists the element only when it is kept."
+        },
+        "probability": {
+          "description": "`probability` that the part occurs, from 0.02 to 1 on LIVE.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "qualityScale": {
+          "description": "`qualityScale`, from 0.49 to 1 on LIVE.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "curveExponent",
+        "maxPercentage",
+        "minPercentage",
+        "mineableElementGuid",
+        "probability",
+        "qualityScale"
       ],
       "type": "object"
     },
     "ContractEntry": {
       "description": "A contract or one of its sub contracts, with the overrides of sub contract, contract and\nhandler laid over the template.",
       "properties": {
+        "abandonedCooldownTime": {
+          "description": "The `abandonedCooldownTime`, as stored: the cooldown after the player abandons the\ncontract, in the unit of `personalCooldownTime`; `null` when absent.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "abandonedCooldownTimeVariation": {
+          "description": "The `abandonedCooldownTimeVariation`, as stored, in the unit of `personalCooldownTime`;\n`null` when absent.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
         "contractor": {
           "$ref": "#/$defs/LocalisedText",
           "description": "The `Contractor` string parameter of the first level that states one (sub contract,\ncontract, handler): the text the game shows as the giver of the contract, e.g. the\nagency, when the contract has no faction reputation.",
           "x-gameText": true
+        },
+        "cooldownLayer": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CooldownLayer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The level the five cooldown fields below are read from: `handler`, the\n`defaultAvailability` of the handler, the only level that states them; `null` when it\nstates none. A contract and a sub contract share the handler's values."
         },
         "debugName": {
           "description": "The `debugName` of the contract, `null` when it has none.",
@@ -648,6 +914,35 @@
             "null"
           ]
         },
+        "hasPersonalCooldown": {
+          "description": "Whether the contract has a personal cooldown (`hasPersonalCooldown`), `null` when absent.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "maxStandingGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The `maxStanding` of the contract: the highest standing that is offered it; `null` when\nthe contract states none. A sub contract shares the contract's value."
+        },
+        "minStandingGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The `minStanding` of the contract: the lowest standing that is offered it, the `guid` of an\nentry of `reputationStandings`; `null` when the contract states none. A sub contract\nshares the contract's value."
+        },
         "missionType": {
           "$ref": "#/$defs/LocalisedText",
           "description": "The localised name of the mission type.",
@@ -671,6 +966,22 @@
             "null"
           ]
         },
+        "personalCooldownTime": {
+          "description": "The `personalCooldownTime`, as stored; `null` when absent. The Archive does not state the\nunit; the value range (up to 2880) fits minutes.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "personalCooldownTimeVariation": {
+          "description": "The `personalCooldownTimeVariation`, as stored, in the unit of `personalCooldownTime`;\n`null` when absent.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
         "pickupPlaces": {
           "description": "Where the contract is offered or picked up, at most five starmap objects: those of the\n`MissionLocality` and location prerequisites of the sub contract (else of the contract and\nits handler), a star left out, the star system first, then planets and moons, then the\nrest, each group in stored order. When none of those is left (nothing named, or only stars\nor objects missing from `starmapObjects`), the `locationMissionAvailable` of the contract's\n`MissionBrokerEntry`. Empty when that names none either or the starmap objects are not part\nof the catalog build.",
           "items": {
@@ -690,6 +1001,13 @@
           "description": "The reputation the contract grants on success, one entry per amount: the results whose\nfirst mission result (success) is set. A result that fires on failure only is left out; an\namount may be negative (a success that costs standing with a rival, as stored).",
           "items": {
             "$ref": "#/$defs/ReputationGain"
+          },
+          "type": "array"
+        },
+        "standingRequirements": {
+          "description": "The `ContractPrerequisite_Reputation` prerequisites of the handler, the contract and the\nsub contract, in that order and as stored. The catalog does not decide how they combine.",
+          "items": {
+            "$ref": "#/$defs/StandingRequirement"
           },
           "type": "array"
         },
@@ -729,18 +1047,27 @@
         }
       },
       "required": [
+        "abandonedCooldownTime",
+        "abandonedCooldownTimeVariation",
         "contractor",
+        "cooldownLayer",
         "debugName",
         "faction",
         "guid",
         "handler",
+        "hasPersonalCooldown",
+        "maxStandingGuid",
+        "minStandingGuid",
         "missionType",
         "missionTypeGuid",
         "notForRelease",
+        "personalCooldownTime",
+        "personalCooldownTimeVariation",
         "pickupPlaces",
         "recordGuid",
         "recordPath",
         "reputationGains",
+        "standingRequirements",
         "subContractGuid",
         "templateGuid",
         "title",
@@ -771,6 +1098,47 @@
         "name"
       ],
       "type": "object"
+    },
+    "ContractScenario": {
+      "description": "A contract scenario: a `ScenarioProgress` Record under `contracts/contractscenarios`, the\nrewards a community progression hands out.",
+      "properties": {
+        "className": {
+          "description": "The Record name without its type, e.g. `ORS_ScenarioProgress`.",
+          "type": "string"
+        },
+        "factionRewardTiers": {
+          "description": "The reward tiers per faction (`factionRewardTiers`), in the stored order.",
+          "items": {
+            "$ref": "#/$defs/ScenarioFactionTiers"
+          },
+          "type": "array"
+        },
+        "guid": {
+          "$ref": "#/$defs/Guid",
+          "description": "The GUID of the Record."
+        },
+        "recordPath": {
+          "description": "The record path, without `.xml`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "className",
+        "factionRewardTiers",
+        "guid",
+        "recordPath"
+      ],
+      "type": "object"
+    },
+    "CooldownLayer": {
+      "description": "The level of a contract that states its cooldown.",
+      "oneOf": [
+        {
+          "const": "handler",
+          "description": "The `defaultAvailability` of the handler; contracts and sub contracts state no cooldown of\ntheir own.",
+          "type": "string"
+        }
+      ]
     },
     "CoolerStats": {
       "description": "A cooler.",
@@ -916,6 +1284,186 @@
         "resourceGuid",
         "slot",
         "slotKey"
+      ],
+      "type": "object"
+    },
+    "Crafter": {
+      "description": "A crafting station: an entity whose `Components` hold a `CrafterComponentParams`.",
+      "properties": {
+        "baseCraftingTime": {
+          "description": "`baseCraftingTime`; `null` when the Record stores no number.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "className": {
+          "description": "The Record name without its type.",
+          "type": "string"
+        },
+        "guid": {
+          "$ref": "#/$defs/Guid",
+          "description": "The GUID of the Record."
+        },
+        "hostGuids": {
+          "description": "The GUIDs of the ships whose Default Loadout mounts the crafter in any port, ordered by\nGUID; empty for a crafter no ship mounts, e.g. a station.",
+          "items": {
+            "$ref": "#/$defs/Guid"
+          },
+          "type": "array"
+        },
+        "issues": {
+          "description": "The codes of the problems found in the modifiers and queues, e.g. `unknown_modifier_type`,\nsorted and without duplicates; empty when everything was understood.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "maxJobsInHistory": {
+          "description": "`maxJobsInHistory`: how many finished jobs the station lists.",
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "modifiers": {
+          "description": "The crafting modifiers, from `modifiers` in stored order; `[]` without any.",
+          "items": {
+            "$ref": "#/$defs/CrafterModifier"
+          },
+          "type": "array"
+        },
+        "queues": {
+          "description": "The job queues, from `queues` in stored order.",
+          "items": {
+            "$ref": "#/$defs/CrafterQueue"
+          },
+          "type": "array"
+        },
+        "recordPath": {
+          "description": "The record path, without `.xml`.",
+          "type": "string"
+        },
+        "size": {
+          "description": "`AttachDef.Size`, an integer.",
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "subType": {
+          "description": "`AttachDef.SubType`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "type": {
+          "description": "`AttachDef.Type` of the entity, e.g. `Crafter`; `null` without an `AttachDef`. With\n`subType` and `size` it is what a port's `types` and size range are matched against.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "baseCraftingTime",
+        "className",
+        "guid",
+        "hostGuids",
+        "issues",
+        "maxJobsInHistory",
+        "modifiers",
+        "queues",
+        "recordPath",
+        "size",
+        "subType",
+        "type"
+      ],
+      "type": "object"
+    },
+    "CrafterModifier": {
+      "description": "A crafting modifier of a [`Crafter`]: a `CraftingModifierParams`.",
+      "properties": {
+        "condition": {
+          "$ref": "#/$defs/CategoryRule",
+          "description": "When the modifier applies: the struct `modifierCondition` holds. `kind` is\n`blueprintCategory`, `none` (no condition stored) or `unknown`."
+        },
+        "structName": {
+          "description": "The name of the struct `modifierType` holds; `null` for none.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "timeMultiplier": {
+          "description": "`timeMultiplier` of a `time` modifier: the factor on the crafting time (below 1 is\nfaster); `null` for any other type or when the Record stores no number.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "type": {
+          "description": "What the modifier changes: `time` (`CraftingModifierType_Time`), `none` (no\n`modifierType` stored) or `unknown` (a struct this export does not know, kept with its\n`structName` and no values). A closed set the game may extend, so the schema keeps a\nstring.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "condition",
+        "structName",
+        "timeMultiplier",
+        "type"
+      ],
+      "type": "object"
+    },
+    "CrafterQueue": {
+      "description": "One job queue of a [`Crafter`].",
+      "properties": {
+        "blueprintCategoryAvailability": {
+          "$ref": "#/$defs/CategoryRule",
+          "description": "The blueprint categories the queue accepts: the struct `blueprintCategoryAvailability`\nholds. `kind` is `whitelist`, `none` or `unknown`."
+        },
+        "maxJobsInProgress": {
+          "description": "`maxJobsInProgress`: how many jobs the queue crafts at once.",
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "maxJobsWaiting": {
+          "description": "`maxJobsWaiting`: how many further jobs the queue holds.",
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "name": {
+          "description": "`debugName`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "processTypeAvailability": {
+          "description": "`processTypeAvailability` as stored: one boolean per process type, in the order of the\ngame's process types, which the Archive does not name; `[]` when the Record has none.",
+          "items": {
+            "type": "boolean"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "blueprintCategoryAvailability",
+        "maxJobsInProgress",
+        "maxJobsWaiting",
+        "name",
+        "processTypeAvailability"
       ],
       "type": "object"
     },
@@ -1178,6 +1726,129 @@
       ],
       "type": "object"
     },
+    "ExplosionPool": {
+      "description": "The numbers of `mineableExplosionParams` of a [`MiningGlobalParams`] besides the default\nexplosion.",
+      "properties": {
+        "dangerPoolFactor": {
+          "description": "`dangerPoolFactor`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "defaultVolume": {
+          "description": "`defaultVolume`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "dangerPoolFactor",
+        "defaultVolume"
+      ],
+      "type": "object"
+    },
+    "FactionReputation": {
+      "description": "A faction: a `FactionReputation` Record under `factions/factionreputation`.",
+      "properties": {
+        "allied": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RelationStanding"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The scope and standing a member of the faction holds towards an allied faction\n(`alliedParams`), `null` when the Record has none."
+        },
+        "allyGuids": {
+          "description": "The factions it counts as allies, as stored.",
+          "items": {
+            "$ref": "#/$defs/Guid"
+          },
+          "type": "array"
+        },
+        "className": {
+          "description": "The Record name without its type, e.g. `FactionReputation_Wikelo`.",
+          "type": "string"
+        },
+        "contextGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The `SReputationContextUI` Record the faction is shown with (`reputationContextPropertiesUI`),\n`null` when it names none."
+        },
+        "displayName": {
+          "$ref": "#/$defs/LocalisedText",
+          "description": "The `displayName`.",
+          "x-gameText": true
+        },
+        "enemyGuids": {
+          "description": "The factions it counts as enemies, as stored.",
+          "items": {
+            "$ref": "#/$defs/Guid"
+          },
+          "type": "array"
+        },
+        "guid": {
+          "$ref": "#/$defs/Guid",
+          "description": "The GUID of the Record."
+        },
+        "hostility": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RelationStanding"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The scope and standing a member of the faction holds towards a hostile faction\n(`hostilityParams`), `null` when the Record has none."
+        },
+        "isNpc": {
+          "description": "The `isNPC` flag.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "lawful": {
+          "description": "Whether the faction is lawful: the value of the boolean `entityLawful` property of its\n`propertiesBB`, `null` when it has none.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "recordPath": {
+          "description": "The record path, without `.xml`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "allied",
+        "allyGuids",
+        "className",
+        "contextGuid",
+        "displayName",
+        "enemyGuids",
+        "guid",
+        "hostility",
+        "isNpc",
+        "lawful",
+        "recordPath"
+      ],
+      "type": "object"
+    },
     "FireAction": {
       "description": "One fire mode of a weapon.",
       "properties": {
@@ -1320,6 +1991,341 @@
       "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
       "type": "string"
     },
+    "HarvestableArea": {
+      "description": "One area of a provider preset.",
+      "properties": {
+        "globalModifier": {
+          "description": "`globalModifier`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "modifiers": {
+          "description": "The modifiers of the area, from `modifiers` in stored order.",
+          "items": {
+            "$ref": "#/$defs/AreaModifier"
+          },
+          "type": "array"
+        },
+        "name": {
+          "description": "`debugGroupName`, e.g. `Acidic`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "objectPresetPaths": {
+          "description": "`objectPresetPaths` of the area type, in stored order.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "globalModifier",
+        "modifiers",
+        "name",
+        "objectPresetPaths"
+      ],
+      "type": "object"
+    },
+    "HarvestableElement": {
+      "description": "One `HarvestableElement` of a group.",
+      "properties": {
+        "clusteringGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The GUID of the `HarvestableClusterPreset` Record the Reference `clustering` links to."
+        },
+        "geometryTagGuids": {
+          "description": "The GUIDs of the `Tag` Records of `geometries`, in stored order.",
+          "items": {
+            "$ref": "#/$defs/Guid"
+          },
+          "type": "array"
+        },
+        "harvestable": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HarvestableLink"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "What the element spawns; `null` when the element names neither a harvestable nor an\nentity."
+        },
+        "relativeProbability": {
+          "description": "`relativeProbability`, from 0 to 900 on LIVE.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "setupGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The GUID of the Record the Reference `harvestableSetup` links to."
+        }
+      },
+      "required": [
+        "clusteringGuid",
+        "geometryTagGuids",
+        "harvestable",
+        "relativeProbability",
+        "setupGuid"
+      ],
+      "type": "object"
+    },
+    "HarvestableGroup": {
+      "description": "A group of harvestables of a provider preset.",
+      "properties": {
+        "groupName": {
+          "description": "`groupName`, e.g. `SpaceShip_Mineables`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "groupProbability": {
+          "description": "`groupProbability`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "harvestables": {
+          "description": "The harvestables of the group, from `harvestables` in stored order.",
+          "items": {
+            "$ref": "#/$defs/HarvestableElement"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "groupName",
+        "groupProbability",
+        "harvestables"
+      ],
+      "type": "object"
+    },
+    "HarvestableLink": {
+      "description": "What a harvestable spawns, followed from the `HarvestablePreset` Record to the entity and its\nmining parameters.",
+      "properties": {
+        "entityGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The GUID of the entity: `harvestableEntityClass` of the element, else `entityClass` of the\npreset."
+        },
+        "mineableCompositionGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The GUID of the `MineableComposition` Record the entity's `MineableParams` link to; `null`\nfor an entity that is not mineable."
+        },
+        "miningGlobalParamsGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The GUID of the `MiningGlobalParams` Record the entity's `MineableParams` link to."
+        },
+        "presetClassName": {
+          "description": "The Record name of the `HarvestablePreset` without its type, e.g.\n`Mining_Common_Aluminum`; `null` for none or an unreadable Record.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "presetGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The GUID of the `HarvestablePreset` Record the Reference `harvestable` links to; `null`\nwhen the element names an entity only."
+        }
+      },
+      "required": [
+        "entityGuid",
+        "mineableCompositionGuid",
+        "miningGlobalParamsGuid",
+        "presetClassName",
+        "presetGuid"
+      ],
+      "type": "object"
+    },
+    "HarvestableLocation": {
+      "description": "A place a harvestable provider preset is used: a container whose `.soc` names the preset, with\nthe starmap object it hangs below.",
+      "properties": {
+        "container": {
+          "description": "The Archive path of the container (`.socpak`).",
+          "type": "string"
+        },
+        "presetGuid": {
+          "$ref": "#/$defs/Guid",
+          "description": "The GUID of the `HarvestableProviderPreset` Record."
+        },
+        "starmapObjectGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The GUID of the `StarMapObject` the container hangs below: the nearest object at or above\nthe container's Child element, a mining claim marker left out; `null` when none."
+        },
+        "system": {
+          "description": "The folder of the star system below `Data/ObjectContainers/PU/system` that reaches the\ncontainer.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "container",
+        "presetGuid",
+        "starmapObjectGuid",
+        "system"
+      ],
+      "type": "object"
+    },
+    "HarvestableProviderPreset": {
+      "description": "A harvestable provider preset: a `HarvestableProviderPreset` Record under\n`harvestable/providerpresets`, what a place can spawn. Which places use it is in\n`harvestableLocations`.",
+      "properties": {
+        "areas": {
+          "description": "The areas of the surface, from `areas` in stored order.",
+          "items": {
+            "$ref": "#/$defs/HarvestableArea"
+          },
+          "type": "array"
+        },
+        "className": {
+          "description": "The Record name without its type, e.g. `HPP_Stanton1a`.",
+          "type": "string"
+        },
+        "groups": {
+          "description": "The groups, from `harvestableGroups` in stored order.",
+          "items": {
+            "$ref": "#/$defs/HarvestableGroup"
+          },
+          "type": "array"
+        },
+        "guid": {
+          "$ref": "#/$defs/Guid",
+          "description": "The GUID of the Record."
+        },
+        "recordPath": {
+          "description": "The record path, without `.xml`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "areas",
+        "className",
+        "groups",
+        "guid",
+        "recordPath"
+      ],
+      "type": "object"
+    },
+    "HitConsistency": {
+      "description": "`hitConsistencyParams` of a [`MiningGlobalParams`].",
+      "properties": {
+        "extractionMagnitude": {
+          "description": "`extractionMagnitude`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "hitHistoryWindow": {
+          "description": "`hitHistoryWindow`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "maxEffectOnInstability": {
+          "description": "`maxEffectOnInstability`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "minDeviation": {
+          "description": "`minDeviation`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "standardDeviationMultiplier": {
+          "description": "`standardDeviationMultiplier`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "timeExponent": {
+          "description": "`timeExponent`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "extractionMagnitude",
+        "hitHistoryWindow",
+        "maxEffectOnInstability",
+        "minDeviation",
+        "standardDeviationMultiplier",
+        "timeExponent"
+      ],
+      "type": "object"
+    },
     "Ingredient": {
       "description": "One ingredient line of a blueprint: a resource or an item with its quantity.",
       "properties": {
@@ -1392,6 +2398,41 @@
         "resourceGuid",
         "slot",
         "slotKey"
+      ],
+      "type": "object"
+    },
+    "InstabilityParams": {
+      "description": "`mineableInstabilityParams` of a [`MiningGlobalParams`].",
+      "properties": {
+        "curveFactor": {
+          "description": "`instabilityCurveFactor`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "wavePeriod": {
+          "description": "`instabilityWavePeriod`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "waveVariance": {
+          "description": "`instabilityWaveVariance`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "curveFactor",
+        "wavePeriod",
+        "waveVariance"
       ],
       "type": "object"
     },
@@ -1539,7 +2580,7 @@
       "type": "object"
     },
     "ItemRecovery": {
-      "description": "The item recovery rules: an `ItemRecoveryConfigurationParams` Record, its `economyParams`.\n\nThe multipliers and rates the game applies at run time to claim, expedite and deliver a ship\nand its insured items; the Record holds no fee in aUEC, so the catalog states none. Every\nnumber is that of the Record, `null` when the Record states none.",
+      "description": "The item recovery rules: an `ItemRecoveryConfigurationParams` Record, its `economyParams`.\n\nThe multipliers and rates of the Record under their data names. The Record holds no fee in\naUEC, so the catalog states none. Every number is that of the Record, `null` when the Record\nstates none or a value that is no number.",
       "properties": {
         "aUECperSecond": {
           "description": "`aUECperSecond`.",
@@ -1918,6 +2959,315 @@
         }
       ]
     },
+    "LegacyLootArchetype": {
+      "description": "An older loot archetype: a `LootArchetype` Record under `lootgeneration/lootarchetypes`, the\nweighted tags of item a table entry stands for.",
+      "properties": {
+        "className": {
+          "description": "The Record name without its type, e.g. `LootArchetype_Antiques_Common`.",
+          "type": "string"
+        },
+        "entries": {
+          "description": "The entries of `primaryOrGroup` in stored order.",
+          "items": {
+            "$ref": "#/$defs/LegacyLootEntry"
+          },
+          "type": "array"
+        },
+        "excludedTagGuids": {
+          "description": "The `Tag` Records in `excludedTags`: items that carry one are never drawn.",
+          "items": {
+            "$ref": "#/$defs/Guid"
+          },
+          "type": "array"
+        },
+        "guid": {
+          "$ref": "#/$defs/Guid",
+          "description": "The GUID of the Record."
+        },
+        "recordPath": {
+          "description": "The record path, without `.xml`.",
+          "type": "string"
+        },
+        "secondaryGroups": {
+          "description": "The groups of `secondaryOrGroups` in stored order.",
+          "items": {
+            "$ref": "#/$defs/LegacySecondaryGroup"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "className",
+        "entries",
+        "excludedTagGuids",
+        "guid",
+        "recordPath",
+        "secondaryGroups"
+      ],
+      "type": "object"
+    },
+    "LegacyLootEntry": {
+      "description": "One entry of the primary group of an older archetype.",
+      "properties": {
+        "additionalNegativeTagGuids": {
+          "description": "The `Tag` Records in `negativeTags` of `additionalTags`.",
+          "items": {
+            "$ref": "#/$defs/Guid"
+          },
+          "type": "array"
+        },
+        "additionalPositiveTagGuids": {
+          "description": "The `Tag` Records in `positiveTags` of `additionalTags`.",
+          "items": {
+            "$ref": "#/$defs/Guid"
+          },
+          "type": "array"
+        },
+        "name": {
+          "description": "The designer's label of the entry.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "spawnWith": {
+          "description": "The `EntryOptionalData_SpawnWith` items spawned along with the entry, in stored order.",
+          "items": {
+            "$ref": "#/$defs/LegacySpawnWith"
+          },
+          "type": "array"
+        },
+        "stackSize": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/QuantityRange"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The `EntryOptionalData_StackSize` of the entry."
+        },
+        "tagGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The `Tag` Record the entry draws items by."
+        },
+        "weight": {
+          "description": "The `weight` of the entry among the entries of the group.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "additionalNegativeTagGuids",
+        "additionalPositiveTagGuids",
+        "name",
+        "spawnWith",
+        "stackSize",
+        "tagGuid",
+        "weight"
+      ],
+      "type": "object"
+    },
+    "LegacyLootTable": {
+      "description": "An older loot table: a `LootTable` Record under `lootgeneration/loottables`. The `lootTable`\nof a slot's `lootConfig` links to one.",
+      "properties": {
+        "className": {
+          "description": "The Record name without its type, e.g. `Ammo`.",
+          "type": "string"
+        },
+        "entries": {
+          "description": "The entries of `lootArchetypes` in stored order.",
+          "items": {
+            "$ref": "#/$defs/LegacyLootTableEntry"
+          },
+          "type": "array"
+        },
+        "guid": {
+          "$ref": "#/$defs/Guid",
+          "description": "The GUID of the Record."
+        },
+        "recordPath": {
+          "description": "The record path, without `.xml`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "className",
+        "entries",
+        "guid",
+        "recordPath"
+      ],
+      "type": "object"
+    },
+    "LegacyLootTableEntry": {
+      "description": "One entry of an older loot table: an archetype and the odds it is drawn.",
+      "properties": {
+        "archetypeGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The `LootArchetype` Record the entry links to, an entry of `legacyLootArchetypes`."
+        },
+        "maxResults": {
+          "description": "`maxResults` of `numberOfResultsConstraints`.",
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "minResults": {
+          "description": "`minResults` of `numberOfResultsConstraints`.",
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "weight": {
+          "description": "The `weight` of the entry among the entries of the table.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "archetypeGuid",
+        "maxResults",
+        "minResults",
+        "weight"
+      ],
+      "type": "object"
+    },
+    "LegacySecondaryEntry": {
+      "description": "One entry of a secondary group.",
+      "properties": {
+        "tagGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The `Tag` Record of the entry."
+        },
+        "weight": {
+          "description": "The `weight` of the entry among the entries of the group.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "tagGuid",
+        "weight"
+      ],
+      "type": "object"
+    },
+    "LegacySecondaryGroup": {
+      "description": "A secondary group of an older archetype (`LootArchetypeOrGroup_Secondary`).",
+      "properties": {
+        "entries": {
+          "description": "The entries of the group in stored order.",
+          "items": {
+            "$ref": "#/$defs/LegacySecondaryEntry"
+          },
+          "type": "array"
+        },
+        "groupName": {
+          "description": "`groupName`, the designer's label, e.g. `Rarity`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "entries",
+        "groupName"
+      ],
+      "type": "object"
+    },
+    "LegacySpawnWith": {
+      "description": "Items an older entry spawns along with its own (`EntryOptionalData_SpawnWith`).",
+      "properties": {
+        "max": {
+          "description": "`max`, how many are spawned at most.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "min": {
+          "description": "`min`, how many are spawned at least.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "mode": {
+          "description": "`mode`, e.g. `MostSimilar`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "description": "The designer's label.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "negativeTagGuids": {
+          "description": "The `Tag` Records in `negativeTags` of `tagsToMatch`.",
+          "items": {
+            "$ref": "#/$defs/Guid"
+          },
+          "type": "array"
+        },
+        "positiveTagGuids": {
+          "description": "The `Tag` Records in `positiveTags` of `tagsToMatch`.",
+          "items": {
+            "$ref": "#/$defs/Guid"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "max",
+        "min",
+        "mode",
+        "name",
+        "negativeTagGuids",
+        "positiveTagGuids"
+      ],
+      "type": "object"
+    },
     "Loadout": {
       "description": "The ports of a ship or of an item that has ports, and what the Default Loadout puts into them.",
       "properties": {
@@ -2140,6 +3490,413 @@
       ],
       "type": "object"
     },
+    "LootArchetype": {
+      "description": "A loot archetype: a `LootArchetypeV3Record` Record under `lootgeneration/lootarchetypes`, the\nweighted kinds of item a table entry stands for.",
+      "properties": {
+        "className": {
+          "description": "The Record name without its type, e.g. `V3LootArchetype_Antiques`.",
+          "type": "string"
+        },
+        "entries": {
+          "description": "The entries of `lootArchetype.entries` in stored order.",
+          "items": {
+            "$ref": "#/$defs/LootArchetypeEntry"
+          },
+          "type": "array"
+        },
+        "guid": {
+          "$ref": "#/$defs/Guid",
+          "description": "The GUID of the Record."
+        },
+        "recordPath": {
+          "description": "The record path, without `.xml`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "className",
+        "entries",
+        "guid",
+        "recordPath"
+      ],
+      "type": "object"
+    },
+    "LootArchetypeEntry": {
+      "description": "One entry of a loot archetype: which items it selects and the odds it is drawn.",
+      "properties": {
+        "name": {
+          "description": "The designer's label of the entry.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "selector": {
+          "$ref": "#/$defs/LootSelector",
+          "description": "Which items the entry selects."
+        },
+        "spawnWith": {
+          "description": "The `ArchetypeOptionalDataV3_SpawnWith` items spawned along with the entry, in stored\norder.",
+          "items": {
+            "$ref": "#/$defs/SpawnWith"
+          },
+          "type": "array"
+        },
+        "stackSize": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/QuantityRange"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The `stackSize` of the `ArchetypeOptionalDataV3_StackSize` of the entry."
+        },
+        "weight": {
+          "description": "The `weight` of the entry among the entries of the archetype.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "name",
+        "selector",
+        "spawnWith",
+        "stackSize",
+        "weight"
+      ],
+      "type": "object"
+    },
+    "LootConfig": {
+      "description": "The loot a slot of a harvestable generates (`lootConfig`).",
+      "properties": {
+        "chanceToGenerate": {
+          "description": "`chanceToGenerate`, from 0 to 1.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "chanceToGenerateAdditionalInventories": {
+          "description": "`chanceToGenerateAdditionalAttachedInventories`, from 0 to 1.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "fullness": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/QuantityRange"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The `fullnessFactorRange` of the constraints: how full the container is filled."
+        },
+        "lootTableGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The `LootTable` Record the config links to, an entry of `legacyLootTables`."
+        },
+        "lootTableV3Guid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The `LootTableV3Record` the config links to, an entry of `lootTables`."
+        },
+        "poolFilterGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The `PoolFilterRecord` of the constraints, an entry of `lootPoolFilters`."
+        },
+        "totalResultsLimit": {
+          "description": "`totalResultsLimit`.",
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "chanceToGenerate",
+        "chanceToGenerateAdditionalInventories",
+        "fullness",
+        "lootTableGuid",
+        "lootTableV3Guid",
+        "poolFilterGuid",
+        "totalResultsLimit"
+      ],
+      "type": "object"
+    },
+    "LootContainer": {
+      "description": "A container placed with a multi config: an entity that places an object container and carries\na `SubHarvestableMultiConfigRecord`, whose tag points the config fills with harvestables and\ntheir loot. One entry per container, system and starmap object it hangs below.",
+      "properties": {
+        "container": {
+          "description": "The path of the object container the entity places.",
+          "type": "string"
+        },
+        "entityCount": {
+          "description": "The number of entities in all `.soc` files of the placed container, 0 for none; `null`\nwhen a file cannot be read or the Archive lacks the container.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "multiConfigGuid": {
+          "$ref": "#/$defs/Guid",
+          "description": "The `SubHarvestableMultiConfigRecord` the placing entity carries (`multiConfigRef`), an\nentry of `subHarvestableMultiConfigs`."
+        },
+        "starmapObjectGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The `guid` of the `starmapObjects` entry the walk's root container hangs below; `null` for\nnone or an object the catalog lacks."
+        },
+        "system": {
+          "description": "The star system folder of the system container the walk started in.",
+          "type": "string"
+        },
+        "tagCounts": {
+          "description": "How many entities of the placed container carry each tag, summed over its `.soc` files and\nordered by GUID; empty when `entityCount` is `null`. The tags of `tagGuids` of the tagged\nconfigs select the slots.",
+          "items": {
+            "$ref": "#/$defs/TagCount"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "container",
+        "entityCount",
+        "multiConfigGuid",
+        "starmapObjectGuid",
+        "system",
+        "tagCounts"
+      ],
+      "type": "object"
+    },
+    "LootPoolFilter": {
+      "description": "A pool filter: a `PoolFilterRecord` Record under `lootgeneration/filters`, which items a\ncontainer may draw.",
+      "properties": {
+        "className": {
+          "description": "The Record name without its type, e.g. `V3PoolFilter_ASDDelving`.",
+          "type": "string"
+        },
+        "filter": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PoolFilterNode"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The filter of the Record; `null` when it has none."
+        },
+        "guid": {
+          "$ref": "#/$defs/Guid",
+          "description": "The GUID of the Record."
+        },
+        "recordPath": {
+          "description": "The record path, without `.xml`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "className",
+        "filter",
+        "guid",
+        "recordPath"
+      ],
+      "type": "object"
+    },
+    "LootSelector": {
+      "description": "Which items a loot entry selects: the items that carry every positive tag and none of the\nnegative ones, or the listed entity classes.",
+      "properties": {
+        "entityClassGuids": {
+          "description": "The GUIDs of the entity classes of a manual entity class list, in stored order.",
+          "items": {
+            "$ref": "#/$defs/Guid"
+          },
+          "type": "array"
+        },
+        "negativeTagGuids": {
+          "description": "The GUIDs of the `Tag` Records in `negativeTags`, in stored order.",
+          "items": {
+            "$ref": "#/$defs/Guid"
+          },
+          "type": "array"
+        },
+        "positiveTagGuids": {
+          "description": "The GUIDs of the `Tag` Records in `positiveTags`, in stored order.",
+          "items": {
+            "$ref": "#/$defs/Guid"
+          },
+          "type": "array"
+        },
+        "selectorType": {
+          "description": "The struct of the selector as stored, e.g. `LootArchetypeV3Selector_Tags`; informational,\nnot a selector; `null` when the entry has none.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "entityClassGuids",
+        "negativeTagGuids",
+        "positiveTagGuids",
+        "selectorType"
+      ],
+      "type": "object"
+    },
+    "LootTable": {
+      "description": "A loot table: a `LootTableV3Record` Record under `lootgeneration/loottables`, the weighted\narchetypes a container draws from.",
+      "properties": {
+        "className": {
+          "description": "The Record name without its type, e.g. `V3LootTable_Actor_CQC`.",
+          "type": "string"
+        },
+        "entries": {
+          "description": "The entries of `lootTable.lootArchetypes` in stored order.",
+          "items": {
+            "$ref": "#/$defs/LootTableEntry"
+          },
+          "type": "array"
+        },
+        "guid": {
+          "$ref": "#/$defs/Guid",
+          "description": "The GUID of the Record."
+        },
+        "recordPath": {
+          "description": "The record path, without `.xml`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "className",
+        "entries",
+        "guid",
+        "recordPath"
+      ],
+      "type": "object"
+    },
+    "LootTableEntry": {
+      "description": "One entry of a loot table: an archetype and the odds it is drawn.",
+      "properties": {
+        "archetype": {
+          "description": "The entries of an archetype written out in place; `null` for a linked one.",
+          "items": {
+            "$ref": "#/$defs/LootArchetypeEntry"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "archetypeGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The `LootArchetypeV3Record` the entry links to; `null` for an archetype written out in\nplace."
+        },
+        "chanceToExist": {
+          "description": "`chanceToExist` of the `LootTableOptionalDataV3_ChanceToExist` of the entry, from 0 to 1.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "choiceLimit": {
+          "description": "`choiceLimit` of the `LootTableOptionalDataV3_ChoiceLimit` of the entry.",
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "dupeLimit": {
+          "description": "`dupeLimit` of the `LootTableOptionalDataV3_DupeLimit` of the entry.",
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "name": {
+          "description": "The designer's label of the entry.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "priorityCount": {
+          "description": "`priorityCount` of the `LootTableOptionalDataV3_PriorityChoice` of the entry.",
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "weight": {
+          "description": "The `weight` of the entry among the entries of the table.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "archetype",
+        "archetypeGuid",
+        "chanceToExist",
+        "choiceLimit",
+        "dupeLimit",
+        "name",
+        "priorityCount",
+        "weight"
+      ],
+      "type": "object"
+    },
     "Manufacturer": {
       "description": "A manufacturer: an `SCItemManufacturer` Record.",
       "properties": {
@@ -2178,6 +3935,52 @@
         "description",
         "guid",
         "name",
+        "recordPath"
+      ],
+      "type": "object"
+    },
+    "MineableComposition": {
+      "description": "A mineable composition: a `MineableComposition` Record under `mining/rockcompositionpresets`,\nthe elements one rock or deposit is made of.",
+      "properties": {
+        "className": {
+          "description": "The Record name without its type, e.g. `Asteroid_CType_Iron`.",
+          "type": "string"
+        },
+        "depositName": {
+          "$ref": "#/$defs/LocalisedText",
+          "description": "The HUD label of the deposit, from `depositName`. The localisation key and the texts are\ngame texts.",
+          "x-gameText": true
+        },
+        "guid": {
+          "$ref": "#/$defs/Guid",
+          "description": "The GUID of the Record."
+        },
+        "minimumDistinctElements": {
+          "description": "`minimumDistinctElements`, from 1 to 4 on LIVE; `null` when the Record states none.",
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "parts": {
+          "description": "The parts, from `compositionArray` in stored order.",
+          "items": {
+            "$ref": "#/$defs/CompositionPart"
+          },
+          "type": "array"
+        },
+        "recordPath": {
+          "description": "The record path, without `.xml`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "className",
+        "depositName",
+        "guid",
+        "minimumDistinctElements",
+        "parts",
         "recordPath"
       ],
       "type": "object"
@@ -2280,6 +4083,358 @@
       ],
       "type": "object"
     },
+    "MineableEntity": {
+      "description": "A mineable entity: an `EntityClassDefinition` Record under `entities/mineable`, one kind of\nrock or deposit. Many entities share a composition; a provider preset reaches an entity through\nthe `entityGuid` of its harvestables. Entities are selected by record path and type alone, so\none without the components below has `null` and empty fields.",
+      "properties": {
+        "className": {
+          "description": "The Record name without its type, e.g. `MineableRock_AsteroidLegendary_Quantainium`.",
+          "type": "string"
+        },
+        "guid": {
+          "$ref": "#/$defs/Guid",
+          "description": "The GUID of the Record."
+        },
+        "mineableCompositionGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The GUID of the `MineableComposition` Record `Components[MineableParams]` links to."
+        },
+        "miningGlobalParamsGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The GUID of the `MiningGlobalParams` Record `Components[MineableParams]` links to."
+        },
+        "radarContactTypeGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The GUID of the `RadarContactTypeEntry` Record `radarProperties.contactType` links to."
+        },
+        "recordPath": {
+          "description": "The record path, without `.xml`.",
+          "type": "string"
+        },
+        "scanSignature": {
+          "description": "The scan signature the mining scanner shows, from 3000 to 4900 on LIVE: the slot of\n`signatures` that `signatureTypeParams` of the `RadarSystemGlobalParams` Record names\n`@hud_scanning_info_rs_signature`. `null` when the Record states no signatures, all of them\nare zero, `signatures` has not one number per signature type, or the Archive names no\nsuch slot (a catalog warning says so).",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "signatures": {
+          "description": "`radarProperties.baseSignatureParams.signatures` of `Components[SSCSignatureSystemParams]`\nin stored order, one number per signature type; a value that is not a finite 32-bit float\nis exported as 0. Empty when the Record states none.",
+          "items": {
+            "format": "float",
+            "type": "number"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "className",
+        "guid",
+        "mineableCompositionGuid",
+        "miningGlobalParamsGuid",
+        "radarContactTypeGuid",
+        "recordPath",
+        "scanSignature",
+        "signatures"
+      ],
+      "type": "object"
+    },
+    "MiningGlobalParams": {
+      "description": "The mining parameters of one kind of miner: a `MiningGlobalParams` Record under `mining`. Each\nnumber is that of the Record, unchanged, and `null` when the Record states none. The effects,\nsounds and the default explosion of the Record are not exported.",
+      "properties": {
+        "absorbableVolumeThreshold": {
+          "description": "`absorbableVolumeThreshold`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "cScuPerVolume": {
+          "description": "`cSCUPerVolume`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "childRockInactivityLifetime": {
+          "description": "`childRockInactivityLifetime` in seconds.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "childRockInvulnerabilityTime": {
+          "description": "`childRockInvulnerabilityTime` in seconds.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "childRockLifeTimer": {
+          "description": "`childRockLifeTimer` in seconds.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "childRockZeroGDamping": {
+          "description": "`childRockZeroGDamping`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "className": {
+          "description": "The Record name without its type, e.g. `miningglobalparamsship`.",
+          "type": "string"
+        },
+        "controlledBreakingDecayRate": {
+          "description": "`controlledBreakingDecayRate`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "controlledBreakingFillRate": {
+          "description": "`controlledBreakingFillRate`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "controlledBreakingFillRateDanger": {
+          "description": "`controlledBreakingFillRateDanger`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "dangerBreakingDecayRate": {
+          "description": "`dangerBreakingDecayRate`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "dangerBreakingFillRate": {
+          "description": "`dangerBreakingFillRate`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "dangerBreakingFillRateExponent": {
+          "description": "`dangerBreakingFillRateExponent`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "dangerToGadgetDamage": {
+          "description": "`dangerToGadgetDamage`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "decayPerMass": {
+          "description": "`decayPerMass`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "defaultMass": {
+          "description": "`defaultMass`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "explosion": {
+          "$ref": "#/$defs/ExplosionPool",
+          "description": "`mineableExplosionParams`, without the default explosion."
+        },
+        "gadgetDestroyThreshold": {
+          "description": "`gadgetDestroyThreshold`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "gadgetDetachThreshold": {
+          "description": "`gadgetDetachThreshold`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "guid": {
+          "$ref": "#/$defs/Guid",
+          "description": "The GUID of the Record."
+        },
+        "hitConsistency": {
+          "$ref": "#/$defs/HitConsistency",
+          "description": "`hitConsistencyParams`."
+        },
+        "instability": {
+          "$ref": "#/$defs/InstabilityParams",
+          "description": "`mineableInstabilityParams`."
+        },
+        "modifierPersistenceTime": {
+          "description": "`modifierPersistenceTime` in seconds.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "optimalWindowFactor": {
+          "description": "`optimalWindowFactor`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "optimalWindowMaxSize": {
+          "description": "`optimalWindowMaxSize`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "optimalWindowSize": {
+          "description": "`optimalWindowSize`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "optimalWindowThinnessCurveFactor": {
+          "description": "`optimalWindowThinnessCurveFactor`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "powerCapacityPerMass": {
+          "description": "`powerCapacityPerMass`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "recordPath": {
+          "description": "The record path, without `.xml`.",
+          "type": "string"
+        },
+        "resistanceCurveFactor": {
+          "description": "`resistanceCurveFactor`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "terrainFactorStaticThreshold": {
+          "description": "`terrainFactorStaticThreshold`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "wasteResourceTypeGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The GUID of the `ResourceType` Record the Reference `wasteResourceType` links to; `null`\nfor a null Reference."
+        }
+      },
+      "required": [
+        "absorbableVolumeThreshold",
+        "cScuPerVolume",
+        "childRockInactivityLifetime",
+        "childRockInvulnerabilityTime",
+        "childRockLifeTimer",
+        "childRockZeroGDamping",
+        "className",
+        "controlledBreakingDecayRate",
+        "controlledBreakingFillRate",
+        "controlledBreakingFillRateDanger",
+        "dangerBreakingDecayRate",
+        "dangerBreakingFillRate",
+        "dangerBreakingFillRateExponent",
+        "dangerToGadgetDamage",
+        "decayPerMass",
+        "defaultMass",
+        "explosion",
+        "gadgetDestroyThreshold",
+        "gadgetDetachThreshold",
+        "guid",
+        "hitConsistency",
+        "instability",
+        "modifierPersistenceTime",
+        "optimalWindowFactor",
+        "optimalWindowMaxSize",
+        "optimalWindowSize",
+        "optimalWindowThinnessCurveFactor",
+        "powerCapacityPerMass",
+        "recordPath",
+        "resistanceCurveFactor",
+        "terrainFactorStaticThreshold",
+        "wasteResourceTypeGuid"
+      ],
+      "type": "object"
+    },
     "MissileStats": {
       "description": "A missile.",
       "properties": {
@@ -2371,6 +4526,66 @@
       ],
       "type": "object"
     },
+    "MissionLocality": {
+      "description": "A mission locality: a `MissionLocality` Record under `missiondata/pu_missionlocality`, a named\nset of starmap objects. The game does not localise its name.",
+      "properties": {
+        "className": {
+          "description": "The Record name without its type, e.g. `pyro`.",
+          "type": "string"
+        },
+        "guid": {
+          "$ref": "#/$defs/Guid",
+          "description": "The GUID of the Record."
+        },
+        "recordPath": {
+          "description": "The record path, without `.xml`.",
+          "type": "string"
+        },
+        "starmapObjectGuids": {
+          "description": "The `availableLocations`, the `guid`s of entries of `starmapObjects`, in the stored order.\nA Reference to no Record is left out; a GUID missing from `starmapObjects` is kept.",
+          "items": {
+            "$ref": "#/$defs/Guid"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "className",
+        "guid",
+        "recordPath",
+        "starmapObjectGuids"
+      ],
+      "type": "object"
+    },
+    "MissionType": {
+      "description": "A mission type: a `MissionType` Record under `missiontype`.",
+      "properties": {
+        "className": {
+          "description": "The Record name without its type, e.g. `missiontype.job`.",
+          "type": "string"
+        },
+        "guid": {
+          "$ref": "#/$defs/Guid",
+          "description": "The GUID of the Record, the target of `contracts[].missionTypeGuid`."
+        },
+        "recordPath": {
+          "description": "The record path, without `.xml`.",
+          "type": "string"
+        },
+        "typeName": {
+          "$ref": "#/$defs/LocalisedText",
+          "description": "The localised name of the type (`LocalisedTypeName`).",
+          "x-gameText": true
+        }
+      },
+      "required": [
+        "className",
+        "guid",
+        "recordPath",
+        "typeName"
+      ],
+      "type": "object"
+    },
     "Paint": {
       "description": "A paint: an item of the type `Paints` and the ships it fits.",
       "properties": {
@@ -2445,6 +4660,91 @@
       "required": [
         "blueprintGuid",
         "weight"
+      ],
+      "type": "object"
+    },
+    "PoolFilterInstance": {
+      "description": "One filter of a sequence and how it combines with the ones before it.",
+      "properties": {
+        "filter": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PoolFilterNode"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The filter; `null` when the instance has none."
+        },
+        "mode": {
+          "description": "`mode`, e.g. `Cumulative` or `Additive`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "description": "The designer's label.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "filter",
+        "mode",
+        "name"
+      ],
+      "type": "object"
+    },
+    "PoolFilterNode": {
+      "description": "One node of a pool filter: a sequence of filters, a link to another filter Record, or a tag\nterm.",
+      "properties": {
+        "filterGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The `PoolFilterRecord` a `PoolFilter_RecordRef` links to."
+        },
+        "filters": {
+          "description": "The filters of a `PoolFilter_Sequence`, in stored order.",
+          "items": {
+            "$ref": "#/$defs/PoolFilterInstance"
+          },
+          "type": "array"
+        },
+        "negativeTagGuids": {
+          "description": "The GUIDs of the `Tag` Records in `negativeTags` of a `PoolFilter_Tags`.",
+          "items": {
+            "$ref": "#/$defs/Guid"
+          },
+          "type": "array"
+        },
+        "nodeType": {
+          "description": "The struct of the node as stored, e.g. `PoolFilter_Sequence`; informational, not a\nselector: the other fields tell what the node holds.",
+          "type": "string"
+        },
+        "positiveTagGuids": {
+          "description": "The GUIDs of the `Tag` Records in `positiveTags` of a `PoolFilter_Tags`.",
+          "items": {
+            "$ref": "#/$defs/Guid"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "filterGuid",
+        "filters",
+        "negativeTagGuids",
+        "nodeType",
+        "positiveTagGuids"
       ],
       "type": "object"
     },
@@ -2650,6 +4950,32 @@
         "guid",
         "recordPath",
         "resourceTypeGuids"
+      ],
+      "type": "object"
+    },
+    "QuantityRange": {
+      "description": "A range of amounts, both ends included.",
+      "properties": {
+        "max": {
+          "description": "`max`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "min": {
+          "description": "`min`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "max",
+        "min"
       ],
       "type": "object"
     },
@@ -2954,6 +5280,81 @@
       ],
       "type": "object"
     },
+    "RelationStanding": {
+      "description": "The scope and standing a faction relation assigns.",
+      "properties": {
+        "scopeGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The `SReputationScopeParams` Record, `null` when the relation names none."
+        },
+        "standingGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The `SReputationStandingParams` Record, `null` when the relation names none."
+        }
+      },
+      "required": [
+        "scopeGuid",
+        "standingGuid"
+      ],
+      "type": "object"
+    },
+    "ReputationContext": {
+      "description": "A reputation context: an `SReputationContextUI` Record under `reputation/contexts`, the scopes a\nfaction is shown with.",
+      "properties": {
+        "className": {
+          "description": "The Record name without its type, e.g. `ReputationContext_Transport`.",
+          "type": "string"
+        },
+        "guid": {
+          "$ref": "#/$defs/Guid",
+          "description": "The GUID of the Record."
+        },
+        "primaryScopeGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The scope of the `primaryScopeContext`, `null` when it names none."
+        },
+        "recordPath": {
+          "description": "The record path, without `.xml`.",
+          "type": "string"
+        },
+        "scopeGuids": {
+          "description": "The scopes of the `scopeContextList`, in the stored order.",
+          "items": {
+            "$ref": "#/$defs/Guid"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "className",
+        "guid",
+        "primaryScopeGuid",
+        "recordPath",
+        "scopeGuids"
+      ],
+      "type": "object"
+    },
     "ReputationGain": {
       "description": "One reputation amount a contract grants on success.",
       "properties": {
@@ -3008,6 +5409,133 @@
         "factionReputationName",
         "scopeGuid",
         "scopeName"
+      ],
+      "type": "object"
+    },
+    "ReputationScope": {
+      "description": "A reputation scope: an `SReputationScopeParams` Record under `reputation/scopes`, the ladder of\nstandings one kind of reputation climbs.",
+      "properties": {
+        "className": {
+          "description": "The Record name without its type, e.g. `ReputationScope_Affinity`.",
+          "type": "string"
+        },
+        "displayName": {
+          "$ref": "#/$defs/LocalisedText",
+          "description": "The `displayName`.",
+          "x-gameText": true
+        },
+        "guid": {
+          "$ref": "#/$defs/Guid",
+          "description": "The GUID of the Record."
+        },
+        "initialReputation": {
+          "description": "The reputation a player starts with (`initialReputation`).",
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "recordPath": {
+          "description": "The record path, without `.xml`.",
+          "type": "string"
+        },
+        "reputationCeiling": {
+          "description": "The highest reputation of the scope (`reputationCeiling`).",
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "scopeName": {
+          "description": "The `scopeName`, e.g. `Affinity`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "standingGuids": {
+          "description": "The standings of the scope, in the stored order.",
+          "items": {
+            "$ref": "#/$defs/Guid"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "className",
+        "displayName",
+        "guid",
+        "initialReputation",
+        "recordPath",
+        "reputationCeiling",
+        "scopeName",
+        "standingGuids"
+      ],
+      "type": "object"
+    },
+    "ReputationStanding": {
+      "description": "A reputation standing: an `SReputationStandingParams` Record under `reputation/standings`, one\nrank of a scope.",
+      "properties": {
+        "className": {
+          "description": "The Record name without its type, e.g. `ReputationStanding_Faction_B2_00`.",
+          "type": "string"
+        },
+        "displayName": {
+          "$ref": "#/$defs/LocalisedText",
+          "description": "The `displayName`, the name of the rank.",
+          "x-gameText": true
+        },
+        "driftReputation": {
+          "description": "The reputation the standing drifts back by (`driftReputation`).",
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "driftTimeHours": {
+          "description": "The hours between two drifts (`driftTimeHours`).",
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "gated": {
+          "description": "Whether the standing is gated (`gated`).",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "guid": {
+          "$ref": "#/$defs/Guid",
+          "description": "The GUID of the Record."
+        },
+        "minReputation": {
+          "description": "The reputation from which the standing applies (`minReputation`).",
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "recordPath": {
+          "description": "The record path, without `.xml`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "className",
+        "displayName",
+        "driftReputation",
+        "driftTimeHours",
+        "gated",
+        "guid",
+        "minReputation",
+        "recordPath"
       ],
       "type": "object"
     },
@@ -3268,6 +5796,149 @@
       ],
       "type": "object"
     },
+    "ScenarioFactionTiers": {
+      "description": "The reward tiers of one faction in a scenario.",
+      "properties": {
+        "factionGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The GUID of the `Faction` Record, `null` for a null or dangling Reference. No kind lists\n`Faction` Records; `factionReputationGuid` is the link into the catalog."
+        },
+        "factionName": {
+          "description": "The Record name of the faction, the last part of its record path, e.g.\n`faction_lawful_crusaderindustries`; `null` for no Reference.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "factionReputationGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The `factionReputationRef` of the `Faction` Record, an entry of `factionReputations`;\n`null` when the Record is missing, unreadable or names none."
+        },
+        "pointsAsPercent": {
+          "description": "Whether the tier points count as percent (`convertTiersPointsToPercent`).",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "progressions": {
+          "description": "The progressions (`tierProgressions`), in the stored order.",
+          "items": {
+            "$ref": "#/$defs/ScenarioProgression"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "factionGuid",
+        "factionName",
+        "factionReputationGuid",
+        "pointsAsPercent",
+        "progressions"
+      ],
+      "type": "object"
+    },
+    "ScenarioProgression": {
+      "description": "One progression of a scenario: a ladder of tiers.",
+      "properties": {
+        "completionType": {
+          "description": "The struct name of the `completionType`, e.g. `CompletionType_GlobalProgression`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "minMultiplierThreshold": {
+          "description": "The `minMultiplierThreshold`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "periodScenarioGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The `periodMissionScenario` Record, `null` when it names none."
+        },
+        "tiers": {
+          "description": "The tiers (`tierRewards`), in the stored order.",
+          "items": {
+            "$ref": "#/$defs/ScenarioTier"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "completionType",
+        "minMultiplierThreshold",
+        "periodScenarioGuid",
+        "tiers"
+      ],
+      "type": "object"
+    },
+    "ScenarioTier": {
+      "description": "A reward tier of a scenario progression.",
+      "properties": {
+        "badgeToAward": {
+          "description": "The identifier of the badge the tier awards (`badgeToAward`), `null` for none; the game\nstores the text `None` for a tier without a badge.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "blueprintPoolGuids": {
+          "description": "The blueprint pools the tier rewards (`blueprintPool`), the `guid`s of entries of\n`blueprintPools`, in the stored order.",
+          "items": {
+            "$ref": "#/$defs/Guid"
+          },
+          "type": "array"
+        },
+        "globalPointsMultiplier": {
+          "description": "The `globalPointsMultiplier`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "minPoints": {
+          "description": "The points from which the tier is reached (`minPoints`).",
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "badgeToAward",
+        "blueprintPoolGuids",
+        "globalPointsMultiplier",
+        "minPoints"
+      ],
+      "type": "object"
+    },
     "ShieldStats": {
       "description": "A shield generator.",
       "properties": {
@@ -3486,10 +6157,10 @@
       "type": "object"
     },
     "ShipInsurance": {
-      "description": "The insurance data of a ship: the `SEntityInsuranceProperties` of its\n`StaticEntityClassData`, the numbers of its `ShipInsuranceParams`. The Record states no claim\ncost; the expediting fee is the only price.",
+      "description": "The insurance data of a ship: the `SEntityInsuranceProperties` of its\n`StaticEntityClassData`, the numbers of its `ShipInsuranceParams`. The Record states no claim\ncost; `expediteFee` is the only fee in aUEC.",
       "properties": {
         "baseWaitTimeMinutes": {
-          "description": "`baseWaitTimeMinutes`: the claim time in minutes; `null` when the Record states none.",
+          "description": "`baseWaitTimeMinutes` in minutes; inferred meaning: the claim time. `null` when the Record\nstates none.",
           "format": "float",
           "type": [
             "number",
@@ -3497,7 +6168,7 @@
           ]
         },
         "expediteFee": {
-          "description": "`baseExpeditingFee` of the Record: the fee in aUEC for expediting a claim, the only price\nin the Record; `null` when the Record states none.",
+          "description": "`baseExpeditingFee` of the Record in aUEC, the only fee in the Record; `null` when the\nRecord states none.",
           "format": "int64",
           "type": [
             "integer",
@@ -3505,7 +6176,7 @@
           ]
         },
         "mandatoryWaitTimeMinutes": {
-          "description": "`mandatoryWaitTimeMinutes`: the mandatory wait in minutes, the shortest claim time; `null`\nwhen the Record states none.",
+          "description": "`mandatoryWaitTimeMinutes` in minutes; inferred meaning: the shortest claim time. `null`\nwhen the Record states none.",
           "format": "float",
           "type": [
             "number",
@@ -3513,7 +6184,7 @@
           ]
         },
         "restoreOnClaim": {
-          "description": "`restoreOnClaim`: whether a claim restores the ship with its Loadout; `null` when the\nRecord states none.",
+          "description": "`restoreOnClaim`, a boolean; inferred meaning: whether a claim restores the ship with its\nLoadout. `null` when the Record states none.",
           "type": [
             "boolean",
             "null"
@@ -3785,6 +6456,56 @@
       ],
       "type": "object"
     },
+    "SpawnWith": {
+      "description": "Items an entry spawns along with its own (`ArchetypeOptionalDataV3_SpawnWith`).",
+      "properties": {
+        "amount": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/QuantityRange"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "`amountToSpawn`."
+        },
+        "chance": {
+          "description": "`chanceToSpawnWith`, from 0 to 1.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "mode": {
+          "description": "`mode`, e.g. `MostSimilar`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "description": "The designer's label.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "selector": {
+          "$ref": "#/$defs/LootSelector",
+          "description": "Which items are spawned."
+        }
+      },
+      "required": [
+        "amount",
+        "chance",
+        "mode",
+        "name",
+        "selector"
+      ],
+      "type": "object"
+    },
     "Spread": {
       "description": "The spread of a fire mode, as stored in `SSpreadParams`.",
       "properties": {
@@ -3835,6 +6556,95 @@
         "firstAttack",
         "max",
         "min"
+      ],
+      "type": "object"
+    },
+    "StandingLevel": {
+      "description": "The level at which a reputation prerequisite is stated.",
+      "oneOf": [
+        {
+          "const": "handler",
+          "description": "The `defaultAvailability` of the handler.",
+          "type": "string"
+        },
+        {
+          "const": "contract",
+          "description": "The `additionalPrerequisites` of the contract.",
+          "type": "string"
+        },
+        {
+          "const": "subContract",
+          "description": "The `additionalPrerequisites` of the sub contract.",
+          "type": "string"
+        }
+      ]
+    },
+    "StandingRequirement": {
+      "description": "A reputation prerequisite of a contract.",
+      "properties": {
+        "exclude": {
+          "description": "The `exclude` flag as stored, `null` when absent.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "factionReputationGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The `factionReputation` the prerequisite is about, `null` when it names none."
+        },
+        "level": {
+          "$ref": "#/$defs/StandingLevel",
+          "description": "Where the prerequisite is stated."
+        },
+        "maxStandingGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The `maxStanding`, `null` when the prerequisite names none."
+        },
+        "minStandingGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The `minStanding`, `null` when the prerequisite names none."
+        },
+        "scopeGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The `scope`, `null` when the prerequisite names none."
+        }
+      },
+      "required": [
+        "exclude",
+        "factionReputationGuid",
+        "level",
+        "maxStandingGuid",
+        "minStandingGuid",
+        "scopeGuid"
       ],
       "type": "object"
     },
@@ -3946,6 +6756,218 @@
         "system",
         "type",
         "typeGuid"
+      ],
+      "type": "object"
+    },
+    "SubHarvestable": {
+      "description": "One sub harvestable of a config.",
+      "properties": {
+        "geometryTagGuids": {
+          "description": "The GUIDs of the `Tag` Records of `geometries`, in stored order.",
+          "items": {
+            "$ref": "#/$defs/Guid"
+          },
+          "type": "array"
+        },
+        "harvestable": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HarvestableLink"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "What the sub harvestable spawns; `null` when it names neither a harvestable nor an entity."
+        },
+        "lootConfig": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LootConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The loot the slot generates (`lootConfig`); `null` when the slot has none."
+        },
+        "relativeProbability": {
+          "description": "`relativeProbability`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "relativeProbabilityDeepest": {
+          "description": "`probability` of `relativeProbabilityDeepest`; `null` when there is none.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "respawnTimeMultiplier": {
+          "description": "`harvestableRespawnTimeMultiplier`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "setupGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The GUID of the Record the Reference `harvestableSetup` links to."
+        }
+      },
+      "required": [
+        "geometryTagGuids",
+        "harvestable",
+        "lootConfig",
+        "relativeProbability",
+        "relativeProbabilityDeepest",
+        "respawnTimeMultiplier",
+        "setupGuid"
+      ],
+      "type": "object"
+    },
+    "SubHarvestableMultiConfig": {
+      "description": "A sub harvestable multi config: a `SubHarvestableMultiConfigRecord` Record under\n`harvestable/slotpresets`, what the slots of an object can hold by tag.",
+      "properties": {
+        "className": {
+          "description": "The Record name without its type.",
+          "type": "string"
+        },
+        "defaultConfigGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The GUID of the Record the default config links to when it is a reference; `null` for none\nor a config of another form."
+        },
+        "guid": {
+          "$ref": "#/$defs/Guid",
+          "description": "The GUID of the Record."
+        },
+        "ignoreAttachableTags": {
+          "description": "`ignoreAttachableTagsForTaggedConfigs`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "recordPath": {
+          "description": "The record path, without `.xml`.",
+          "type": "string"
+        },
+        "taggedConfigs": {
+          "description": "The configs by tag, from `taggedConfigs` in stored order.",
+          "items": {
+            "$ref": "#/$defs/TaggedConfig"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "className",
+        "defaultConfigGuid",
+        "guid",
+        "ignoreAttachableTags",
+        "recordPath",
+        "taggedConfigs"
+      ],
+      "type": "object"
+    },
+    "TagCount": {
+      "description": "How many entities carry one tag.",
+      "properties": {
+        "entities": {
+          "description": "The number of entities that carry the tag.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "tagGuid": {
+          "$ref": "#/$defs/Guid",
+          "description": "The `Tag` Record."
+        }
+      },
+      "required": [
+        "entities",
+        "tagGuid"
+      ],
+      "type": "object"
+    },
+    "TaggedConfig": {
+      "description": "One config of a [`SubHarvestableMultiConfig`] and the tags it applies to.",
+      "properties": {
+        "configGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The GUID of the Record the config links to when it is a reference; `null` for a config\nwritten out in place."
+        },
+        "initialSlotsProbability": {
+          "description": "`initialSlotsProbability` of a config written out in place.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "name": {
+          "description": "`name`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "respawnTimeMultiplier": {
+          "description": "`configRespawnTimeMultiplier` of a config written out in place.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "subHarvestables": {
+          "description": "The sub harvestables of a config written out in place, in stored order.",
+          "items": {
+            "$ref": "#/$defs/SubHarvestable"
+          },
+          "type": "array"
+        },
+        "tagGuids": {
+          "description": "The GUIDs of the `Tag` Records of the tag list, in stored order.",
+          "items": {
+            "$ref": "#/$defs/Guid"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "configGuid",
+        "initialSlotsProbability",
+        "name",
+        "respawnTimeMultiplier",
+        "subHarvestables",
+        "tagGuids"
       ],
       "type": "object"
     },
@@ -4218,10 +7240,24 @@
       "$ref": "#/$defs/Completeness",
       "description": "Whether each kind is a complete snapshot of the Build."
     },
+    "contractScenarios": {
+      "description": "The contract scenarios with their reward tiers, ordered by GUID.",
+      "items": {
+        "$ref": "#/$defs/ContractScenario"
+      },
+      "type": "array"
+    },
     "contracts": {
       "description": "The contracts and sub contracts with resolved titles, mission types and the reputation they\ngrant on success, ordered by the GUID of the contract and then of the sub contract.",
       "items": {
         "$ref": "#/$defs/ContractEntry"
+      },
+      "type": "array"
+    },
+    "crafters": {
+      "description": "The crafting stations with the limits of their job queues, ordered by GUID.",
+      "items": {
+        "$ref": "#/$defs/Crafter"
       },
       "type": "array"
     },
@@ -4236,10 +7272,31 @@
       },
       "type": "array"
     },
+    "factionReputations": {
+      "description": "The factions with their reputation links, ordered by GUID.",
+      "items": {
+        "$ref": "#/$defs/FactionReputation"
+      },
+      "type": "array"
+    },
     "gameplayProperties": {
       "description": "The gameplay property definitions the quality modifiers refer to, ordered by GUID.",
       "items": {
         "$ref": "#/$defs/GameplayProperty"
+      },
+      "type": "array"
+    },
+    "harvestableLocations": {
+      "description": "The containers whose `.soc` names a provider preset, with the starmap object they hang\nbelow, ordered by preset GUID, container, system and object GUID.",
+      "items": {
+        "$ref": "#/$defs/HarvestableLocation"
+      },
+      "type": "array"
+    },
+    "harvestableProviderPresets": {
+      "description": "The harvestable provider presets, what a place can spawn, ordered by GUID.",
+      "items": {
+        "$ref": "#/$defs/HarvestableProviderPreset"
       },
       "type": "array"
     },
@@ -4261,10 +7318,52 @@
       },
       "type": "array"
     },
+    "legacyLootArchetypes": {
+      "description": "The older loot archetypes the older tables draw from, ordered by GUID.",
+      "items": {
+        "$ref": "#/$defs/LegacyLootArchetype"
+      },
+      "type": "array"
+    },
+    "legacyLootTables": {
+      "description": "The older loot tables, the targets of `lootConfig.lootTableGuid`, ordered by GUID.",
+      "items": {
+        "$ref": "#/$defs/LegacyLootTable"
+      },
+      "type": "array"
+    },
     "loadouts": {
       "description": "The ports of every ship and of every item that has ports, with what the Default Loadout\nattaches to each, ordered by the GUID of the entity.",
       "items": {
         "$ref": "#/$defs/Loadout"
+      },
+      "type": "array"
+    },
+    "lootArchetypes": {
+      "description": "The loot archetypes with the weighted selectors of each, ordered by GUID.",
+      "items": {
+        "$ref": "#/$defs/LootArchetype"
+      },
+      "type": "array"
+    },
+    "lootContainers": {
+      "description": "The containers placed with a multi config, with the starmap object each hangs below,\nordered by config, container, system and object.",
+      "items": {
+        "$ref": "#/$defs/LootContainer"
+      },
+      "type": "array"
+    },
+    "lootPoolFilters": {
+      "description": "The loot pool filters, ordered by GUID.",
+      "items": {
+        "$ref": "#/$defs/LootPoolFilter"
+      },
+      "type": "array"
+    },
+    "lootTables": {
+      "description": "The loot tables with the weighted archetypes of each, ordered by GUID.",
+      "items": {
+        "$ref": "#/$defs/LootTable"
       },
       "type": "array"
     },
@@ -4275,10 +7374,45 @@
       },
       "type": "array"
     },
+    "mineableCompositions": {
+      "description": "The mineable compositions, the elements a rock or deposit is made of, ordered by GUID.",
+      "items": {
+        "$ref": "#/$defs/MineableComposition"
+      },
+      "type": "array"
+    },
     "mineableElements": {
       "description": "The mineable elements, ordered by GUID. Several may link to one `ResourceType`.",
       "items": {
         "$ref": "#/$defs/MineableElement"
+      },
+      "type": "array"
+    },
+    "mineableEntities": {
+      "description": "The mineable entities with the scan signature of each, ordered by GUID.",
+      "items": {
+        "$ref": "#/$defs/MineableEntity"
+      },
+      "type": "array"
+    },
+    "miningGlobalParams": {
+      "description": "The mining parameters of each kind of miner, ordered by GUID.",
+      "items": {
+        "$ref": "#/$defs/MiningGlobalParams"
+      },
+      "type": "array"
+    },
+    "missionLocalities": {
+      "description": "The mission localities, sets of starmap objects, ordered by GUID.",
+      "items": {
+        "$ref": "#/$defs/MissionLocality"
+      },
+      "type": "array"
+    },
+    "missionTypes": {
+      "description": "The mission types, the targets of `contracts[].missionTypeGuid`, ordered by GUID.",
+      "items": {
+        "$ref": "#/$defs/MissionType"
       },
       "type": "array"
     },
@@ -4307,6 +7441,27 @@
       "description": "The refining processes, ordered by GUID.",
       "items": {
         "$ref": "#/$defs/RefiningProcess"
+      },
+      "type": "array"
+    },
+    "reputationContexts": {
+      "description": "The reputation contexts, the scopes a faction is shown with, ordered by GUID.",
+      "items": {
+        "$ref": "#/$defs/ReputationContext"
+      },
+      "type": "array"
+    },
+    "reputationScopes": {
+      "description": "The reputation scopes with the standings of each, ordered by GUID.",
+      "items": {
+        "$ref": "#/$defs/ReputationScope"
+      },
+      "type": "array"
+    },
+    "reputationStandings": {
+      "description": "The reputation standings, the ranks of the scopes, ordered by GUID.",
+      "items": {
+        "$ref": "#/$defs/ReputationStanding"
       },
       "type": "array"
     },
@@ -4355,6 +7510,13 @@
         "$ref": "#/$defs/StarmapObject"
       },
       "type": "array"
+    },
+    "subHarvestableMultiConfigs": {
+      "description": "The sub harvestable multi configs, what the slots of an object can hold, ordered by GUID.",
+      "items": {
+        "$ref": "#/$defs/SubHarvestableMultiConfig"
+      },
+      "type": "array"
     }
   },
   "required": [
@@ -4363,26 +7525,46 @@
     "blueprints",
     "commodities",
     "completeness",
+    "contractScenarios",
     "contracts",
+    "crafters",
     "craftingGlobal",
     "dismantleProcesses",
+    "factionReputations",
     "gameplayProperties",
+    "harvestableLocations",
+    "harvestableProviderPresets",
     "itemRecovery",
     "items",
+    "legacyLootArchetypes",
+    "legacyLootTables",
     "loadouts",
+    "lootArchetypes",
+    "lootContainers",
+    "lootPoolFilters",
+    "lootTables",
     "manufacturers",
+    "mineableCompositions",
     "mineableElements",
+    "mineableEntities",
+    "miningGlobalParams",
+    "missionLocalities",
+    "missionTypes",
     "paints",
     "qualityDistributions",
     "qualityQuantizations",
     "refiningProcesses",
+    "reputationContexts",
+    "reputationScopes",
+    "reputationStandings",
     "resourceGroups",
     "schemaVersion",
     "shipStoreSlugs",
     "ships",
     "shops",
     "source",
-    "starmapObjects"
+    "starmapObjects",
+    "subHarvestableMultiConfigs"
   ],
   "title": "P4KX Basetool catalog",
   "type": "object"

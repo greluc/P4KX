@@ -12,7 +12,7 @@ use crate::CatalogError;
 use crate::starmap_index::{Index, unreferenced};
 use crate::starmap_parse::read_all;
 use crate::starmap_report::{ContainerCounts, Placement, StarmapReport, apart, clip};
-use crate::starmap_walk::{System, SystemRead};
+use crate::starmap_walk::{Opened, System, SystemRead};
 
 /// What bounds the walk through a star system.
 #[derive(Debug, Clone, Copy)]
@@ -41,6 +41,9 @@ pub(crate) struct Placements {
     by_record: HashMap<Guid, Placement>,
     pub(crate) counts: ContainerCounts,
     pub(crate) report: StarmapReport,
+    /// Every container below the system folder: those the walk opened, each with the record it
+    /// hangs below, then those it did not reach, with none.
+    pub(crate) opened: Vec<Opened>,
 }
 
 impl Placements {
@@ -107,6 +110,7 @@ impl Placements {
                 .containers
                 .extend(system.report.containers);
             placements.report.issues.extend(system.report.issues);
+            placements.opened.extend(system.containers);
             for (record, placement) in system.placed {
                 placements.add(record, placement, &mut repeated);
             }
@@ -120,8 +124,25 @@ impl Placements {
             placements.by_record.remove(record);
         }
         placements.report.unreferenced = unreferenced(&index, &opened);
+        placements.add_unreached(&index, &opened);
         placements.report.elapsed = started.elapsed();
         Ok(placements)
+    }
+
+    /// Adds the containers below the system folder that the walk did not open, each hanging below
+    /// no record.
+    fn add_unreached(&mut self, index: &Index<'_>, opened: &HashSet<usize>) {
+        self.opened.extend(
+            index
+                .system_containers()
+                .into_iter()
+                .filter(|(_, entry)| !opened.contains(entry))
+                .map(|(system, entry)| Opened {
+                    system,
+                    entry,
+                    under: None,
+                }),
+        );
     }
 
     /// Keeps the first placement of `record`; a later one more than `SAME_PLACE` metres from it

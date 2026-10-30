@@ -1,6 +1,6 @@
 schema_version = "1.0.0"
 id = "p4kx_importer"
-version = "0.3.0"
+version = "0.4.1"
 name = "P4KX Package Importer"
 tagline = "Import P4KX Blender packages"
 maintainer = "P4KX contributors"

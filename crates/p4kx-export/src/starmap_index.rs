@@ -64,6 +64,25 @@ impl<'a> Index<'a> {
             })
             .collect()
     }
+
+    /// Returns the star system folder and the Entry of every container below
+    /// `ObjectContainers\PU\system`, ordered by path.
+    pub(crate) fn system_containers(&self) -> Vec<(Arc<str>, usize)> {
+        let mut found: Vec<(&str, &str, usize)> = self
+            .by_path
+            .iter()
+            .filter_map(|(path, at)| {
+                let rest = path.strip_prefix(SYSTEM_FOLDER)?;
+                let (folder, _) = rest.split_once('\\')?;
+                Some((path.as_str(), folder, *at))
+            })
+            .collect();
+        found.sort_unstable();
+        found
+            .into_iter()
+            .map(|(_, folder, at)| (Arc::from(folder), at))
+            .collect()
+    }
 }
 
 /// Returns whether `path` ends in `.socpak`, ignoring ASCII case.

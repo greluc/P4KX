@@ -224,7 +224,7 @@ fn a_cut_that_finds_no_body_part_is_reported() -> TestResult {
         drawn_nodes(&assembly)?.len(),
         BodyVariant::Male.zone_names().len()
     );
-    assert!(hidden_zones(&assembly).is_empty());
+    assert_eq!(hidden_zones(&assembly), Vec::<Vec<String>>::new());
     assert!(assembly.issues().iter().any(|issue| matches!(
         issue.kind(),
         IssueKind::BodyZonesUnknown(reason) if reason.contains("Char_Body")

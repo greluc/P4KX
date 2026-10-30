@@ -22,7 +22,7 @@ use serde_json::Value;
 
 type TestResult = Result<(), Box<dyn Error>>;
 
-const MINIMUM: [(Kind, usize); 17] = [
+const MINIMUM: [(Kind, usize); 37] = [
     (Kind::Manufacturers, 500),
     (Kind::Items, 10_000),
     (Kind::Ships, 200),
@@ -39,7 +39,27 @@ const MINIMUM: [(Kind, usize); 17] = [
     (Kind::Loadouts, 1_000),
     (Kind::MineableElements, 20),
     (Kind::RefiningProcesses, 9),
+    (Kind::MineableCompositions, 200),
+    (Kind::MiningGlobalParams, 5),
+    (Kind::HarvestableProviderPresets, 40),
+    (Kind::SubHarvestableMultiConfigs, 100),
+    (Kind::HarvestableLocations, 300),
     (Kind::Shops, 1_000),
+    (Kind::FactionReputations, 30),
+    (Kind::ReputationScopes, 30),
+    (Kind::ReputationStandings, 300),
+    (Kind::ReputationContexts, 15),
+    (Kind::MissionTypes, 30),
+    (Kind::MissionLocalities, 15),
+    (Kind::ContractScenarios, 2),
+    (Kind::LootTables, 50),
+    (Kind::LootArchetypes, 30),
+    (Kind::LootPoolFilters, 10),
+    (Kind::LootContainers, 1_000),
+    (Kind::MineableEntities, 200),
+    (Kind::LegacyLootTables, 150),
+    (Kind::LegacyLootArchetypes, 200),
+    (Kind::Crafters, 2),
 ];
 const MIN_ENGLISH_SHARE: f64 = 0.95;
 const MIN_GERMAN_SHARE: f64 = 0.5;
@@ -103,6 +123,10 @@ fn has_excluded_token(text: &str) -> Option<&'static str> {
         })
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "the checks of one Archive follow each other"
+)]
 fn verify_catalog(path: &Path) -> Result<Value, Box<dyn Error>> {
     let (summary, catalog) = built(path)?;
     let summary = &summary;
@@ -128,6 +152,9 @@ fn verify_catalog(path: &Path) -> Result<Value, Box<dyn Error>> {
         assert!(counts.complete, "{kind} complete without a Filter");
         let entities = list(&catalog, kind)?;
         assert_eq!(entities.len(), counts.count, "{kind} written");
+        if matches!(kind, Kind::HarvestableLocations | Kind::LootContainers) {
+            continue;
+        }
         let own = match kind {
             Kind::Paints => "itemGuid",
             Kind::Loadouts => "entityGuid",
@@ -186,7 +213,7 @@ fn check_unique_guids(catalog: &Value) -> TestResult {
     );
     let kinds = Kind::ALL
         .into_iter()
-        .filter(|kind| !kind.is_derived() && *kind != Kind::Contracts);
+        .filter(|kind| !kind.is_derived() && !matches!(kind, Kind::Contracts | Kind::Crafters));
     for kind in kinds {
         for entity in list(catalog, kind)? {
             let guid = entity["guid"].as_str().ok_or("a GUID")?;

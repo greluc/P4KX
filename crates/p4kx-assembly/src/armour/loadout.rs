@@ -3,7 +3,7 @@
 
 use p4kx_dataforge::Guid;
 
-use super::piece::Note;
+use super::piece::{Mount, Note};
 use super::{Piece, Wearable, ZoneList};
 use crate::resolver::LoadoutResolver;
 use crate::spec::{EntitySpec, LoadoutSpec};
@@ -11,6 +11,33 @@ use crate::walk::Walk;
 use crate::{Attachment, EntityNode, LoadoutError, PortNode, Target};
 
 const WORN_PREFIXES: [&str; 2] = ["Char_Armor_", "Char_Clothing_"];
+
+/// What the ports of a Loadout level belong to.
+#[derive(Clone, Copy)]
+enum Holder<'a> {
+    /// The character: the root of the tree.
+    Body,
+    /// A worn piece of this name.
+    Piece(&'a str),
+    /// An Entity that is not worn, whose geometry is not drawn.
+    Other,
+}
+
+impl Holder<'_> {
+    /// Returns where an item on `port` hangs on this holder, or `None` when the holder is not
+    /// drawn, the port is a skin or names no helper.
+    fn mount(self, port: &PortNode) -> Option<Mount> {
+        let holder = match self {
+            Self::Body => None,
+            Self::Piece(name) => Some(name.to_owned()),
+            Self::Other => return None,
+        };
+        let definition = port.definition()?;
+        let transform = definition.transform()?;
+        (!definition.is_skin() && !transform.helper().is_empty())
+            .then(|| Mount::new(holder, transform))
+    }
+}
 
 /// Returns whether an Entity of the `AttachDef.Type` `item_type` is armour or clothing worn on a
 /// body, ignoring ASCII case.
@@ -157,30 +184,39 @@ impl<'f> LoadoutResolver<'f> {
     /// not pieces.
     pub fn worn(&mut self, tree: &EntityNode) -> Vec<Piece> {
         let mut pieces: Vec<Piece> = failures(tree.issues(), tree.record_path()).collect();
-        self.collect_worn(tree.ports(), true, &mut pieces);
+        self.collect_worn(tree.ports(), (true, Holder::Body), &mut pieces);
         pieces
     }
 
-    fn collect_worn(&mut self, ports: &[PortNode], relevant: bool, pieces: &mut Vec<Piece>) {
+    fn collect_worn(
+        &mut self,
+        ports: &[PortNode],
+        (relevant, holder): (bool, Holder<'_>),
+        pieces: &mut Vec<Piece>,
+    ) {
         for port in ports {
             let mut below = None;
             match port.attachment() {
                 Attachment::Entity(node) => {
-                    let worn = is_worn_type(node.attach_type());
-                    below = Some((node, worn));
-                    if worn {
-                        let name = format!("{}/{}", port.name(), node.class_name());
+                    let name = is_worn_type(node.attach_type())
+                        .then(|| format!("{}/{}", port.name(), node.class_name()));
+                    if let Some(name) = &name {
                         let spec = self.spec(node.guid());
-                        pieces.push(match spec.as_ref() {
+                        let piece = match spec.as_ref() {
                             Ok(spec) => relevant_issues(node.issues()).fold(
-                                Piece::wearable(Wearable::from_spec(spec)).named(name),
+                                Piece::wearable(Wearable::from_spec(spec)).named(name.clone()),
                                 |piece, issue| {
                                     piece.noting(Note::LoadoutUnreadable(issue.to_string()))
                                 },
                             ),
-                            Err(error) => Piece::failed(name, error.to_string()),
+                            Err(error) => Piece::failed(name.clone(), error.to_string()),
+                        };
+                        pieces.push(match holder.mount(port) {
+                            Some(mount) => piece.mounted(mount),
+                            None => piece,
                         });
                     }
+                    below = Some((node, name));
                 }
                 Attachment::Unresolved(unresolved) if relevant => {
                     let named = match unresolved.target() {
@@ -193,9 +229,10 @@ impl<'f> LoadoutResolver<'f> {
                 }
                 _ => {}
             }
-            self.collect_worn(port.nested(), relevant, pieces);
-            if let Some((node, worn)) = below {
-                self.collect_worn(node.ports(), worn, pieces);
+            self.collect_worn(port.nested(), (relevant, holder), pieces);
+            if let Some((node, name)) = &below {
+                let inside = name.as_deref().map_or(Holder::Other, Holder::Piece);
+                self.collect_worn(node.ports(), (name.is_some(), inside), pieces);
             }
         }
     }

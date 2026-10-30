@@ -7,6 +7,7 @@ use json::{Accessor, Index, Root};
 use p4kx_model::{Bone, Model, Node, Transform};
 
 use crate::axes::{Trs, decompose};
+use crate::rig_mount::{RigMount, mount_of, unskinned_trs};
 use crate::skin::bone_trs;
 
 /// One model written below a shared skeleton: its nodes, its name and which of its nodes carry a
@@ -16,6 +17,7 @@ pub(crate) struct RigModel<'a> {
     pub(crate) model: &'a Model,
     pub(crate) meshes: &'a [Option<Index<json::Mesh>>],
     pub(crate) skinned: &'a [bool],
+    pub(crate) mount: Option<RigMount>,
 }
 
 /// Writes the nodes of every model of `models`, then the bones of `bones` once, and the scene
@@ -24,7 +26,8 @@ pub(crate) struct RigModel<'a> {
 /// The node of a skinned mesh is a root with no transform and is named after its model; the other
 /// nodes of a model keep their hierarchy and their transforms, and a node below a skinned node
 /// hangs below the nearest ancestor that is not skinned and takes over the transforms of the
-/// skinned nodes in between (ADR-0039).
+/// skinned nodes in between (ADR-0039). A root node of a model with a mount hangs below the bone
+/// of the mount and takes its transform.
 pub(crate) fn push_rig_nodes(
     root: &mut Root,
     models: &[RigModel<'_>],
@@ -48,15 +51,13 @@ pub(crate) fn push_rig_nodes(
     });
     let mut children = children.into_iter();
     for rig in models {
+        let mount = mount_of(rig, bones);
         for (position, (node, mesh)) in rig.model.nodes.iter().zip(rig.meshes).enumerate() {
             let is_skinned = worn_skin(rig, position, skin.is_some());
             let trs = if is_skinned {
                 Trs::IDENTITY
             } else {
-                let placed = placement(&rig.model.nodes, position, |at| {
-                    worn_skin(rig, at, skin.is_some())
-                });
-                decompose(&placed.carried.then(&node.transform))
+                unskinned_trs(rig, position, mount, skin.is_some())
             };
             push_node(
                 root,
@@ -122,6 +123,7 @@ fn rig_forest(models: &[RigModel<'_>], bones: &[Bone], base: usize, has_skin: bo
     };
     let mut offset = 0;
     for rig in models {
+        let mount = mount_of(rig, bones);
         for position in 0..rig.model.nodes.len() {
             let index = index_of(offset + position);
             let parent = (!worn_skin(rig, position, has_skin))
@@ -130,9 +132,10 @@ fn rig_forest(models: &[RigModel<'_>], bones: &[Bone], base: usize, has_skin: bo
                         worn_skin(rig, at, has_skin)
                     })
                     .parent
+                    .map(|parent| offset + parent)
+                    .or_else(|| mount.map(|mount| base + mount.bone))
                 })
-                .flatten()
-                .map(|parent| offset + parent);
+                .flatten();
             if let Some(siblings) = parent.and_then(|parent| forest.children.get_mut(parent)) {
                 siblings.push(index);
             } else {
@@ -194,7 +197,7 @@ pub(crate) fn placement(
     }
 }
 
-fn worn_skin(rig: &RigModel<'_>, position: usize, has_skin: bool) -> bool {
+pub(crate) fn worn_skin(rig: &RigModel<'_>, position: usize, has_skin: bool) -> bool {
     has_skin && rig.skinned.get(position).copied().unwrap_or(false)
 }
 

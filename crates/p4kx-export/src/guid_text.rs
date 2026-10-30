@@ -26,6 +26,11 @@ impl CatalogGuid {
     }
 }
 
+/// Orders `entities` by the text of the GUID `guid` returns.
+pub(crate) fn sort_by_guid<T>(entities: &mut [T], guid: impl Fn(&T) -> CatalogGuid) {
+    entities.sort_by_cached_key(|entity| guid(entity).text());
+}
+
 struct Text {
     bytes: [u8; TEXT_LEN],
     len: usize,

@@ -5,15 +5,17 @@
 
 use serde_json::json;
 
-const GAME_TEXT: [&str; 8] = [
+const GAME_TEXT: [&str; 10] = [
     "description",
     "displayName",
     "displayType",
     "title",
     "missionType",
+    "typeName",
     "contractor",
     "place",
     "processName",
+    "depositName",
 ];
 
 fn collect_properties<'s>(
@@ -58,8 +60,8 @@ fn exactly_the_game_text_fields_carry_the_game_text_annotation() {
         marked += usize::from(carries);
     }
     assert_eq!(
-        marked, 12,
-        "four descriptions, two display types, the contract title, mission type, contractor, faction name, pickup place and the process name"
+        marked, 17,
+        "four descriptions, two display types, the contract title, mission type, contractor, faction name, pickup place, the process name, the deposit name, and the names of a faction, a scope, a standing and a mission type"
     );
     let mut starmap_properties = Vec::new();
     collect_properties(&starmap, &mut starmap_properties);

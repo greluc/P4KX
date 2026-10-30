@@ -36,8 +36,19 @@ The rule is ADR-0054 (amending ADR-0002):
   Version 2 also fixes a port whose name several parts of the vehicle file share (#677): the first
   such part gives the port its sizes, types and flags, as in the tree, so the `Radar_Helper` port
   of eight Ursa ships on LIVE 4.10 no longer lists `start_hidden` in its `flags`.
-  Version 2 has the kind `qualityQuantizations` (#692, ADR-0177); it is not yet released, so it
-  needs no further bump. The same holds for the ship field `insurance` (#323, ADR-0218).
+  Version 2 was released with 0.4.0 and has the kind `qualityQuantizations` (#692, ADR-0177), the
+  ship field `insurance` (#323, ADR-0218), the kinds `mineableCompositions`, `miningGlobalParams`,
+  `harvestableProviderPresets`, `subHarvestableMultiConfigs` and `harvestableLocations` (#320,
+  ADR-0236), the kinds `factionReputations`, `reputationScopes`, `reputationStandings`,
+  `reputationContexts`, `missionTypes`, `missionLocalities` and `contractScenarios` and the
+  contract fields `minStandingGuid`, `maxStandingGuid` and `standingRequirements` (#319,
+  ADR-0237), and the kinds `lootTables`, `lootArchetypes`, `lootPoolFilters` and `lootContainers`
+  and the field `lootConfig` of a sub harvestable (#322, ADR-0238), the kind `mineableEntities`
+  (#830, ADR-0242), the kinds `legacyLootTables` and `legacyLootArchetypes` (#818, ADR-0238), the
+  contract fields `cooldownLayer`, `hasPersonalCooldown`, `personalCooldownTime`,
+  `personalCooldownTimeVariation`, `abandonedCooldownTime` and `abandonedCooldownTimeVariation`
+  (#832, ADR-0244) and the kind `crafters` (#831, ADR-0243). Later additions keep version 2 as
+  long as they are additive.
 - **A production import takes catalogs of the Channel `LIVE` only.** `PTU`, `EPTU`, `TECH-PREVIEW`
   and `HOTFIX` are confidential test Channels (ADR-0038).
 
@@ -47,7 +58,9 @@ Identifiers, short names and fact values may reach third parties; descriptions a
 The game texts of the catalog are every `description` and every `displayType`, the `name` of a
 starmap object (a place name that comes from localisation, by the owner's decision for #321), and
 the `title`, `missionType`, `contractor`, the `displayName` of a contract's faction and the `place`
-of a pickup place of a contract, each with
+of a pickup place of a contract, the `processName` of a refining process and the `depositName`
+of a mineable composition, the `displayName` of a faction, a reputation scope and a reputation
+standing and the `typeName` of a mission type, each with
 its `key`, `en` and `de`. `name` of the other kinds, `role`, `career` and the other fields are
 identifiers, short names or fact values. The catalog keeps the `description` fields for the
 Basetool's logged-in members; the Basetool keeps them, `displayType` and the contract texts away
@@ -122,7 +135,27 @@ same in every kind. Every field is always present; one that has no value is `nul
 | `contracts` | The contracts and sub contracts with resolved title, mission type, pickup places and the reputation granted on success, ordered by `guid` and then `subContractGuid` |
 | `mineableElements` | The mineable elements with their instability and other plain numbers, each linked to a `ResourceType`, ordered by GUID |
 | `refiningProcesses` | The refining processes (speed and quality pairs of a refinery), ordered by GUID |
+| `mineableCompositions` | The elements a rock or deposit is made of, with the range and chance of each, ordered by GUID |
+| `miningGlobalParams` | The mining parameters of each kind of miner (ship, ground vehicle, FPS), ordered by GUID |
+| `harvestableProviderPresets` | What a place can spawn: groups of harvestables followed to their composition, and areas, ordered by GUID |
+| `subHarvestableMultiConfigs` | What the slots of an object can hold by tag, ordered by GUID |
+| `harvestableLocations` | The containers whose `.soc` names a provider preset, with the starmap object each hangs below, ordered by preset, container, system and object |
 | `shops` | The shops of the shop registry with kind, brand, location and the link to a starmap object, ordered by `key` |
+| `factionReputations` | The factions of the reputation system with their allies, enemies and relation standings, ordered by GUID |
+| `reputationScopes` | The reputation scopes, each the ladder of standings one kind of reputation climbs, ordered by GUID |
+| `reputationStandings` | The reputation standings, the ranks of the scopes with their thresholds, ordered by GUID |
+| `reputationContexts` | The reputation contexts, the scopes a faction is shown with, ordered by GUID |
+| `missionTypes` | The mission types, the targets of `contracts[].missionTypeGuid`, ordered by GUID |
+| `missionLocalities` | The mission localities, named sets of starmap objects, ordered by GUID |
+| `contractScenarios` | The contract scenarios with the reward tiers of each faction, ordered by GUID |
+| `lootTables` | The loot tables (`LootTableV3Record`) with the weighted archetypes of each, ordered by GUID |
+| `lootArchetypes` | The loot archetypes (`LootArchetypeV3Record`) with the weighted selectors of each, ordered by GUID |
+| `lootPoolFilters` | The pool filters of the loot generation, ordered by GUID |
+| `legacyLootTables` | The older loot tables (`LootTable`) with the weighted archetypes of each, ordered by GUID |
+| `legacyLootArchetypes` | The older loot archetypes (`LootArchetype`) with the weighted tags of each, ordered by GUID |
+| `lootContainers` | The containers placed with a multi config, with the starmap object each hangs below, ordered by config, container, system and object |
+| `mineableEntities` | The mineable rocks and deposits (`EntityClassDefinition` under `entities/mineable`) with their composition, mining parameters and scan signature, ordered by GUID |
+| `crafters` | The crafting stations (entities with a `CrafterComponentParams`) with the limits and accepted categories of their job queues, their crafting-time modifiers and the attach definition a port is matched against, ordered by GUID |
 | `shipStoreSlugs` | The RSI store slugs that map to a ship of `ships`, with the retired ones flagged, ordered by `slug` (curated data, ADR-0117) |
 | `craftingGlobal` | Not a kind: the global crafting parameters that apply to every dismantle |
 | `itemRecovery` | Not a kind: the item recovery multipliers and rates behind claims, with the override groups of entity classes, `null` without the Record; see "Item recovery rules" below |
@@ -412,32 +445,27 @@ more (LIVE); the field is a fact only, no game text, and it is additive within v
 
 | Field of `insurance` | Source |
 |----------------------|--------|
-| `restoreOnClaim` | `restoreOnClaim`, a boolean |
+| `restoreOnClaim` | `restoreOnClaim`, a boolean (inferred meaning: a claim restores the ship with its Loadout) |
 | `shipEntityClassName` | `shipInsuranceParams.shipEntityClassName`, e.g. `AEGS_Gladius`; `null` when empty |
-| `baseWaitTimeMinutes` | `shipInsuranceParams.baseWaitTimeMinutes`, the claim time in minutes |
-| `mandatoryWaitTimeMinutes` | `shipInsuranceParams.mandatoryWaitTimeMinutes`, the mandatory wait in minutes, the shortest claim time |
-| `expediteFee` | `shipInsuranceParams.baseExpeditingFee` (renamed), in aUEC as stored; named for what the Record calls it |
+| `baseWaitTimeMinutes` | `shipInsuranceParams.baseWaitTimeMinutes`, in minutes (inferred meaning: the claim time) |
+| `mandatoryWaitTimeMinutes` | `shipInsuranceParams.mandatoryWaitTimeMinutes`, in minutes (inferred meaning: the shortest claim time) |
+| `expediteFee` | `shipInsuranceParams.baseExpeditingFee` (renamed), in aUEC as stored |
 
-Every field is `null` when the Record states none. The struct has exactly these fields: two times,
-one fee, `restoreOnClaim`, the class name and the `displayParams` below. The numbers are those of
-the Record, unchanged: the Basetool applies any scaling or rule of its own. The `displayParams` of the struct
+The meanings marked inferred come from the field names; the Archive states none. Every field is
+`null` when the Record states none, including every field of a ship whose
+`SEntityInsuranceProperties` has no `shipInsuranceParams`. The struct has exactly these fields: two
+times, one fee, `restoreOnClaim`, the class name and the `displayParams`. The numbers are those of
+the Record, unchanged; the Basetool applies any scaling or rule of its own. The `displayParams`
 (name, role, career, crew size, manufacturer) repeat the ship's own fields, are mostly
 placeholders, and are not exported.
 
-Which field covers which case. The wait times cover claiming; `expediteFee` is the only fee in
-the struct. The owner reports that the game now claims a default Loadout for free and an insured
-Loadout against a fee, and that expediting is gone. The data does not state that fee: for
-AEGS_Idris_M the Record says 150,990 aUEC, while the game shows just under 1,000,000 aUEC, so
-`expediteFee` is not the claim fee, and the catalog does not present it as one (an interpretation
-that the data contradicts). The claim fee is not a stored number. The Archive holds only
-multipliers in the `ItemRecoveryConfigurationParams` Record `entitlementpolicies/globalitemrecovery`
-(`economyParams`: `claimCostMultiplier` 0.003, `maxExpeditedClaimCostMultiplier` 0.0003, per class
-overrides, the Idris-M group at 1), which the game applies to values at run time. The catalog
-exports them as `itemRecovery` (see "Item recovery rules") and computes no fee.
+`expediteFee` is the only fee in aUEC the Archive holds for a ship; the multipliers that relate to
+claims are in `itemRecovery` (see "Item recovery rules"), which also states what the data does and
+does not say about a claim fee.
 
-On LIVE all 1,066 catalog ships carry `insurance`, each with a fee; AEGS_Gladius has a claim time
-of 5.83 minutes, a mandatory wait of 1.94 minutes and an expediting fee of 2,335 aUEC (real-Archive
-test `real_archive_insurance`).
+On LIVE all 1,066 catalog ships carry `insurance`, each with a fee;
+AEGS_Gladius has a `baseWaitTimeMinutes` of 5.83, a `mandatoryWaitTimeMinutes` of 1.94 and an
+`expediteFee` of 2,335 (real-Archive test `real_archive_insurance`).
 
 #### Ship base data
 
@@ -512,18 +540,20 @@ ships; it is used as evidence, not as a definition. Any value other than `ReadyT
    `Components[VehicleComponentParams].criticalPartExplosionChance` is above zero, or when
    `Components[VehicleComponentParams].aiEngineeringOptions.powerPlantsCanExplodeOnDeath` is true
    while `inclusionMode` is not `ReadyToInclude`. Ground vehicles all carry these two hull values,
-   so they are not read there.
+   so they are not read there. Also, for every vehicle, when the Record tag (`$tag` of the Record
+   JSON) is `SystemsDesign`: on LIVE all 15 ships with it are AI variants (the `AI_Super` classes),
+   and no `player` ship carries it (ADR-0245).
 2. `mission` when one of the Record's `tags` links to a `Tag` Record whose `tagName` is `Unmanned`
    (the salvage, derelict and wreck targets of missions).
 3. `special` when `inclusionMode` is `DoNotInclude` (templates, wrecks, sentries, event props).
-4. `player` when `inclusionMode` is `ReadyToInclude` and, for a spaceship,
-   `powerPlantsCanExplodeOnDeath` is not true.
+4. `player` when `inclusionMode` is `ReadyToInclude`. A hull that explodes on death does not
+   count against it: on LIVE every `ReadyToInclude` ship with that hull value and no AI marker
+   above is a ship the owner has flown (Basher, Sabre Raven EX, Skylark, Railen, Stingray, Tyilui,
+   Constellation Mk V Centaurus; ADR-0245).
 5. Also `null` when the crew manifest or a tag the Record links to could not be read (the
    catalog reports that Record as a failure), since its evidence is missing; checked before
    rule 1.
-6. Otherwise `null`: no `EAEntityDataParams`, another `inclusionMode`, or a `ReadyToInclude` spaceship whose hull
-   explodes on death and that no crew manifest marks (LIVE: Stingray, Skylark, Railen and the
-   `ai_template` ships mix here; the data does not separate them).
+6. Otherwise `null`: no `EAEntityDataParams`, or another `inclusionMode`.
 
 For an item the first rule that holds decides:
 
@@ -545,10 +575,9 @@ whole word `temp`, `display` or `hijacked` (21 ships on LIVE, 15 of them `player
 
 **The Basetool seeds only `player` ships and items, and treats them as candidates.** `player`
 means the Records carry the structural markers of a player entity (ships: hangar-ready inclusion
-mode and no AI crew or hull; items: a shop display name). It is not proof that a player can obtain
+mode and no AI marker; items: a shop display name). It is not proof that a player can obtain
 it: items carry no AI marker. The Basetool
-matches every other value and `null` against what it knows and seeds none of them. A `null` ship
-(LIVE: Stingray, Skylark, Railen) is added by hand.
+matches every other value and `null` against what it knows and seeds none of them.
 
 `p4kx catalog` prints the count per value and the unclassified count for items and ships; `--json`
 lists them under `playability`. LIVE, 2026-10-21:
@@ -557,6 +586,40 @@ lists them under `playability`. LIVE, 2026-10-21:
 |------|---------:|-----:|----------:|----------:|-------:|
 | ships | 324 | 690 | 25 | 35 | 13 |
 | items | 7,954 | 0 | 522 | 8,570 | 6,234 |
+
+##### Comparison with the RSI ship matrix
+
+A development check, never an export source (ADR-0245): `playability` of the ships is compared with
+the public RSI ship matrix, which the owner saves by hand as
+`local-data/ship-matrix/ship-matrix.json` (excluded from git locally, never fetched by P4KX or CI).
+The `#[ignore]`d test `real_archive_ship_matrix` in `p4kx-export` reads the file named by
+`P4KX_REF_SHIP_MATRIX`. LIVE, ship matrix of 2026-10-28 (256 entries, 227 `flight-ready`, 29
+`in-concept`):
+
+| Question | Result |
+|----------|--------|
+| Flight ready in the matrix, but not `player` | 0 ships |
+| `player` ships the matrix does not call flight ready | 96 of 315, all unknown to the matrix and none called not ready: store-less variants such as Collector, Exec, Teach, BIS2950, Showdown and unmanned editions |
+| `null` ships | 0 of 1,066 |
+| Flight ready in the matrix, no class mapped | 4 (Mustang Alpha Vindicator and three ATLS entries) |
+
+Before rule 1 took the Record tag, the `AI_Super` classes of `ANVL_Hornet_F7C_Mk2` and
+`RSI_Perseus` were `player` and those of Corsair, Polaris and Fury `null`; the matrix knows none of
+them. The seven flight-ready base ships that were `null` (Basher, Sabre Raven EX, Skylark, Railen,
+S-65 Stingray, Tyilui, Constellation Mk V Centaurus) and `KRIG_S65_Stingray_BALLISTIC` are
+`player` since rule 4 no longer reads the hull. Ships by `playability`, LIVE 2026-10-28:
+
+| State | `player` | `ai` | `mission` | `special` | `null` |
+|-------|---------:|-----:|----------:|----------:|-------:|
+| Before | 309 | 689 | 22 | 35 | 11 |
+| After | 315 | 694 | 22 | 35 | 0 |
+
+A matrix entry maps to a ship through the `shipStoreSlugs` (RSI id, then the slug of the `url`);
+18 matrix names the slugs do not map are mapped by an explicit name table in the test. A catalog
+class counts as flight ready when any of its matrix entries is, so a flight-ready variant mapped
+to the same class (Mole editions, Carrack w/C8X) hides a base entry that is not. The test warns
+when a name-table class is no catalog ship and when a catalog ship or store slug entry cannot be
+read.
 
 A commodity is an `EntityClassDefinition` under `entities/commodities` or a `ResourceType` Record that
 a cost of any tier or a kept quality quantization uses and no commodity Record carries (see below). A commodity Record takes its fields
@@ -617,8 +680,8 @@ the cost tree is read once. A blueprint with a `CraftingCost_Select` nested deep
 not cut off silently: it is left out of `blueprints` and counted as a failure (printed on stderr by
 `p4kx catalog`, under `failed` in `--json` and in the summary; the catalog file has no such field).
 `p4kx catalog` then exits with code 1, where an earlier build wrote the cut tree silently. No
-blueprint of LIVE is that deep, so no catalog of LIVE changes (a change of the selection, folded
-into the unreleased version 2).
+blueprint of LIVE is that deep, so no catalog of LIVE changes (a change of the selection, part of
+version 2).
 
 An ingredient is one `CraftingCost_Resource` or `CraftingCost_Item` leaf of `mandatoryCost` and
 `optionalCosts`. Nested `CraftingCost_Select` costs are flattened depth first in stored order:
@@ -682,6 +745,13 @@ category is only found missing when the `--filter` selects it, so under a `--fil
 | `craftTimeSeconds` | `costs.craftTime` of the tier in whole seconds, rounded; `null` without one |
 | `mandatory` | The mandatory cost as a cost line, `null` without one |
 | `optional` | The optional costs as cost lines in stored order |
+
+The stored `research` of a tier (`CraftingResearch` with `researchCosts` and `unlockRequirements`,
+both strong pointers) is not exported: on LIVE 4.10 it exists on 926 of the 1,618 tiers and both
+pointers are empty on every one of them, so the Archive shows neither the type nor a field of what
+they would point to. A field typed without ever seeing a value would be a guess, and the type could
+not change later (ADR-0054). The field joins the tier as an additive change once a Build fills it
+(ADR-0243).
 
 A cost line is a selection, a resource line or an item line. The tree keeps what `ingredients`
 flattens, so a selection stays a selection:
@@ -998,6 +1068,12 @@ that the rule on equal `guid` and `subContractGuid` above drops.
 | `pickupPlaces` | Up to five starmap objects the contract is offered at, each `starmapObjectGuid`, `objectType`, `place` (game text) |
 | `faction` | The `factionReputation` of the handler as stored: `guid`, Record `name` and `displayName` (game text), `null` when the handler names none |
 | `reputationGains` | The reputation granted on success; an amount may be negative |
+| `minStandingGuid`, `maxStandingGuid` | The `minStanding` and `maxStanding` of the contract: the standings between which it is offered, entries of `reputationStandings`; `null` when absent. A sub contract shares the contract's |
+| `standingRequirements` | The reputation prerequisites (see "Standing") |
+| `cooldownLayer` | The level that states the cooldown fields: `handler`; `null` when none is stated (see "Cooldowns") |
+| `hasPersonalCooldown` | The `hasPersonalCooldown` flag, `null` when absent |
+| `personalCooldownTime`, `personalCooldownTimeVariation` | The personal cooldown and its variation, as stored (unit: see "Cooldowns"); `null` when absent |
+| `abandonedCooldownTime`, `abandonedCooldownTimeVariation` | The cooldown after the contract was abandoned and its variation, as stored; `null` when absent |
 
 **Layers.** Sub contract, contract and handler each override the template: the first of them that
 states a value wins, the template last. A level states its overrides in `paramOverrides` (sub
@@ -1096,6 +1172,78 @@ elsewhere in the Archive:
 Not exported: a computed reward (`ContractResult_CalculatedReward` holds no value, ADR-0065) and
 descriptions.
 
+**Standing (ADR-0237).** `minStandingGuid` and `maxStandingGuid` are the `minStanding` and
+`maxStanding` References of the contract, entries of `reputationStandings`; a sub contract has none
+of its own and shares the contract's. `standingRequirements` lists the
+`ContractPrerequisite_Reputation` prerequisites, each with `level` (`handler`, `contract` or `subContract`; `handler`: the
+`defaultAvailability` of the handler; `contract` and `subContract`: their
+`additionalPrerequisites`; in that order and as stored), `exclude` as stored, the faction, the scope
+and the standings it names (`null` for what it leaves out). The catalog does not decide how the
+levels combine or what `exclude` inverts. On LIVE 4.10 (2026-10-28) 3,976 of the 5,175 entries
+have a range, always both ends; 638 entries have requirements (607 at the contract, 306 at a sub
+contract, 21 at a handler; 145 with `exclude`). The Wikelo contracts have a requirement and no
+range.
+
+**Cooldowns (ADR-0244).** Blueprints have no lockout of their own; they are rewards of contracts,
+and the contracts carry the cooldowns. The five fields are read from the `defaultAvailability` of
+the handler (`ContractGeneratorHandler_*`, all handler types), and a contract and each of its sub
+contracts share them. Contracts and sub contracts state no cooldown field of their own on LIVE 4.10,
+so the catalog reads the handler only; `cooldownLayer` is `handler` when the handler states any of
+the five and `null` otherwise. A nearer layer would be added if the game ever states one. The
+numbers are as stored, in floating point. The Archive does not state their unit: no
+type, attribute or game text shows it. The range (`personalCooldownTime` up to 2880,
+`abandonedCooldownTime` up to 60 on the `Career` handlers) fits minutes, 2880 being 48 hours, but
+that is a reading, not a fact of the Archive. On LIVE 4.10 all 5,175 entries state a cooldown.
+
+### Factions, reputation and missions
+
+Seven kinds (ADR-0237, schema version 2, no bump) hold what the contracts refer to. Each is the
+Records of one type under one folder (see "Selection"), ordered by GUID, with `guid`, `className`
+(the Record name without its type) and `recordPath`. Facts only: identifiers, short names, numbers
+and links. A Reference to no Record is left out (`null`, or missing from the list); a GUID of an existing Record that the catalog does not list is kept, so `missionLocalities[].starmapObjectGuids` may name an object missing from `starmapObjects` under a Filter.
+Descriptions, perk texts, logos, icons and the faction property texts (headquarters, founding,
+leadership, focus) are not exported.
+
+On LIVE 4.10 (2026-10-28) the kinds hold 39 factions, 46 scopes, 380 standings, 27 contexts, 42
+mission types, 20 localities and 2 scenarios, none skipped.
+
+**Factions (`factionReputations`).** `displayName` is a game text (37 of 39 have an English text).
+`isNpc` is the Record's flag (false for all 39). `lawful` is the value of the boolean property
+`entityLawful` among the `propertiesBB` of the Record, `null` for a faction without it
+(`FactionReputation_IASI`): 29 are lawful, 9 not. It is a field and not the class name, so
+`FactionReputation_Wikelo` is lawful and `FactionReputation_Ruto` is not although neither name says
+so. `contextGuid` is the `reputationContextPropertiesUI`; `allyGuids` and `enemyGuids` are the
+References as stored (two factions have enemies on LIVE, none has allies); `hostility` and
+`allied` hold the `scopeGuid` and `standingGuid` of the `hostilityParams` and `alliedParams`, `null`
+when both are absent.
+
+**Scopes, standings and contexts.** A scope (`reputationScopes`) has `scopeName`, `displayName` (a
+game text), `reputationCeiling`, `initialReputation` and `standingGuids`, its standings in stored
+order. A standing (`reputationStandings`) has `displayName` (the rank's name, a game text; 196 of
+380 have a text, the rest are placeholders), `minReputation`, `driftReputation`, `driftTimeHours`
+and `gated` (47 standings). A context (`reputationContexts`) has `primaryScopeGuid` and `scopeGuids`
+(the `scopeContextList`). The scope of a gain in `reputationGains` is an entry of
+`reputationScopes` (10 of the 46 are used by a contract).
+
+**Mission types (`missionTypes`).** `typeName` is the `LocalisedTypeName`, a game text (41 of 42
+have an English one). Every `missionTypeGuid` of `contracts` (26 types on LIVE) is an entry.
+
+**Mission localities (`missionLocalities`).** `starmapObjectGuids` are the `availableLocations` in
+stored order (218 on LIVE, all in `starmapObjects`). The game does not localise the name of a
+locality; the `className` (`Pyro`) is the only name.
+
+**Contract scenarios (`contractScenarios`).** A `ScenarioProgress` Record. `factionRewardTiers`
+hold, per `Faction` Record (`factionGuid`, `factionName` the last part of its record path),
+`factionReputationGuid` (the `factionReputationRef` of that `Faction` Record, an entry of `factionReputations`; no kind lists the `Faction` Records themselves), `pointsAsPercent` and the `progressions` (`minMultiplierThreshold`, `completionType` the name of
+the struct, `periodScenarioGuid`), each with `tiers`: `minPoints`, `badgeToAward` (an identifier;
+`null` for a tier without a badge, which the game stores as the text `None`), `globalPointsMultiplier` and
+`blueprintPoolGuids`, entries of `blueprintPools`. The progression texts and the multiplier rewards
+(empty on LIVE) are not exported.
+
+Not exported, for want of a consumer: contract templates, mission broker entries, hauling orders,
+NPC and ship spawns, `MissionLocationTemplate` and the sandbox triggers and perks of the reputation
+Records.
+
 ### Starmap objects
 
 A starmap object (`starmapObjects`) is a `StarMapObject` Record under `starmap/pu` (ADR-0054: a
@@ -1184,7 +1332,7 @@ Size, measured on LIVE (2026-10-22): the 2,093 objects are about 1.2 MB of JSON 
 catalog, and a smaller share compressed.
 
 **No released marker.** The Archive states no structural marker that tells a released starmap
-object from an unreleased one (ADR-0067, #417): the three star system Records carry the same flags,
+object from one the game has not released (ADR-0067, #417): the three star system Records carry the same flags,
 `hideInStarmap` is set on helper content of the released systems too, and the type suffixes
 (`_ValidQT`, `_InvalidQT`) describe quantum travel. The catalog therefore has no such field; the
 Basetool decides from `system`, `position`, `hideInStarmap` and `type`.
@@ -1226,6 +1374,273 @@ other sources.
 The 46 element Records of LIVE give 43 entries: the development-leftover rule leaves out
 `MinableElement_Ship_template`, `MinableElement_GroundVehicle_template` and
 `MinableElement_FPS_template`, counted as skipped. The 9 `RefiningProcess` Records are all entries.
+
+### Mining deposits and harvestable locations
+
+Facts only (ADR-0236): numbers, GUIDs, names of Records and paths. Texts other than `depositName`
+are not exported and no media. The loot of a slot is its `lootConfig` (see "Loot").
+
+**Compositions (`mineableCompositions`).** A `MineableComposition` Record under
+`mining/rockcompositionpresets` (249 on LIVE 4.10, 231 entries; the leftover rule skips the rest).
+`depositName` is the HUD label of the deposit, a game text. `minimumDistinctElements` and each part
+of `compositionArray` are as stored: `mineableElementGuid` (the element of `mineableElements`;
+`null` for a null or dangling Reference), `minPercentage`, `maxPercentage`, `probability`,
+`curveExponent` and `qualityScale`, in stored order.
+
+**Parameters (`miningGlobalParams`).** The `MiningGlobalParams` Records under `mining` (7 on LIVE,
+6 entries). Every number of the Record is a field of the same name in camel case (`cScuPerVolume`
+for `cSCUPerVolume`); `hitConsistencyParams`, `mineableInstabilityParams` and the numbers
+`dangerPoolFactor` and `defaultVolume` of `mineableExplosionParams` are the objects `hitConsistency`,
+`instability` and `explosion`. Particle effects, audio triggers and the default explosion are not
+exported. `wasteResourceTypeGuid` is the `ResourceType` of the waste.
+
+**Entities (`mineableEntities`).** The `EntityClassDefinition` Records under `entities/mineable`
+(269 on LIVE 4.10, 231 entries; the leftover rule skips the 38 `test` and `template` Records,
+`test_miningdestroyable` among them). A provider preset reaches an entity through the
+`entityGuid` of a harvestable. `mineableCompositionGuid` and `miningGlobalParamsGuid` are the
+References of `Components[MineableParams]`, `radarContactTypeGuid` the Reference
+`radarProperties.contactType` of `Components[SSCSignatureSystemParams]` (a `RadarContactTypeEntry`
+Record, no kind). `signatures` is `radarProperties.baseSignatureParams.signatures` as stored, one
+number per signature type (8 on LIVE), empty when the Record has none. `scanSignature` is the
+value the mining scanner shows, from 3000 to 4900 on LIVE. The slot is named by the Archive
+(ADR-0242): the `RadarSystemGlobalParams` Record lists one `signatureTypeParams` entry per slot of
+`signatures`, and the slot whose `displayName` is `@hud_scanning_info_rs_signature` is the scan
+signature (index 4 on LIVE 4.10, after IR, EM, CS and DB). `scanSignature` is `null`
+when the Record states no signatures, every signature is zero (the FPS blockers and the pearls,
+7 of the 231), `signatures` has not as many numbers as the radar parameters have signature
+types, or the Archive names no such slot (no radar parameters, no entry with the key, or the key
+on several entries): an unfiltered build then warns (`unknown_scan_signature_slot`) when any
+entity states signatures. A consumer that wants another slot reads `signatures`, in stored
+order; a number that is not a finite 32-bit float is exported as 0. Entities are selected by
+record path and type alone, so one without the components has `null` links and empty
+`signatures`.
+
+**Provider presets (`harvestableProviderPresets`).** The `HarvestableProviderPreset` Records under
+`harvestable/providerpresets` (49 on LIVE). `groups` keep `groupName`, `groupProbability` and the
+`harvestables`; each has `relativeProbability`, `clusteringGuid`, `setupGuid`, the GUIDs of its
+geometry tags and `harvestable`, which follows the element to what it spawns: the
+`HarvestablePreset` Record (`presetGuid`, `presetClassName`), the entity (`entityGuid`, the
+element's `harvestableEntityClass`, else the preset's `entityClass`) and the `MineableParams` of
+that entity (`mineableCompositionGuid`, `miningGlobalParamsGuid`). A harvestable that is no rock
+has both `null`. `areas` keep `debugGroupName` as `name`, `globalModifier`, the `objectPresetPaths`
+of the area type and the `modifiers`, whose weak pointer gives `groupIndex` and `harvestableIndex`
+into `groups` (`null` for a pointer into another Record). The surface presets of the planets and
+moons (`HPP_Stanton1a`, `HPP_Pyro5b`, 25 of the 49) are tied to a place by these object preset
+paths (for Hurston they name the star system and the body, for the others no body) and by no
+container.
+
+**Multi configs (`subHarvestableMultiConfigs`).** The `SubHarvestableMultiConfigRecord` Records
+under `harvestable/slotpresets` (103 on LIVE). `defaultConfigGuid` is the Reference of a default
+config that is a reference, `taggedConfigs` keep `name`, the tag GUIDs, `configGuid` for a config
+that is a reference, and for a config written out `respawnTimeMultiplier`,
+`initialSlotsProbability` and the `subHarvestables` (`harvestable` as above, `setupGuid`, multiplier,
+`relativeProbability`, `relativeProbabilityDeepest`, geometry tags and `lootConfig`).
+
+**Locations (`harvestableLocations`).** ScDataDumper's `SocpakMappingGenerator` finds the preset
+of a container in the first `.soc` file of the container: the GUID in the string that follows the
+string `preset` (strings are separated by a zero byte). The catalog does the same for every
+container below `Data/ObjectContainers/PU/system` and keeps the rows whose GUID is a kept
+provider preset. The `.soc` is scanned as a stream, up to 256 MiB (the largest of LIVE holds
+116 MB); a container with a larger `.soc` and no preset in the first 256 MiB is warned about, not
+taken for one without a preset. A row has `presetGuid`, `system` (the folder of the star system), `container` (the Archive
+path) and `starmapObjectGuid`: the walk through the system containers (see "Starmap objects")
+reaches a container through a Child element, and the nearest object at or above that Child names the
+location. A mining claim marker gives way to the object above it (ScDataDumper skips the private
+mining points by name; the catalog uses a field instead): the marker is a `StarMapObject` whose
+`description` is the key `@MiningClaims_Desc_001`, which all 188 `PrivateMiningPoint_*` Records of
+LIVE 4.10 have and no other of the 2,123 starmap objects. A harvestable's `HarvestablePreset` or
+entity Record that is missing or cannot be built is warned about (`unreadable_harvestables`) and
+its link fields are `null`. A container no Child reaches, or whose object is not in
+`starmapObjects`, has `null`. One container under several objects gives one row each.
+
+On LIVE 4.10 (2026-10-28) 489 rows name 19 of the 49 presets, 488 of them with an object. The 25
+planet presets, `HPP_Lagrange_G`, `HPP_Lagrange_Occupied`, `HPP_ResourceRush_Gold`,
+`HPP_ResourceRush_Gold_HighDensity` and `HPP_SpaceDerelict_General` are named by no container:
+the Archive links them to a place by no `.soc`. `HPP_Pyro_AkiroCluster` is named by `pyro/akirocluster.socpak`,
+which no Child reaches (ScDataDumper pins it to `Pyro_AkiroCluster` by hand; the catalog states no
+object). `HPP_Stanton2c_Belt` is named by `stanton2c.socpak` and, a copy in the data, by
+`pyro6.socpak`.
+
+No Record or container links the surface presets to a body: the Archive holds no planet container,
+and only the Hurston presets name a body in the folder of their `objectPresetPaths`, so they stay
+without a location (ADR-0236). When an object is recorded above a container but no object results
+(it is not in `starmapObjects`, 64 or more mining claim markers lie above, or a marker has no
+object above it) the warning `harvest_locations_without_object` counts the rows with a line per
+reason. A container with no object recorded above it (no Child reaches it, or it is reached with
+no object above, as a system root) is the normal case and deliberately silent.
+
+### Loot
+
+Facts only (ADR-0238): GUIDs, Record names, weights, counts and tag links. The `name` of an entry
+is the designer's label, not a text the game shows; no field of these kinds is a game text.
+
+**Tables (`lootTables`).** A `LootTableV3Record` under `lootgeneration/loottables` (59 on LIVE
+4.10, 54 entries; the leftover rule skips five). The folder also holds the older `LootTable`
+Records (161), which are the kind `legacyLootTables` (see "Older loot Records"). `entries` follow
+`lootTable.lootArchetypes` in stored order, each with `name`, `weight` and the archetype it draws
+from: `archetypeGuid`, an entry of `lootArchetypes`, for a `LootArchetypeV3_RecordRef`, else
+`archetype`, the entries of an archetype written out in place (as in "Archetypes"); the other one
+is `null`. The `optionalData` of an entry gives `priorityCount`, `choiceLimit`, `dupeLimit` and
+`chanceToExist` (0 to 1), each `null` when the entry has no such data. An entry is drawn with the probability `weight` over the sum of the weights
+of the table; the Archive does not state how `priorityCount` and `choiceLimit` change that, and the
+catalog does not decide it.
+
+**Archetypes (`lootArchetypes`).** A `LootArchetypeV3Record` under `lootgeneration/lootarchetypes`
+(34 on LIVE, all entries; the older `LootArchetype` Records, 233, are `legacyLootArchetypes`). An
+entry has `name`, `weight` and a `selector`, and the optional data `stackSize` (`min` and `max`)
+and `spawnWith`: items spawned with it, each with `name`, `chance`, `mode`, `amount` and a
+selector. A selector selects either by tags or by entity classes, read by its fields and not by
+the name of its struct: `positiveTagGuids` and `negativeTagGuids` (`Tag` Records of the
+`TagsDNFTerm`; an item fits when it carries every positive and no negative tag) or
+`entityClassGuids` (the classes of a manual list). `selectorType` states the struct as stored and
+is informational. The tags are the `Tag` Records of the tag tree, not the free item tags of
+"Matching tags".
+
+**Pool filters (`lootPoolFilters`).** A `PoolFilterRecord` under `lootgeneration/filters` (15 on
+LIVE). `filter` is a node with the struct as stored in `nodeType`: a `PoolFilter_Sequence` holds
+`filters`, each an instance with `name`, `mode` (`Cumulative` or `Additive`) and a `filter` node
+(`null` for none); a `PoolFilter_RecordRef` names another Record in `filterGuid`; a
+`PoolFilter_Tags` holds `positiveTagGuids` and `negativeTagGuids`. Nodes nest at most 16 deep. The
+secondary choices Records (manufacturer weights, 25 on LIVE) are not exported. `nodeType` and
+`selectorType` (of the selectors of "Archetypes") state the struct as stored and are informational:
+a consumer selects by the fields (`filterGuid`, the tag lists, `filters`), never by those names.
+
+**Older loot Records (`legacyLootTables`, `legacyLootArchetypes`).** The `LootTable` (161 on LIVE)
+and `LootArchetype` (233) Records of the same folders, which 635 of the 1,958 slots with a
+`lootConfig` still name in `lootTableGuid`. A table has `entries`, each with `weight`,
+`archetypeGuid` (an entry of `legacyLootArchetypes`), and `minResults` and `maxResults` of
+`numberOfResultsConstraints`. An archetype has `excludedTagGuids` (items with such a tag are never
+drawn), `entries` (the primary group: `name`, `weight`, `tagGuid`, `additionalPositiveTagGuids`,
+`additionalNegativeTagGuids`, `stackSize` and `spawnWith` with `name`, `mode`, `min`, `max` and the
+tag lists of `tagsToMatch`) and `secondaryGroups` (`groupName` and entries of `weight` and
+`tagGuid`). The Archive does not state how the groups combine, and the catalog does not decide it.
+
+**Slots (`lootConfig`).** A sub harvestable of a multi config has `lootConfig` when its Record
+states one (1,958 of 2,896 on LIVE): `lootTableV3Guid` (an entry of `lootTables`; 1,321 slots),
+`lootTableGuid` (an entry of `legacyLootTables`; 635 slots; a slot names one of the two),
+`poolFilterGuid` (an entry of `lootPoolFilters`), `totalResultsLimit`, `chanceToGenerate`,
+`chanceToGenerateAdditionalInventories` and the `fullness` range of `fullnessFactorRange`.
+
+**Placed containers (`lootContainers`).** A container below `ObjectContainers/PU/system`, or one
+it places, holds the property file of an entity (`entdata/<n>.entxml`) that names the container it
+places (`objectContainer`) and a `multiConfigRef`, a `SubHarvestableMultiConfigRecord`. The placed
+container holds tag points, entities that carry tags, in its `.soc` files. The tags of those points
+are the `tagGuids` of the tagged configs of the multi config (the 13 points of a Stanton derelict
+carry the Rare, Common, Uncommon and Reward tags of `LootGeneration_MultiSlotPreset_Derelict` 4, 4,
+2 and 3 times); the slots of a tagged config carry the `lootConfig`. The catalog states these
+facts and not how the game picks a slot for a point. A row is one placed container with the
+`multiConfigGuid`, `container` (the Archive path, else the path as written when the Archive lacks
+it), `system`, `starmapObjectGuid`, `entityCount` and `tagCounts`: how many of the entities carry
+each tag, summed over all `.soc` files of the container. A container without a `.soc` has
+`entityCount` 0 (no tag points; this is intended and not warned about); one whose `.soc` cannot be
+read, or that the Archive lacks, has `null` and no counts.
+
+The walk starts at every container below `ObjectContainers/PU/system` and follows the containers
+the entity files place, each container read once. The location is that of the container the walk
+started in: `starmapObjectGuid` is the object the Child that reaches it hangs below (as for
+"Locations" above, with `null` for a container no Child reaches or an object the catalog lacks). A
+container placed under several roots gives a row for each, and containers that place each other
+(A places B places A) are read once. The warning `unreadable_loot_containers` names a container or
+entity file that cannot be read, a `.soc` that cannot be counted, a placed container the Archive
+lacks, and containers beyond the limit of the walk, each with its reason. An entity file that names
+several different containers or multi configs uses the first of each in document order and is
+warned about (`ambiguous_loot_entity_files`). The cost of the walk is the size of the subgraph below
+each distinct root; it is not memoised, as it is negligible on LIVE.
+
+On LIVE 4.10 (2026-10-28) 3,004 rows name 41 multi configs and 189 containers in 3 systems, 2,797
+of them with an object.
+
+### Crafters
+
+A crafter (`crafters`) is an entity whose `Components` hold a `CrafterComponentParams` (ADR-0243):
+a crafting station. The Archive holds no per-player blueprint cap; the only limits of crafting
+are the ones these components state. LIVE 4.10 has three, all below
+`entities/basebuilding/interactables`; one of them is a `_template` and, like every development
+leftover, left out and counted as skipped. The kind is facts only: identifiers and numbers.
+
+| Field | Source |
+|-------|--------|
+| `guid`, `className`, `recordPath` | The entity Record |
+| `type`, `subType`, `size` | `AttachDef.Type`, `AttachDef.SubType` and `AttachDef.Size` of the entity (`Crafter`, `UNDEFINED` and 1 on LIVE); `null` without an `AttachDef`. They are what a ship's crafter port is matched against, see "Ports for crafters" below |
+| `maxJobsInHistory` | `maxJobsInHistory`: how many finished jobs the station lists (10); `null` when the value is not a number |
+| `baseCraftingTime` | `baseCraftingTime`: a number; `null` when the Record has none, as on LIVE 4.10 |
+| `queues` | `queues` in stored order (two on every station of LIVE), `[]` without any |
+| `modifiers` | `modifiers` in stored order, `[]` without any (all of LIVE 4.10); see "Modifiers" below |
+| `issues` | A per-crafter summary, not per modifier or queue: the codes of what the export did not understand or could not read anywhere in this crafter's fields, modifiers and queues, sorted, without duplicates; `[]` when everything was. The entry itself shows where (`kind` or `type` `unknown`, a `null` or empty value). A closed set the game may extend, so the schema keeps strings. `unknown_modifier_type`, `unknown_modifier_condition` and `unknown_category_availability` mean a struct this export does not know, kept by name. `missing_modifier_type` is a modifier without a type. The `unreadable_*` codes mean a stored value of an unexpected type, see below |
+
+| `hostGuids` | The `ships` entries whose Default Loadout mounts the crafter in any port, at any depth, ordered by GUID; `[]` for a crafter no ship mounts, such as a station. Derived from `loadouts`, so a crafter of a building part has no host |
+
+An absent field (or a null pointer) and a wrong-typed one differ. A field the Record does not
+store, such as `baseCraftingTime` before the game adds it, reads as `null` or `[]` and sets no
+issue. A field that is stored with another type than expected reads the same way and sets an
+`unreadable_*` code:
+
+- `unreadable_base_crafting_time`: `baseCraftingTime` is not a number;
+- `unreadable_attach_def`: the `AttachDef`, or its `Type`, `SubType` or `Size`, has another type;
+- `unreadable_queues`: `queues` is no array; `unreadable_queue`: a queue is no struct (it stays in
+  its position with null values);
+- `unreadable_modifiers`: `modifiers` is no array; `unreadable_modifier`: a modifier is no struct
+  or its type cannot be read; `unreadable_time_multiplier`: a `time` modifier without a finite
+  number;
+- `unreadable_process_types`: `processTypeAvailability` is no array or has an entry that is no
+  boolean;
+- `unreadable_category`: `categories` is no array or has an element that is a Reference to no
+  Record.
+
+A queue has `name` (`debugName`), `maxJobsInProgress` (how many jobs it crafts at once, 2 and 4 on
+LIVE) and `maxJobsWaiting` (how many further jobs it holds, 4 on LIVE); each is `null` when the
+Record stores no number or text. A queue also has the blueprint categories and the process types
+it accepts:
+
+| Field | Source |
+|-------|--------|
+| `blueprintCategoryAvailability` | The struct `blueprintCategoryAvailability` holds, as a rule (see below). `kind` is `whitelist` for a `BlueprintCategoryAvailability_Whitelist`, whose `categories` are the accepted ones; `none` when the Record stores no struct; `unknown` for any other struct, kept with its `structName` and no GUIDs |
+| `processTypeAvailability` | `processTypeAvailability` as stored: one boolean per process type, in the order of the game's process types. The Archive names no process type, so a reader takes the position as the identity; `[]` when the Record has none |
+
+A rule (`blueprintCategoryAvailability` of a queue and `condition` of a modifier) has `kind`, the
+name of the struct as `structName` (`null` for `none`) and `blueprintCategoryGuids`, the `guid`s of
+the Records the struct's `categories` link to, in stored order; these are `blueprintCategories`
+entries, unless a Filter left the entry out of that kind. A rule that is `none` or `unknown` has
+no GUIDs.
+
+#### Modifiers
+
+A modifier is a `CraftingModifierParams` of the crafter: a change of its crafting time, with the
+blueprint categories it applies to.
+
+| Field | Source |
+|-------|--------|
+| `type` | What it changes: `time` for a `CraftingModifierType_Time`, `none` when the Record stores no `modifierType`, `unknown` for any other struct. A closed set the game may extend, so the schema keeps a string |
+| `structName` | The name of the struct `modifierType` holds, `null` for `none`. An unknown type is kept with it and has no values |
+| `timeMultiplier` | `timeMultiplier` of a `time` modifier: the factor on the crafting time, below 1 is faster; `null` for any other type or when the Record stores no finite number |
+| `condition` | A rule for `modifierCondition`: `kind` is `blueprintCategory` for a `CraftingModifierCondition_BlueprintCategory`, whose `categories` are the blueprint categories the modifier applies to; `none` when the Record stores no condition; `unknown` for any other struct |
+
+A new modifier type adds a `type` value and its value fields, a new condition adds a `kind`; both
+are additive and keep `schemaVersion` 2 (ADR-0054). A reader treats an unknown `type` or `kind`
+as "not understood" and does not apply the modifier; nothing unknown is dropped from the list.
+
+#### Ports for crafters
+
+A crafter that a ship mounts sits in a `loadouts` port whose `types` hold `Crafter`. To find the
+crafters that fit an empty crafter port of a ship, a reader takes the port from the `loadouts`
+entry of the ship and keeps the `crafters` entries that fit it:
+
+- A port with several `types` entries takes a crafter that fits any one of them.
+- A `types` entry fits when its `type` is the crafter's `type` (`Crafter`) and, when its
+  `subTypes` is not empty, the crafter's `subType` is one of `subTypes`.
+- The crafter's `size` must lie between the port's `minSize` and `maxSize`; a `null` bound means
+  no bound on that side (a crafter port has size 1 on both).
+
+A crafter that is an item has the same `type`, `subType` and `size` in `items`; a crafter that is
+not an item (the fabricators below `basebuilding`) is only in `crafters`, which is why the three
+fields are part of the entry. A crafter that a ship already mounts is joined the other way round,
+`hostGuids` against `ships[].guid` or `itemGuid` of the port against `crafters[].guid`.
+
+The Records are selected from every entity Record: an item, a ship or a commodity that has the
+component is a crafter as well and stays what it is, and any other `EntityClassDefinition` under
+`entities` is a crafter when it has the component. The selection is structural, never by name or
+by folder, so a crafter fitted to a ship or vehicle or part of a building is found like a station.
+
 ### Shops
 
 A shop (`shops`) is one `ShopBackup` entry of the shop registry `Data\Libs\CosmoTools\
@@ -1463,10 +1878,15 @@ committed.
 
 `itemRecovery` is one object, not a kind and not in `completeness`: the
 `ItemRecoveryConfigurationParams` Record `entitlementpolicies/globalitemrecovery` (LIVE has
-exactly one), its `economyParams` (ADR-0218, #323). It is `null` when the Archive has no such
-Record, or none that a Filter matches. With several Records the one with the smallest record path
-is taken. `guid`, `className` and `recordPath` name the Record. Every other field carries the
-data name of the `economyParams` field, as the Record states it, `null` when it states none:
+exactly one), its `economyParams` (ADR-0218, #323). The Record is selected by the rule of a kind:
+the type `ItemRecoveryConfigurationParams` under `libs/foundry/records/entitlementpolicies/`, and,
+with a Filter, a record path the Filter matches. `itemRecovery` is `null` when no Record is
+selected or none can be read. With several readable Records the one with the smallest record path
+is taken. A selected Record that cannot be read is left out and listed in the failures of the
+summary, like any other Record, so `null` with a failure means an unreadable Record and `null`
+without one means there is none. `guid`, `className` and `recordPath` name the Record. Every other
+field carries the data name of the `economyParams` field, as the Record states it, as a number;
+it is `null` when the Record states none or states a value that is no number:
 
 | Field | LIVE |
 |-------|------|
@@ -1481,24 +1901,19 @@ data name of the `economyParams` field, as the Record states it, `null` when it 
 
 An override (`overrides[]`, an `ItemRecoveryOverrideGroupDef`) holds `classGuids`, the `guid` of
 each `EntityClassDefinition` in the group's `classes` (a ship is an entry of `ships`; on LIVE the 7
-groups hold 27, 7, 9, 29, 7, 10 and 10 classes, 99 in all, every one a ship of the catalog), and the group's multipliers `claimCooldownMultiplier`,
-`claimCostMultiplier`, `deliveryTimeMultiplier`, `maxExpediteCostMultiplier`,
-`expeditedDeliveryTimeMultiplier`, `flatMinimumDeliveryTimerSecondsMultiplier`,
-`escalationTimerMultiplier`, `escalatingClaimCostMultiplier` and
-`escalatingDeliveryTimerMultiplier`. The groups keep the order of the Record. A class that is in
-no group presumably uses the defaults of `economyParams` (an inference, the Record does not say
-so); the Idris-M, for one, is in a group whose multipliers are all 1.
+groups hold 27, 7, 9, 29, 7, 10 and 10 classes, 99 in all, every one a ship of the catalog; a
+Reference that links to no Record is left out), and the group's multipliers
+`claimCooldownMultiplier`, `claimCostMultiplier`, `deliveryTimeMultiplier`,
+`maxExpediteCostMultiplier`, `expeditedDeliveryTimeMultiplier`,
+`flatMinimumDeliveryTimerSecondsMultiplier`, `escalationTimerMultiplier`,
+`escalatingClaimCostMultiplier` and `escalatingDeliveryTimerMultiplier`. The groups keep the order
+of the Record. That a class in no group uses the defaults of `economyParams` is an inference; the
+Record does not say so.
 
-How this relates to the fee, as far as the data shows. The Record holds multipliers and rates,
-and no fee in aUEC. The only fee in the Archive is `insurance.expediteFee`, the
-`baseExpeditingFee` of the ship (150,990 for the Idris-M). The owner reports that the game now
-claims a default Loadout for free, claims an insured Loadout against a fee, and no longer offers
-expediting; the fee shown for an Idris-M is just under 1,000,000 aUEC. That fee is therefore
-computed by the game at run time, apparently from `claimCostMultiplier` (times the group's
-`claimCostMultiplier`) and the value of the insured items, which the catalog does not state; how
-exactly the multipliers combine is not in the data and is not asserted here. The Basetool
-computes the fee itself from these multipliers and the item values it has, and checks the result
-against the fee the game shows. `insurance.expediteFee` is not shown to be that fee.
+No fee in aUEC. The Record holds multipliers and rates and no fee in aUEC, and no field named
+like a price was found in the `EntityClassDefinition` Records of ships and items. The only fee in
+aUEC next to it is `insurance.expediteFee`. The catalog therefore exports no claim fee, and no
+formula over the exported facts is documented as one (ADR-0218).
 
 ### Texts
 
@@ -1558,7 +1973,27 @@ The placeholder keys `@LOC_EMPTY`, `@LOC_PLACEHOLDER`, `@LOC_UNINITIALIZED` and 
 | `contracts` | `libs/foundry/records/contracts/contractgenerator/` | `ContractGenerator` |
 | `mineableElements` | `libs/foundry/records/mining/mineableelements/` | `MineableElement` |
 | `refiningProcesses` | `libs/foundry/records/refiningprocess/` | `RefiningProcess` |
+| `mineableCompositions` | `libs/foundry/records/mining/rockcompositionpresets/` | `MineableComposition` |
+| `miningGlobalParams` | `libs/foundry/records/mining/miningglobalparams` | `MiningGlobalParams` |
+| `harvestableProviderPresets` | `libs/foundry/records/harvestable/providerpresets/` | `HarvestableProviderPreset` |
+| `subHarvestableMultiConfigs` | `libs/foundry/records/harvestable/slotpresets/` | `SubHarvestableMultiConfigRecord` |
+| `harvestableLocations` | None: the `.soc` files of the containers below `ObjectContainers/PU/system`, no Records | |
 | `shops` | None: the `ShopBackup` entries of `LayerBackups.xml`, no Records | |
+| `factionReputations` | `libs/foundry/records/factions/factionreputation/` | `FactionReputation` |
+| `reputationScopes` | `libs/foundry/records/reputation/scopes/` | `SReputationScopeParams` |
+| `reputationStandings` | `libs/foundry/records/reputation/standings/` | `SReputationStandingParams` |
+| `reputationContexts` | `libs/foundry/records/reputation/contexts/` | `SReputationContextUI` |
+| `missionTypes` | `libs/foundry/records/missiontype/` | `MissionType` |
+| `missionLocalities` | `libs/foundry/records/missiondata/pu_missionlocality/` | `MissionLocality` |
+| `contractScenarios` | `libs/foundry/records/contracts/contractscenarios/` | `ScenarioProgress` |
+| `lootTables` | `libs/foundry/records/lootgeneration/loottables/` | `LootTableV3Record` |
+| `lootArchetypes` | `libs/foundry/records/lootgeneration/lootarchetypes/` | `LootArchetypeV3Record` |
+| `lootPoolFilters` | `libs/foundry/records/lootgeneration/filters/` | `PoolFilterRecord` |
+| `legacyLootTables` | `libs/foundry/records/lootgeneration/loottables/` | `LootTable` |
+| `legacyLootArchetypes` | `libs/foundry/records/lootgeneration/lootarchetypes/` | `LootArchetype` |
+| `lootContainers` | None: the `entdata` files of the containers below `ObjectContainers/PU/system` and the containers they place, no Records | |
+| `mineableEntities` | `libs/foundry/records/entities/mineable/` | `EntityClassDefinition` |
+| `crafters` | `libs/foundry/records/entities/`, after the kinds above that take their own entities; only an entity with a `CrafterComponentParams` | `EntityClassDefinition` |
 
 The blueprints and the five crafting kinds below them are read by `read_crafting`, with the one
 selection rule behind it (`selects_blueprint` for the blueprints); `Kind::rule()` of
@@ -1674,7 +2109,8 @@ on `P4KX_DATA_P4K` and `P4KX_DATA_P4K_B`.
 - The record-path prefixes and types match the live DataForge: of 29,693 `EntityClassDefinition`
   Records on LIVE, 25,704 lie under the item, ship and commodity prefixes (1,202 of them are left
   out as leftovers); the rest are actors, mineables, job boards, interiors, audio, decorations,
-  lights and the like and are no catalog kind. All 1,203 `SCItemManufacturer` and 1,619
+  lights and the like and are no catalog kind unless they carry a `CrafterComponentParams`, which
+  makes them a `crafters` entry. All 1,203 `SCItemManufacturer` and 1,619
   `CraftingBlueprintRecord` Records are selected or left out as leftovers.
 - The token list gained `debug`, `deprecated` and `dev`, which mark 20 further items on LIVE (the
   Vlk spewgun test weapons under `fps_weapons/dev`, `*_deprecated` bar counters, a debug hacking

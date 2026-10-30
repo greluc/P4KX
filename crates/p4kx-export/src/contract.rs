@@ -8,15 +8,27 @@ use serde::Serialize;
 
 use crate::guid_text::CatalogGuid;
 
+pub(crate) use crate::contract_crafter::Crafter;
 pub(crate) use crate::contract_crafting::{
     Blueprint, BlueprintCategory, Commodity, Ingredient, ResourceGroup,
 };
 pub(crate) use crate::contract_entities::{Item, Paint, Ship};
+pub(crate) use crate::contract_harvest::{HarvestableLocation, HarvestableProviderPreset};
+pub(crate) use crate::contract_harvest_config::SubHarvestableMultiConfig;
 pub(crate) use crate::contract_loadout::Loadout;
-pub(crate) use crate::contract_mining::{MineableElement, RefiningProcess};
+pub(crate) use crate::contract_loot::{LootArchetype, LootContainer, LootPoolFilter, LootTable};
+pub(crate) use crate::contract_loot_legacy::{LegacyLootArchetype, LegacyLootTable};
+pub(crate) use crate::contract_mining::{
+    CompositionPart, MineableComposition, MineableElement, MineableEntity, RefiningProcess,
+};
+pub(crate) use crate::contract_mining_params::MiningGlobalParams;
+pub(crate) use crate::contract_mission_data::{ContractScenario, MissionLocality, MissionType};
 pub(crate) use crate::contract_missions::ContractEntry;
 pub(crate) use crate::contract_quantization::QualityQuantization;
 pub(crate) use crate::contract_recovery::ItemRecovery;
+pub(crate) use crate::contract_reputation::{
+    FactionReputation, ReputationContext, ReputationScope, ReputationStanding,
+};
 pub(crate) use crate::contract_rewards::{
     BlueprintPool, CraftingGlobal, DismantleProcess, GameplayProperty, QualityDistribution,
 };
@@ -84,8 +96,50 @@ pub(crate) struct Catalog<'a> {
     pub(crate) mineable_elements: Vec<MineableElement<'a>>,
     /// The refining processes, ordered by GUID.
     pub(crate) refining_processes: Vec<RefiningProcess<'a>>,
+    /// The mineable compositions, the elements a rock or deposit is made of, ordered by GUID.
+    pub(crate) mineable_compositions: Vec<MineableComposition<'a>>,
+    /// The mining parameters of each kind of miner, ordered by GUID.
+    pub(crate) mining_global_params: Vec<MiningGlobalParams<'a>>,
+    /// The harvestable provider presets, what a place can spawn, ordered by GUID.
+    pub(crate) harvestable_provider_presets: Vec<HarvestableProviderPreset<'a>>,
+    /// The sub harvestable multi configs, what the slots of an object can hold, ordered by GUID.
+    pub(crate) sub_harvestable_multi_configs: Vec<SubHarvestableMultiConfig<'a>>,
+    /// The containers whose `.soc` names a provider preset, with the starmap object they hang
+    /// below, ordered by preset GUID, container, system and object GUID.
+    pub(crate) harvestable_locations: Vec<HarvestableLocation>,
+    /// The containers placed with a multi config, with the starmap object each hangs below,
+    /// ordered by config, container, system and object.
+    pub(crate) loot_containers: Vec<LootContainer>,
     /// The shops of the shop registry with kind, brand and place, ordered by `key`.
     pub(crate) shops: Vec<Shop>,
+    /// The factions with their reputation links, ordered by GUID.
+    pub(crate) faction_reputations: Vec<FactionReputation<'a>>,
+    /// The reputation scopes with the standings of each, ordered by GUID.
+    pub(crate) reputation_scopes: Vec<ReputationScope<'a>>,
+    /// The reputation standings, the ranks of the scopes, ordered by GUID.
+    pub(crate) reputation_standings: Vec<ReputationStanding<'a>>,
+    /// The reputation contexts, the scopes a faction is shown with, ordered by GUID.
+    pub(crate) reputation_contexts: Vec<ReputationContext<'a>>,
+    /// The mission types, the targets of `contracts[].missionTypeGuid`, ordered by GUID.
+    pub(crate) mission_types: Vec<MissionType<'a>>,
+    /// The mission localities, sets of starmap objects, ordered by GUID.
+    pub(crate) mission_localities: Vec<MissionLocality<'a>>,
+    /// The contract scenarios with their reward tiers, ordered by GUID.
+    pub(crate) contract_scenarios: Vec<ContractScenario<'a>>,
+    /// The loot tables with the weighted archetypes of each, ordered by GUID.
+    pub(crate) loot_tables: Vec<LootTable<'a>>,
+    /// The loot archetypes with the weighted selectors of each, ordered by GUID.
+    pub(crate) loot_archetypes: Vec<LootArchetype<'a>>,
+    /// The loot pool filters, ordered by GUID.
+    pub(crate) loot_pool_filters: Vec<LootPoolFilter<'a>>,
+    /// The older loot tables, the targets of `lootConfig.lootTableGuid`, ordered by GUID.
+    pub(crate) legacy_loot_tables: Vec<LegacyLootTable<'a>>,
+    /// The older loot archetypes the older tables draw from, ordered by GUID.
+    pub(crate) legacy_loot_archetypes: Vec<LegacyLootArchetype<'a>>,
+    /// The mineable entities with the scan signature of each, ordered by GUID.
+    pub(crate) mineable_entities: Vec<MineableEntity<'a>>,
+    /// The crafting stations with the limits of their job queues, ordered by GUID.
+    pub(crate) crafters: Vec<Crafter<'a>>,
     /// The RSI store slugs that map to a ship of `ships`, with the retired ones flagged, ordered
     /// by `slug`. A curated list, not read from the Archive.
     pub(crate) ship_store_slugs: Vec<ShipStoreSlug<'a>>,
@@ -172,8 +226,48 @@ pub(crate) struct Completeness<'a> {
     pub(crate) mineable_elements: KindCompleteness<'a>,
     /// The completeness of `refiningProcesses`.
     pub(crate) refining_processes: KindCompleteness<'a>,
+    /// The completeness of `mineableCompositions`.
+    pub(crate) mineable_compositions: KindCompleteness<'a>,
+    /// The completeness of `miningGlobalParams`.
+    pub(crate) mining_global_params: KindCompleteness<'a>,
+    /// The completeness of `harvestableProviderPresets`.
+    pub(crate) harvestable_provider_presets: KindCompleteness<'a>,
+    /// The completeness of `subHarvestableMultiConfigs`.
+    pub(crate) sub_harvestable_multi_configs: KindCompleteness<'a>,
+    /// The completeness of `harvestableLocations`.
+    pub(crate) harvestable_locations: KindCompleteness<'a>,
+    /// The completeness of `lootContainers`.
+    pub(crate) loot_containers: KindCompleteness<'a>,
     /// The completeness of `shops`.
     pub(crate) shops: KindCompleteness<'a>,
+    /// The completeness of `factionReputations`.
+    pub(crate) faction_reputations: KindCompleteness<'a>,
+    /// The completeness of `reputationScopes`.
+    pub(crate) reputation_scopes: KindCompleteness<'a>,
+    /// The completeness of `reputationStandings`.
+    pub(crate) reputation_standings: KindCompleteness<'a>,
+    /// The completeness of `reputationContexts`.
+    pub(crate) reputation_contexts: KindCompleteness<'a>,
+    /// The completeness of `missionTypes`.
+    pub(crate) mission_types: KindCompleteness<'a>,
+    /// The completeness of `missionLocalities`.
+    pub(crate) mission_localities: KindCompleteness<'a>,
+    /// The completeness of `contractScenarios`.
+    pub(crate) contract_scenarios: KindCompleteness<'a>,
+    /// The completeness of `lootTables`.
+    pub(crate) loot_tables: KindCompleteness<'a>,
+    /// The completeness of `lootArchetypes`.
+    pub(crate) loot_archetypes: KindCompleteness<'a>,
+    /// The completeness of `lootPoolFilters`.
+    pub(crate) loot_pool_filters: KindCompleteness<'a>,
+    /// The completeness of `legacyLootTables`.
+    pub(crate) legacy_loot_tables: KindCompleteness<'a>,
+    /// The completeness of `legacyLootArchetypes`.
+    pub(crate) legacy_loot_archetypes: KindCompleteness<'a>,
+    /// The completeness of `mineableEntities`.
+    pub(crate) mineable_entities: KindCompleteness<'a>,
+    /// The completeness of `crafters`.
+    pub(crate) crafters: KindCompleteness<'a>,
     /// The completeness of `shipStoreSlugs`.
     pub(crate) ship_store_slugs: KindCompleteness<'a>,
 }
@@ -200,7 +294,27 @@ impl<'a> Completeness<'a> {
             contracts: completeness,
             mineable_elements: completeness,
             refining_processes: completeness,
+            mineable_compositions: completeness,
+            mining_global_params: completeness,
+            harvestable_provider_presets: completeness,
+            sub_harvestable_multi_configs: completeness,
+            harvestable_locations: completeness,
+            loot_containers: completeness,
             shops: completeness,
+            faction_reputations: completeness,
+            reputation_scopes: completeness,
+            reputation_standings: completeness,
+            reputation_contexts: completeness,
+            mission_types: completeness,
+            mission_localities: completeness,
+            contract_scenarios: completeness,
+            loot_tables: completeness,
+            loot_archetypes: completeness,
+            loot_pool_filters: completeness,
+            legacy_loot_tables: completeness,
+            legacy_loot_archetypes: completeness,
+            mineable_entities: completeness,
+            crafters: completeness,
             ship_store_slugs: completeness,
         }
     }

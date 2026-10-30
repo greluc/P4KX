@@ -3,8 +3,14 @@
 
 //! Integration tests of `p4kx-export`, built as one test binary.
 
+#![recursion_limit = "256"]
+
 mod catalog_compression;
 mod catalog_contracts;
+mod catalog_contracts_cooldown;
+mod catalog_contracts_standing;
+mod catalog_crafters;
+mod catalog_crafters_types;
 mod catalog_crafting;
 mod catalog_crafting_followups;
 mod catalog_crafting_support;
@@ -15,16 +21,22 @@ mod catalog_fixture;
 mod catalog_gear_stats;
 mod catalog_group_edges;
 mod catalog_groups;
+mod catalog_harvest;
 mod catalog_insurance;
 mod catalog_item_stats;
 mod catalog_items;
 mod catalog_loadouts;
 mod catalog_loadouts_edges;
 mod catalog_loadouts_references;
+mod catalog_loot;
+mod catalog_loot_followups;
 mod catalog_mining;
 mod catalog_paints;
 mod catalog_playability;
 mod catalog_quantization;
+mod catalog_recovery;
+mod catalog_reputation;
+mod catalog_scan_signature;
 mod catalog_selection;
 mod catalog_ship_base;
 mod catalog_shop_items;
@@ -35,17 +47,20 @@ mod catalog_texts;
 mod catalog_variants;
 mod common;
 mod contracts_fixture;
+mod crafters_fixture;
 mod crafting_depth;
 mod crafting_detail;
 mod crafting_detail_fixture;
 mod crafting_fixture;
 mod flat_export;
 mod gear_fixture;
+mod harvest_fixture;
 mod insurance_fixture;
 mod item_stats_fixture;
 mod loadouts_fixture;
 mod loadouts_support;
 mod localization_table;
+mod loot_fixture;
 mod mining_fixture;
 mod ndjson_guard;
 mod ndjson_order;
@@ -54,6 +69,7 @@ mod playability_fixture;
 mod quantization_fixture;
 mod record_export;
 mod record_export_plans;
+mod reputation_fixture;
 mod ship_base;
 mod ship_base_fixture;
 mod ship_followups;

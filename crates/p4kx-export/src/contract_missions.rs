@@ -6,6 +6,7 @@ use serde::Serialize;
 
 use crate::contract::{LocalisedText, every_field_required};
 use crate::guid_text::CatalogGuid;
+use crate::mission_cooldown::CooldownLayer;
 
 /// A contract or one of its sub contracts, with the overrides of sub contract, contract and
 /// handler laid over the template.
@@ -67,6 +68,65 @@ pub(crate) struct ContractEntry<'a> {
     /// first mission result (success) is set. A result that fires on failure only is left out; an
     /// amount may be negative (a success that costs standing with a rival, as stored).
     pub(crate) reputation_gains: Vec<ReputationGain<'a>>,
+    /// The `minStanding` of the contract: the lowest standing that is offered it, the `guid` of an
+    /// entry of `reputationStandings`; `null` when the contract states none. A sub contract
+    /// shares the contract's value.
+    pub(crate) min_standing_guid: Option<CatalogGuid>,
+    /// The `maxStanding` of the contract: the highest standing that is offered it; `null` when
+    /// the contract states none. A sub contract shares the contract's value.
+    pub(crate) max_standing_guid: Option<CatalogGuid>,
+    /// The `ContractPrerequisite_Reputation` prerequisites of the handler, the contract and the
+    /// sub contract, in that order and as stored. The catalog does not decide how they combine.
+    pub(crate) standing_requirements: Vec<StandingRequirement>,
+    /// The level the five cooldown fields below are read from: `handler`, the
+    /// `defaultAvailability` of the handler, the only level that states them; `null` when it
+    /// states none. A contract and a sub contract share the handler's values.
+    pub(crate) cooldown_layer: Option<CooldownLayer>,
+    /// Whether the contract has a personal cooldown (`hasPersonalCooldown`), `null` when absent.
+    pub(crate) has_personal_cooldown: Option<bool>,
+    /// The `personalCooldownTime`, as stored; `null` when absent. The Archive does not state the
+    /// unit; the value range (up to 2880) fits minutes.
+    pub(crate) personal_cooldown_time: Option<f32>,
+    /// The `personalCooldownTimeVariation`, as stored, in the unit of `personalCooldownTime`;
+    /// `null` when absent.
+    pub(crate) personal_cooldown_time_variation: Option<f32>,
+    /// The `abandonedCooldownTime`, as stored: the cooldown after the player abandons the
+    /// contract, in the unit of `personalCooldownTime`; `null` when absent.
+    pub(crate) abandoned_cooldown_time: Option<f32>,
+    /// The `abandonedCooldownTimeVariation`, as stored, in the unit of `personalCooldownTime`;
+    /// `null` when absent.
+    pub(crate) abandoned_cooldown_time_variation: Option<f32>,
+}
+
+/// The level at which a reputation prerequisite is stated.
+#[derive(Debug, Clone, Copy, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) enum StandingLevel {
+    /// The `defaultAvailability` of the handler.
+    Handler,
+    /// The `additionalPrerequisites` of the contract.
+    Contract,
+    /// The `additionalPrerequisites` of the sub contract.
+    SubContract,
+}
+
+/// A reputation prerequisite of a contract.
+#[derive(Debug, Clone, Copy, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+#[schemars(transform = every_field_required)]
+pub(crate) struct StandingRequirement {
+    /// Where the prerequisite is stated.
+    pub(crate) level: StandingLevel,
+    /// The `exclude` flag as stored, `null` when absent.
+    pub(crate) exclude: Option<bool>,
+    /// The `factionReputation` the prerequisite is about, `null` when it names none.
+    pub(crate) faction_reputation_guid: Option<CatalogGuid>,
+    /// The `scope`, `null` when the prerequisite names none.
+    pub(crate) scope_guid: Option<CatalogGuid>,
+    /// The `minStanding`, `null` when the prerequisite names none.
+    pub(crate) min_standing_guid: Option<CatalogGuid>,
+    /// The `maxStanding`, `null` when the prerequisite names none.
+    pub(crate) max_standing_guid: Option<CatalogGuid>,
 }
 
 /// The faction a handler names for its contracts.

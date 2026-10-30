@@ -28,6 +28,15 @@ pub(crate) struct SystemRead {
     pub(crate) opened: Vec<usize>,
     pub(crate) deepest: usize,
     pub(crate) report: StarmapReport,
+    pub(crate) containers: Vec<Opened>,
+}
+
+/// A container the walk opened and the starmap record it hangs below.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct Opened {
+    pub(crate) system: Arc<str>,
+    pub(crate) entry: usize,
+    pub(crate) under: Option<Guid>,
 }
 
 /// The walk through one star system, over containers that are already parsed.
@@ -83,6 +92,18 @@ impl<'a> System<'a> {
         self.issue(line);
     }
 
+    /// Notes that the container at `entry`, `external` containers below the system container,
+    /// was opened and hangs below the record `under`.
+    fn opened(&mut self, entry: usize, under: Option<Guid>, external: usize) {
+        self.read.opened.push(entry);
+        self.read.containers.push(Opened {
+            system: Arc::clone(&self.name),
+            entry,
+            under,
+        });
+        self.read.deepest = self.read.deepest.max(external);
+    }
+
     /// Walks the container at `entry` placed at `at`; its Children name `under` as the record
     /// they hang below.
     fn container(&mut self, entry: usize, at: Transform, under: Option<Guid>, external: usize) {
@@ -112,15 +133,13 @@ impl<'a> System<'a> {
                 return;
             }
             Body::Unparsed => {
-                self.read.opened.push(entry);
-                self.read.deepest = self.read.deepest.max(external);
+                self.opened(entry, under, external);
                 self.read.unreadable += 1;
                 self.issue(&format!("{label}: the XML cannot be parsed"));
                 return;
             }
             Body::Parsed { root, fallback } => {
-                self.read.opened.push(entry);
-                self.read.deepest = self.read.deepest.max(external);
+                self.opened(entry, under, external);
                 if let Some(taken) = fallback {
                     self.issue(&format!(
                         "{label}: no XML named like the container, read {} instead",

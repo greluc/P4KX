@@ -5,6 +5,8 @@
 //!
 //! Run with `P4KX_BLESS=1` to regenerate `schemas/basetool-catalog.schema.json`.
 
+#![recursion_limit = "256"]
+
 mod catalog_schema_support;
 
 use std::error::Error;

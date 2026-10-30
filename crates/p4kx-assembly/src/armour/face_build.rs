@@ -9,6 +9,7 @@ use p4kx_model::{Bone, BoneMatch, Model, extend_skeleton};
 use super::ArmourPart;
 use super::facial::{FaceLink, Facial};
 use super::jobs::{Job, issue};
+use super::mount::{is_unskinned, place};
 use crate::{Issue, IssueKind};
 
 /// What a shaped head brings to the skeleton: where its rig's joints are among its bones, and the
@@ -126,6 +127,7 @@ pub(super) fn settled(
     issues: &mut Vec<Issue>,
 ) -> Model {
     extend_with_faces(&mut skeleton, parts, heads);
+    place(jobs, parts, &skeleton, level, issues);
     for (job, part) in jobs.iter().zip(parts.iter()) {
         note_fit(job, part, &skeleton, level, issues);
     }
@@ -139,9 +141,10 @@ fn note_fit(job: &Job, part: &ArmourPart, skeleton: &Model, level: u32, issues: 
     let Some(lod) = model.nearest_lod(level) else {
         return;
     };
-    let skinned = lod.meshes.iter().any(|mesh| mesh.influences.is_some());
-    if !skinned {
-        issues.push(issue(job, IssueKind::NotSkinned));
+    if is_unskinned(model, level) {
+        if part.mount.is_none() {
+            issues.push(issue(job, IssueKind::NotSkinned));
+        }
         return;
     }
     let matched = BoneMatch::new(&skeleton.bones, model.bones_of(lod));

@@ -10,6 +10,8 @@ use p4kx_channels::{PublicPatches, channel_name};
 use p4kx_extraction::{Archive, CancelToken, DataForge, DataForgeEntry, utc_rfc3339};
 
 use crate::build_derived::{add_contracts, add_loadouts, add_paints};
+use crate::build_harvest::add_harvest_locations;
+use crate::build_loot::add_loot_containers;
 use crate::build_starmap::add_starmap;
 use crate::catalog_crafting::{CraftingKinds, kinds};
 use crate::catalog_output::{Compression, emit};
@@ -19,12 +21,13 @@ use crate::contract::{
 };
 use crate::crafting::read_with_progress;
 use crate::crafting_warning::CraftingWarning;
-use crate::recovery::item_recovery;
+use crate::mission_data::link_scenario_factions;
+use crate::recovery::{Recovery, read_recovery};
 use crate::scan::Scan;
 use crate::ship_store_slugs::StoreSlugs;
 use crate::shops::add_shops;
 use crate::starmap_containers::Placements;
-use crate::starmap_report::{ContainerCounts, StarmapReport};
+use crate::starmap_report::StarmapReport;
 use crate::texts::{TextSources, Texts};
 use crate::{
     BuiltCatalog, CatalogError, CatalogFailure, CatalogOptions, CatalogSummary, LoadoutSummary,
@@ -206,15 +209,20 @@ fn assemble<R>(
     );
     let files = ArchiveFiles::new(archive);
     let entities = Arc::new(Entities::new(&forge));
-    let (mut collected, counts, report) = scan(
+    let (mut collected, placements) = scan(
         archive, &forge, &files, &entities, options, &texts, crafting,
     )?;
     let paint_summary = add_paints(&forge, &mut collected, options.cancel)?;
     let loadout_summary = add_loadouts(archive, &entities, &mut collected, options.cancel)?;
     let variants = collected.group_variants();
-    let starmap_summary = add_starmap(&mut collected, counts);
+    let starmap_summary = add_starmap(&mut collected, placements.counts);
+    add_harvest_locations(archive, &placements, &mut collected, options.cancel)?;
+    add_loot_containers(archive, &placements, &mut collected, options.cancel)?;
     add_contracts(&forge, &texts, options, &mut collected)?;
+    link_scenario_factions(&forge, &mut collected.mission_kinds.scenarios);
     let shop_summary = add_shops(archive, &files, &mut collected, options)?;
+    let Recovery { rules, failures } = read_recovery(&forge, options.filter);
+    collected.add_failures(failures);
     let kinds = collected.summary(options.filter.is_none());
     let store_slugs = StoreSlugs::embedded()?;
     let resolved = store_slugs.resolve(
@@ -247,9 +255,29 @@ fn assemble<R>(
         contracts: collected.contracts,
         mineable_elements: collected.mineable_elements,
         refining_processes: collected.refining_processes,
+        mineable_compositions: collected.mineable_compositions,
+        mining_global_params: collected.mining_global_params,
+        harvestable_provider_presets: collected.harvestable_provider_presets,
+        sub_harvestable_multi_configs: collected.sub_harvestable_multi_configs,
+        harvestable_locations: collected.harvestable_locations,
+        loot_containers: collected.loot_containers,
         shops: collected.shops,
+        faction_reputations: collected.mission_kinds.factions,
+        reputation_scopes: collected.mission_kinds.scopes,
+        reputation_standings: collected.mission_kinds.standings,
+        reputation_contexts: collected.mission_kinds.contexts,
+        mission_types: collected.mission_kinds.types,
+        mission_localities: collected.mission_kinds.localities,
+        contract_scenarios: collected.mission_kinds.scenarios,
+        loot_tables: collected.loot_kinds.tables,
+        loot_archetypes: collected.loot_kinds.archetypes,
+        loot_pool_filters: collected.loot_kinds.filters,
+        legacy_loot_tables: collected.loot_kinds.legacy_tables,
+        legacy_loot_archetypes: collected.loot_kinds.legacy_archetypes,
+        mineable_entities: collected.mineable_entities,
+        crafters: collected.crafters,
         ship_store_slugs: resolved.exported,
-        item_recovery: item_recovery(&forge, options.filter),
+        item_recovery: rules,
     };
     let output = emit(&catalog)?;
     Ok((
@@ -261,7 +289,7 @@ fn assemble<R>(
             paints: paint_summary,
             loadouts: loadout_summary,
             starmap: starmap_summary,
-            starmap_report: Box::new(report),
+            starmap_report: Box::new(placements.report),
             shops: Box::new(shop_summary),
             store_slugs: Box::new(resolved.summary),
             playability: collected.playability,
@@ -274,7 +302,8 @@ fn assemble<R>(
     ))
 }
 
-/// Places the starmap objects, checks every Record of `forge` and sorts what the kinds selected.
+/// Reads the system containers, checks every Record of `forge` and sorts what the kinds selected;
+/// the containers are read when a starmap object or a provider preset is wanted.
 fn scan<'f>(
     archive: &Archive,
     forge: &'f DataForge<'f>,
@@ -283,11 +312,15 @@ fn scan<'f>(
     options: &CatalogOptions<'_>,
     texts: &Texts<'f>,
     crafting: CraftingKinds<'f>,
-) -> Result<(Collected<'f>, ContainerCounts, StarmapReport), CatalogError> {
-    let rule = crate::Kind::StarmapObjects.records();
+) -> Result<(Collected<'f>, Placements), CatalogError> {
+    let rules = [
+        crate::Kind::StarmapObjects.records(),
+        crate::Kind::HarvestableProviderPresets.records(),
+    ];
     let wanted = forge.records().any(|record| {
         record.record_path().is_ok_and(|path| {
-            rule.matches_path(path) && options.filter.is_none_or(|filter| filter.matches(path))
+            rules.iter().any(|rule| rule.matches_path(path))
+                && options.filter.is_none_or(|filter| filter.matches(path))
         })
     });
     let placements = if wanted {
@@ -307,11 +340,7 @@ fn scan<'f>(
     if options.cancel.is_some_and(CancelToken::is_cancelled) {
         return Err(CatalogError::Cancelled);
     }
-    Ok((
-        Collected::new(picked, crafting),
-        placements.counts,
-        placements.report,
-    ))
+    Ok((Collected::new(picked, crafting), placements))
 }
 
 fn completeness_of<'o>(options: &'o CatalogOptions<'_>) -> KindCompleteness<'o> {

@@ -7,19 +7,25 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use p4kx_assembly::{ArchiveFiles, Entities};
 use p4kx_extraction::{
-    CancelToken, DataForge, DataForgeError, Filter, Guid, Record, RecordTree, TreeBuilder,
+    CancelToken, DataForge, DataForgeError, Filter, Guid, PointerProbe, Record, RecordTree,
+    TreeBuilder,
 };
 use rayon::prelude::*;
 
 use crate::catalog_crafting::CraftingKinds;
-use crate::collected::Picked;
 use crate::commodity::{resource_commodity, resource_type_guid};
 use crate::contract::{Blueprint, QualityQuantization};
 use crate::contract_recipe::CostLine;
 use crate::entity_selection::{Selected, select};
+use crate::harvest_config::multi_config;
+use crate::harvest_link::Links;
+use crate::harvest_preset::provider_preset;
 use crate::item::is_paint;
+use crate::mining::mineable_entity;
+use crate::picked::Picked;
 use crate::playability_rules::Evidence;
 use crate::resource_group::{Groups, Listing, listing};
+use crate::scan_signature::SignatureSlot;
 use crate::ship_pool::ShipPool;
 use crate::starmap::{TypeNames, starmap_object};
 use crate::starmap_containers::Placements;
@@ -29,6 +35,8 @@ use crate::{item_stats, item_variant};
 
 const PROGRESS_STEP: usize = 1024;
 const RESOURCE_TYPE: &str = "ResourceType";
+const CRAFTER_FIELD: &str = "Components";
+const CRAFTER_STRUCT: &str = "CrafterComponentParams";
 
 /// Returns whether the `resourceGroups` kind selects `record` under `filter`; a Record whose path
 /// or type cannot be read is not selected here, the check of the Record reports it.
@@ -55,8 +63,11 @@ pub(crate) struct Scan<'o, 'a, 'f> {
     texts: &'o Texts<'f>,
     placements: &'o Placements,
     types: TypeNames<'f>,
+    links: Links<'f>,
+    crafters: Option<PointerProbe<'f>>,
     groups: Groups,
     evidence: Evidence,
+    signature_slot: SignatureSlot,
     done: AtomicUsize,
     total: usize,
 }
@@ -76,6 +87,7 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
         let records: Vec<Record<'f>> = forge.records().collect();
         let (groups, group_failures) = Self::groups(&records, options.filter);
         let (evidence, evidence_failures) = Evidence::read(&records);
+        let (signature_slot, slot_failures, slot_problem) = SignatureSlot::read(&records);
         let scan = Self {
             forge,
             ships: ShipPool::new(entities, files),
@@ -83,8 +95,11 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
             texts,
             placements,
             types: TypeNames::default(),
+            links: Links::default(),
+            crafters: forge.pointer_probe(CRAFTER_FIELD, CRAFTER_STRUCT),
             groups,
             evidence,
+            signature_slot,
             done: AtomicUsize::new(0),
             total: records.len(),
         };
@@ -97,11 +112,19 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
             group_failures
                 .into_iter()
                 .chain(evidence_failures)
+                .chain(slot_failures)
                 .map(Picked::Failed),
         );
         let resources =
             scan.resource_commodities(&picked, &crafting.blueprints, &crafting.quantizations);
         picked.extend(resources);
+        picked.extend(scan.links.warning().map(Picked::Warned));
+        let has_signatures = picked.iter().any(
+            |pick| matches!(pick, Picked::MineableEntity(entity) if !entity.signatures.is_empty()),
+        );
+        if options.filter.is_none() && has_signatures {
+            picked.extend(slot_problem.map(|problem| Picked::Warned(problem.warning())));
+        }
         Ok(picked)
     }
 
@@ -216,6 +239,23 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
             .unwrap_or_else(|source| Some(Picked::Failed(CatalogFailure::of(record, &source)))))
     }
 
+    /// Returns what a development leftover of kind counts as: a skipped Record, a skipped paint
+    /// for an item that is one, and for a crafter only a Record that holds the component.
+    fn leftover(
+        &self,
+        trees: &mut TreeBuilder<'f>,
+        record: &Record<'f>,
+        kind: Kind,
+    ) -> Result<Option<Picked<'f>>, DataForgeError> {
+        Ok(match kind {
+            Kind::Items if trees.build(record).is_ok_and(|tree| is_paint(&tree)) => {
+                Some(Picked::SkippedPaint)
+            }
+            Kind::Crafters if !self.holds_crafter(trees, record)? => None,
+            kind => Some(Picked::Skipped(kind, record.guid())),
+        })
+    }
+
     fn select(
         &self,
         trees: &mut TreeBuilder<'f>,
@@ -223,21 +263,20 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
     ) -> Result<Option<Picked<'f>>, DataForgeError> {
         let kind = match select(record, self.options.filter)? {
             None => return Ok(None),
-            Some(Selected::Leftover(Kind::Items)) => {
-                return Ok(Some(
-                    if trees.build(record).is_ok_and(|tree| is_paint(&tree)) {
-                        Picked::SkippedPaint
-                    } else {
-                        Picked::Skipped(Kind::Items, record.guid())
-                    },
-                ));
-            }
-            Some(Selected::Leftover(kind)) => {
-                return Ok(Some(Picked::Skipped(kind, record.guid())));
+            Some(Selected::Leftover(kind)) => return self.leftover(trees, record, kind),
+            Some(Selected::Entity(Kind::Crafters)) if !self.holds_crafter(trees, record)? => {
+                return Ok(None);
             }
             Some(Selected::Entity(kind)) => kind,
         };
         let tree = trees.build(record)?;
+        if let Some(picked) = self.harvestable(kind, trees, &tree) {
+            return Ok(Some(picked));
+        }
+        if kind == Kind::MineableEntities {
+            let entity = Picked::MineableEntity(mineable_entity(&tree, self.signature_slot));
+            return Ok(Some(entity.crafted(&tree)));
+        }
         if kind == Kind::StarmapObjects {
             let object = starmap_object(
                 trees,
@@ -266,7 +305,44 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
             item.stats = item_stats::read(&tree, self.forge, trees).map(Box::new);
             item.variant_key = item_variant::key(&tree, item.stats.as_deref());
         }
-        Ok(picked)
+        Ok(picked.map(|picked| picked.crafted(&tree)))
+    }
+
+    /// Returns whether the Components of `record` hold a crafter component, read without building
+    /// the Record tree; alse without any such component in the DataForge.
+    fn holds_crafter(
+        &self,
+        trees: &mut TreeBuilder<'f>,
+        record: &Record<'f>,
+    ) -> Result<bool, DataForgeError> {
+        self.crafters
+            .as_ref()
+            .map_or(Ok(false), |probe| trees.holds(probe, record))
+    }
+
+    /// Returns the provider preset or multi config `tree` describes when `kind` is one of the
+    /// kinds that follow a harvestable to its entity.
+    fn harvestable(
+        &self,
+        kind: Kind,
+        trees: &mut TreeBuilder<'f>,
+        tree: &RecordTree<'f>,
+    ) -> Option<Picked<'f>> {
+        match kind {
+            Kind::HarvestableProviderPresets => Some(Picked::Provider(provider_preset(
+                trees,
+                tree,
+                self.forge,
+                &self.links,
+            ))),
+            Kind::SubHarvestableMultiConfigs => Some(Picked::MultiConfig(multi_config(
+                trees,
+                tree,
+                self.forge,
+                &self.links,
+            ))),
+            _ => None,
+        }
     }
 
     fn resource_type(
@@ -298,45 +374,4 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::guid_text::CatalogGuid;
-
-    fn line(resource: Option<&str>, options: Vec<CostLine<'static>>) -> CostLine<'static> {
-        CostLine {
-            kind: "select",
-            count: None,
-            slot: None,
-            slot_key: None,
-            options,
-            resource_guid: resource.and_then(|text| text.parse().ok()).map(CatalogGuid),
-            item_guid: None,
-            quantity_scu: None,
-            quantity_units: None,
-            min_quality: None,
-            quantity_multiplier: None,
-            composition_inclusion: None,
-            modifiers: Vec::new(),
-        }
-    }
-
-    #[test]
-    fn the_resources_of_a_line_include_those_inside_selections() {
-        let first = "a1000000-0000-4000-8000-000000000001";
-        let second = "b2000000-0000-4000-8000-000000000002";
-        let nested = line(
-            None,
-            vec![
-                line(Some(first), Vec::new()),
-                line(None, vec![line(Some(second), Vec::new())]),
-            ],
-        );
-        let mut found = Vec::new();
-        resources_of(&nested, &mut found);
-        let expected: Vec<Guid> = [first, second]
-            .iter()
-            .filter_map(|text| text.parse().ok())
-            .collect();
-        assert_eq!(found, expected);
-    }
-}
+mod tests;

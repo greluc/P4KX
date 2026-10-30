@@ -4,15 +4,19 @@
 //! The head of the Loadout: the changes sit beside the name while they fit and on a second line
 //! when they do not.
 
-use crate::entity_picking::{TestResult, entries, opened_sized, select};
+use crate::entity_picking::{TestResult, entries, opened_sized, select, settle};
 
 use egui::accesskit::Role;
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable;
+use p4kx_gui::theme::window_metrics::SIDEBAR_RAIL_WIDTH;
 use p4kx_gui::{Language, Model};
 
 const WIDE: f32 = 1600.0;
-const NARROW: f32 = 700.0;
+/// A work surface width at which the English head fits one line and the German one does not; the
+/// English head does not fit the smallest work surface.
+const NARROW_WORK_WIDTH: f32 = 720.0;
+const NARROW: f32 = NARROW_WORK_WIDTH + SIDEBAR_RAIL_WIDTH;
 const ENTITY: &str = "TEST_Ship";
 
 const fn reset_label(language: Language) -> &'static str {
@@ -24,10 +28,10 @@ const fn reset_label(language: Language) -> &'static str {
 
 fn on_one_line(harness: &Harness<'_, Model>, language: Language) -> bool {
     let name = harness
-        .get_all_by_label(ENTITY)
-        .map(|node| node.rect())
-        .max_by(|a, b| a.left().total_cmp(&b.left()))
-        .map_or(f32::NAN, |rect| rect.center().y);
+        .get_by_role_and_label(Role::Label, ENTITY)
+        .rect()
+        .center()
+        .y;
     let reset = harness
         .get_by_role_and_label(Role::Button, reset_label(language))
         .rect();
@@ -37,7 +41,7 @@ fn on_one_line(harness: &Harness<'_, Model>, language: Language) -> bool {
 fn head_on_one_line(language: Language, width: f32) -> Result<bool, Box<dyn std::error::Error>> {
     let (_dir, mut harness) = opened_sized(entries(), language, [width, 900.0])?;
     select(&mut harness, ENTITY)?;
-    harness.run_steps(3);
+    settle(&mut harness)?;
     Ok(on_one_line(&harness, language))
 }
 

@@ -8,6 +8,7 @@ use super::dataforge_summary::message;
 use super::extraction;
 use super::record_results::{self, Laid, Note};
 use super::search::field;
+use super::wrapped_actions;
 use crate::texts::RecordSearchText;
 use crate::theme::desktop::{SEARCH_WIDTH, SPINNER_INLINE, TOOLBAR_PADDING};
 use crate::theme::palette;
@@ -81,11 +82,9 @@ fn toolbar(ui: &mut Ui, model: &mut Model, laid: &Laid) -> Option<String> {
                 });
             });
             if stacked {
-                ui.horizontal(|ui| {
-                    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                        extraction::actions(ui, model);
-                    });
-                });
+                extraction::stacked_actions(ui, model);
+            } else {
+                wrapped_actions::record(ui.ctx(), false);
             }
         });
     hairline_below(ui, toolbar.response.rect);

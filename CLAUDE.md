@@ -55,6 +55,17 @@ so it skips cleanly. A test over both Archives takes them from `p4kx_testkit::re
 and returns early when it gives `None`. A timing test that must not share the cores with other tests
 gets its own test file.
 
+The differential tests of `crates/p4kx-extraction/tests/reference/` compare P4KX with the output of
+unp4k, unforge and StarBreaker, which the owner produces beforehand (never a test, never CI); they
+read it from `P4KX_REF_UNP4K`, `P4KX_REF_UNFORGE` and `P4KX_REF_STARBREAKER`
+(`p4kx_testkit::reference_unp4k_path` and its two siblings) and skip when a variable is unset.
+`docs/differential-verification.md` says how to produce the folders and holds the results of the
+first run; a difference not on its allow-list fails the test.
+
+The ship matrix check of `p4kx-export` (ADR-0245) reads the JSON the owner saved by hand as
+`local-data/ship-matrix/ship-matrix.json` (excluded from git locally; nothing fetches it) from
+`P4KX_REF_SHIP_MATRIX` (`p4kx_testkit::reference_ship_matrix_path`) and skips when it is unset.
+
 The same run includes the RFC 8251 Opus decoder vectors test of `p4kx-audio`. It reads the folder
 of the official `testvectorNN.bit` and `.dec` files from `P4KX_OPUS_VECTORS` and skips with a note
 when the variable is unset.
@@ -76,7 +87,11 @@ a new test file goes into `tests/it/` and `main.rs` gets its `mod` line.
 
 ## Plan and decisions
 
-- [docs/ROADMAP.md](docs/ROADMAP.md): product decisions and milestones M1–M14.
+- [docs/ROADMAP.md](docs/ROADMAP.md): product decisions, the milestones M1–M14 (all done) and the
+  releases after 0.4.0.
+- [README.md](README.md): what P4KX does and how to install it; [docs/commands.md](docs/commands.md):
+  every command and the MCP tools; [docs/user-help.md](docs/user-help.md): the window. Keep them
+  in step with `p4kx --help` when a command or option changes.
 - [CONTEXT.md](CONTEXT.md): the glossary; use its terms in code, issues and commits.
 - [docs/adr/](docs/adr/): architecture decisions.
 
@@ -122,12 +137,16 @@ a new test file goes into `tests/it/` and `main.rs` gets its `mod` line.
 
 ## Rules
 
-- **No comments in code** besides the language's documentation comments (Rust: `///` and `//!`),
-  short and without history. Lint suppressions use `#[expect(lint, reason = "…")]`. The reasoning
-  goes into the commit message and the PR body.
+- **Comments state the current state only.** Documentation comments (Rust: `///` and `//!`) and,
+  where they help, short technical comments (`//`) that document what the code cannot say itself:
+  a non-obvious invariant, a format detail, a unit or coordinate convention, the spec section an
+  algorithm implements. Both stay short and precise. No history (dates, PR or issue numbers,
+  "previously" / "now"), no comments that restate the code, no commented-out code and no `TODO`.
+  Lint suppressions use `#[expect(lint, reason = "…")]`. The story of a change goes into the commit
+  message and the PR body, decisions into an ADR.
 - **Rust follows the [Google Rust Style Guide](https://google.github.io/styleguide/rustguide.html)**,
   read fresh from that page. Deviations only with the owner's explicit approval, recorded in an ADR.
-  The rules marked `[chrome]` are Chromium-only and do not apply. The comment rule above stays.
+  The rules marked `[chrome]` are Chromium-only and do not apply. The comment rule above applies.
   Apply it to what you write and touch; restyling existing code is its own change.
 - **No code smells, no tech debt:** no duplication, dead code, oversized functions, magic numbers,
   needless clones or allocations, swallowed errors or "fix later" shortcuts. A clean fix out of
@@ -137,7 +156,7 @@ a new test file goes into `tests/it/` and `main.rs` gets its `mod` line.
   small and focused.
 - **Every `.rs` file starts with the SPDX header**, two lines and a blank line, before any `//!`
   docs: `// SPDX-License-Identifier: MIT OR Apache-2.0` and `// SPDX-FileCopyrightText: 2026 the
-  P4KX contributors`. It is an allowed licence header, not a code comment under the rule above;
+  P4KX contributors`. It is a licence header, not a code comment under the rule above;
   `cargo xtask spdx` (part of plain `cargo xtask`) fails on a tracked file without it.
 - A user-visible change adds a fragment `changelog.d/<issue>.md` (form in
   `changelog.d/README.md`, ADR-0035) instead of editing `CHANGELOG.md`; `cargo xtask changelog

@@ -9,6 +9,7 @@ use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
 use crate::build::{file_key, issue};
 use crate::flatten::Draft;
+use crate::tree::GeometryChoice;
 use crate::{AssemblyError, AssemblyOptions, Issue, IssueKind, ModelFailure, ModelProvider};
 
 /// The most distinct model files read at once before the vertex budget is checked again; a wave
@@ -180,7 +181,14 @@ pub(crate) fn choose_models<'m>(
                     }
                 }
                 Some(Outcome::Failed { missing: true, .. }) => {
-                    issues.push(issue(draft, IssueKind::GeometryMissing { path }));
+                    let kind = match draft.node.choice {
+                        GeometryChoice::Body(body) => IssueKind::BodyGeometryMissing {
+                            body: body.code().to_owned(),
+                            path,
+                        },
+                        _ => IssueKind::GeometryMissing { path },
+                    };
+                    issues.push(issue(draft, kind));
                     None
                 }
                 Some(Outcome::Failed { reason, .. }) => {

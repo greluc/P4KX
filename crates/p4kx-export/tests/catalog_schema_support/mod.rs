@@ -5,7 +5,12 @@
 
 use serde_json::json;
 
+mod contracts;
+mod crafters;
+mod harvest;
+mod loot;
 mod recovery;
+mod reputation;
 
 use recovery::item_recovery;
 
@@ -39,7 +44,27 @@ pub(crate) fn minimal_catalog() -> serde_json::Value {
             "contracts": {"status": "complete"},
             "mineableElements": {"status": "complete"},
             "refiningProcesses": {"status": "complete"},
+            "mineableCompositions": {"status": "complete"},
+            "miningGlobalParams": {"status": "complete"},
+            "harvestableProviderPresets": {"status": "complete"},
+            "subHarvestableMultiConfigs": {"status": "complete"},
+            "harvestableLocations": {"status": "complete"},
             "shops": {"status": "complete"},
+            "factionReputations": {"status": "complete"},
+            "reputationScopes": {"status": "complete"},
+            "reputationStandings": {"status": "complete"},
+            "reputationContexts": {"status": "complete"},
+            "missionTypes": {"status": "complete"},
+            "missionLocalities": {"status": "complete"},
+            "contractScenarios": {"status": "complete"},
+            "lootTables": {"status": "complete"},
+            "lootArchetypes": {"status": "complete"},
+            "lootPoolFilters": {"status": "complete"},
+            "legacyLootTables": {"status": "complete"},
+            "legacyLootArchetypes": {"status": "complete"},
+            "lootContainers": {"status": "complete"},
+            "mineableEntities": {"status": "complete"},
+            "crafters": {"status": "complete"},
             "shipStoreSlugs": {"status": "complete"}
         },
         "manufacturers": [{
@@ -218,7 +243,7 @@ pub(crate) fn minimal_catalog() -> serde_json::Value {
             "placedUnderGuid": "a2000000-0000-4000-8000-000000000003",
             "position": [12_850_000_000.0, 1250.5, -3.0]
         }],
-        "contracts": contracts(),
+        "contracts": contracts::contracts(),
         "mineableElements": [{
             "guid": "a3000000-0000-4000-8000-000000000001",
             "className": "agricium_ore",
@@ -244,6 +269,11 @@ pub(crate) fn minimal_catalog() -> serde_json::Value {
             "refiningSpeed": "Fast",
             "refiningQuality": "Careful"
         }],
+        "mineableCompositions": harvest::compositions(),
+        "miningGlobalParams": [harvest::mining_global_params()],
+        "harvestableProviderPresets": harvest::presets(),
+        "subHarvestableMultiConfigs": harvest::multi_configs(),
+        "harvestableLocations": harvest::locations(),
         "shops": [{
             "key": "4a269932-183e-362d-aacc-188e7debbea9,4ce1f681-b479-5269-0536-3d7f02fdccaf,41000000-0000-4000-8000-000000000001,42eef9e5-ecd4-6e5b-6254-e332a5dd44b9",
             "entityGuid": "42eef9e5-ecd4-6e5b-6254-e332a5dd44b9",
@@ -261,6 +291,21 @@ pub(crate) fn minimal_catalog() -> serde_json::Value {
             "inventory": "inv_commex_newbabbage",
             "itemGuids": ["d195eb47-24b8-45c0-a4d0-1771d60dc1a8"]
         }],
+        "factionReputations": reputation::factions(),
+        "reputationScopes": reputation::scopes(),
+        "reputationStandings": reputation::standings(),
+        "reputationContexts": reputation::contexts(),
+        "missionTypes": reputation::mission_types(),
+        "missionLocalities": reputation::localities(),
+        "contractScenarios": reputation::scenarios(),
+        "lootTables": loot::tables(),
+        "lootArchetypes": loot::archetypes(),
+        "lootPoolFilters": loot::filters(),
+        "legacyLootTables": loot::legacy_tables(),
+        "legacyLootArchetypes": loot::legacy_archetypes(),
+        "lootContainers": loot::containers(),
+        "mineableEntities": harvest::mineable_entities(),
+        "crafters": crafters::crafters(),
         "shipStoreSlugs": [{
             "slug": "Aurora-Mk-I-ES",
             "rsiId": 1,
@@ -278,43 +323,6 @@ pub(crate) fn minimal_catalog() -> serde_json::Value {
         }],
         "itemRecovery": item_recovery()
     })
-}
-
-fn contracts() -> serde_json::Value {
-    let places = json!([{
-        "starmapObjectGuid": "a2000000-0000-4000-8000-000000000001",
-        "objectType": "Planet",
-        "place": {"key": "@Stanton1_Name", "en": "Hurston", "de": null}
-    }]);
-    let gains = json!([{
-        "factionReputationGuid": "60000000-0000-4000-8000-000000000001",
-        "factionReputationName": "acme",
-        "scopeGuid": "60000000-0000-4000-8000-000000000002",
-        "scopeName": "faction",
-        "amount": 200
-    }]);
-    json!([{
-        "guid": "20000000-0000-4000-8000-000000000001",
-        "subContractGuid": "30000000-0000-4000-8000-000000000002",
-        "recordGuid": "10000000-0000-4000-8000-000000000001",
-        "recordPath": "libs/foundry/records/contracts/contractgenerator/delivery",
-        "debugName": "Deliver_A",
-        "handler": "Delivery_Career",
-        "templateGuid": "40000000-0000-4000-8000-000000000001",
-        "notForRelease": false,
-        "workInProgress": null,
-        "title": {"key": "@title_a", "en": "Deliver Scrap to [LOCATION]", "de": null},
-        "missionTypeGuid": "50000000-0000-4000-8000-000000000001",
-        "missionType": {"key": "@type_delivery", "en": "Delivery", "de": null},
-        "contractor": {"key": null, "en": null, "de": null},
-        "faction": {
-            "guid": "60000000-0000-4000-8000-000000000001",
-            "name": "acme",
-            "displayName": {"key": "@faction_acme", "en": "Acme Emporium", "de": null}
-        },
-        "pickupPlaces": places,
-        "reputationGains": gains
-    }])
 }
 
 fn loadouts() -> serde_json::Value {

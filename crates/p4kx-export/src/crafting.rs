@@ -19,7 +19,7 @@ use crate::crafting_types::{
     GlobalParams, QualityDistribution, QualityQuantization, RewardChance, RewardSource,
 };
 use crate::crafting_warning::CraftingWarning;
-use crate::selection::{BlueprintSelection, KindRule, is_leftover, selects_blueprint};
+use crate::selection::{BlueprintSelection, is_leftover, selects_blueprint};
 use crate::{CatalogError, CatalogFailure, CatalogProgress};
 
 /// The crafting data of a DataForge: the blueprints with all their tiers and what surrounds them.
@@ -201,10 +201,6 @@ fn assemble(pieces: Vec<Piece<'_>>) -> Crafting<'_> {
     crafting
 }
 
-fn selects(rule: &KindRule, path: &str, type_name: &str) -> bool {
-    rule.type_name == type_name && rule.matches_path(path)
-}
-
 /// Returns whether `record` lies outside the `filter`, so that a failure to read it is no
 /// failure of the selection; the global parameters are read whatever the Filter.
 fn outside(record: &Record<'_>, filter: Option<&Filter>) -> bool {
@@ -213,7 +209,7 @@ fn outside(record: &Record<'_>, filter: Option<&Filter>) -> bool {
     };
     !filter.matches(path)
         && !record.type_name().is_ok_and(|type_name| {
-            selects(&GLOBALS, path, type_name) || selects(&RESOURCE_TYPES, path, type_name)
+            GLOBALS.selects(path, type_name) || RESOURCE_TYPES.selects(path, type_name)
         })
 }
 
@@ -257,23 +253,23 @@ fn piece<'f>(
         BlueprintSelection::Outside => {}
     }
     let type_name = record.type_name()?;
-    if selects(&POOLS, path, type_name) && filter.is_some_and(|filter| !filter.matches(path)) {
+    if POOLS.selects(path, type_name) && filter.is_some_and(|filter| !filter.matches(path)) {
         return Ok(None);
     }
-    let piece = if selects(&DISMANTLES, path, type_name) {
+    let piece = if DISMANTLES.selects(path, type_name) {
         dismantle(&trees.build(record)?).map(Piece::Dismantle)
-    } else if selects(&PROPERTIES, path, type_name) {
+    } else if PROPERTIES.selects(path, type_name) {
         Some(Piece::Property(property(&trees.build(record)?)))
-    } else if selects(&DISTRIBUTIONS, path, type_name) || selects(&OVERRIDES, path, type_name) {
+    } else if DISTRIBUTIONS.selects(path, type_name) || OVERRIDES.selects(path, type_name) {
         Some(Piece::Distribution(distribution(&trees.build(record)?)))
-    } else if selects(&QUANTIZATIONS, path, type_name) {
+    } else if QUANTIZATIONS.selects(path, type_name) {
         Some(match quantization(&trees.build(record)?) {
             Ok(quantization) => Piece::Quantization(quantization),
             Err(malformed) => Piece::Failed(CatalogFailure::of(record, &malformed)),
         })
-    } else if selects(&POOLS, path, type_name) {
+    } else if POOLS.selects(path, type_name) {
         Some(Piece::Pool(pool(&trees.build(record)?)))
-    } else if selects(&GLOBALS, path, type_name) {
+    } else if GLOBALS.selects(path, type_name) {
         Some(Piece::Globals(globals(&trees.build(record)?)))
     } else {
         None

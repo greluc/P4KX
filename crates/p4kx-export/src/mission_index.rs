@@ -42,7 +42,7 @@ pub(crate) struct Template<'f> {
 
 /// A `MissionType` Record: the key of its localised name.
 #[derive(Debug)]
-pub(crate) struct MissionType<'f> {
+pub(crate) struct MissionTypeName<'f> {
     pub(crate) name_key: Option<&'f str>,
 }
 
@@ -51,7 +51,7 @@ pub(crate) type Variants<'f> = Vec<(Guid, &'f str)>;
 
 enum Piece<'f> {
     Template(Guid, Template<'f>),
-    Type(Guid, MissionType<'f>),
+    Type(Guid, MissionTypeName<'f>),
     Organization(Guid, Variants<'f>),
     Reward(Guid, i64),
     Locality(Guid, Vec<Guid>),
@@ -64,7 +64,7 @@ enum Piece<'f> {
 /// and the tag tree.
 pub(crate) struct MissionIndex<'f> {
     templates: HashMap<Guid, Template<'f>>,
-    types: HashMap<Guid, MissionType<'f>>,
+    types: HashMap<Guid, MissionTypeName<'f>>,
     organizations: HashMap<Guid, Variants<'f>>,
     rewards: HashMap<Guid, i64>,
     localities: HashMap<Guid, Vec<Guid>>,
@@ -137,7 +137,7 @@ impl<'f> MissionIndex<'f> {
         self.templates.get(&guid)
     }
 
-    pub(crate) fn mission_type(&self, guid: Guid) -> Option<&MissionType<'f>> {
+    pub(crate) fn mission_type(&self, guid: Guid) -> Option<&MissionTypeName<'f>> {
         self.types.get(&guid)
     }
 
@@ -209,7 +209,7 @@ fn piece<'f>(
     } else if starts(TYPES) {
         Piece::Type(
             guid,
-            MissionType {
+            MissionTypeName {
                 name_key: key(root, "LocalisedTypeName"),
             },
         )

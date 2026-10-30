@@ -1,16 +1,18 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use std::collections::HashMap;
-use std::sync::{Mutex, PoisonError};
-
-use p4kx_extraction::{DataForge, Guid, RecordTree, TreeBuilder};
+use p4kx_extraction::{DataForge, RecordTree, TreeBuilder};
 
 use crate::contract::StarmapObject;
 use crate::guid_text::CatalogGuid;
+use crate::memo::Memo;
 use crate::record_fields::{boolean, class_name, locale_key, reference, text};
 use crate::starmap_containers::Placements;
 use crate::texts::Texts;
+
+/// The `description` key all mining claim markers share and no other starmap object has (188 of
+/// 2,123 on LIVE 4.10).
+const MINING_CLAIM_DESCRIPTION: &str = "@MiningClaims_Desc_001";
 
 /// The precision of a position, a millimetre.
 const MILLI: f64 = 1000.0;
@@ -18,7 +20,7 @@ const MILLI: f64 = 1000.0;
 /// The names of the type Records the starmap objects link to, each read once.
 #[derive(Default)]
 pub(crate) struct TypeNames<'f> {
-    by_guid: Mutex<HashMap<Guid, Option<&'f str>>>,
+    by_guid: Memo<Option<&'f str>>,
 }
 
 impl<'f> TypeNames<'f> {
@@ -30,21 +32,8 @@ impl<'f> TypeNames<'f> {
         forge: &'f DataForge<'f>,
         guid: CatalogGuid,
     ) -> Option<&'f str> {
-        let held = self
-            .by_guid
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner)
-            .get(&guid.0)
-            .copied();
-        if let Some(name) = held {
-            return name;
-        }
-        let name = type_of(trees, forge, guid);
         self.by_guid
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner)
-            .insert(guid.0, name);
-        name
+            .get_or_make(guid.0, || type_of(trees, forge, guid))
     }
 }
 
@@ -81,6 +70,8 @@ pub(crate) fn starmap_object<'f>(
             .and_then(|placement| placement.placed_under)
             .map(CatalogGuid),
         position: placement.map(|placement| placement.position.map(millimetres)),
+        mining_claim: locale_key(root, "description").or_else(|| text(root, "description"))
+            == Some(MINING_CLAIM_DESCRIPTION),
     }
 }
 

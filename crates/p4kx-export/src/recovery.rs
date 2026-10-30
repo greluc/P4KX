@@ -1,48 +1,74 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use p4kx_extraction::{DataForge, Filter, RecordTree, StructValue, TreeBuilder, Value};
+use p4kx_extraction::{
+    DataForge, DataForgeError, Filter, Record, RecordTree, StructValue, TreeBuilder, Value,
+};
 
+use crate::CatalogFailure;
 use crate::contract_recovery::{EscalatingClaims, ItemRecovery, RecoveryOverride};
 use crate::guid_text::CatalogGuid;
-use crate::record_fields::{class_name, elements, integer, single, structure};
+use crate::record_fields::{class_name, elements, integer, number, record_reference, structure};
+use crate::selection::KindRule;
 
-const TYPE_NAME: &str = "ItemRecoveryConfigurationParams";
+/// Selects the Records that hold the item recovery rules.
+const RECOVERY: KindRule = KindRule {
+    prefixes: &["libs/foundry/records/entitlementpolicies/"],
+    type_name: "ItemRecoveryConfigurationParams",
+};
 
-/// Returns the item recovery rules of `forge`: the `ItemRecoveryConfigurationParams` Record with
-/// the smallest record path that `filter` matches and that can be read, `None` when there is none.
-pub(crate) fn item_recovery<'f>(
-    forge: &'f DataForge<'f>,
-    filter: Option<&Filter>,
-) -> Option<ItemRecovery<'f>> {
+/// The item recovery rules of a DataForge and the Records that could not be read.
+pub(crate) struct Recovery<'f> {
+    /// The rules of the Record with the smallest record path that can be read, `None` when there
+    /// is none.
+    pub(crate) rules: Option<ItemRecovery<'f>>,
+    /// The selected Records that could not be read; they are left out.
+    pub(crate) failures: Vec<CatalogFailure>,
+}
+
+/// Reads the item recovery rules of `forge` from the `ItemRecoveryConfigurationParams` Records
+/// that `filter` matches.
+pub(crate) fn read_recovery<'f>(forge: &'f DataForge<'f>, filter: Option<&Filter>) -> Recovery<'f> {
     let mut trees = TreeBuilder::new();
     let mut best: Option<RecordTree<'f>> = None;
+    let mut failures = Vec::new();
     for record in forge.records() {
-        if record.type_name().ok() != Some(TYPE_NAME) {
-            continue;
+        match is_selected(&record, filter) {
+            Ok(true) => {}
+            Ok(false) => continue,
+            Err(source) => {
+                failures.push(CatalogFailure::of(&record, &source));
+                continue;
+            }
         }
-        let Ok(path) = record.record_path() else {
-            continue;
-        };
-        if filter.is_some_and(|filter| !filter.matches(path)) {
-            continue;
-        }
-        let Ok(tree) = trees.build(&record) else {
-            continue;
-        };
-        if best
-            .as_ref()
-            .is_none_or(|have| tree.record_path() < have.record_path())
-        {
-            best = Some(tree);
+        match trees.build(&record) {
+            Ok(tree) => {
+                if best
+                    .as_ref()
+                    .is_none_or(|have| tree.record_path() < have.record_path())
+                {
+                    best = Some(tree);
+                }
+            }
+            Err(source) => failures.push(CatalogFailure::of(&record, &source)),
         }
     }
-    best.map(|tree| recovery(&tree))
+    Recovery {
+        rules: best.map(|tree| recovery(&tree)),
+        failures,
+    }
+}
+
+fn is_selected(record: &Record<'_>, filter: Option<&Filter>) -> Result<bool, DataForgeError> {
+    let path = record.record_path()?;
+    Ok(RECOVERY.matches_path(path)
+        && filter.is_none_or(|filter| filter.matches(path))
+        && record.type_name()? == RECOVERY.type_name)
 }
 
 fn recovery<'f>(tree: &RecordTree<'f>) -> ItemRecovery<'f> {
     let economy = structure(Some(tree.root()), "economyParams");
-    let number = |name: &str| single(economy, name);
+    let number = |name: &str| number(economy, name);
     ItemRecovery {
         guid: CatalogGuid(tree.guid()),
         class_name: class_name(tree),
@@ -82,24 +108,19 @@ fn escalating(params: &StructValue<'_>) -> EscalatingClaims {
     let params = Some(params);
     EscalatingClaims {
         escalating_claim_chain_limit: integer(params, "escalatingClaimChainLimit"),
-        escalation_timer_multiplier: single(params, "escalationTimerMultiplier"),
-        escalating_claim_cost_multiplier: single(params, "escalatingClaimCostMultiplier"),
-        escalating_delivery_timer_multiplier: single(params, "escalatingDeliveryTimerMultiplier"),
+        escalation_timer_multiplier: number(params, "escalationTimerMultiplier"),
+        escalating_claim_cost_multiplier: number(params, "escalatingClaimCostMultiplier"),
+        escalating_delivery_timer_multiplier: number(params, "escalatingDeliveryTimerMultiplier"),
     }
 }
 
 fn group_override(group: &StructValue<'_>) -> RecoveryOverride {
     let group = Some(group);
-    let number = |name: &str| single(group, name);
+    let number = |name: &str| number(group, name);
     RecoveryOverride {
         class_guids: elements(group, "classes")
             .iter()
-            .filter_map(|class| match class {
-                Value::Reference(reference) if reference.location().is_none() => {
-                    Some(CatalogGuid(reference.guid()))
-                }
-                _ => None,
-            })
+            .filter_map(record_reference)
             .collect(),
         claim_cooldown_multiplier: number("claimCooldownMultiplier"),
         claim_cost_multiplier: number("claimCostMultiplier"),

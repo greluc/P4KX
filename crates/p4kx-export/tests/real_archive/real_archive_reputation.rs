@@ -1,0 +1,323 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
+//! Factions, reputation, mission types, localities, scenarios and the standing of contracts in the
+//! Basetool catalog of a real Archive; runs with `--ignored` when `P4KX_DATA_P4K` names one.
+
+use std::collections::HashSet;
+use std::error::Error;
+use std::time::SystemTime;
+
+use p4kx_export::{CatalogOptions, build_catalog};
+use p4kx_extraction::Archive;
+use p4kx_testkit::{real_archive_key, real_archive_path};
+use serde_json::Value;
+
+type TestResult = Result<(), Box<dyn Error>>;
+
+#[expect(
+    clippy::print_stdout,
+    reason = "the figures are the result of the verification"
+)]
+fn print_line(line: &str) {
+    println!("{line}");
+}
+
+fn catalog() -> Result<Value, Box<dyn Error>> {
+    let archive = Archive::open_with_key(real_archive_path()?, Some(real_archive_key()?))?;
+    let built = build_catalog(&archive, &CatalogOptions::new(SystemTime::now()))?;
+    Ok(serde_json::from_slice(built.json())?)
+}
+
+fn list<'c>(catalog: &'c Value, kind: &str) -> Result<&'c Vec<Value>, String> {
+    catalog[kind]
+        .as_array()
+        .ok_or_else(|| format!("the {kind} array"))
+}
+
+fn guids<'c>(catalog: &'c Value, kind: &str) -> Result<HashSet<&'c str>, Box<dyn Error>> {
+    Ok(list(catalog, kind)?
+        .iter()
+        .filter_map(|entry| entry["guid"].as_str())
+        .collect())
+}
+
+fn named<'c>(catalog: &'c Value, kind: &str, class: &str) -> Result<&'c Value, Box<dyn Error>> {
+    list(catalog, kind)?
+        .iter()
+        .find(|entry| {
+            text(entry, "/className").is_some_and(|name| name.eq_ignore_ascii_case(class))
+        })
+        .ok_or_else(|| format!("{kind} has no {class}").into())
+}
+
+fn text<'c>(entry: &'c Value, pointer: &str) -> Option<&'c str> {
+    entry.pointer(pointer).and_then(Value::as_str)
+}
+
+fn strings<'c>(entry: &'c Value, field: &str) -> Vec<&'c str> {
+    entry[field]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(Value::as_str)
+        .collect()
+}
+
+/// Asserts that every GUID `values` yields is one of `known`.
+fn assert_resolve<'c>(
+    what: &str,
+    values: impl IntoIterator<Item = &'c str>,
+    known: &HashSet<&str>,
+) {
+    let missing: Vec<&str> = values
+        .into_iter()
+        .filter(|guid| !known.contains(guid))
+        .take(5)
+        .collect();
+    assert!(missing.is_empty(), "{what} resolve: {missing:?}");
+}
+
+/// Asserts that the standings of every scope and the scopes of every context are kept Records.
+fn check_ladders(catalog: &Value, scopes: &HashSet<&str>, standings: &HashSet<&str>) -> TestResult {
+    for scope in list(catalog, "reputationScopes")? {
+        assert_resolve(
+            "the standings of a scope",
+            strings(scope, "standingGuids"),
+            standings,
+        );
+    }
+    for context in list(catalog, "reputationContexts")? {
+        assert_resolve(
+            "the scopes of a context",
+            strings(context, "scopeGuids"),
+            scopes,
+        );
+        assert_resolve(
+            "the primary scope",
+            text(context, "/primaryScopeGuid"),
+            scopes,
+        );
+    }
+    Ok(())
+}
+
+#[test]
+#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
+fn the_factions_and_their_reputation_ladders_of_a_real_archive_are_linked() -> TestResult {
+    let catalog = catalog()?;
+    let factions = list(&catalog, "factionReputations")?;
+    let scopes = guids(&catalog, "reputationScopes")?;
+    let standings = guids(&catalog, "reputationStandings")?;
+    let contexts = guids(&catalog, "reputationContexts")?;
+    let faction_guids = guids(&catalog, "factionReputations")?;
+    print_line(&format!(
+        "{} factions, {} scopes, {} standings, {} contexts",
+        factions.len(),
+        scopes.len(),
+        standings.len(),
+        contexts.len()
+    ));
+    assert!(factions.len() >= 30, "the factions");
+    assert!(scopes.len() >= 30, "the scopes");
+    assert!(standings.len() >= 300, "the standings");
+
+    let wikelo = named(&catalog, "factionReputations", "FactionReputation_Wikelo")?;
+    print_line(&format!("faction sample: {wikelo}"));
+    assert_eq!(wikelo["lawful"], true, "the entityLawful property");
+    assert!(
+        text(wikelo, "/displayName/en").is_some_and(|name| !name.is_empty()),
+        "a name"
+    );
+    let headhunters = named(
+        &catalog,
+        "factionReputations",
+        "FactionReputation_Unlawful_Headhunters",
+    )?;
+    assert_eq!(headhunters["lawful"], false);
+    assert!(
+        !strings(headhunters, "enemyGuids").is_empty(),
+        "the Headhunters have enemies"
+    );
+
+    for faction in factions {
+        assert_resolve("the allies", strings(faction, "allyGuids"), &faction_guids);
+        assert_resolve(
+            "the enemies",
+            strings(faction, "enemyGuids"),
+            &faction_guids,
+        );
+        assert_resolve("the context", text(faction, "/contextGuid"), &contexts);
+        for relation in ["hostility", "allied"] {
+            let scope = text(faction, &format!("/{relation}/scopeGuid"));
+            let standing = text(faction, &format!("/{relation}/standingGuid"));
+            assert_resolve("the scope of a relation", scope, &scopes);
+            assert_resolve("the standing of a relation", standing, &standings);
+        }
+    }
+    check_ladders(&catalog, &scopes, &standings)?;
+    let ranked = list(&catalog, "reputationStandings")?
+        .iter()
+        .filter(|standing| standing["minReputation"].is_i64())
+        .count();
+    assert_eq!(ranked, standings.len(), "every standing has a minimum");
+    Ok(())
+}
+
+/// Asserts that the faction, scope and standings a requirement names are kept Records.
+fn check_requirement(requirement: &Value, [factions, scopes, standings]: [&HashSet<&str>; 3]) {
+    assert_resolve(
+        "the faction of a requirement",
+        text(requirement, "/factionReputationGuid"),
+        factions,
+    );
+    assert_resolve(
+        "the scope of a requirement",
+        text(requirement, "/scopeGuid"),
+        scopes,
+    );
+    let range = [
+        text(requirement, "/minStandingGuid"),
+        text(requirement, "/maxStandingGuid"),
+    ];
+    assert_resolve(
+        "the standings of a requirement",
+        range.into_iter().flatten(),
+        standings,
+    );
+}
+
+#[test]
+#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
+fn a_contract_of_a_real_archive_names_its_type_and_standing_range() -> TestResult {
+    let catalog = catalog()?;
+    let contracts = list(&catalog, "contracts")?;
+    let types = guids(&catalog, "missionTypes")?;
+    let standings = guids(&catalog, "reputationStandings")?;
+    let scopes = guids(&catalog, "reputationScopes")?;
+    let factions = guids(&catalog, "factionReputations")?;
+    let ranged: Vec<&Value> = contracts
+        .iter()
+        .filter(|entry| entry["minStandingGuid"].is_string())
+        .collect();
+    print_line(&format!(
+        "{} of {} contracts have a standing range; sample: {}",
+        ranged.len(),
+        contracts.len(),
+        ranged.first().map_or(String::new(), ToString::to_string)
+    ));
+    assert!(ranged.len() > 1_000, "most contracts are gated by standing");
+    let mut requirements = 0_usize;
+    for entry in contracts {
+        assert_resolve("the mission type", text(entry, "/missionTypeGuid"), &types);
+        assert_resolve(
+            "the minimum standing",
+            text(entry, "/minStandingGuid"),
+            &standings,
+        );
+        assert_resolve(
+            "the maximum standing",
+            text(entry, "/maxStandingGuid"),
+            &standings,
+        );
+        for requirement in entry["standingRequirements"]
+            .as_array()
+            .into_iter()
+            .flatten()
+        {
+            requirements += 1;
+            check_requirement(requirement, [&factions, &scopes, &standings]);
+        }
+    }
+    assert!(
+        requirements > 500,
+        "reputation prerequisites: {requirements}"
+    );
+    let wikelo_guid = text(
+        named(&catalog, "factionReputations", "FactionReputation_Wikelo")?,
+        "/guid",
+    );
+    let wikelo = contracts
+        .iter()
+        .find(|entry| {
+            entry["standingRequirements"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .any(|requirement| text(requirement, "/factionReputationGuid") == wikelo_guid)
+        })
+        .ok_or("a contract that requires standing with Wikelo")?;
+    print_line(&format!("contract sample: {wikelo}"));
+    Ok(())
+}
+
+/// Asserts that every faction of `scenario` links to a kept faction reputation.
+fn check_scenario_factions(scenario: &Value, factions: &HashSet<&str>) {
+    for faction in scenario["factionRewardTiers"]
+        .as_array()
+        .into_iter()
+        .flatten()
+    {
+        let linked = text(faction, "/factionReputationGuid");
+        assert!(linked.is_some(), "the Faction Record names a reputation");
+        assert_resolve("the faction of a scenario", linked, factions);
+    }
+}
+
+#[test]
+#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
+fn mission_types_localities_and_scenarios_of_a_real_archive_are_linked() -> TestResult {
+    let catalog = catalog()?;
+    let types = list(&catalog, "missionTypes")?;
+    let localities = list(&catalog, "missionLocalities")?;
+    let scenarios = list(&catalog, "contractScenarios")?;
+    let objects = guids(&catalog, "starmapObjects")?;
+    let pools = guids(&catalog, "blueprintPools")?;
+    let factions = guids(&catalog, "factionReputations")?;
+    print_line(&format!(
+        "{} mission types, {} localities, {} scenarios",
+        types.len(),
+        localities.len(),
+        scenarios.len()
+    ));
+    assert!(types.len() >= 30, "the mission types");
+    assert!(
+        types
+            .iter()
+            .filter(|kind| text(kind, "/typeName/en").is_some())
+            .count()
+            >= 20,
+        "most mission types have an English name"
+    );
+    assert_eq!(localities.len(), 20, "the mission localities");
+    let pyro = named(&catalog, "missionLocalities", "pyro")?;
+    print_line(&format!("locality sample: {pyro}"));
+    for locality in localities {
+        let listed = strings(locality, "starmapObjectGuids");
+        assert!(!listed.is_empty(), "a locality names objects");
+        assert_resolve("the objects of a locality", listed, &objects);
+    }
+    assert_eq!(scenarios.len(), 2, "the scenarios");
+    for scenario in scenarios {
+        print_line(&format!("scenario sample: {scenario}"));
+        let tiers: Vec<&Value> = scenario["factionRewardTiers"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .flat_map(|faction| faction["progressions"].as_array().into_iter().flatten())
+            .flat_map(|progression| progression["tiers"].as_array().into_iter().flatten())
+            .collect();
+        assert!(!tiers.is_empty(), "a scenario has tiers");
+        check_scenario_factions(scenario, &factions);
+        for tier in tiers {
+            assert_ne!(tier["badgeToAward"], "None", "no badge is null");
+            assert!(tier["minPoints"].is_i64(), "points");
+            assert_resolve(
+                "the pools of a tier",
+                strings(tier, "blueprintPoolGuids"),
+                &pools,
+            );
+        }
+    }
+    Ok(())
+}

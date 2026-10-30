@@ -40,9 +40,13 @@ body:
         - Comparison of two Archives
         - Records (DataForge, XML / JSON)
         - Models and glTF export
+        - Assemblies, Interiors and Characters
+        - Blender package
         - Textures and images
-        - Audio
-        - Localization
+        - Audio and Wwise sounds
+        - UI movies, ship screens and holograms
+        - Basetool catalog and ship base data
+        - Localisation
         - Installer / update check
         - Other (describe below)
     validations:
@@ -53,7 +57,7 @@ body:
     attributes:
       label: P4KX Version
       description: The version from the About view, or a commit SHA for a build from source.
-      placeholder: "e.g. 0.3.0"
+      placeholder: "e.g. 0.4.1"
     validations:
       required: true
 

@@ -9,9 +9,9 @@ use crate::guid_text::CatalogGuid;
 
 /// The item recovery rules: an `ItemRecoveryConfigurationParams` Record, its `economyParams`.
 ///
-/// The multipliers and rates the game applies at run time to claim, expedite and deliver a ship
-/// and its insured items; the Record holds no fee in aUEC, so the catalog states none. Every
-/// number is that of the Record, `null` when the Record states none.
+/// The multipliers and rates of the Record under their data names. The Record holds no fee in
+/// aUEC, so the catalog states none. Every number is that of the Record, `null` when the Record
+/// states none or a value that is no number.
 #[derive(Debug, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 #[schemars(transform = every_field_required)]

@@ -34,6 +34,7 @@ The short version:
 - [Commit messages](#commit-messages)
 - [Style guides](#style-guides)
 - [Before-you-push checklist](#before-you-push-checklist)
+- [Releasing](#releasing)
 - [Licence](#licence)
 
 ## Code of Conduct
@@ -47,13 +48,14 @@ it. Report unacceptable behaviour confidentially to
 
 | Topic                                                              | Where                                                                  |
 |:-------------------------------------------------------------------|:-----------------------------------------------------------------------|
-| What P4KX does, building it, the commands                          | [`README.md`](README.md)                                               |
+| What P4KX does, installing, building it                            | [`README.md`](README.md)                                               |
+| The commands and the MCP server                                    | [`docs/commands.md`](docs/commands.md), [`docs/cli-json.md`](docs/cli-json.md) |
 | Using the window                                                   | [`docs/user-help.md`](docs/user-help.md)                               |
 | Product decisions and milestones                                   | [`docs/ROADMAP.md`](docs/ROADMAP.md)                                   |
 | The glossary: the terms to use in code, issues and commits         | [`CONTEXT.md`](CONTEXT.md)                                             |
 | Architecture decisions                                             | [`docs/adr/`](docs/adr/)                                               |
 | Architecture rules, test layout, real-Archive suite, working rules | [`CLAUDE.md`](CLAUDE.md)                                               |
-| The look of the window: theme, desktop spec, logo                  | [`docs/design/`](docs/design/)                                         |
+| The look of the window: theme, desktop spec, logo                  | [`docs/design/`](docs/design/) and `p4kx_gui::theme`                   |
 | The formats P4KX reads and writes                                  | the documents under [`docs/`](docs/)                                   |
 | Release notes                                                      | [`CHANGELOG.md`](CHANGELOG.md), unreleased ones in [`changelog.d/`](changelog.d/README.md) |
 | Security reporting, supported versions, scope                      | [`.github/SECURITY.md`](.github/SECURITY.md)                           |
@@ -117,8 +119,30 @@ checks the layer direction of the crates, the 400-line limit, the SPDX headers, 
 fragments, the lint set and the Archive key. After a dependency change, run
 `cargo xtask notices --write` (needs `cargo install cargo-about --version 0.9.2 --locked`).
 
-The tests against a real Archive are ignored by default; `CLAUDE.md` and the
-[README](README.md#real-archive-suite) explain how to run them against your own installation.
+The tests against a real Archive are ignored by default; see
+[Real-Archive suite](#real-archive-suite).
+
+### Real-Archive suite
+
+A second suite checks a real `Data.p4k`: opening and listing it, its Build, reading Entries of
+every compression method and encryption state present, extracting a small subset, comparing two
+Archives on both levels, and the conversions of the formats P4KX reads. Its tests are
+`#[ignore]`d, so `cargo test` and CI report them as ignored. Point `P4KX_DATA_P4K` to an Archive
+and `P4KX_DATA_P4K_B` to a second one for the Comparison, and pass `--ignored`; without
+`P4KX_DATA_P4K` the suite fails and says so, and the tests over two Archives return early without
+`P4KX_DATA_P4K_B`. Tests that read encrypted Entries use the Archive key from `P4KX_ARCHIVE_KEY`,
+else the file named by `P4KX_KEY_FILE`, else the file of `p4kx key set`.
+
+```powershell
+$env:P4KX_DATA_P4K = 'C:\Program Files\Roberts Space Industries\StarCitizen\LIVE\Data.p4k'
+$env:P4KX_DATA_P4K_B = 'C:\Program Files\Roberts Space Industries\StarCitizen\PTU\Data.p4k'
+cargo test --release --workspace --locked -- --ignored
+```
+
+The Archive is only read. The extracted subset goes to a temporary folder below `TMP`, which is
+removed afterwards. `CLAUDE.md` describes the test layout, the differential tests against unp4k,
+unforge and StarBreaker ([docs/differential-verification.md](docs/differential-verification.md))
+and how to run a single real-Archive test.
 
 ## Pull requests
 
@@ -180,8 +204,8 @@ skipped.
 - The subject is one imperative sentence, starting with a capital letter, without a trailing full
   stop, at most about 72 characters. A prefix naming the area is welcome:
   `Assembly: choose the sub-geometry on replaced ports too`.
-- The body explains *why*. The reasoning belongs here and in the pull request, not in code
-  comments.
+- The body explains *why*. The story of the change belongs here and in the pull request, not in
+  code comments.
 - Use the terms of [`CONTEXT.md`](CONTEXT.md) and British spelling.
 - The footer carries the `Signed-off-by:` trailer.
 
@@ -199,8 +223,11 @@ skipped.
 
 ### Comments
 
-No comments in code besides doc comments (`///` and `//!`), and those are short and without
-history. Lint suppressions use `#[expect(lint, reason = "...")]`.
+Doc comments (`///` and `//!`) and short technical comments (`//`) are welcome where they document
+what the code cannot say itself: a non-obvious invariant, a format detail, a unit or coordinate
+convention, the spec section an algorithm implements. Both stay short and describe only the
+current state: no history, no dates or issue numbers, no comments that restate the code, no
+commented-out code and no `TODO`. Lint suppressions use `#[expect(lint, reason = "...")]`.
 
 ### Window
 
@@ -228,6 +255,54 @@ Archive are modules of `tests/real_archive/`. See "Test layout" in [`CLAUDE.md`]
 - [ ] The CLA is signed.
 - [ ] Every commit is signed off.
 - [ ] No game data, extracted assets, Archive key or other secrets in the diff.
+
+## Releasing
+
+Maintainers only. The [Release workflow](.github/workflows/release.yml) builds and publishes
+everything; nobody uploads assets by hand.
+
+1. Fold the `changelog.d/` fragments into `CHANGELOG.md` (`cargo xtask changelog --release
+   <version>`) and merge that pull request. The version of `p4kx-gui` is the Release version.
+2. Push the tag `vMAJOR.MINOR.PATCH[-suffix]` on the merge commit. The workflow refuses any other
+   tag name.
+3. The workflow builds the portable ZIP, the MSI and the Blender add-on ZIP, tests install,
+   upgrade and uninstall of the MSI, and generates a CycloneDX SBOM per shipped binary
+   (`p4kx-gui`, `p4kx`, `p4kx-mcp`). The add-on is Python without bundled third-party packages
+   and has no SBOM of its own.
+4. The ZIP and the MSI are scanned on VirusTotal. A failed or missing scan never blocks the
+   Release; the notes then say the scan did not run.
+5. The build provenance of every asset and the SBOMs of the ZIP and the MSI are attested
+   (Sigstore, via GitHub Artifact Attestations). The bundles become Release assets.
+6. `SHA256SUMS.txt` and `SHA3-512SUMS.txt` list every other asset, as plain text files that open
+   in any text editor. The Release notes are the
+   `CHANGELOG.md` section, the VirusTotal result, the verification commands, and GitHub's generated
+   "What's Changed" list.
+
+A pull request that changes the workflow, its scripts, the installer or the add-on runs the same
+jobs as a dry run: everything is built, but nothing is scanned, attested or published.
+The `workflow_dispatch` trigger adds the VirusTotal scan to such a run.
+
+Secret: the owner sets the repository secret `VIRUSTOTAL_API_KEY` (Settings, Secrets and
+variables, Actions). Without it the scan is skipped.
+
+### Verifying a download
+
+Replace `<file>` with the name of the downloaded asset.
+
+- Hashes, Windows PowerShell: `Get-FileHash <file> -Algorithm SHA256`; Linux:
+  `sha256sum --check --ignore-missing SHA256SUMS.txt`. SHA3-512 on Linux: `openssl dgst -sha3-512
+  <file>`. On Windows `openssl` is usually not installed and `Get-FileHash` has no SHA3-512; use
+  PowerShell 7 on an operating system with SHA3 support (Windows 11 24H2 or newer):
+  `[Convert]::ToHexString([Security.Cryptography.SHA3_512]::HashData([IO.File]::ReadAllBytes("<full
+  path>")))`, which prints upper-case hex. Compare the output with the line of the file in
+  `SHA256SUMS.txt` or `SHA3-512SUMS.txt`, ignoring case.
+- Attestation: `gh attestation verify <file> --repo p4kx-org/p4kx`.
+- Attestation offline, with the bundle from the Release:
+  `gh attestation verify <file> --bundle P4KX-<version>-provenance.sigstore.json --repo
+  p4kx-org/p4kx`. The bundle of an SBOM is named after it (`<sbom>.cdx.json.sigstore.json`) and
+  needs `--predicate-type https://cyclonedx.org/bom`.
+- SBOM: the `P4KX-<version>-<binary>.cdx.json` assets are CycloneDX 1.5 JSON. Their attestation
+  ties them to the ZIP and the MSI, and the provenance bundle covers the SBOM files themselves.
 
 ## Licence
 

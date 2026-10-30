@@ -6,7 +6,7 @@ use std::sync::Arc;
 use p4kx_character::Dna;
 
 use super::head::rig_part;
-use super::piece::{Bespoke, Note, Source};
+use super::piece::{Bespoke, Mount, Note, Source};
 use super::wearable::{Unfit, Worn};
 use super::{BodyVariant, Expressions, Look, PartOrigin, Piece, ZoneChunk};
 use crate::{Issue, IssueKind, MaterialVariant, ModelFailure, ModelProvider, PaletteRef};
@@ -26,6 +26,7 @@ pub(super) struct Job {
     pub(super) follows_head: bool,
     pub(super) bespoke: bool,
     pub(super) zones: Arc<[ZoneChunk]>,
+    pub(super) mount: Option<Mount>,
 }
 
 impl Job {
@@ -45,6 +46,7 @@ impl Job {
             follows_head: false,
             bespoke: false,
             zones: Arc::default(),
+            mount: None,
         }
     }
 }
@@ -92,6 +94,13 @@ fn bespoke_path(path: &str, bespoke: &Bespoke, models: &dyn ModelProvider) -> Op
     let part = rig_part(stem)?;
     let candidate = format!("{}/{}_{part}.skin", bespoke.folder, bespoke.prefix);
     exists(&candidate, models).then_some(candidate)
+}
+
+/// Returns the skin of the story character's own head that stands for the generic skin at `path`
+/// of `piece`, if the piece has such a head and the Archive has the skin.
+fn own_skin(piece: &Piece, path: &str, models: &dyn ModelProvider) -> Option<String> {
+    let bespoke = piece.bespoke.as_ref()?;
+    bespoke_path(path, bespoke, models)
 }
 
 fn is_skinned_file(path: &str) -> bool {
@@ -153,10 +162,7 @@ pub(super) fn gather(
             }
         },
     };
-    let own = piece
-        .bespoke
-        .as_ref()
-        .and_then(|bespoke| bespoke_path(&path, bespoke, models));
+    let own = own_skin(piece, &path, models);
     let bespoke = own.is_some();
     let material = existing_library(piece, material, bespoke, models, issues);
     let zones = covered_zones(piece, issues);
@@ -174,6 +180,7 @@ pub(super) fn gather(
         look: piece.look.clone(),
         follows_head: piece.follows_head,
         bespoke,
+        mount: piece.mount.clone(),
     });
 }
 

@@ -55,7 +55,7 @@ could not be tested, say so explicitly.
 
 - [ ] `cargo fmt --all`, `cargo clippy --workspace --all-targets --locked -- -D warnings` and `cargo xtask` pass.
 - [ ] `cargo nextest run --workspace --locked` (or `cargo test --workspace --locked`) passes.
-- [ ] No comments besides `///` and `//!` doc comments; lint suppressions use `#[expect(lint, reason = "...")]`.
+- [ ] Comments are doc comments or short technical comments of the current state, with no history; lint suppressions use `#[expect(lint, reason = "...")]`.
 - [ ] No `unwrap` / `expect` outside tests; `thiserror` in libraries, `anyhow` only in binaries.
 - [ ] Crate dependencies follow the layer direction (ADR-0003); source files stay below about 400 lines.
 - [ ] Every new `.rs` file starts with the SPDX header.
@@ -74,8 +74,8 @@ could not be tested, say so explicitly.
 
 ### Documentation (if affected)
 
-- [ ] `README.md`, `docs/user-help.md`, the format documents under `docs/` and, for a design decision, an ADR under `docs/adr/` move with the change.
-- [ ] A dependency change regenerates `THIRD-PARTY-NOTICES` (`cargo xtask notices --write`).
+- [ ] `README.md`, `docs/commands.md`, `docs/user-help.md`, the format documents under `docs/` and, for a design decision, an ADR under `docs/adr/` move with the change.
+- [ ] A dependency change regenerates `THIRD-PARTY-NOTICES.md` (`cargo xtask notices --write`).
 
 ## Screenshots (optional)
 

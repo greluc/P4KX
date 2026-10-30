@@ -3,7 +3,7 @@
 
 use egui::{Align, Frame, Id, Layout, Margin, Rect, TextEdit, Ui, pos2, vec2};
 
-use super::extraction;
+use super::{extraction, wrapped_actions};
 use crate::theme::desktop::{
     ICON, SEARCH_ICON_INSET, SEARCH_PADDING_LEFT, SEARCH_WIDTH, TOOLBAR_PADDING,
 };
@@ -49,11 +49,9 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model) {
                 });
             });
             if stacked {
-                ui.horizontal(|ui| {
-                    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                        extraction::actions(ui, model);
-                    });
-                });
+                extraction::stacked_actions(ui, model);
+            } else {
+                wrapped_actions::record(ui.ctx(), false);
             }
             ui.horizontal_wrapped(|ui| {
                 ui.label(filters);

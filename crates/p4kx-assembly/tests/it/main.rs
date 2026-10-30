@@ -4,6 +4,7 @@
 //! Integration tests of `p4kx-assembly`, built as one test binary.
 
 mod armour_build;
+mod armour_mount;
 mod armour_palette;
 mod assembly_build;
 mod assembly_changes;
@@ -31,6 +32,7 @@ mod audio_streamed_localised;
 mod audio_trigger_fields;
 mod body_zones;
 mod character_definitions;
+mod character_item_ports;
 mod docked_vehicles;
 mod entity_catalogue;
 mod entity_interior;
@@ -61,6 +63,7 @@ mod loadout_nested;
 mod loadout_stop;
 mod loadout_tree;
 mod model_cache;
+mod npc_body_followups;
 mod npc_body_zones;
 mod npc_clothing;
 mod npc_head;

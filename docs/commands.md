@@ -115,12 +115,24 @@ The first argument of nearly every command is the path of a `Data.p4k` Archive, 
   that is not UTF-8, an encryption value other than 0 or 1 or v2 data outside the file, does not
   stop an Archive from opening: `info`, `list` and `extract` print up to ten `warning: Entry …`
   lines to stderr for the Entries concerned.
+- **Input of every `p4kx dcb` command:** `<archive>` is a `Data.p4k` Archive or a DataForge file
+  on disk, e.g. a `Game2.dcb` kept from an earlier patch (ADR-0249). A file is recognised by its
+  content, a DataForge header, not by its name; the file is only read, never written. The limits
+  are those of the Entry in an Archive: versions 6 and 8, and no more than 2 GiB. A file that is
+  neither an Archive nor a DataForge, such as a zero-filled file, an executable or one shorter
+  than the header, exits with code 3. `export` without `--out` names its default folder
+  `SC-EXPORT-UnknownChannel-UnknownBuild-<timestamp>` for a file, as a file carries neither Channel
+  nor build. A DataForge holds no localisation texts: `export --lang` on a file needs
+  `--archive <Data.p4k>` for them and exits with code 2 without it. Tags and the other values
+  resolve from the DataForge alone. The `archive` field of the JSON documents holds the path that
+  was given.
 - `p4kx dcb info <archive>` opens the DataForge of the Archive (`Data\Game2.dcb`, falling back to
   `Data\Game.dcb`) and prints the Entry it was read from, its version and its number of Records,
   structs and enums. DataForge versions 6 and 8 are read; any other version, version 5 and older included, is
   reported as not supported with exit code 5 (ADR-0136), and a DataForge Entry claiming more than 2 GiB is rejected before it is read.
 - `p4kx dcb export <archive> [--format xml|json|ndjson] [--combined] [--filter <filter>]`
-  `[--lang <language>] [--tags] [--out <folder>] [--conflict …]` writes Records as Record XML
+  `[--lang <language> [--archive <Data.p4k>]] [--tags] [--out <folder>] [--conflict …]` writes
+  Records as Record XML
   ([docs/record-xml.md](record-xml.md)) or Record JSON
   ([docs/record-json.md](record-json.md)), one file per Record: `<record path>.xml`, or
   `<record path>/<Record name>.xml` for Records that share a record path (`.json` for JSON).
@@ -632,7 +644,9 @@ reads an Entry of a container inside a container, and `outer.socpak::` lists a c
 The paths a listing returns carry their containers and work as they are in the other tools.
 
 Every tool except `list_channels` takes `archive`: a Channel name such as `LIVE` (ignoring case)
-or the absolute path of a `.p4k` file on a local drive. UNC, device, relative and `..` paths, a
+or the absolute path of a `.p4k` file on a local drive; the DataForge tools (`get_record`,
+`search_records`, `list_structs`, `list_enums`, `run_query`) also take a `.dcb` DataForge file
+such as `Game2.dcb` (ADR-0249). UNC, device, relative and `..` paths, a
 `:` after the drive (an alternate data stream) and a path that resolves to a network drive or
 device are refused. Without it the tools use the Archive given with `--archive` when the server
 was started. Opened Archives stay open between calls and are opened again when their file

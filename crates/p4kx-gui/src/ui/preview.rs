@@ -170,10 +170,7 @@ fn tab_body(
     let record = browser.selected_record().is_some();
     match (tab, browser.records()) {
         (PreviewTab::DataForge, Some(tree)) => {
-            let size = browser
-                .archive_index()
-                .dataforge_entry()
-                .map_or(0, Entry::uncompressed_size);
+            let size = browser.archive_index().dataforge_size();
             path_line(ui, tree.entry_path(), &format::size(size, texts.language()));
             dataforge_summary::show(ui, texts, tree);
             None

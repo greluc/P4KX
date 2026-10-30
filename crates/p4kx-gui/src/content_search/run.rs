@@ -102,7 +102,7 @@ impl Job {
         let started = Instant::now();
         let stop = || self.cancelled.load(Ordering::Relaxed);
         let cached = if self.options.sources.contains(Source::Records)
-            && self.index.dataforge_entry().is_some()
+            && self.index.dataforge_name().is_some()
         {
             match self.index.forge().read_until(&self.index, || {}, &stop) {
                 Ok(Some(cached)) => Some(cached),

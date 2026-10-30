@@ -91,6 +91,32 @@ impl Archive {
         })
     }
 
+    /// Opens the file at `path`, which is no Archive, as an Archive without Entries, so that a
+    /// front-end built around an Archive can show a single file such as a DataForge database.
+    /// Only the file's size and modification time are read, for [`Archive::file_len`] and
+    /// [`Archive::file_modified`].
+    ///
+    /// # Errors
+    ///
+    /// Returns an [`ArchiveError`] when the file cannot be opened.
+    pub fn stand_in(path: impl AsRef<Path>) -> Result<Self, ArchiveError> {
+        let path = path.as_ref();
+        let source = Source::open(path).map_err(|error| FormatError::from(error).at(path))?;
+        Ok(Self {
+            path: path.to_path_buf(),
+            location: path.to_path_buf(),
+            file_len: source.len(),
+            file_modified: source.modified(),
+            depth: 0,
+            decoded_budget: MAX_CONTAINER_LEN,
+            source,
+            entries: Vec::new(),
+            log: IssueLog::default(),
+            build: None,
+            key: KeySlot::with(None),
+        })
+    }
+
     /// Opens the container held in `entry`, one of this Archive's Entries, as an Archive of its
     /// own whose Entries are listed and read the same way, without extracting it to disk.
     ///

@@ -109,7 +109,7 @@ pub(crate) fn execute(
 ) -> Result<ExitCode> {
     crate::key::require(archive, entries)?;
     let watch = ArchiveWatch::new(archive);
-    let target = prepare_target(settings.out, archive)?;
+    let target = prepare_target(settings.out, Some(archive))?;
     let cancel = cancel_on_interrupt()?;
 
     let line = ProgressLine::new();
@@ -232,8 +232,9 @@ fn requested_entries<'a>(args: &ExtractArgs, archive: &'a Archive) -> Result<Vec
     Ok(selected.entries)
 }
 
-/// Creates the target folder `out`, or a new default target folder in the current directory.
-pub(crate) fn prepare_target(out: Option<&Path>, archive: &Archive) -> Result<PathBuf> {
+/// Creates the target folder `out`, or a new default target folder in the current directory,
+/// named after the Channel and build of `archive` when there is one.
+pub(crate) fn prepare_target(out: Option<&Path>, archive: Option<&Archive>) -> Result<PathBuf> {
     if let Some(out) = out {
         crate::guard::ensure_writable(out)?;
         fs::create_dir_all(out)
@@ -242,8 +243,8 @@ pub(crate) fn prepare_target(out: Option<&Path>, archive: &Archive) -> Result<Pa
     }
     let parent = std::env::current_dir().context("cannot read the current directory")?;
     crate::guard::ensure_writable(&parent)?;
-    let channel = channel_name(archive.path());
-    let version = archive.build().map(Build::version);
+    let channel = archive.and_then(|archive| channel_name(archive.path()));
+    let version = archive.and_then(Archive::build).map(Build::version);
     create_default_target(&parent, channel.as_deref(), version, SystemTime::now())
         .with_context(|| format!("cannot create a target folder in {}", parent.display()))
 }

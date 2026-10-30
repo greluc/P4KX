@@ -18,7 +18,9 @@ use crate::armour_loadout::UnreadableLoadout;
 use crate::channels::InvalidPath;
 use crate::chf::{InvalidChf, InvalidChfJson, UnreadableChfInput};
 use crate::cryxml::{JsonNeedsOut, UnreadableInput};
-use crate::dcb_export::{CombinedNeedsXml, FlatConflict, NoRecordMatch};
+use crate::dcb_export::{
+    ArchiveOptionRefused, CombinedNeedsXml, FlatConflict, NoRecordMatch, TextsNeedArchive,
+};
 use crate::dcb_query::{InvalidQuery, JsonNeedsJsonFormat, OutputIsArchive, UnreadableSchema};
 use crate::dcb_refs::{JsonWithTable, UnknownRecord};
 use crate::dcb_tags::UnknownTag;
@@ -248,6 +250,8 @@ fn is_unreadable_skeleton_or_prefab_library(error: &anyhow::Error) -> bool {
 fn is_export_conflict(error: &anyhow::Error) -> bool {
     error.downcast_ref::<CombinedNeedsXml>().is_some()
         || error.downcast_ref::<FlatConflict>().is_some()
+        || error.downcast_ref::<TextsNeedArchive>().is_some()
+        || error.downcast_ref::<ArchiveOptionRefused>().is_some()
 }
 
 fn is_unreadable_change(error: &anyhow::Error) -> bool {

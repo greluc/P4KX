@@ -236,8 +236,57 @@ def main() -> None:
         unregister()
 
         check_layered_material(Path(folder) / "layered")
+        check_glass_tint()
 
     print("smoke test passed")
+
+
+def check_glass_tint() -> None:
+    """Checks the vertex-colour tint of glass: kept with colours, plain without, kept by the drop."""
+    from p4kx_importer import glass_tint, materials
+    from p4kx_importer.material_graph import BuildContext, build_graph
+    from p4kx_importer.material_model import parse_materials
+
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    raw = synthetic_materials.description(
+        "x0001", "GlassPBR", gen_mask=["PER_VERTEX_TINT"], diffuse=[0.5, 0.25, 1.0]
+    )
+    descriptions = parse_materials([raw], [])
+    spec = build_graph(descriptions["x0001"], BuildContext(descriptions, None, {}))
+
+    images = materials.ImageCache(package.parse_manifest(synthetic.manifest(), Path(".")))
+
+    def glass(name: str) -> bpy.types.Material:
+        material = bpy.data.materials.new(name)
+        materials.build_tree(material, spec, images)
+        return material
+
+    def mesh_object(name: str, material: bpy.types.Material, colours: bool) -> bpy.types.Object:
+        mesh = bpy.data.meshes.new(name)
+        mesh.from_pydata([(0, 0, 0), (1, 0, 0), (0, 1, 0)], [], [(0, 1, 2)])
+        mesh.materials.append(material)
+        if colours:
+            mesh.color_attributes.new("Color", "BYTE_COLOR", "CORNER")
+        obj = bpy.data.objects.new(name, mesh)
+        bpy.context.scene.collection.objects.link(obj)
+        return obj
+
+    def vertex_nodes(material: bpy.types.Material) -> list[bpy.types.Node]:
+        return [n for n in material.node_tree.nodes if n.type == "VERTEX_COLOR"]
+
+    tinted, plain = glass("tinted"), glass("plain")
+    check(len(vertex_nodes(tinted)) == 1, "the glass tree has a vertex colour node")
+    check(vertex_nodes(tinted)[0].layer_name == "Color", "the node names the glTF colour attribute")
+    importer._drop_vertex_colour_tint(tinted)
+    check(len(vertex_nodes(tinted)) == 1, "the glTF tint drop leaves described glass alone")
+
+    objects = [mesh_object("with", tinted, True), mesh_object("without", plain, False)]
+    glass_tint.drop_tint_without_colours([tinted, plain], objects)
+    check(len(vertex_nodes(tinted)) == 1, "glass on a mesh with colours keeps its tint")
+    check(not vertex_nodes(plain), "glass on a mesh without colours loses its tint")
+    bsdf = next(n for n in plain.node_tree.nodes if n.type == "BSDF_PRINCIPLED")
+    colour = tuple(round(v, 4) for v in bsdf.inputs["Base Color"].default_value[:3])
+    check(not bsdf.inputs["Base Color"].is_linked and colour == (0.5, 0.25, 1.0), f"plain colour {colour}")
 
 
 def check_layered_material(folder: Path) -> None:

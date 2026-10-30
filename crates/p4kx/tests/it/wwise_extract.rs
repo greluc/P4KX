@@ -300,3 +300,59 @@ fn entity_audio_separates_triggers_that_differ_only_in_case() -> TestResult {
     assert_eq!(names(&fixture.out)?, ["Play_CASE_2.wem", "Play_Case.wem"]);
     Ok(())
 }
+
+#[test]
+fn txtp_writes_one_file_per_event_next_to_the_sounds() -> TestResult {
+    let fixture = fixture()?;
+    let report = extract(&fixture, "Play_Single", &["--format", "wav", "--txtp"], 0)?;
+    assert_eq!(
+        names(&fixture.out)?,
+        ["Play_Single.txtp", "Play_Single.wav"]
+    );
+    assert_eq!(
+        fs::read_to_string(fixture.out.join("Play_Single.txtp"))?,
+        "# P4KX: event Play_Single of trigger Play_Single\nPlay_Single.wav\n"
+    );
+    assert_eq!(count(&report["txtp"], "written"), Some(1));
+    assert_eq!(count(&report["txtp"], "skipped"), Some(0));
+    Ok(())
+}
+
+#[test]
+fn txtp_layers_the_actions_of_an_event() -> TestResult {
+    let fixture = fixture()?;
+    extract(&fixture, "Play_Twice", &["--format", "wav", "--txtp"], 0)?;
+    let text = fs::read_to_string(fixture.out.join("Play_Twice.txtp"))?;
+    let lines: Vec<&str> = text.lines().collect();
+    assert_eq!(
+        lines.get(1..3),
+        Some(&["  Play_Twice.wav", "  Play_Twice.wav"][..])
+    );
+    assert!(
+        lines
+            .get(4)
+            .is_some_and(|line| line == &"group = -L2 #@layer-v"),
+        "{text}"
+    );
+    Ok(())
+}
+
+#[test]
+fn txtp_skips_an_event_with_a_sound_that_has_no_file() -> TestResult {
+    let fixture = fixture()?;
+    let report = extract(&fixture, "Play_Multi", &["--txtp"], 1)?;
+    assert!(!fixture.out.join("Play_Multi.txtp").exists());
+    assert_eq!(count(&report["txtp"], "written"), Some(0));
+    assert_eq!(count(&report["txtp"], "skipped"), Some(1));
+    assert_eq!(report["txtp"]["skips"][0]["event"], "Play_Multi");
+    Ok(())
+}
+
+#[test]
+fn without_txtp_no_txtp_is_written_or_reported() -> TestResult {
+    let fixture = fixture()?;
+    let report = extract(&fixture, "Play_Single", &["--format", "wav"], 0)?;
+    assert_eq!(names(&fixture.out)?, ["Play_Single.wav"]);
+    assert!(report.get("txtp").is_none());
+    Ok(())
+}

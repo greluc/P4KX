@@ -29,6 +29,7 @@ mod dependent;
 mod entry_content;
 mod entry_path;
 mod entry_tree;
+mod exclusion;
 mod extract;
 mod filter;
 mod folder_cache;
@@ -116,8 +117,9 @@ pub use entry_content::{
     read_text,
 };
 pub use entry_tree::{EntryTree, Folder, FolderId};
+pub use exclusion::{Exclusion, LeftOut, MAX_EXCLUSIONS};
 pub use extract::extract;
-pub use filter::Filter;
+pub use filter::{Filter, FilterError, MAX_FILTER_LEN, MAX_FILTER_WILDCARDS};
 pub use loaded_dataforge::{DataForgeStopped, LoadedDataForge};
 pub use localization::{LocalizationEntry, LocalizationLoadError};
 pub use localization_set::{LocalizationNote, LocalizationSet};

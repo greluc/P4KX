@@ -22,7 +22,12 @@ The first argument of nearly every command is the path of a `Data.p4k` Archive, 
   path (`*.xml`, `Data\Libs\*`, `*\defaultProfile.???`). Any other Filter matches when it occurs
   anywhere in the path (`Libs\Config`). Both ignore ASCII case and treat `\` and `/` alike; every
   other character, spaces and brackets included, is literal, and an empty Filter matches every
-  Entry. No match is not an error.
+  Entry. No match is not an error. `--exclude <filter>`, repeatable, leaves out the Entries an
+  exclusion Filter matches, with the same rules; a texture whose header it matches is left out with
+  its parts. With `--exclude`, a search that finds nothing is invalid input (exit 2) and the error
+  says whether the Filter matched none or the exclusion left out all it matched. `--json` lists the
+  exclusion Filters as `exclude`. A Filter is at most 1024 bytes with at most 32 `*` and `?`; an
+  empty or blank exclusion Filter is refused.
 - `p4kx grep <archive> <text> [--in records,loc,entries] [--filter <filter>] [--lang <language>,…]
   [--limit <n>] [--per-item <n>] [--format table|json]` finds a text in the contents: in the string,
   localisation key and enum values of all Records (with the field path), in the texts of each
@@ -92,6 +97,16 @@ The first argument of nearly every command is the path of a `Data.p4k` Archive, 
   with the converted output. Sounds and soundbanks are converted on a few threads of their own,
   within a memory budget of 1 GiB.
   `p4kx extract <archive> --filter <filter>` extracts every Entry the Filter matches instead; a Filter that matches nothing is invalid input and the error says what to try, e.g. that a glob must match the whole path.
+  `--exclude <filter>`, repeatable and only with `--filter`, leaves out every Entry an exclusion
+  Filter matches, with the rules of the Filter: `--filter 'Data\Objects\*' --exclude '*_lod?.cgam'`
+  extracts the models without their level-of-detail companions. A texture whose header an
+  exclusion Filter matches is left out with its parts; an excluded part of a texture that stays is
+  not written, and with `--convert`, which still reads it to build the texture, a note on stderr
+  gives their number. A pair that selects nothing is invalid input (exit 2), and the error says
+  whether the Filter matched none (`no Entry matches …`) or the exclusion left out all it matched
+  (`the exclusion Filters leave out all N Entries that … matches`). A Filter longer than 1024 bytes
+  or with more than 32 `*` and `?`, an empty or blank exclusion Filter and more than 64 of them are invalid
+  input too.
   `--threads <n>` limits the worker threads (default one per logical processor); more than about four rarely help on one disk (docs/performance.md).
 - `p4kx info <archive>` prints the Channel, the Build (branch, version, change number, BuildId)
   from the `build_manifest.id` next to the Archive, and the number, encryption and sizes of its

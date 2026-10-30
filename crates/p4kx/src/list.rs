@@ -5,10 +5,11 @@ use std::io::{self, BufWriter, Write};
 use std::path::Path;
 
 use anyhow::Result;
-use p4kx_extraction::{Archive, Entry, Filter, TextureGroup, TextureGroups};
+use p4kx_extraction::{Archive, Entry, TextureGroup, TextureGroups};
 use serde::Serialize;
 
 use crate::cli::{ListArgs, SearchArgs};
+use crate::filter_pair;
 use crate::json::{self, EntryJson};
 
 #[derive(Serialize)]
@@ -16,6 +17,8 @@ struct EntriesJson<'a> {
     archive: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     filter: Option<&'a str>,
+    #[serde(skip_serializing_if = "<[String]>::is_empty")]
+    exclude: &'a [String],
     entries: Vec<EntryJson<'a>>,
 }
 
@@ -118,23 +121,29 @@ fn print_rows(rows: &[Row<'_>]) -> io::Result<()> {
     out.flush()
 }
 
-/// Prints the Entries of the Archive that match the Filter.
+/// Prints the Entries of the Archive that match the Filter and no exclusion Filter.
 pub(crate) fn search(args: &SearchArgs, as_json: bool) -> Result<()> {
     let archive = crate::key::open(&args.archive)?;
-    let filter = Filter::new(&args.filter);
+    let selected = filter_pair::search(&archive, &args.filter, &args.exclude)?;
     print(
         archive.path(),
-        Some(&filter),
-        &filter.select(&archive),
+        Some((&args.filter, &args.exclude)),
+        &selected.entries,
         as_json,
     )
 }
 
-fn print(archive: &Path, filter: Option<&Filter>, entries: &[&Entry], as_json: bool) -> Result<()> {
+fn print(
+    archive: &Path,
+    filters: Option<(&str, &[String])>,
+    entries: &[&Entry],
+    as_json: bool,
+) -> Result<()> {
     if as_json {
         json::print(&EntriesJson {
             archive: json::path(archive),
-            filter: filter.map(Filter::as_str),
+            filter: filters.map(|(include, _)| include),
+            exclude: filters.map_or(&[][..], |(_, exclude)| exclude),
             entries: entries.iter().copied().map(EntryJson::from).collect(),
         })?;
     } else {

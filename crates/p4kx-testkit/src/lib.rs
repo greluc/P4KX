@@ -35,6 +35,7 @@ mod entity_assembly;
 mod entity_cargo;
 mod entity_clothing;
 mod entity_dressed;
+mod entity_fit_sample;
 mod entity_gear;
 mod entity_head;
 mod entity_interior_sample;
@@ -143,6 +144,9 @@ pub use entity_dressed::{
     DRESSED_HAIR_MATERIAL, DRESSED_HAIR_OPACITY, DRESSED_HEAD_DIFFUSE, DRESSED_HEAD_MATERIAL,
     DRESSED_HEAD_MATERIAL_FILE, DRESSED_UNKNOWN_MATERIAL, dressed_entries,
 };
+pub use entity_fit_sample::{
+    ENTITY_FIT_CLASS, ENTITY_FIT_MERGED_CLASS, ENTITY_FIT_MOVED_CLASS, entity_fit_entries,
+};
 pub use entity_gear::{LANDING_GEAR_SHIP, landing_gear_entries};
 pub use entity_head::{
     FEMALE_BODY_TYPE, FEMALE_RIG_HASH, HEAD_REGIONS, HEAD_VERTICES, MALE_BODY_TYPE,
@@ -195,6 +199,7 @@ pub use glb::{CheckedGlb, check_glb};
 pub use glb_images::DecodedImage;
 pub use global_ini::GlobalIniBuilder;
 pub use gltf;
+pub use hirc_music::TestPlaylistItem;
 pub use hirc_node::{TestContainerKind, TestNodeBase};
 pub use interior_classes::{
     CLASS_CABINET_GUID, CLASS_DEFAULT_TINTS, CLASS_DOOR_GUID, CLASS_DOOR_TINTS, CLASS_OWN_TINTS,

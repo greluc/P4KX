@@ -49,6 +49,7 @@ mod head_dress_follow;
 mod head_expressions;
 mod hologram_camera;
 mod interior;
+mod interior_check;
 mod interior_classes;
 mod interior_layers;
 mod interior_lit;

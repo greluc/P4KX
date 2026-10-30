@@ -8,6 +8,10 @@ use crate::hirc_node::node_base;
 
 const VORBIS_PLUGIN_ID: u32 = 0x0004_0001;
 const DEFAULT_STINGER: (u32, u32) = (0x5100_0001, 0x5100_0002);
+const SWITCH_GROUP: u8 = 0;
+const STATE_GROUP: u8 = 1;
+const MARKER_SPACING_MS: f64 = 250.0;
+const FIRST_MARKER_ID: u32 = 0x100;
 
 impl TestHircObject {
     /// A music segment object laid out as bank version 154 writes it: `children` are its tracks,
@@ -33,9 +37,10 @@ impl TestHircObject {
         let mut body = music_node(children, stinger);
         body.extend_from_slice(&4000.5_f64.to_le_bytes());
         put_u32(&mut body, len_u32(markers));
-        for (id, name) in (0x100_u32..).zip(markers) {
+        for (id, name) in (FIRST_MARKER_ID..).zip(markers) {
             put_u32(&mut body, id);
-            body.extend_from_slice(&1.5_f64.to_le_bytes());
+            let position = MARKER_SPACING_MS.mul_add(f64::from(id - FIRST_MARKER_ID), 1.5);
+            body.extend_from_slice(&position.to_le_bytes());
             body.extend_from_slice(name.as_bytes());
             body.push(0);
         }
@@ -53,7 +58,21 @@ impl TestHircObject {
     /// `group_id` and picking a clip by one of `switches`.
     #[must_use]
     pub fn music_switch_track(id: u32, sources: &[u32], group_id: u32, switches: &[u32]) -> Self {
-        Self::raw(11, id, track(sources, Some((group_id, switches))))
+        Self::raw(
+            11,
+            id,
+            track(sources, Some((SWITCH_GROUP, group_id, switches))),
+        )
+    }
+
+    /// A music switch track following the state group `group_id` instead of a switch group.
+    #[must_use]
+    pub fn music_state_track(id: u32, sources: &[u32], group_id: u32, states: &[u32]) -> Self {
+        Self::raw(
+            11,
+            id,
+            track(sources, Some((STATE_GROUP, group_id, states))),
+        )
     }
 
     /// A music switch container whose decision tree has one level: its leaves play `targets`.
@@ -87,14 +106,33 @@ impl TestHircObject {
     /// second with a transition object.
     #[must_use]
     pub fn music_playlist(id: u32, children: &[u32]) -> Self {
+        let items: Vec<(u32, u32)> = children.iter().map(|child| (*child, 0)).collect();
+        Self::music_playlist_tree(id, children, &items)
+    }
+
+    /// A music playlist container like [`music_playlist`](Self::music_playlist) whose `items` are
+    /// given as pairs of segment ID (0 for a group) and number of child items that follow.
+    #[must_use]
+    pub fn music_playlist_tree(id: u32, children: &[u32], items: &[(u32, u32)]) -> Self {
+        let items: Vec<TestPlaylistItem> = items
+            .iter()
+            .map(|(segment, child_items)| TestPlaylistItem::new(*segment, *child_items))
+            .collect();
+        Self::music_playlist_items(id, children, &items)
+    }
+
+    /// A music playlist container like [`music_playlist`](Self::music_playlist) with the given
+    /// `items`.
+    #[must_use]
+    pub fn music_playlist_items(id: u32, children: &[u32], items: &[TestPlaylistItem]) -> Self {
         let mut body = transition_node(children);
-        put_u32(&mut body, len_u32(children));
-        for (item, child) in (1_u32..).zip(children) {
-            put_u32(&mut body, *child);
+        put_u32(&mut body, len_u32(items));
+        for (item, entry) in (1_u32..).zip(items) {
+            put_u32(&mut body, entry.segment);
             put_u32(&mut body, item);
-            put_u32(&mut body, 0);
-            put_u32(&mut body, 1);
-            body.extend_from_slice(&(-1_i16).to_le_bytes());
+            put_u32(&mut body, entry.child_items);
+            put_u32(&mut body, entry.play_mode);
+            body.extend_from_slice(&entry.loops.to_le_bytes());
             body.extend_from_slice(&2_i16.to_le_bytes());
             body.extend_from_slice(&5_i16.to_le_bytes());
             put_u32(&mut body, 50_000);
@@ -102,6 +140,43 @@ impl TestHircObject {
             body.extend_from_slice(&[1, 0]);
         }
         Self::raw(13, id, body)
+    }
+}
+
+/// One item of a synthetic music playlist: a segment (0 for a group), the number of child items
+/// that follow it, its play mode code (default 1) and its loop count (default -1).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct TestPlaylistItem {
+    segment: u32,
+    child_items: u32,
+    play_mode: u32,
+    loops: i16,
+}
+
+impl TestPlaylistItem {
+    /// An item of `segment` followed by `child_items` child items.
+    #[must_use]
+    pub const fn new(segment: u32, child_items: u32) -> Self {
+        Self {
+            segment,
+            child_items,
+            play_mode: 1,
+            loops: -1,
+        }
+    }
+
+    /// Sets the play mode code.
+    #[must_use]
+    pub const fn play_mode(mut self, play_mode: u32) -> Self {
+        self.play_mode = play_mode;
+        self
+    }
+
+    /// Sets the loop count, 0 for endlessly.
+    #[must_use]
+    pub const fn loops(mut self, loops: i16) -> Self {
+        self.loops = loops;
+        self
     }
 }
 
@@ -142,7 +217,7 @@ fn transition_node(children: &[u32]) -> Vec<u8> {
     body
 }
 
-fn track(sources: &[u32], switch: Option<(u32, &[u32])>) -> Vec<u8> {
+fn track(sources: &[u32], switch: Option<(u8, u32, &[u32])>) -> Vec<u8> {
     let mut body = Vec::new();
     put_u32(&mut body, len_u32(sources));
     for source in sources {
@@ -175,9 +250,9 @@ fn track(sources: &[u32], switch: Option<(u32, &[u32])>) -> Vec<u8> {
         body.extend_from_slice(&[0; 12]);
     }
     body.extend_from_slice(&node_base(TestNodeBase::Plain));
-    if let Some((group_id, switches)) = switch {
+    if let Some((group_type, group_id, switches)) = switch {
         body.push(3);
-        body.push(0);
+        body.push(group_type);
         put_u32(&mut body, group_id);
         put_u32(&mut body, 0);
         put_u32(&mut body, len_u32(switches));

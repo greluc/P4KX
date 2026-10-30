@@ -44,6 +44,9 @@ static ENCODED: LazyLock<[u8; ENCODE_STEPS + 1]> = LazyLock::new(|| {
     })
 });
 
+#[cfg(test)]
+mod tests;
+
 /// The colours of a material that tint its textures, linear.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(crate) struct Tints {

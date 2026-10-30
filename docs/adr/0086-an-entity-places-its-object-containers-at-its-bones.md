@@ -54,6 +54,34 @@ vertices after the containers before it, and the hull's own vertices are counted
 used up the remaining containers are left out with `too_many_containers`, `too_many_parts` or
 `too_many_vertices`.
 
+## Verification
+
+`InteriorFit::new(assembly, tree, interior)` (feature `verification` of `p4kx-assembly`) measures
+each container in the world: the box around the static models its `.soc` files place (models
+that are not `.cga`; props such as doors, lockers and cabinets do not bound the room), the
+functional hardpoints of the Assembly inside and outside it, and how far its animated parts
+(`.cga` models: doors, ramps, drawers) lie from it. Hardpoints are told by the item type of the
+Entity at the port, never by name: a `FlightController`, a `Seat`, a `CargoGrid`, a `Door` or a
+`DockingAnimator`. The pilot seat is the seat of the same vehicle nearest to the flight
+controller.
+
+`InteriorFit::misfits` applies two rules, with 0.5 m of slack in the real-Archive tests: the
+flight controller of the root vehicle and its pilot seat lie in the same container, and every
+cargo grid lies in a container that holds no flight controller and no pilot seat. A docked ship's
+flight controller sits at that ship's origin, below its cockpit, so only the root vehicle's is
+checked. The tests also keep every door and every animated part within the slack of a room. The
+Constellation holds all of this: its cockpit, neck, body and tail rooms sit where their hardpoints
+are. Synthetic ships show the checks fail for a cockpit room moved away and for a cargo grid in
+the cockpit room.
+
+**Limit.** The Cutlass is verified only coarsely. Its cockpit socpak places the middle hull
+section's model (`int_body`) in its own `.soc` next to the cockpit model, so the cockpit's room box
+runs 15.7 m along the hull and would still hold the pilot seat and flight controller if the
+container were moved several metres. What holds for the Cutlass is that the cargo grids, the ramp
+and the side doors lie in the body container, not in the cockpit container, and that nothing is
+unreadable or unplaced. A tighter check (a hardpoint against the box of a single room model) is
+tracked in a follow-up issue.
+
 ## Open points
 
 The 0.05 m tolerance and the origin test are heuristics of the Records seen on LIVE. For the 261

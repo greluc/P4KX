@@ -9,12 +9,13 @@ use anyhow::{Context, Result};
 use p4kx_extraction::query::{
     CompiledQuery, Query, QueryError, QueryErrorKind, QueryRun, ResultFormat, ResultWriter,
 };
-use p4kx_extraction::{DataForgeEntry, QueryExportOptions, export_query, is_same_file};
+use p4kx_extraction::{QueryExportOptions, export_query, is_same_file};
 use serde::Serialize;
 use thiserror::Error;
 
 use crate::cli::{DcbQueryArgs, QueryFormat};
 use crate::dcb_export::FlatConflict;
+use crate::forge_input::ForgeInput;
 use crate::query_rows::{Counts, for_each_row, report_failed};
 use crate::{exit, json, query_file, query_table};
 
@@ -76,9 +77,8 @@ pub(crate) fn run(args: &DcbQueryArgs, as_json: bool) -> Result<ExitCode> {
     }
     let query = Query::parse(&args.query)
         .map_err(|error| InvalidQuery(error.marked(&args.query).to_string()))?;
-    let archive = crate::key::open(&args.archive)?;
-    let entry = DataForgeEntry::read(&archive)?;
-    let forge = entry.open()?;
+    let input = ForgeInput::open(&args.archive)?;
+    let forge = input.entry().open()?;
     let compiled = query
         .compile(&forge)
         .map_err(|error| compile_error(&error, &args.query))?;

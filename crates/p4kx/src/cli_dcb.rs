@@ -49,7 +49,8 @@ pub(crate) enum DcbCommand {
 /// Arguments of `p4kx dcb tags`.
 #[derive(Debug, Args)]
 pub(crate) struct DcbTagsArgs {
-    /// Path of the Data.p4k Archive.
+    /// Path of the Data.p4k Archive, or of a DataForge file such as Game2.dcb (recognised by its
+    /// content, not by its name).
     pub(crate) archive: PathBuf,
     /// The tag path (e.g. `Weapon.Gun`, ignoring case) or the GUID of a tag; lists that tag and
     /// everything below it. Without it every tag is listed.
@@ -85,7 +86,8 @@ pub(crate) enum TagsFormat {
     reason = "one flag per mode of an exclusive clap group"
 )]
 pub(crate) struct DcbRefsArgs {
-    /// Path of the Data.p4k Archive.
+    /// Path of the Data.p4k Archive, or of a DataForge file such as Game2.dcb (recognised by its
+    /// content, not by its name).
     pub(crate) archive: PathBuf,
     /// The GUID or the record path of the Record; a record path several Records share names
     /// them all. Needed for --incoming and --outgoing; with --files it limits the graph to the
@@ -123,7 +125,8 @@ pub(crate) enum RefsFormat {
 /// Arguments of `p4kx dcb query`.
 #[derive(Debug, Args)]
 pub(crate) struct DcbQueryArgs {
-    /// Path of the Data.p4k Archive.
+    /// Path of the Data.p4k Archive, or of a DataForge file such as Game2.dcb (recognised by its
+    /// content, not by its name).
     pub(crate) archive: PathBuf,
     /// The Query, defined in docs/query.md, e.g.
     /// `from EntityClassDefinition at "*/spaceships/*" select Size`.
@@ -171,7 +174,8 @@ impl QueryFormat {
     reason = "one clap flag per option of the export"
 )]
 pub(crate) struct DcbExportArgs {
-    /// Path of the Data.p4k Archive.
+    /// Path of the Data.p4k Archive, or of a DataForge file such as Game2.dcb (recognised by its
+    /// content, not by its name).
     pub(crate) archive: PathBuf,
     /// The format of the Records; xml by default, csv with --flat.
     #[arg(long, value_enum)]
@@ -199,6 +203,11 @@ pub(crate) struct DcbExportArgs {
     /// carries no texts.
     #[arg(long, value_name = "LANGUAGE", value_parser = clap::value_parser!(Language))]
     pub(crate) lang: Option<Language>,
+    /// With a DataForge file as input: the Data.p4k Archive that supplies the localisation texts
+    /// for --lang. A DataForge file holds none, so --lang needs it; an Archive input supplies its
+    /// own.
+    #[arg(long = "archive", value_name = "ARCHIVE", requires = "lang")]
+    pub(crate) text_archive: Option<PathBuf>,
     /// Writes the tag path of every tag Reference next to it (Record XML `tag="Weapon.Gun"`,
     /// Record JSON `tag`). Without it a tag Reference carries only the GUID of its Tag Record.
     #[arg(long)]
@@ -228,6 +237,7 @@ pub(crate) enum RecordFormat {
 /// Arguments of `p4kx dcb info`.
 #[derive(Debug, Args)]
 pub(crate) struct DcbInfoArgs {
-    /// Path of the Data.p4k Archive.
+    /// Path of the Data.p4k Archive, or of a DataForge file such as Game2.dcb (recognised by its
+    /// content, not by its name).
     pub(crate) archive: PathBuf,
 }

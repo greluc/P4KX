@@ -14,7 +14,9 @@ use crate::error::{ToolError, capped};
 
 /// The longest `archive` argument accepted, in bytes.
 pub(crate) const MAX_ARCHIVE_LEN: usize = 4096;
-const ARCHIVE_EXTENSION: &str = "p4k";
+/// The extensions of the files a tool accepts: an Archive, or a DataForge file for the DataForge
+/// tools.
+const ARCHIVE_EXTENSIONS: [&str; 2] = ["p4k", "dcb"];
 
 /// Where Channels are looked for: the default Library folder, the launcher folder and the
 /// settings file with the manual entries.
@@ -88,7 +90,7 @@ impl Locations {
     }
 
     /// Returns the Archive path `text` names: a detected Channel by name, ignoring ASCII case,
-    /// or the absolute local path of an existing `.p4k` file.
+    /// or the absolute local path of an existing `.p4k` or `.dcb` file.
     pub(crate) fn resolve(&self, text: &str) -> Result<PathBuf, ToolError> {
         let text = capped("archive", text, MAX_ARCHIVE_LEN)?;
         if is_channel_name(text) {
@@ -138,11 +140,14 @@ fn archive_path(text: &str) -> Result<PathBuf, ToolError> {
 }
 
 fn has_archive_extension(path: &Path) -> bool {
-    path.extension()
-        .is_some_and(|extension| extension.eq_ignore_ascii_case(ARCHIVE_EXTENSION))
+    path.extension().is_some_and(|extension| {
+        ARCHIVE_EXTENSIONS
+            .iter()
+            .any(|wanted| extension.eq_ignore_ascii_case(wanted))
+    })
 }
 
-/// Returns whether `path`, with every link followed, is a `.p4k` file on a local drive.
+/// Returns whether `path`, with every link followed, is a `.p4k` or `.dcb` file on a local drive.
 fn resolves_locally(path: &Path) -> bool {
     let Ok(canonical) = std::fs::canonicalize(path) else {
         return false;

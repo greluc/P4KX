@@ -1,17 +1,20 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use std::hash::Hash;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, OnceLock, PoisonError, Weak};
 use std::time::SystemTime;
 
 use p4kx_assembly::audio::{ArchiveAudio, AudioIndex};
 use p4kx_channels::ChannelKind;
-use p4kx_extraction::{Archive, DataForge, EntryTree, LoadedDataForge, PathIndex, PathKeys};
+use p4kx_extraction::{
+    Archive, DataForge, EntryTree, LoadedDataForge, PathIndex, PathKeys, is_dataforge_file,
+};
 
 use crate::container::Containers;
-use crate::error::{ToolError, chain};
+use crate::error::ToolError;
+use crate::forge_file::{FileVersion, ForgeFile, ForgeSource};
+use crate::forge_state::ForgeState;
 use crate::gate::Gate;
 use crate::keys::KeyChoice;
 use crate::loadout_cache::LoadoutCache;
@@ -31,6 +34,7 @@ pub(crate) struct Archives {
     opening: Mutex<()>,
     keys: KeyChoice,
     decoders: Gate,
+    files: Mutex<Vec<(PathBuf, Arc<ForgeFile>)>>,
 }
 
 #[derive(Debug, Default)]
@@ -38,9 +42,6 @@ struct Kept {
     recent: Vec<(PathBuf, Arc<Opened>)>,
     alive: Vec<(PathBuf, Weak<Opened>)>,
 }
-
-/// The selection of the last Query run: the Query text and the indexes of the Records it chose.
-type Selection = Option<(String, Arc<[u32]>)>;
 
 /// An opened Archive with what is built from it once and kept while it stays open: its
 /// [`EntryTree`], its DataForge and the selection of the last Query.
@@ -53,8 +54,7 @@ pub(crate) struct Opened {
     building: Mutex<()>,
     audio: OnceLock<AudioIndex>,
     building_audio: Mutex<()>,
-    dataforge: Mutex<Option<Result<Arc<LoadedDataForge>, String>>>,
-    selection: Mutex<Selection>,
+    forge: ForgeState,
     containers: Containers,
     loadouts: LoadoutCache,
 }
@@ -79,8 +79,7 @@ impl Opened {
             building: Mutex::new(()),
             audio: OnceLock::new(),
             building_audio: Mutex::new(()),
-            dataforge: Mutex::new(None),
-            selection: Mutex::new(None),
+            forge: ForgeState::default(),
             containers: Containers::new(decoders),
             loadouts: LoadoutCache::default(),
         }
@@ -98,7 +97,7 @@ impl Opened {
 
     /// Returns the path, size and modification time of the Archive file as it was opened, which
     /// bind a cursor to this version of the Archive.
-    pub(crate) fn version(&self) -> impl Hash + use<'_> {
+    pub(crate) fn version(&self) -> (&Path, u64, Option<SystemTime>) {
         (
             self.archive.path(),
             self.archive.file_len(),
@@ -156,69 +155,23 @@ impl Opened {
         F: FnOnce(&DataForge<'_>, String) -> Result<T, ToolError> + Send + 'static,
     {
         let archive = self.archive.path().display().to_string();
-        self.dataforge()?
-            .with(move |forge| work(forge, archive))
-            .map_err(|_| ToolError::Stopped)?
+        self.forge
+            .with(|| LoadedDataForge::load(&self.archive), archive, work)
     }
 
     /// Returns the selection of the last Query run if it was of `query`.
     pub(crate) fn selection(&self, query: &str) -> Option<Arc<[u32]>> {
-        let selection = self
-            .selection
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner);
-        selection
-            .as_ref()
-            .filter(|(text, _)| text == query)
-            .map(|(_, records)| Arc::clone(records))
+        self.forge.selection(query)
     }
 
     /// Keeps `records` as the selection of the last Query run, which was of `query`.
     pub(crate) fn keep_selection(&self, query: &str, records: Arc<[u32]>) {
-        *self
-            .selection
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner) = Some((query.to_owned(), records));
+        self.forge.keep_selection(query, records);
     }
 
     /// Reads the DataForge if that has not happened yet, without running any work on it.
     pub(crate) fn load_dataforge(&self) -> Result<(), ToolError> {
-        self.dataforge().map(drop)
-    }
-
-    /// Returns the DataForge, reading it on first use; calls meanwhile wait for that read. A
-    /// DataForge whose Entry cannot be read is not read again, but one that failed for a reason
-    /// of the disk, a changed Archive or a missing thread is read again by the next call.
-    #[expect(
-        clippy::significant_drop_tightening,
-        reason = "the lock is held through the read so that other calls wait for it"
-    )]
-    fn dataforge(&self) -> Result<Arc<LoadedDataForge>, ToolError> {
-        let mut slot = self
-            .dataforge
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner);
-        if let Some(loaded) = slot.as_ref() {
-            return loaded.clone().map_err(ToolError::NoDataForge);
-        }
-        match LoadedDataForge::load(&self.archive) {
-            Ok(loaded) => {
-                let loaded = Arc::new(loaded);
-                *slot = Some(Ok(Arc::clone(&loaded)));
-                Ok(loaded)
-            }
-            Err(error) => {
-                let mut message = chain(&error);
-                if let Some(hint) = crate::keys::hint(&error) {
-                    message.push_str(". ");
-                    message.push_str(hint);
-                }
-                if !error.is_transient() {
-                    *slot = Some(Err(message.clone()));
-                }
-                Err(ToolError::NoDataForge(message))
-            }
-        }
+        self.forge.load(|| LoadedDataForge::load(&self.archive))
     }
 }
 
@@ -245,6 +198,36 @@ impl Archives {
             archive.set_key(key);
         }
         Ok(opened)
+    }
+
+    /// Returns the DataForge input at `path`: the file itself when its content is a DataForge
+    /// header, otherwise the Archive at `path` as [`Archives::get`] opens it.
+    pub(crate) fn forge(&self, path: &Path) -> Result<ForgeSource, ToolError> {
+        if is_dataforge_file(path).unwrap_or(false) {
+            return Ok(ForgeSource::File(self.file(path)));
+        }
+        self.get(path).map(ForgeSource::Archive)
+    }
+
+    /// Returns the DataForge file at `path`, kept while the file stays unchanged.
+    fn file(&self, path: &Path) -> Arc<ForgeFile> {
+        let key = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
+        let version = FileVersion::of(&key);
+        let mut files = self.files.lock().unwrap_or_else(PoisonError::into_inner);
+        if let Some(index) = files
+            .iter()
+            .position(|(known, file)| *known == key && file.is_version(version))
+        {
+            let item = files.remove(index);
+            let file = Arc::clone(&item.1);
+            files.insert(0, item);
+            return file;
+        }
+        let file = Arc::new(ForgeFile::new(path.to_path_buf(), version));
+        files.retain(|(known, _)| *known != key);
+        files.insert(0, (key, Arc::clone(&file)));
+        files.truncate(CAPACITY);
+        file
     }
 
     fn opened(&self, path: &Path) -> Result<Arc<Opened>, ToolError> {

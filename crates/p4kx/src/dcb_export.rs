@@ -12,8 +12,8 @@ use p4kx_export::{
     write_record_export,
 };
 use p4kx_extraction::{
-    Archive, DataForge, DataForgeEntry, Filter, LanguageTexts, LocalizationSet, Record,
-    RecordExportReport, TagResolver, TagTree, TextResolver, export_combined,
+    Archive, DataForge, Filter, LanguageTexts, LocalizationSet, Record, RecordExportReport,
+    TagResolver, TagTree, TextResolver, export_combined,
 };
 use serde::Serialize;
 use thiserror::Error;
@@ -21,6 +21,7 @@ use thiserror::Error;
 use crate::cli::{Conflict, DcbExportArgs, RecordFormat};
 use crate::exit;
 use crate::extract::{cancel_on_interrupt, policy, prepare_target};
+use crate::forge_input::ForgeInput;
 use crate::json;
 use crate::loc::{LanguageNotInArchive, print_notes};
 
@@ -34,8 +35,8 @@ pub(crate) struct CombinedNeedsXml;
 #[error("no Record matches {0}")]
 pub(crate) struct NoRecordMatch(String);
 
-/// A combination of `--flat`, `--format`, `--csv-raw`, `--combined` and `--tags` that has no
-/// meaning.
+/// A combination of `--flat`, `--format`, `--csv-raw`, `--combined`, `--tags`, `--lang` and
+/// `--archive` that has no meaning.
 #[derive(Debug, Error)]
 #[error("{0}")]
 pub(crate) struct FlatConflict(pub(crate) &'static str);
@@ -107,17 +108,15 @@ pub(crate) fn run(args: &DcbExportArgs, as_json: bool) -> Result<ExitCode> {
     if args.combined && form != RecordForm::Xml {
         return Err(CombinedNeedsXml.into());
     }
-    let archive = crate::key::open(&args.archive)?;
-    let entry = DataForgeEntry::read(&archive)?;
-    let forge = entry.open()?;
+    let input = ForgeInput::open(&args.archive)?;
+    let forge = input.entry().open()?;
     let records = select_records(&forge, args.filter.as_deref())?;
     let tags = args.tags.then(|| TagTree::build(&forge));
     let job = Job {
         args,
         as_json,
         form,
-        archive: &archive,
-        entry: &entry,
+        input: &input,
         forge: &forge,
         records: &records,
         tags: tags.as_ref(),
@@ -125,7 +124,14 @@ pub(crate) fn run(args: &DcbExportArgs, as_json: bool) -> Result<ExitCode> {
     let Some(language) = args.lang else {
         return job.write(None);
     };
-    let set = LocalizationSet::read(&archive, &[language])?;
+    let given = given_text_archive(&input, args.text_archive.as_deref())?;
+    let text_archive = given
+        .as_ref()
+        .or_else(|| input.archive())
+        .ok_or(FlatConflict(
+            "--lang on a DataForge file needs --archive <Data.p4k> for the localisation texts",
+        ))?;
+    let set = LocalizationSet::read(text_archive, &[language])?;
     if set.entry(language).is_none() {
         return Err(LanguageNotInArchive { language }.into());
     }
@@ -134,13 +140,27 @@ pub(crate) fn run(args: &DcbExportArgs, as_json: bool) -> Result<ExitCode> {
     job.write(Some(&LanguageTexts::new(&texts, language)))
 }
 
+/// Opens the Archive `--archive` names, which supplies the localisation texts of a DataForge
+/// file; an input that is an Archive supplies them itself.
+fn given_text_archive(input: &ForgeInput, given: Option<&Path>) -> Result<Option<Archive>> {
+    let Some(path) = given else {
+        return Ok(None);
+    };
+    if input.archive().is_some() {
+        return Err(FlatConflict(
+            "--archive supplies the texts of a DataForge file; the input is an Archive already",
+        )
+        .into());
+    }
+    Ok(Some(crate::key::open(path)?))
+}
+
 /// The selected Records of an export and what they are written with.
 struct Job<'a, 'f> {
     args: &'a DcbExportArgs,
     as_json: bool,
     form: RecordForm,
-    archive: &'a Archive,
-    entry: &'a DataForgeEntry,
+    input: &'a ForgeInput,
     forge: &'a DataForge<'f>,
     records: &'a [Record<'f>],
     tags: Option<&'a TagTree>,
@@ -153,13 +173,13 @@ impl Job<'_, '_> {
             args,
             as_json,
             form,
-            archive,
-            entry,
+            input,
             forge,
             records,
             tags,
         } = *self;
-        let target = prepare_target(args.out.as_deref(), archive)?;
+        let entry = input.entry();
+        let target = prepare_target(args.out.as_deref(), input.archive())?;
         let cancel = cancel_on_interrupt()?;
         let options = RecordExportOptions {
             policy: policy(args.conflict),
@@ -180,7 +200,7 @@ impl Job<'_, '_> {
         };
         let printed = if as_json {
             json::print(&ReportJson {
-                archive: json::path(archive.path()),
+                archive: json::path(input.path()),
                 entry: entry.path(),
                 format: form.name(),
                 target: json::path(&target),

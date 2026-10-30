@@ -51,26 +51,26 @@ impl DataForgeEntry {
         let entry = Self::locate(archive).ok_or(DataForgeLoadError::Missing)?;
         let path = entry.path().to_owned();
         let size = entry.uncompressed_size();
-        if size > MAX_DATAFORGE_SIZE {
-            return Err(DataForgeLoadError::TooLarge {
-                path,
-                size,
-                limit: MAX_DATAFORGE_SIZE,
-            });
-        }
+        check_size(&path, size)?;
+        let reader = archive
+            .open_entry(entry)
+            .map_err(DataForgeLoadError::Archive)?;
+        Self::read_stream(path, size, reader, stop)
+    }
+
+    /// Reads `size` bytes of `reader` in mebibytes, polling `stop` before each one.
+    pub(crate) fn read_stream(
+        path: String,
+        size: u64,
+        reader: impl Read,
+        stop: &dyn Fn() -> bool,
+    ) -> Result<Self, DataForgeLoadError> {
         let mut bytes = Vec::new();
         let reserve = usize::try_from(size).unwrap_or(usize::MAX);
         if bytes.try_reserve_exact(reserve).is_err() {
-            return Err(DataForgeLoadError::TooLarge {
-                path,
-                size,
-                limit: MAX_DATAFORGE_SIZE,
-            });
+            return Err(too_large(path, size));
         }
-        let mut reader = archive
-            .open_entry(entry)
-            .map_err(DataForgeLoadError::Archive)?
-            .take(size);
+        let mut reader = reader.take(size);
         loop {
             if stop() {
                 return Err(DataForgeLoadError::Cancelled);
@@ -178,6 +178,23 @@ impl DataForgeLoadError {
         }
     }
 }
+
+/// Returns [`DataForgeLoadError::TooLarge`] when `size` exceeds [`MAX_DATAFORGE_SIZE`].
+pub(crate) fn check_size(path: &str, size: u64) -> Result<(), DataForgeLoadError> {
+    if size > MAX_DATAFORGE_SIZE {
+        return Err(too_large(path.to_owned(), size));
+    }
+    Ok(())
+}
+
+const fn too_large(path: String, size: u64) -> DataForgeLoadError {
+    DataForgeLoadError::TooLarge {
+        path,
+        size,
+        limit: MAX_DATAFORGE_SIZE,
+    }
+}
+
 fn same_path(left: &str, right: &str) -> bool {
     let key = |byte: u8| {
         if byte == b'/' {

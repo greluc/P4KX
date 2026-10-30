@@ -1,0 +1,65 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
+use std::fs::File;
+use std::io::{self, Read};
+use std::path::Path;
+
+use p4kx_dataforge::{SNIFF_LEN, looks_like_dataforge};
+
+use crate::dataforge::check_size;
+use crate::{DataForgeEntry, DataForgeLoadError};
+
+/// Returns whether the file at `path` starts like a DataForge database (the header of
+/// `Data\Game2.dcb`), whatever its name; a file of any version passes, a supported one or not.
+///
+/// # Errors
+///
+/// Returns the error of opening or reading the file.
+pub fn is_dataforge_file(path: &Path) -> io::Result<bool> {
+    let mut prefix = Vec::with_capacity(SNIFF_LEN);
+    File::open(path)?
+        .take(SNIFF_LEN as u64)
+        .read_to_end(&mut prefix)?;
+    Ok(looks_like_dataforge(&prefix))
+}
+
+impl DataForgeEntry {
+    /// Reads the DataForge database stored in the file at `file`, e.g. a `Game2.dcb` kept from an
+    /// earlier patch; its [`path`](Self::path) is the file name. The file is opened read-only.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`DataForgeLoadError::TooLarge`] when the file is larger than
+    /// [`MAX_DATAFORGE_SIZE`](crate::MAX_DATAFORGE_SIZE), and [`DataForgeLoadError::Read`] when
+    /// it cannot be opened or read.
+    pub fn read_file(file: &Path) -> Result<Self, DataForgeLoadError> {
+        Self::read_file_until(file, &|| false)
+    }
+
+    /// Reads the DataForge file like [`DataForgeEntry::read_file`], polling `stop` before each
+    /// mebibyte.
+    ///
+    /// # Errors
+    ///
+    /// The same as [`DataForgeEntry::read_file`], and [`DataForgeLoadError::Cancelled`] once
+    /// `stop` returned `true`.
+    pub fn read_file_until(
+        file: &Path,
+        stop: &dyn Fn() -> bool,
+    ) -> Result<Self, DataForgeLoadError> {
+        let name = file
+            .file_name()
+            .unwrap_or(file.as_os_str())
+            .to_string_lossy()
+            .into_owned();
+        let read = |source| DataForgeLoadError::Read {
+            path: name.clone(),
+            source,
+        };
+        let handle = File::open(file).map_err(read)?;
+        let size = handle.metadata().map_err(read)?.len();
+        check_size(&name, size)?;
+        Self::read_stream(name.clone(), size, handle, stop)
+    }
+}

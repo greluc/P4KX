@@ -13,8 +13,8 @@ pub(crate) const MAX_NAME_LEN: usize = 256;
 #[derive(Debug, Default, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct RecordParams {
-    /// A Channel name such as `LIVE`, or the absolute path of a `.p4k` file; omit it for the
-    /// Archive the server was started with.
+    /// A Channel name such as `LIVE`, or the absolute path of a `.p4k` file or of a DataForge
+    /// file such as `Game2.dcb`; omit it for the Archive the server was started with.
     pub(crate) archive: Option<String>,
     /// The GUID of the Record, e.g. `cbee34fd-6441-4000-b99f-924f7f26e19f`; pass it or `path`.
     pub(crate) guid: Option<String>,
@@ -29,8 +29,8 @@ pub(crate) struct RecordParams {
 #[derive(Debug, Default, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct RecordSearchParams {
-    /// A Channel name such as `LIVE`, or the absolute path of a `.p4k` file; omit it for the
-    /// Archive the server was started with.
+    /// A Channel name such as `LIVE`, or the absolute path of a `.p4k` file or of a DataForge
+    /// file such as `Game2.dcb`; omit it for the Archive the server was started with.
     pub(crate) archive: Option<String>,
     /// A Filter over the record path, e.g. `*/spaceships/*` or `aegs_avenger`; omit it for every
     /// record path.
@@ -49,8 +49,8 @@ pub(crate) struct RecordSearchParams {
 #[derive(Debug, Default, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct DefinitionParams {
-    /// A Channel name such as `LIVE`, or the absolute path of a `.p4k` file; omit it for the
-    /// Archive the server was started with.
+    /// A Channel name such as `LIVE`, or the absolute path of a `.p4k` file or of a DataForge
+    /// file such as `Game2.dcb`; omit it for the Archive the server was started with.
     pub(crate) archive: Option<String>,
     /// A Filter over the name, e.g. `Weapon` or `SCItem*Params`; omit it for every definition.
     pub(crate) name: Option<String>,
@@ -64,8 +64,8 @@ pub(crate) struct DefinitionParams {
 #[derive(Debug, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct QueryParams {
-    /// A Channel name such as `LIVE`, or the absolute path of a `.p4k` file; omit it for the
-    /// Archive the server was started with.
+    /// A Channel name such as `LIVE`, or the absolute path of a `.p4k` file or of a DataForge
+    /// file such as `Game2.dcb`; omit it for the Archive the server was started with.
     pub(crate) archive: Option<String>,
     /// The Query, e.g. `from EntityClassDefinition at "*/spaceships/*" select Components[VehicleComponentParams].vehicleName`.
     pub(crate) query: String,

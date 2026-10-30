@@ -44,6 +44,7 @@ mod dcb_export_json;
 mod dcb_export_name_tag;
 mod dcb_export_texts;
 mod dcb_fields;
+mod dcb_file;
 mod dcb_query;
 mod dcb_query_condition;
 mod dcb_query_export;

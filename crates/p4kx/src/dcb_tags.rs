@@ -5,11 +5,12 @@ use std::io::{self, BufWriter, Write};
 use std::process::ExitCode;
 
 use anyhow::Result;
-use p4kx_extraction::{DataForgeEntry, Guid, Tag, TagTree, TagTreeIssues};
+use p4kx_extraction::{Guid, Tag, TagTree, TagTreeIssues};
 use thiserror::Error;
 
 use crate::cli::{DcbTagsArgs, TagsFormat};
 use crate::dcb_refs::JsonWithTable;
+use crate::forge_input::ForgeInput;
 use crate::{dcb_tags_json, dcb_tags_table, exit};
 
 /// The text names no tag.
@@ -39,9 +40,8 @@ pub(crate) fn run(args: &DcbTagsArgs, as_json: bool) -> Result<ExitCode> {
         (true, Some(TagsFormat::Table)) => return Err(JsonWithTable.into()),
         (as_json, format) => as_json || format == Some(TagsFormat::Json),
     };
-    let archive = crate::key::open(&args.archive)?;
-    let entry = DataForgeEntry::read(&archive)?;
-    let forge = entry.open()?;
+    let input = ForgeInput::open(&args.archive)?;
+    let forge = input.entry().open()?;
     let tags = TagTree::build(&forge);
     warn(tags.issues());
     let listing = listing(&tags, args.tag.as_deref())?;

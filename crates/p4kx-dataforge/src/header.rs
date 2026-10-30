@@ -11,6 +11,29 @@ pub const SUPPORTED_VERSIONS: [u32; 2] = [6, 8];
 
 const PART: &str = "header";
 
+/// The number of leading bytes [`looks_like_dataforge`] reads: the reserved and the version word.
+pub const SNIFF_LEN: usize = 8;
+
+/// The largest version word that is taken for a DataForge version.
+const MAX_PLAUSIBLE_VERSION: u32 = u16::MAX as u32;
+
+/// The first two bytes of a ZIP-based Archive.
+const ARCHIVE_SIGNATURE: [u8; 2] = *b"PK";
+
+/// Returns whether `prefix`, the first [`SNIFF_LEN`] bytes of a file, has the shape of a DataForge
+/// header: not the signature of an Archive and a small version word after the reserved word.
+///
+/// Any version passes, so that a version this reader does not support is reported as such and
+/// not as an unknown file.
+#[must_use]
+pub fn looks_like_dataforge(prefix: &[u8]) -> bool {
+    let Some(&[_, _, _, _, v0, v1, v2, v3]) = prefix.first_chunk::<SNIFF_LEN>() else {
+        return false;
+    };
+    !prefix.starts_with(&ARCHIVE_SIGNATURE)
+        && u32::from_le_bytes([v0, v1, v2, v3]) <= MAX_PLAUSIBLE_VERSION
+}
+
 /// The counts and sizes the header gives for every table.
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct Header {

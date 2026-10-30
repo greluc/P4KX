@@ -14,6 +14,7 @@ use tokio::sync::Semaphore;
 use crate::archives::{Archives, Opened};
 use crate::entries;
 use crate::error::{ToolError, capped};
+use crate::forge_file::ForgeSource;
 use crate::gate::Gate;
 use crate::keys::KeyChoice;
 use crate::locate::Locations;
@@ -30,7 +31,8 @@ An Archive is named by a Channel name such as LIVE (see list_channels) or by the
 of a .p4k file; without one the tools use the Archive the server was started with. Listings \
 page: pass next_cursor back as cursor for the next page. Entry content is read in ranges: pass \
 next_offset back as offset for the next range. The DataForge tools (get_record, search_records, \
-list_structs, list_enums, run_query) read the Archive's DataForge, its typed Records; list_structs \
+list_structs, list_enums, run_query) read the Archive's DataForge, its typed Records, and also take \
+the absolute path of a DataForge file such as Game2.dcb in place of an Archive; list_structs \
 gives the type and field names a Query uses. The model tools (list_chunks, get_model_info, \
 list_model_items) read the chunk files and models of the Archive. A path \
 `outer.socpak::inner.socpak::file` reads inside socpak containers in list_entries, \
@@ -104,7 +106,7 @@ impl Server {
     pub(crate) async fn preload(&self, archive: Option<String>) -> Result<(), String> {
         let state = Arc::clone(&self.state);
         let outcome = tokio::task::spawn_blocking(move || {
-            let loaded = state.archive(archive.as_deref())?.load_dataforge();
+            let loaded = state.forge(archive.as_deref())?.load_dataforge();
             noted::clear();
             loaded
         })
@@ -172,13 +174,28 @@ impl State {
 
     /// Returns the Archive `archive` names, or the default Archive when it is `None`.
     pub(crate) fn archive(&self, archive: Option<&str>) -> Result<Arc<Opened>, ToolError> {
-        let path = match archive {
-            Some(text) => self.locations.resolve(text)?,
-            None => self.default_archive.clone().ok_or(ToolError::NoArchive)?,
-        };
+        let path = self.path(archive)?;
         let opened = self.archives.get(&path)?;
         noted::remember(opened.notice());
         Ok(opened)
+    }
+
+    /// Returns the DataForge input `archive` names, an Archive or a DataForge file, or the
+    /// default Archive when it is `None`.
+    pub(crate) fn forge(&self, archive: Option<&str>) -> Result<ForgeSource, ToolError> {
+        let path = self.path(archive)?;
+        let source = self.archives.forge(&path)?;
+        if let ForgeSource::Archive(opened) = &source {
+            noted::remember(opened.notice());
+        }
+        Ok(source)
+    }
+
+    fn path(&self, archive: Option<&str>) -> Result<PathBuf, ToolError> {
+        match archive {
+            Some(text) => self.locations.resolve(text),
+            None => self.default_archive.clone().ok_or(ToolError::NoArchive),
+        }
     }
 }
 

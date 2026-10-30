@@ -741,6 +741,24 @@ soundbank or loose Entry holds. `cancelled` is true when Ctrl+C stopped the expo
 every sound; no partial file is left. Exit code 1 when anything is in `failures` or `unconverted`,
 or `cancelled` is true.
 
+With `--txtp`, the object has a `txtp` member, absent without it:
+`{"written": 1, "kept": 0, "skipped": 1, "files": [{"trigger": "Play_Multi", "event": "Play_Multi",
+"file": "…\\Play_Multi.txtp", "size": 120, "kept": false, "breaks": 0}, …], "skips": [{"trigger": "Play_Multi",
+"event": "Play_Other", "reason": "plug-in source 9 has no file"}, …]}`. One `.txtp` file in
+vgmstream's TXTP syntax is written per Wwise event that leads to sounds, named after the event by
+the rule of the sound files and holding the names of the exported files, which lie in the same
+folder. An Event's actions, blend containers, music segments and music tracks are layers (`group =
+-L<n> #@layer-v`), sequence containers and music playlists segments (`-S<n>`), and a random or
+switch container or music switch a choice that the file settles on the first child (`-R<n>>1`);
+the loop of a sound's WEM is written as `#I <start> <end>`. An event with a sound that has no
+whole file (a source plug-in or external source, a WEM nothing holds, only the prefetched start of
+a streamed WEM) is listed in `skips` and gets no file, as does an event whose file cannot be
+written, e.g. because its path exceeds the limit of ADR-0248. An event with broken links is written
+with the header comment `incomplete: <n> broken links`, and `breaks` of its file is `n`. A `group`
+line carries only the macro; the comment on the object is the line above it. `files` and `skips` do
+not change the exit code; the sounds without a file are in `failures` already. Not written when
+Ctrl+C cancelled the export.
+
 `p4kx entity audio --extract <folder>` writes the same files for every trigger of the Entity and
 adds an `extraction` object with exactly `target`, `format`, `written`, `kept`, `unconverted`,
 `failed`, `cancelled`, `files` and `failures`, as described here; `archive`, `language`, `trigger`, `breaks`

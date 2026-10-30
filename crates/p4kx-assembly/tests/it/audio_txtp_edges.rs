@@ -4,6 +4,7 @@
 //! TXTP files of events with broken links, odd names, other formats and long paths.
 
 use p4kx_assembly::audio::{SoundFormat, wwise_id};
+use p4kx_extraction::check_part;
 use p4kx_testkit::{TestContainerKind, TestHircObject};
 
 use super::audio_txtp_support::{
@@ -110,11 +111,82 @@ fn a_control_character_in_an_event_name_cannot_start_a_line() -> TestResult {
     .run(|folder, report, _| {
         assert_eq!(report.files.len(), 1, "{:?}", report.skipped);
         assert_eq!(
-            read(folder, "Play_X.txtp")?,
+            read(folder, "Play%0AX.txtp")?,
             "# P4KX: event Play_X of trigger Play_X\nPlay_X.wav\n"
         );
         Ok(())
     })
+}
+
+/// The names of the TXTP files of the events `events`, which all play one sound.
+fn txtp_names(events: &[&str]) -> Result<Vec<String>, Box<dyn std::error::Error>> {
+    let wem = pcm().bytes();
+    let names = std::cell::RefCell::new(Vec::new());
+    Case {
+        events: events.iter().map(|name| (*name).to_owned()).collect(),
+        objects: one_sound(events, &wem),
+        wems: vec![(7001, wem)],
+        ..Case::default()
+    }
+    .run(|folder, report, _| {
+        assert!(report.skipped.is_empty(), "{:?}", report.skipped);
+        for file in &report.files {
+            let name = file.path.file_name().and_then(|name| name.to_str());
+            let name = name.ok_or("a file name")?.to_owned();
+            assert_eq!(check_part(&name), Ok(()), "{name:?} passes ADR-0248");
+            assert!(folder.join(&name).is_file(), "{name:?} is written");
+            names.borrow_mut().push(name);
+        }
+        Ok(())
+    })?;
+    Ok(names.into_inner())
+}
+
+#[test]
+fn a_file_line_equals_the_written_file_for_names_with_a_hash_or_a_leading_space() -> TestResult {
+    for (trigger, file) in [
+        ("Play #1", "Play %231.wav"),
+        ("#x", "%23x.wav"),
+        (" x", "%20x.wav"),
+    ] {
+        let wem = pcm().bytes();
+        Case {
+            trigger: Some(trigger.to_owned()),
+            objects: one_sound(&["Play_X"], &wem),
+            wems: vec![(7001, wem)],
+            ..Case::default()
+        }
+        .run(|folder, report, _| {
+            assert!(report.skipped.is_empty(), "{:?}", report.skipped);
+            assert!(folder.join(file).is_file(), "{file:?} is written");
+            let text = read(folder, "Play_X.txtp")?;
+            assert_eq!(text.lines().last(), Some(file), "{trigger:?}");
+            Ok(())
+        })?;
+    }
+    Ok(())
+}
+
+#[test]
+fn a_device_name_or_a_forbidden_character_in_an_event_name_is_escaped() -> TestResult {
+    let names = txtp_names(&["NUL", "Play|X:Y", "a."])?;
+    assert_eq!(names, ["%4EUL.txtp", "Play%7CX%3AY.txtp", "a%2E.txtp"]);
+    Ok(())
+}
+
+#[test]
+fn event_names_that_differ_only_in_non_ascii_case_stay_distinct() -> TestResult {
+    let names = txtp_names(&["Ärger", "ärger"])?;
+    assert_eq!(names, ["Ärger.txtp", "ärger_2.txtp"]);
+    Ok(())
+}
+
+#[test]
+fn an_event_name_too_long_for_a_file_name_becomes_event() -> TestResult {
+    let long = "E".repeat(300);
+    let names = txtp_names(&[&long, "Play_X"])?;
+    assert_eq!(names, ["event.txtp", "Play_X.txtp"]);
+    Ok(())
 }
 
 #[test]

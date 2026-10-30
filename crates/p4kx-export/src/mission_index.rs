@@ -27,6 +27,7 @@ const FACTIONS: &str = "libs/foundry/records/factions/factionreputation/";
 #[derive(Debug, Default)]
 pub(crate) struct Broker<'f> {
     pub(crate) title: Option<&'f str>,
+    pub(crate) description: Option<&'f str>,
     pub(crate) mission_type: Option<Guid>,
     pub(crate) location: Option<Guid>,
 }
@@ -225,6 +226,7 @@ fn piece<'f>(
             guid,
             Broker {
                 title: key(root, "title"),
+                description: key(root, "description"),
                 mission_type: reference(root, "type").map(|guid| guid.0),
                 location: reference(root, "locationMissionAvailable").map(|guid| guid.0),
             },

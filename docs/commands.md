@@ -196,9 +196,12 @@ The first argument of nearly every command is the path of a `Data.p4k` Archive, 
   textures of every part as PNG, each image once, at the mip `--texture-mip <n>` picks for the
   whole Assembly. The tint palette of each part (its Entity's, else the default of its material
   library) gives the colours of the materials that take one, so liveries look right. Parts
-  whose Entity or geometry cannot be resolved are skipped and listed, and so are palettes and
-  textures that cannot be resolved; with `--json` the report has the shape described in
-  [docs/cli-json.md](cli-json.md). A docked vehicle such as a Merlin or an Archimedes is
+  below the Entity whose Entity or geometry cannot be resolved are skipped and listed, and so are
+  palettes and textures that cannot be resolved. When the geometry of the Entity itself is not in
+  the Archive (exit code 2) or cannot be read, also for want of its `.chrm` companion (exit code
+  3), the command fails naming the file and writes nothing; `entity package` does the same. With
+  `--json` the report has the shape described in [docs/cli-json.md](cli-json.md). A docked
+  vehicle such as a Merlin or an Archimedes is
   placed as one part, without the parts of its own Loadout, unless `--expand-docked-vehicles`
   places those parts too. `--interior` adds the ship's rooms:
   the socpak containers the Records of the ship and of its attached Entities name, each at its
@@ -283,9 +286,12 @@ The first argument of nearly every command is the path of a `Data.p4k` Archive, 
   `--sounds` lists the sounds of every trigger with their source and location, in `--lang`.
 - `p4kx wwise extract <archive> <trigger> --out <folder>` writes the sounds of an audio trigger as
   `<trigger>[_<WEM ID>].ogg|wav` (`--format ogg|wav|raw`, `--conflict skip|overwrite|if-changed`,
-  `--lang`); a sound that cannot be decoded is reported and written as `.wem`. `--txtp` also
-  writes one vgmstream `<event>.txtp` text file per Wwise event of the trigger next to the sounds
-  (ADR-0254); P4KX writes the text only and does not run vgmstream.
+  `--lang`); a sound that cannot be decoded is reported and written as `.wem`. Names follow the
+  portable file-name rule of ADR-0248 (forbidden characters, `#` and a leading space become `%`
+  and two hex digits, an empty name becomes `%`, a name taken under the case fold of the rule gets
+  `_2`, `_3`, …), and a sound whose path exceeds its limit is reported as failed while the others
+  are written. `--txtp` also writes one vgmstream `<event>.txtp` text file per Wwise event of the
+  trigger next to the sounds (ADR-0254); P4KX writes the text only and does not run vgmstream.
   `p4kx entity audio --extract <folder>` does the same for every trigger of an Entity.
 - `p4kx loc languages <archive>` lists the languages the Archive holds a `global.ini` for, with
   their codes (`en`, `de`, `fr`, `it`, `es-ES`, `es-419`, `pt-BR`, `ja`, `ko`, `zh-Hans`,
@@ -475,13 +481,16 @@ The first argument of nearly every command is the path of a `Data.p4k` Archive, 
   and localisation keys it uses, and its widgets by element type with whether they are drawn; the
   UI movies the Entities name are listed after them. `--json` carries the same.
 - `p4kx ui render <archive> --screen <canvas> --out <file.png> [--svg] [--size …] [--background …]
-  [--brand <code>]` renders such a canvas, named by record path or GUID, as a still through the
+  [--brand <code>] [--var <name>=<value>]…` renders such a canvas, named by record path or GUID,
+  as a still through the
   GFx renderer: the layout of its widgets (sizes, margins, padding, flex containers, raw units)
   is computed from the Records and the boxes, circles and polygons are drawn in the colours of
   the style cascade (palette slots of the default and manufacturer style, style entries with type,
   tag, parent and ancestor selectors at rest). Texts, textures, vector graphics, lists, clones and
   every other widget type without a renderer are left out and listed, with the features the layout
-  approximates (exit code 1); no ActionScript is run.
+  approximates (exit code 1); no ActionScript is run. Every game variable is zero, so the MFD of a
+  cold ship is off; `--var powerstate=1` sets one (repeatable), and the report lists the variables
+  in force and those the screen does not read.
 - `p4kx chf to-json <file> [--out <file>] [--archive <Data.p4k>]` converts a CHF character file, e.g. one saved by the
   character customiser, to indented JSON on stdout or in `--out`: its inner versions (7 and 8
   are read), body type, face DNA with every face part named, item ports and material choices.
@@ -586,8 +595,8 @@ The first argument of nearly every command is the path of a `Data.p4k` Archive, 
 |------|---------|
 | 0 | Success: every requested Entry was extracted or already existed; `verify`: every Entry matched its checksum; `compare`: no differences |
 | 1 | Partial failure: some Entries or Records failed or were cancelled, the data of an Entry does not match its checksum (`verify`, `extract --verify`), the target or the settings cannot be written, a texture, sound, soundbank or model cannot be read, converted or written, a tag or definition of a UI movie cannot be read or written, `ui render` leaves an element out (skipped, drawn without an effect, or beyond a limit; for `--screen` also a widget type without a renderer or an approximated layout), `chf glb` or `character package` could not shape the head by its DNA (the output is written without the head), `wwise events` could not look up the Entities (the triggers are still listed), or `coverage` finds a listed item failing; `compare`: the Archives or the `--diff` Entry differ; `chf diff`: the CHF files differ |
-| 2 | Invalid input: bad arguments, an Entry path the Archive does not contain (for `compare --diff`: neither Archive contains), a Filter that matches no Entry or Record, a Channel path that does not exist or was never added, a texture, sound, soundbank, chunk file, UI movie, model or geometry companion file that does not exist, a mip level, chunk or LOD the file does not have, an output that is one of its inputs or lies inside a Star Citizen installation (the tool never writes there), a package folder that holds something other than an earlier package, an invalid Query, an Entity that no Record or several Records match, a malformed `--exclude` or `--replace`, an audio trigger no ATL definition has, an audio or localisation language the Archive holds nothing for, a `ui render` canvas that is empty, larger than 16384 pixels a side or 2^25 pixels, or not named by exactly one canvas Record, `--json` without `--out` for `cryxml` or `chf to-json`, a catalog `--out` ending in `.gz`, CHF JSON that is invalid, has an unknown version or cannot be stored as CHF, and a CHF file for `chf glb` or `character package` that holds no face DNA or whose DNA belongs to an unknown head rig |
-| 3 | The Archive, a socpak container in it or the input file cannot be read: missing, not an Archive, not CryXml, CHF, a chunk file or a UI movie, corrupt, a corrupt model or companion, with a CHF CRC-32C mismatch or unknown CHF version, also a `compare --diff` Entry that cannot be read, does not hold its stated size or holds corrupt CryXml, a `global.ini` of `catalog` or `loc` that is over 64 MiB, holds more than 1,048,576 keys or cannot be read (invalid bytes and lines without `=` are no error), and a prefab library that cannot be read; a missing texture, sound, soundbank, chunk file, UI movie or model file is 2 |
+| 2 | Invalid input: bad arguments, an Entry path the Archive does not contain (for `compare --diff`: neither Archive contains), a Filter that matches no Entry or Record, a Channel path that does not exist or was never added, a texture, sound, soundbank, chunk file, UI movie, model or geometry companion file that does not exist, the geometry of the Entity that `entity glb` or `entity package` exports when it does not exist, a mip level, chunk or LOD the file does not have, an output that is one of its inputs or lies inside a Star Citizen installation (the tool never writes there), a package folder that holds something other than an earlier package, an invalid Query, an Entity that no Record or several Records match, a malformed `--exclude` or `--replace`, an audio trigger no ATL definition has, an audio or localisation language the Archive holds nothing for, a `ui render` canvas that is empty, larger than 16384 pixels a side or 2^25 pixels, or not named by exactly one canvas Record, `--json` without `--out` for `cryxml` or `chf to-json`, a catalog `--out` ending in `.gz`, CHF JSON that is invalid, has an unknown version or cannot be stored as CHF, and a CHF file for `chf glb` or `character package` that holds no face DNA or whose DNA belongs to an unknown head rig |
+| 3 | The Archive, a socpak container in it or the input file cannot be read: missing, not an Archive, not CryXml, CHF, a chunk file or a UI movie, corrupt, a corrupt model or companion (for `entity glb` and `entity package` the geometry of the Entity itself, or its `.chrm` companion, that cannot be read), with a CHF CRC-32C mismatch or unknown CHF version, also a `compare --diff` Entry that cannot be read, does not hold its stated size or holds corrupt CryXml, a `global.ini` of `catalog` or `loc` that is over 64 MiB, holds more than 1,048,576 keys or cannot be read (invalid bytes and lines without `=` are no error), and a prefab library that cannot be read; a missing texture, sound, soundbank, chunk file, UI movie or model file is 2 |
 | 4 | The Archive changed on disk while it was open, e.g. updated by the RSI Launcher; the Extraction stopped, and Entries written before may be stale |
 | 5 | The DataForge cannot be read: the Archive holds none, its version is not supported or it is corrupt, or the Record of the Entity whose Loadout or audio is shown cannot be read |
 | 6 | `compare`: the report or the output cannot be written |
@@ -633,6 +642,7 @@ change. `p4kx-mcp --version` and `-V` show the legal notice.
 | `get_entity_sounds` | The audio triggers an Entity (`entity`: GUID, record path or class name) names, each with its ATL definition, events and soundbanks, as `p4kx entity audio` |
 | `resolve_audio_trigger` | The sound variants of a trigger (`trigger`, `lang`, `fallback_lang`) as `p4kx wwise resolve`: soundbank, WEM ID, source kind, where the WEM is and the object path; broken links with the first page |
 | `list_soundbank_wems` | The WEMs a soundbank (`soundbank`) embeds, paged, as `p4kx bnk list`: ID, size, codec, channels, sample rate, frames, duration, prefetch. No audio |
+| `list_soundbank_objects` | The `HIRC` objects of a soundbank (`soundbank`) in bank order, paged with a cursor, as `p4kx bnk objects --json` lists them: type, ID, parent, children, how far the reader decodes the object, and the fields of sounds, actions, containers and music objects. `type` (as `p4kx bnk objects --type`) and `id` narrow it; `matched` counts the objects that pass, `total` and `layouts` the whole bank. Objects the reader does not decode are listed and counted. No audio |
 | `get_wem_info` | One WEM by `wem_id` or loose Entry `path`: every place that holds it and its codec, channels, sample rate, duration and loop. No audio |
 | `get_audio_excerpt` | A short decoded excerpt of one WEM (`wem_id` or `path`, `start_seconds`, `duration_seconds`) as an `audio/wav` content block next to its metadata; at most 10 seconds and 1 MiB, see [ADR-0131](adr/0131-the-mcp-audio-excerpt-is-a-bounded-wav-and-the-only-tool-that-returns-audio.md) |
 | `image_preview` | A DDS texture (`path`) as one PNG image content block of at most 1 MiB, with its format, size and mip count as structured content: the mip chosen by `mip` or the largest that fits `max_side` (512 by default, at most 2048), a cubemap as a cross or one `face`, an array or volume as a sheet |

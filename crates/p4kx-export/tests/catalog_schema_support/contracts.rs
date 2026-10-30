@@ -29,6 +29,7 @@ pub(super) fn contracts() -> serde_json::Value {
         "notForRelease": false,
         "workInProgress": null,
         "title": {"key": "@title_a", "en": "Deliver Scrap to [LOCATION]", "de": null},
+        "description": {"key": "@desc_handler", "en": "Wanted", "de": null},
         "missionTypeGuid": "50000000-0000-4000-8000-000000000001",
         "missionType": {"key": "@type_delivery", "en": "Delivery", "de": null},
         "contractor": {"key": null, "en": null, "de": null},

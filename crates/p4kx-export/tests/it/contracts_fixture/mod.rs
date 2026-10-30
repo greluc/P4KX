@@ -91,6 +91,11 @@ fn english() -> TestEntry {
             .text("wrap_text", "Wrapped ~mission(Location)")
             .text("contractor_acme", "Acme Agency")
             .text("title_broker", "Broker Haul")
+            .text(
+                "desc_handler",
+                "  Wanted ~mission(Missing).\\nReward on delivery.\\n  ",
+            )
+            .text("desc_broker", "Haul it")
             .text("faction_acme", "Acme Emporium")
             .text("place_stanton", "Stanton")
             .text("place_hurston", "Hurston")

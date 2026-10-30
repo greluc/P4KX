@@ -30,6 +30,7 @@ pub(crate) fn run(args: &UiArgs, as_json: bool) -> Result<ExitCode> {
             source,
             screen: Some(screen),
             brand,
+            variables,
             out,
             size,
             background,
@@ -39,6 +40,7 @@ pub(crate) fn run(args: &UiArgs, as_json: bool) -> Result<ExitCode> {
             let options = ui_screen_render::Options {
                 screen,
                 brand: brand.as_deref(),
+                variables,
                 lang: *lang,
                 out,
                 size: *size,

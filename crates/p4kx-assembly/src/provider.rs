@@ -14,6 +14,7 @@ use thiserror::Error;
 
 use crate::MAX_ASSEMBLY_VERTICES;
 use crate::cdf::is_character_definition;
+use crate::skeleton::SkeletonProblem;
 
 mod character;
 
@@ -32,6 +33,9 @@ pub struct ProvidedModel {
     /// The bone attachments of a character definition (`.cdf`), each a model bound to a bone of
     /// `model`'s skeleton; empty for every other file.
     pub attachments: Vec<ProvidedAttachment>,
+    /// What is wrong with the skeleton file a character definition (`.cdf`) names; `None` when
+    /// the file is fine, the definition names none, or the file is no character definition.
+    pub skeleton: Option<SkeletonProblem>,
 }
 
 /// A rigid model a character definition binds to a bone of its skeleton.
@@ -171,7 +175,7 @@ pub trait ModelProvider: Sync {
 }
 
 /// Returns whether `path` starts with `prefix`, ignoring ASCII case and treating `\` as `/`.
-fn starts_with_path(path: &str, prefix: &str) -> bool {
+pub(crate) fn starts_with_path(path: &str, prefix: &str) -> bool {
     let mut own = path.bytes();
     prefix.bytes().all(|byte| {
         own.next().is_some_and(|found| {
@@ -347,6 +351,7 @@ impl ArchiveModels<'_> {
             model,
             left_out,
             attachments: Vec::new(),
+            skeleton: None,
         })
     }
 }

@@ -16,11 +16,11 @@ use crate::mission_cooldown::Cooldown;
 use crate::mission_facts::{Levels, SharedFacts};
 use crate::mission_index::{Broker, MissionIndex, Template};
 use crate::mission_intros::{Grants, record_grants, resolve};
-use crate::mission_layers::{Layer, Prop, Property, items, one};
+use crate::mission_layers::{Layer, Prop, Property, description_key, items, one};
 use crate::mission_places::{Places, Where};
 use crate::mission_results::{gains, granted_tags, link};
 use crate::mission_standing::Standing;
-use crate::mission_title::{Token, title};
+use crate::mission_title::{Token, expand_text};
 use crate::record_fields::{boolean, guid_value, reference, text};
 use crate::selection::{Kind, is_leftover};
 use crate::texts::Texts;
@@ -333,7 +333,8 @@ impl<'f> Parent<'_, 'f> {
             template_guid: template.map(CatalogGuid),
             not_for_release: boolean(Some(self.contract), "notForRelease"),
             work_in_progress: boolean(Some(self.contract), "workInProgress"),
-            title: title(title_key, texts, &resolve),
+            title: expand_text(title_key, texts, &resolve),
+            description: expand_text(description_key(levels.iter(), broker), texts, &resolve),
             mission_type_guid: mission_type.map(CatalogGuid),
             mission_type: texts.localised(
                 mission_type

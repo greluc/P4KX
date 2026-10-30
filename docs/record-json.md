@@ -118,9 +118,12 @@ and `$<n>` are the only keys that do.
 | weak pointer | A Reference into the Record that holds it, with the same `guid` and `path`, the type of the target and its location in `at`, e.g. `"at": "Components[23].AnimationJointControls.variables[0]"`; one to the Record's own instance has no `at` (see [Record XML](record-xml.md#child-elements)) |
 | null pointer or null Reference | `null` |
 | error | `{"error": "…"}` with the reason, at the place of the value that cannot be read |
+| Reference to a Record that does not exist | An error with the GUID of the missing Record: `{"error": "…", "guid": "…"}` |
 
-A struct object always has `$type`, a Reference never; an error has only `error`. The errors and
-the Records that are not written at all are those of [Record XML](record-xml.md#errors).
+A struct object always has `$type`, a Reference never; an error has `error` and, only for a
+Reference to a Record that does not exist, `guid` (ADR-0269). An export with `guid` does not
+validate against the schema of an earlier version. The errors and the Records that are not
+written at all are those of [Record XML](record-xml.md#errors).
 
 ## Resolved texts
 

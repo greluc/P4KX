@@ -50,7 +50,9 @@ pub(crate) type Rerun<'a> = dyn Fn(ConflictPolicy) -> TxtpReport + 'a;
 /// What the archive of a test holds and how its sounds are exported.
 #[derive(Default)]
 pub(crate) struct Case {
-    /// The Wwise events the trigger `Play_X` posts; `Play_X` when empty.
+    /// The audio trigger; `Play_X` when `None`.
+    pub(crate) trigger: Option<String>,
+    /// The Wwise events the trigger posts; `Play_X` when empty.
     pub(crate) events: Vec<String>,
     /// The format of the sounds; WAV when `None`.
     pub(crate) format: Option<SoundFormat>,
@@ -81,6 +83,7 @@ impl Case {
         for object in self.objects {
             bank = bank.object(object);
         }
+        let trigger = self.trigger.as_deref().unwrap_or("Play_X");
         let events = if self.events.is_empty() {
             vec!["Play_X".to_owned()]
         } else {
@@ -90,7 +93,7 @@ impl Case {
         let mut builder = ArchiveBuilder::new()
             .entry(TestEntry::zstd(
                 "Data\\Libs\\GameAudio\\SC.xml",
-                TestAtl::new("SC").trigger("Play_X", &names).to_cryxml(),
+                TestAtl::new("SC").trigger(trigger, &names).to_cryxml(),
             ))
             .entry(TestEntry::stored(
                 "Data\\Sounds\\wwise\\Bank.bnk",
@@ -105,7 +108,7 @@ impl Case {
         builder.write_to(&path)?;
         let archive = Archive::open_with_key(&path, Some(p4kx_testkit::test_key()))?;
         let audio = ArchiveAudio::new(&archive);
-        let sounds = audio.resolve_trigger("Play_X").ok_or("resolves")?;
+        let sounds = audio.resolve_trigger(trigger).ok_or("resolves")?;
         let out = tempfile::tempdir()?;
         let folder = self
             .folder

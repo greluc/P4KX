@@ -99,8 +99,12 @@ fn enumerated_structs() -> impl Iterator<Item = TestStruct> {
 /// operations and widgets.
 #[derive(Debug, Clone, PartialEq)]
 pub enum TestOp {
-    /// A boolean game variable, `false` at rest.
+    /// A boolean game variable bound to `variable`, `false` at rest.
     BoolVar,
+    /// A boolean game variable bound to the name, `false` at rest.
+    NamedBoolVar(&'static str),
+    /// A number game variable bound to the name, 0 at rest.
+    NamedNumVar(&'static str),
     /// A number game variable, 0 at rest.
     NumVar,
     /// An integer game variable, 0 at rest.
@@ -143,9 +147,9 @@ fn names(inputs: &[&str]) -> TestValue {
     TestValue::Array(inputs.iter().map(|name| input(name)).collect())
 }
 
-fn variable(kind: &str) -> TestInstance {
+fn variable(kind: &str, binding: &str) -> TestInstance {
     TestInstance::new(format!("BuildingBlocks_Bindings{kind}Variable"))
-        .value("binding", TestValue::text("variable"))
+        .value("binding", TestValue::text(binding))
 }
 
 fn param(kind: &str, parameter: &str, default: TestValue) -> TestInstance {
@@ -164,10 +168,12 @@ fn field(kind: &str, widget: &str, name: &str, source: &str) -> TestInstance {
 impl TestOp {
     fn instance(&self) -> TestInstance {
         match self {
-            Self::BoolVar => variable("Boolean"),
-            Self::NumVar => variable("Number"),
-            Self::IntVar => variable("Integer"),
-            Self::TextVar => variable("String"),
+            Self::BoolVar => variable("Boolean", "variable"),
+            Self::NamedBoolVar(name) => variable("Boolean", name),
+            Self::NamedNumVar(name) => variable("Number", name),
+            Self::NumVar => variable("Number", "variable"),
+            Self::IntVar => variable("Integer", "variable"),
+            Self::TextVar => variable("String", "variable"),
             Self::BoolParam(name, default) => param("Boolean", name, TestValue::Bool(*default)),
             Self::NumParam(name, default) => param("Number", name, TestValue::Single(*default)),
             Self::TextParam(name, default) => param("Localized", name, TestValue::text(*default)),

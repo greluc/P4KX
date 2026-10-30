@@ -2,13 +2,16 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 use p4kx_testkit::{
-    TestAtl, TestBank, TestCodec, TestEntry, TestHircObject, TestWem, test_signal, wwise_short_id,
+    TestAtl, TestBank, TestCodec, TestEntry, TestHircObject, TestPlaylistItem, TestWem,
+    test_signal, wwise_short_id,
 };
 use serde_json::{Value, json};
 
 use crate::audio::serve;
 use crate::support::{Install, TestResult};
 
+/// Enough playlist items for the object to exceed the 256 KiB response cap as JSON.
+const PLAYLIST_ITEMS: usize = 3000;
 const EVENTS: usize = 30;
 const BANKS: usize = 12;
 
@@ -160,5 +163,41 @@ fn a_soundbank_beyond_the_size_cap_is_refused() -> TestResult {
         &json!({ "soundbank": "Data/Sounds/wwise/Huge.bnk" }),
     )?;
     assert!(message.contains("larger than"), "{message}");
+    let message = server.error(
+        "list_soundbank_objects",
+        &json!({ "soundbank": "Data/Sounds/wwise/Huge.bnk" }),
+    )?;
+    assert!(message.contains("larger than"), "{message}");
+    Ok(())
+}
+
+#[test]
+fn an_object_larger_than_a_response_is_an_error_and_the_rest_of_the_bank_stays_listable()
+-> TestResult {
+    let items: Vec<TestPlaylistItem> = (0..PLAYLIST_ITEMS)
+        .map(|_| TestPlaylistItem::new(10, 0))
+        .collect();
+    let bank = TestBank::new(1)
+        .object(TestHircObject::music_playlist_items(7, &[10], &items))
+        .object(TestHircObject::event(8, &[9]))
+        .bytes();
+    let install = Install::new(vec![TestEntry::stored(
+        "Data\\Sounds\\wwise\\Big.bnk",
+        bank,
+    )])?;
+    let mut server = serve(&install)?;
+    let message = server.error(
+        "list_soundbank_objects",
+        &json!({ "soundbank": "Data/Sounds/wwise/Big.bnk" }),
+    )?;
+    assert!(
+        message.contains("object 7") && message.contains("no filter narrows it further"),
+        "{message}"
+    );
+    let rest = server.ok(
+        "list_soundbank_objects",
+        &json!({ "soundbank": "Data/Sounds/wwise/Big.bnk", "type": "event" }),
+    )?;
+    assert_eq!(rest["objects"][0]["id"], 8, "{rest}");
     Ok(())
 }

@@ -33,6 +33,9 @@ mod exclusion;
 mod extract;
 mod filter;
 mod folder_cache;
+pub mod hirc_select;
+pub mod hirc_view;
+mod hirc_view_build;
 mod loaded_dataforge;
 mod localization;
 mod localization_set;
@@ -185,8 +188,11 @@ pub use p4kx_texture::{
     BlockLayout, DdsHeader, DxgiFormat, HdrImage, MergeReport, Mip, RgbaImage, TextureError,
     TextureFormat,
 };
+pub use part_escape::escape_part;
 pub use path_index::{PathIndex, PathKeys};
-pub use portable_name::{MAX_PART_BYTES, NameRule, PathLimit, check_part, check_path_length};
+pub use portable_name::{
+    MAX_PART_BYTES, NameRule, PathLimit, check_part, check_path_length, fold_name,
+};
 pub use query_export::{
     QUERY_PAGE_SIZE, QueryExport, QueryExportError, QueryExportOptions, export_query, is_same_file,
 };

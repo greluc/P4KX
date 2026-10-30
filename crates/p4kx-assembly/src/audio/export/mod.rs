@@ -14,6 +14,7 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use p4kx_audio::Loop;
 use p4kx_extraction::{CancelToken, ConflictPolicy, ConversionError, ensure_writable};
 
+use self::write::Target;
 use super::{ArchiveAudio, TriggerSounds};
 
 /// The file format a sound is exported in.
@@ -200,12 +201,15 @@ impl ArchiveAudio<'_> {
     /// sound and `<trigger>_<WEM ID>.<ext>` for one with several; a WEM several variants lead to
     /// is written once.
     ///
-    /// Names are cut to ASCII letters, digits, `_` and `-`; a name already taken, ignoring case,
-    /// gets `_2`, `_3`, … appended in the order of the triggers and variants, so the names do not
-    /// depend on the order the files are written in. The sounds are read and converted in
-    /// parallel, each soundbank once, and streamed to their files. A sound that cannot be
-    /// converted is written unchanged and reported in its [`ExportedSound::unconverted`]; one that
-    /// cannot be located or written is listed in [`ExportReport::failures`].
+    /// Names follow the portable file-name rule of ADR-0248: a character it forbids becomes `%`
+    /// and two hex digits, a name too long for a file becomes `sound`, and a name already taken
+    /// under the case fold of that rule gets `_2`, `_3`, … appended in the order of the triggers
+    /// and variants, so the names do not depend on the order the files are written in. The sounds
+    /// are read and converted in parallel, each soundbank once, and streamed to their files. A
+    /// sound that cannot be converted is written unchanged and reported in its
+    /// [`ExportedSound::unconverted`]; one that cannot be located, whose path exceeds the limit of
+    /// ADR-0248, or that cannot be written is listed in [`ExportReport::failures`] and the others
+    /// are still written.
     ///
     /// # Errors
     ///
@@ -248,7 +252,15 @@ impl ArchiveAudio<'_> {
             path: folder.to_path_buf(),
             source,
         })?;
-        for outcome in write::run(self, &plan.jobs, folder, options, watch) {
+        let absolute = std::path::absolute(folder).map_err(|source| ConversionError::Write {
+            path: folder.to_path_buf(),
+            source,
+        })?;
+        let target = Target {
+            folder,
+            absolute: &absolute,
+        };
+        for outcome in write::run(self, &plan.jobs, target, options, watch) {
             match outcome {
                 Ok(sound) => report.sounds.push(sound),
                 Err(failure) => report.failures.push(failure),

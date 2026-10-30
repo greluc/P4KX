@@ -6,7 +6,7 @@
 
 use egui::accesskit::Role;
 use egui_kittest::kittest::Queryable;
-use p4kx_gui::{Language, RowDetail, ShipPick, UiMode, UiScreensStatus, UiSource, UiText};
+use p4kx_gui::{Language, RowDetail, ShipPick, UiMode, UiPower, UiScreensStatus, UiSource, UiText};
 
 use crate::tagging::wait_until;
 use crate::ui_tab_files::pixel;
@@ -163,6 +163,50 @@ fn a_screen_lists_its_widgets_and_reports_what_the_renderer_left_out() -> TestRe
                 && matches!(&row.detail, RowDetail::Plain(text) if text.starts_with("WidgetImage"))),
         "the screen's own widgets are listed, the image widget as one the renderer draws"
     );
+    Ok(())
+}
+
+#[test]
+fn the_game_state_and_typed_variables_redraw_the_screen_and_the_unknown_ones_are_reported()
+-> TestResult {
+    let mut window = opened(Language::BritishEnglish, WINDOW)?;
+    pick_ship(&mut window)?;
+    let first = window
+        .harness
+        .state()
+        .ui()
+        .rendered()
+        .map(p4kx_gui::UiRendered::serial)
+        .ok_or("no picture")?;
+
+    let tab = window.harness.state_mut().ui_mut();
+    tab.set_power(UiPower::PoweredOn);
+    tab.set_variables_text("nothing=2 bad");
+    wait_until(&mut window.harness, |model| {
+        drawn(model)
+            && model
+                .ui()
+                .rendered()
+                .is_some_and(|rendered| rendered.serial() != first)
+    })?;
+
+    let model = window.harness.state();
+    let unknown: Vec<&str> = model
+        .ui()
+        .rendered()
+        .ok_or("no picture")?
+        .report()
+        .lines()
+        .iter()
+        .filter(|line| line.label == UiText::ReportUnknownVariable)
+        .map(|line| line.detail.as_str())
+        .collect();
+    assert_eq!(
+        unknown,
+        ["powerstate", "nothing"],
+        "the state, then the typed ones; the sample reads none"
+    );
+    assert_eq!(model.ui().invalid_variables(), ["bad"]);
     Ok(())
 }
 

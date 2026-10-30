@@ -31,8 +31,8 @@ components the stats did not read.
 - **No derived values.** No total modifier of a laser with modules, no effective damage and no
   "active" versus "passive" flag: a module is passive when `activationMethod` is
   `ActivateOnAttach` (ADR-0065).
-- **Third-party data stays out.** The SCMDB mining data served as a hint to find the values; no
-  value of it is in the repository, the tests or CI. Tests assert what the Archive states.
+- **Archive data only.** Every value comes from the Archive; no value of a third-party source
+  enters the repository, the tests or CI.
 - **Additive in version 2.** Two blocks and three fire-mode fields are new fields (ADR-0054). Items
   are grouped into variants by their stats; on LIVE 4.10.2 none of the 832 variant groups (4,828
   items) changes.

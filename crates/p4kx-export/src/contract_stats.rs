@@ -15,9 +15,8 @@ use crate::contract_stats_mining::{MiningLaserStats, MiningModifierStats};
 /// Every block is `null` for an item that does not have it; the item has `stats` only when it
 /// has at least one block: `weapon`, `shield`, `quantumDrive`, `powerPlant`, `cooler`, `missile`,
 /// `armor`, `clothing`, `radar`, `tractorBeam`, `weaponModifier`, `miningLaser` or
-/// `miningModifier`. No value is derived: a number
-/// is what the Archive states, in the unit the game stores it; a value that is not a finite
-/// number is `null`.
+/// `miningModifier`. No value is derived: a number is what the Archive states, in the unit the
+/// game stores it; a value that is not a finite number is `null`.
 #[derive(Debug, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 #[schemars(transform = every_field_required)]
@@ -132,8 +131,8 @@ pub(crate) struct FireAction<'a> {
     /// `overchargeTime`, `cooldownTime`, `name` and `launchParams` are read from the fire mode and,
     /// where it has none of its own, from its `weaponAction`.
     pub(crate) fire_rate: Option<f32>,
-    /// `launchParams.pelletCount` (`pellets` where a Record states that instead), the projectiles of
-    /// one shot.
+    /// `launchParams.pelletCount` (`pellets` where a Record states that instead), the projectiles
+    /// of one shot.
     pub(crate) pellets: Option<i64>,
     /// `launchParams.ammoCost`, the rounds one shot uses.
     pub(crate) ammo_cost: Option<i64>,

@@ -29,7 +29,6 @@ fn values(laser: Option<&StructValue<'_>>) -> Option<MiningModifierValues> {
     let laser = laser?;
     let value = |name| modifier(Some(laser), name);
     Some(MiningModifierValues {
-        is_optimal_rate_good: boolean(Some(laser), "isOptimalRateGood"),
         instability: value("laserInstability"),
         optimal_charge_window_size: value("optimalChargeWindowSizeModifier"),
         resistance: value("resistanceModifier"),
@@ -40,6 +39,10 @@ fn values(laser: Option<&StructValue<'_>>) -> Option<MiningModifierValues> {
     })
 }
 
+fn optimal_rate(laser: Option<&StructValue<'_>>) -> Option<bool> {
+    boolean(laser, "isOptimalRateGood")
+}
+
 fn filter_value(parent: Option<&StructValue<'_>>) -> Option<f32> {
     modifier(structure(parent, "filterParams"), "filterModifier")
 }
@@ -48,47 +51,65 @@ fn filter_value(parent: Option<&StructValue<'_>>) -> Option<f32> {
 /// `SEntityComponentMiningLaserParams`.
 pub(super) fn laser(tree: &RecordTree<'_>) -> Option<MiningLaserStats> {
     let laser = component(tree, "SEntityComponentMiningLaserParams")?;
+    let modifiers = structure(Some(laser), "miningLaserModifiers");
     Some(MiningLaserStats {
+        is_optimal_rate_good: optimal_rate(modifiers),
         throttle_lerp_speed: number(Some(laser), "throttleLerpSpeed"),
         throttle_minimum: number(Some(laser), "throttleMinimum"),
         uses_power_throttle: boolean(Some(laser), "usesPowerThrottle"),
         global_params_guid: reference(Some(laser), "globalParams"),
-        modifiers: values(structure(Some(laser), "miningLaserModifiers")),
+        modifiers: values(modifiers),
         filter_modifier: filter_value(Some(laser)),
     })
 }
 
+fn effect(entry: &StructValue<'_>) -> MiningEffect {
+    let laser = structure(Some(entry), "MiningLaserModifier");
+    MiningEffect {
+        lifetime: lifetime(entry),
+        is_optimal_rate_good: optimal_rate(laser),
+        modifiers: values(laser),
+    }
+}
+
+fn fire_action_modifier(entry: &StructValue<'_>) -> FireActionModifier {
+    let stats = structure(structure(Some(entry), "weaponModifier"), "weaponStats");
+    FireActionModifier {
+        fire_action_index: integer(Some(entry), "fireActionIndex"),
+        lifetime: lifetime(entry),
+        damage_multiplier: number(stats, "damageMultiplier"),
+    }
+}
+
 /// Returns the mining modifier block of the item `tree`; `None` when its
 /// `EntityComponentAttachableModifierParams` holds no mining modifier.
+///
+/// Of each mining modifier struct the first one counts.
 pub(super) fn modifier_block<'f>(tree: &RecordTree<'f>) -> Option<MiningModifierStats<'f>> {
     let attachable = component(tree, "EntityComponentAttachableModifierParams")?;
-    let first = |type_name: &str| {
-        structs(Some(attachable), "modifiers").find(|entry| entry.type_name() == type_name)
-    };
-    let effect = |entry: &StructValue<'_>| MiningEffect {
-        lifetime: lifetime(entry),
-        modifiers: values(structure(Some(entry), "MiningLaserModifier")),
-    };
-    let laser = first(LASER_MODIFIER).map(effect);
-    let rock = first(ROCK_MODIFIER).map(effect);
-    let filter = first(FILTER_MODIFIER).map(|entry| FilterEffect {
-        lifetime: lifetime(entry),
-        filter_modifier: filter_value(Some(entry)),
-    });
+    let mut laser = None;
+    let mut rock = None;
+    let mut filter = None;
+    let mut fire_action_modifiers = Vec::new();
+    for entry in structs(Some(attachable), "modifiers") {
+        match entry.type_name() {
+            LASER_MODIFIER => laser = laser.or_else(|| Some(effect(entry))),
+            ROCK_MODIFIER => rock = rock.or_else(|| Some(effect(entry))),
+            FILTER_MODIFIER => {
+                filter = filter.or_else(|| {
+                    Some(FilterEffect {
+                        lifetime: lifetime(entry),
+                        filter_modifier: filter_value(Some(entry)),
+                    })
+                });
+            }
+            WEAPON_MODIFIER => fire_action_modifiers.push(fire_action_modifier(entry)),
+            _ => {}
+        }
+    }
     if laser.is_none() && rock.is_none() && filter.is_none() {
         return None;
     }
-    let fire_action_modifiers = structs(Some(attachable), "modifiers")
-        .filter(|entry| entry.type_name() == WEAPON_MODIFIER)
-        .map(|entry| FireActionModifier {
-            fire_action_index: integer(Some(entry), "fireActionIndex"),
-            lifetime: lifetime(entry),
-            damage_multiplier: number(
-                structure(structure(Some(entry), "weaponModifier"), "weaponStats"),
-                "damageMultiplier",
-            ),
-        })
-        .collect();
     Some(MiningModifierStats {
         activation_method: text(Some(attachable), "activationMethod"),
         charges: integer(Some(attachable), "charges"),

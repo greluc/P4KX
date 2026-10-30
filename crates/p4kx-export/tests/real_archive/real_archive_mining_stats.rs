@@ -9,13 +9,13 @@ use std::time::SystemTime;
 
 use p4kx_export::{CatalogOptions, build_catalog};
 use p4kx_extraction::Archive;
-use p4kx_testkit::real_archive_path;
+use p4kx_testkit::{real_archive_key, real_archive_path};
 use serde_json::Value;
 
 type TestResult = Result<(), Box<dyn Error>>;
 
 fn catalog() -> Result<Value, Box<dyn Error>> {
-    let archive = Archive::open_with_key(real_archive_path()?, None)?;
+    let archive = Archive::open_with_key(real_archive_path()?, real_archive_key().ok())?;
     let built = build_catalog(&archive, &CatalogOptions::new(SystemTime::now()))?;
     Ok(serde_json::from_slice(built.json())?)
 }

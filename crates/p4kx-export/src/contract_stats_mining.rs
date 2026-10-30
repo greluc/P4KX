@@ -15,6 +15,8 @@ use crate::guid_text::CatalogGuid;
 #[serde(rename_all = "camelCase")]
 #[schemars(transform = every_field_required)]
 pub(crate) struct MiningLaserStats {
+    /// `miningLaserModifiers.isOptimalRateGood`.
+    pub(crate) is_optimal_rate_good: Option<bool>,
     /// `throttleLerpSpeed`.
     pub(crate) throttle_lerp_speed: Option<f32>,
     /// `throttleMinimum`, the lowest throttle as a fraction of 1.
@@ -29,15 +31,13 @@ pub(crate) struct MiningLaserStats {
     pub(crate) filter_modifier: Option<f32>,
 }
 
-/// The values of a `MiningLaserModifiers` struct, each the `value` of a
+/// The modifiers of a `MiningLaserModifiers` struct, each the `value` of a
 /// `FloatModifierMultiplicative` as stored, in percent; `null` for a modifier the struct leaves
 /// unset.
 #[derive(Debug, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 #[schemars(transform = every_field_required)]
 pub(crate) struct MiningModifierValues {
-    /// `isOptimalRateGood`.
-    pub(crate) is_optimal_rate_good: Option<bool>,
     /// `laserInstability`.
     pub(crate) instability: Option<f32>,
     /// `optimalChargeWindowSizeModifier`.
@@ -88,6 +88,8 @@ pub(crate) struct MiningModifierStats<'a> {
 pub(crate) struct MiningEffect {
     /// `modifierLifetime.lifetime`, in seconds; `null` for a modifier that lasts.
     pub(crate) lifetime: Option<f32>,
+    /// `MiningLaserModifier.isOptimalRateGood`.
+    pub(crate) is_optimal_rate_good: Option<bool>,
     /// `MiningLaserModifier`; `null` without it.
     pub(crate) modifiers: Option<MiningModifierValues>,
 }

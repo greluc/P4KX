@@ -10,6 +10,12 @@ use super::{RESISTANCE, entity, instance, single, singles_of};
 pub(crate) const LASER: u128 = 0x1000_0000_0000_4000_8000_0000_0000_0010;
 pub(crate) const MODULE: u128 = 0x1000_0000_0000_4000_8000_0000_0000_0011;
 pub(crate) const GADGET: u128 = 0x1000_0000_0000_4000_8000_0000_0000_0012;
+/// A laser equal to `LASER` in every compared field.
+pub(crate) const LASER_TWIN: u128 = 0x1000_0000_0000_4000_8000_0000_0000_0013;
+/// A laser that differs from `LASER` only in the range of its beams.
+pub(crate) const LASER_RANGE: u128 = 0x1000_0000_0000_4000_8000_0000_0000_0014;
+/// A module that differs from `MODULE` only in the laser instability it applies.
+pub(crate) const MODULE_INSTABILITY: u128 = 0x1000_0000_0000_4000_8000_0000_0000_0015;
 /// The Record the laser's `globalParams` links to; any Record of the fixture serves.
 pub(crate) const GLOBALS: u128 = RESISTANCE;
 
@@ -59,13 +65,13 @@ fn lifetime(seconds: Option<f32>) -> (String, TestValue) {
     )
 }
 
-fn beam(hit_type: &str, damage: f32) -> TestValue {
+fn beam(hit_type: &str, damage: f32, range: f32) -> TestValue {
     instance(
         "SWeaponActionFireBeamParams",
         vec![
             ("hitType".to_owned(), TestValue::text(hit_type)),
-            single("fullDamageRange", 40.0),
-            single("zeroDamageRange", 45.0),
+            single("fullDamageRange", range),
+            single("zeroDamageRange", range + 5.0),
             (
                 "damagePerSecond".to_owned(),
                 singles_of("DamageInfo", &[("DamageEnergy", damage)]),
@@ -74,15 +80,15 @@ fn beam(hit_type: &str, damage: f32) -> TestValue {
     )
 }
 
-fn laser() -> Vec<TestValue> {
+fn laser(range: f32) -> Vec<TestValue> {
     vec![
         instance(
             "SCItemWeaponComponentParams",
             vec![(
                 "fireActions".to_owned(),
                 TestValue::Array(vec![
-                    beam("ElectricArc", 3900.0),
-                    beam("Extraction", 1295.0),
+                    beam("ElectricArc", 3900.0, range),
+                    beam("Extraction", 1295.0, range),
                 ]),
             )],
         ),
@@ -141,7 +147,7 @@ fn damage_modifier(index: i32, multiplier: f32) -> TestValue {
     )
 }
 
-fn module() -> TestValue {
+fn module(instability: f32) -> TestValue {
     attachable(
         "ActivateOnDemand",
         6,
@@ -155,7 +161,7 @@ fn module() -> TestValue {
                     (
                         "MiningLaserModifier".to_owned(),
                         laser_modifiers(&[
-                            ("laserInstability", -10.0),
+                            ("laserInstability", instability),
                             ("shatterdamageModifier", -10.0),
                         ]),
                     ),
@@ -195,8 +201,26 @@ fn gadget() -> TestValue {
 
 pub(super) fn records() -> Vec<TestRecord> {
     vec![
-        entity(LASER, "mining_laser", "WeaponMining", laser()),
-        entity(MODULE, "mining_module", "MiningModifier", vec![module()]),
+        entity(LASER, "mining_laser", "WeaponMining", laser(40.0)),
+        entity(LASER_TWIN, "mining_laser_twin", "WeaponMining", laser(40.0)),
+        entity(
+            LASER_RANGE,
+            "mining_laser_range",
+            "WeaponMining",
+            laser(60.0),
+        ),
+        entity(
+            MODULE,
+            "mining_module",
+            "MiningModifier",
+            vec![module(-10.0)],
+        ),
+        entity(
+            MODULE_INSTABILITY,
+            "mining_module_instability",
+            "MiningModifier",
+            vec![module(-12.0)],
+        ),
         entity(GADGET, "mining_gadget", "MiningModifier", vec![gadget()]),
     ]
 }

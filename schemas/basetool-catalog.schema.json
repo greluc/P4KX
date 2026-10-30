@@ -1964,7 +1964,7 @@
           ]
         },
         "pellets": {
-          "description": "`launchParams.pelletCount` (`pellets` where a Record states that instead), the projectiles of\none shot.",
+          "description": "`launchParams.pelletCount` (`pellets` where a Record states that instead), the projectiles\nof one shot.",
           "format": "int64",
           "type": [
             "integer",
@@ -2854,7 +2854,7 @@
       "type": "object"
     },
     "ItemStats": {
-      "description": "The typed stat blocks of an item, raw facts of the Archive (ADR-0065, ADR-0072).\n\nEvery block is `null` for an item that does not have it; the item has `stats` only when it\nhas at least one block: `weapon`, `shield`, `quantumDrive`, `powerPlant`, `cooler`, `missile`,\n`armor`, `clothing`, `radar`, `tractorBeam`, `weaponModifier`, `miningLaser` or\n`miningModifier`. No value is derived: a number\nis what the Archive states, in the unit the game stores it; a value that is not a finite\nnumber is `null`.",
+      "description": "The typed stat blocks of an item, raw facts of the Archive (ADR-0065, ADR-0072).\n\nEvery block is `null` for an item that does not have it; the item has `stats` only when it\nhas at least one block: `weapon`, `shield`, `quantumDrive`, `powerPlant`, `cooler`, `missile`,\n`armor`, `clothing`, `radar`, `tractorBeam`, `weaponModifier`, `miningLaser` or\n`miningModifier`. No value is derived: a number is what the Archive states, in the unit the\ngame stores it; a value that is not a finite number is `null`.",
       "properties": {
         "armor": {
           "anyOf": [
@@ -4274,6 +4274,13 @@
     "MiningEffect": {
       "description": "The mining modifiers one `ItemMiningModifierParams` or `ItemMineableRockModifierParams`\napplies.",
       "properties": {
+        "isOptimalRateGood": {
+          "description": "`MiningLaserModifier.isOptimalRateGood`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
         "lifetime": {
           "description": "`modifierLifetime.lifetime`, in seconds; `null` for a modifier that lasts.",
           "format": "float",
@@ -4295,6 +4302,7 @@
         }
       },
       "required": [
+        "isOptimalRateGood",
         "lifetime",
         "modifiers"
       ],
@@ -4597,6 +4605,13 @@
           ],
           "description": "The `MiningLaserGlobalParams` Record `globalParams` links to."
         },
+        "isOptimalRateGood": {
+          "description": "`miningLaserModifiers.isOptimalRateGood`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
         "modifiers": {
           "anyOf": [
             {
@@ -4635,6 +4650,7 @@
       "required": [
         "filterModifier",
         "globalParamsGuid",
+        "isOptimalRateGood",
         "modifiers",
         "throttleLerpSpeed",
         "throttleMinimum",
@@ -4728,7 +4744,7 @@
       "type": "object"
     },
     "MiningModifierValues": {
-      "description": "The values of a `MiningLaserModifiers` struct, each the `value` of a\n`FloatModifierMultiplicative` as stored, in percent; `null` for a modifier the struct leaves\nunset.",
+      "description": "The modifiers of a `MiningLaserModifiers` struct, each the `value` of a\n`FloatModifierMultiplicative` as stored, in percent; `null` for a modifier the struct leaves\nunset.",
       "properties": {
         "catastrophicChargeWindowRate": {
           "description": "`catastrophicChargeWindowRateModifier`.",
@@ -4751,13 +4767,6 @@
           "format": "float",
           "type": [
             "number",
-            "null"
-          ]
-        },
-        "isOptimalRateGood": {
-          "description": "`isOptimalRateGood`.",
-          "type": [
-            "boolean",
             "null"
           ]
         },
@@ -4798,7 +4807,6 @@
         "catastrophicChargeWindowRate",
         "clusterFactor",
         "instability",
-        "isOptimalRateGood",
         "optimalChargeWindowRate",
         "optimalChargeWindowSize",
         "resistance",

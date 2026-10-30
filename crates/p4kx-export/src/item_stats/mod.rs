@@ -20,8 +20,8 @@ const COOLER: &str = "Cooler";
 ///
 /// A block follows from the components of the item: the weapon, shield, quantum drive, missile,
 /// suit armour, clothing, radar, mining laser and attachable modifier components, the tractor beam
-/// action of the weapon, and the type `PowerPlant` or `Cooler` of its `AttachDef`. The ammunition of a
-/// weapon is read from the Records the item links to, with `trees`; one that cannot be read
+/// action of the weapon, and the type `PowerPlant` or `Cooler` of its `AttachDef`. The ammunition
+/// of a weapon is read from the Records the item links to, with `trees`; one that cannot be read
 /// leaves the ammunition `null` and never fails the item.
 pub(crate) fn read<'f>(
     tree: &RecordTree<'f>,

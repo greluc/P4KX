@@ -8,14 +8,14 @@ use crate::gear_fixture;
 use std::error::Error;
 use std::time::{Duration, UNIX_EPOCH};
 
-use gear_fixture::{ARMOR, GADGET, LASER, MODULE};
+use gear_fixture::{ARMOR, GADGET, LASER, LASER_RANGE, LASER_TWIN, MODULE, MODULE_INSTABILITY};
 use p4kx_export::{CatalogOptions, build_catalog};
 use p4kx_extraction::Archive;
 use serde_json::{Value, json};
 
 type TestResult = Result<(), Box<dyn Error>>;
 
-fn stats(guid: u128) -> Result<Value, Box<dyn Error>> {
+fn catalog() -> Result<Value, Box<dyn Error>> {
     let dir = tempfile::tempdir()?;
     let archive = Archive::open_with_key(
         gear_fixture::write_archive(dir.path())?,
@@ -23,16 +23,23 @@ fn stats(guid: u128) -> Result<Value, Box<dyn Error>> {
     )?;
     let options = CatalogOptions::new(UNIX_EPOCH + Duration::from_secs(1_792_000_000));
     let built = build_catalog(&archive, &options)?;
-    let catalog: Value = serde_json::from_slice(built.json())?;
+    Ok(serde_json::from_slice(built.json())?)
+}
+
+fn guid_text(guid: u128) -> String {
     let text = format!("{guid:032x}");
-    let wanted = format!(
+    format!(
         "{}-{}-{}-{}-{}",
         &text[0..8],
         &text[8..12],
         &text[12..16],
         &text[16..20],
         &text[20..32]
-    );
+    )
+}
+
+fn item(catalog: &Value, guid: u128) -> Result<Value, Box<dyn Error>> {
+    let wanted = guid_text(guid);
     catalog
         .get("items")
         .and_then(Value::as_array)
@@ -41,8 +48,15 @@ fn stats(guid: u128) -> Result<Value, Box<dyn Error>> {
                 .iter()
                 .find(|item| item.get("guid") == Some(&json!(wanted)))
         })
-        .and_then(|item| item.get("stats").cloned())
+        .cloned()
         .ok_or_else(|| format!("item {wanted}").into())
+}
+
+fn stats(guid: u128) -> Result<Value, Box<dyn Error>> {
+    Ok(item(&catalog()?, guid)?
+        .get("stats")
+        .cloned()
+        .unwrap_or(Value::Null))
 }
 
 #[test]
@@ -51,12 +65,12 @@ fn a_laser_carries_its_throttle_and_modifiers_as_stored() -> TestResult {
     assert_eq!(
         stats["miningLaser"],
         json!({
+            "isOptimalRateGood": true,
             "throttleLerpSpeed": 7.0,
             "throttleMinimum": 0.2,
             "usesPowerThrottle": false,
             "globalParamsGuid": "20000000-0000-4000-8000-000000000001",
             "modifiers": {
-                "isOptimalRateGood": true,
                 "instability": 35.0,
                 "optimalChargeWindowSize": 40.0,
                 "resistance": 25.0,
@@ -96,6 +110,7 @@ fn a_module_carries_its_charges_lifetime_and_multipliers() -> TestResult {
     assert_eq!(block["canInterrupt"], true);
     assert_eq!(block["isInterruptible"], false);
     assert_eq!(block["laser"]["lifetime"], 30.0);
+    assert_eq!(block["laser"]["isOptimalRateGood"], true);
     assert_eq!(block["laser"]["modifiers"]["instability"], -10.0);
     assert_eq!(block["laser"]["modifiers"]["shatterDamage"], -10.0);
     assert!(block["laser"]["modifiers"]["resistance"].is_null());
@@ -134,5 +149,36 @@ fn an_item_without_mining_components_has_no_mining_blocks() -> TestResult {
     let stats = stats(ARMOR)?;
     assert!(stats["miningLaser"].is_null());
     assert!(stats["miningModifier"].is_null());
+    Ok(())
+}
+
+#[test]
+fn lasers_equal_in_every_compared_field_are_variants() -> TestResult {
+    let catalog = catalog()?;
+    let base = item(&catalog, LASER)?["variantOf"].clone();
+    let twin = item(&catalog, LASER_TWIN)?["variantOf"].clone();
+    assert!(
+        base == json!(guid_text(LASER_TWIN)) || twin == json!(guid_text(LASER)),
+        "one of the twins is the base of the other"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_beam_range_or_a_module_modifier_starts_a_variant_group_of_its_own() -> TestResult {
+    let catalog = catalog()?;
+    let range = item(&catalog, LASER_RANGE)?;
+    assert!(
+        range["variantOf"].is_null(),
+        "a different range is no variant"
+    );
+    for guid in [LASER, LASER_TWIN] {
+        assert_ne!(
+            item(&catalog, guid)?["variantOf"],
+            json!(guid_text(LASER_RANGE))
+        );
+    }
+    assert!(item(&catalog, MODULE)?["variantOf"].is_null());
+    assert!(item(&catalog, MODULE_INSTABILITY)?["variantOf"].is_null());
     Ok(())
 }

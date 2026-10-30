@@ -230,9 +230,9 @@ pub use real_archive::{
     real_archive_pair, real_archive_path,
 };
 pub use reference_output::{
-    REFERENCE_SHIP_MATRIX_VAR, REFERENCE_STARBREAKER_VAR, REFERENCE_UNFORGE_VAR,
-    REFERENCE_UNP4K_VAR, reference_ship_matrix_path, reference_starbreaker_path,
-    reference_unforge_path, reference_unp4k_path,
+    REFERENCE_SCMDB_VAR, REFERENCE_SHIP_MATRIX_VAR, REFERENCE_STARBREAKER_VAR,
+    REFERENCE_UNFORGE_VAR, REFERENCE_UNP4K_VAR, reference_scmdb_path, reference_ship_matrix_path,
+    reference_starbreaker_path, reference_unforge_path, reference_unp4k_path,
 };
 pub use rig_logic::{RIG_LOGIC_CHUNK, TestRigLogic};
 pub use screens::{SCREEN_COLOUR_SLOTS, screens_schema};

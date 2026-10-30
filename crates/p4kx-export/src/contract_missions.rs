@@ -42,6 +42,12 @@ pub(crate) struct ContractEntry<'a> {
     /// `[TOKEN]` when nothing states it. Trailing and leading blanks are removed.
     #[schemars(extend("x-gameText" = true))]
     pub(crate) title: LocalisedText<'a>,
+    /// The description, resolved like the title: the `Description` of the sub contract, else of
+    /// the contract, else of the handler, else the `description` of the contract's
+    /// `MissionBrokerEntry`. A game text that must not be passed on to third parties. The
+    /// template states none.
+    #[schemars(extend("x-gameText" = true))]
+    pub(crate) description: LocalisedText<'a>,
     /// The GUID of the `MissionType` Record: the override of the sub contract, else of the
     /// contract, else of the handler, else the type of the template, else the type of the
     /// contract's `MissionBrokerEntry`; `null` when there is none.

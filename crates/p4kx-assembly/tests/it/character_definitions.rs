@@ -11,7 +11,7 @@ use p4kx_testkit::{
     DataForgeBuilder, TestEntity, TestEntry, TestModel, TestMtl, TestMtlMaterial, entity_schema,
 };
 
-const CHARACTER: &str = r#"<CharacterDefinition>
+pub(crate) const CHARACTER: &str = r#"<CharacterDefinition>
   <Model File="Objects\Test\rig_CHR.chr" LODRatio="40"/>
   <AttachmentList>
     <Attachment Type="CA_BONE" AName="Housing" BoneName="housing" Binding="Objects\Test\housing.cga"/>
@@ -19,7 +19,9 @@ const CHARACTER: &str = r#"<CharacterDefinition>
   </AttachmentList>
 </CharacterDefinition>"#;
 
-fn entries(definition: &str) -> Vec<TestEntry> {
+/// The Entries of a thruster whose geometry is the character definition `definition`; the
+/// skeleton file it names is not among them.
+pub(crate) fn entries(definition: &str) -> Vec<TestEntry> {
     let thruster = TestEntity::new(0x1, "TEST_Thruster", "entities/test_thruster.xml")
         .geometry("Objects/Test/thruster.cdf", None);
     let database = entity_schema(DataForgeBuilder::new()).record(thruster.record());
@@ -61,12 +63,15 @@ fn the_skin_of_a_character_definition_is_the_model_of_the_part() -> TestResult {
         .iter()
         .map(|issue| (issue.path(), issue.kind().code()))
         .collect();
-    assert_eq!(codes, [("", "attachments_left_out")]);
+    assert_eq!(
+        codes,
+        [("", "attachments_left_out"), ("", "skeleton_missing")]
+    );
     let IssueKind::AttachmentsLeftOut { files } = assembly.issues()[0].kind() else {
         return Err("the kind".into());
     };
     assert_eq!(files, &["Objects/Test/housing.cga".to_owned()]);
-    assert!(!assembly.issues()[0].kind().skips());
+    assert!(assembly.issues().iter().all(|issue| !issue.kind().skips()));
     Ok(())
 }
 

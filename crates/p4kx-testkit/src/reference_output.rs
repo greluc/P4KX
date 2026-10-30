@@ -15,6 +15,9 @@ pub const REFERENCE_STARBREAKER_VAR: &str = "P4KX_REF_STARBREAKER";
 /// The environment variable that names the ship matrix JSON saved by hand from the RSI website.
 pub const REFERENCE_SHIP_MATRIX_VAR: &str = "P4KX_REF_SHIP_MATRIX";
 
+/// The environment variable that names a folder of SCMDB data dumps saved by hand.
+pub const REFERENCE_SCMDB_VAR: &str = "P4KX_REF_SCMDB";
+
 /// Returns the folder of unp4k output named by `P4KX_REF_UNP4K`, `None` when the variable is
 /// unset or empty, so that the differential test returns early.
 #[must_use]
@@ -41,6 +44,13 @@ pub fn reference_starbreaker_path() -> Option<PathBuf> {
 #[must_use]
 pub fn reference_ship_matrix_path() -> Option<PathBuf> {
     path_of(REFERENCE_SHIP_MATRIX_VAR)
+}
+
+/// Returns the folder of SCMDB data dumps named by `P4KX_REF_SCMDB`, `None` when the variable is
+/// unset or empty, so that the development check skips.
+#[must_use]
+pub fn reference_scmdb_path() -> Option<PathBuf> {
+    path_of(REFERENCE_SCMDB_VAR)
 }
 
 fn path_of(variable: &str) -> Option<PathBuf> {

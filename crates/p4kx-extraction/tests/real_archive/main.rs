@@ -44,6 +44,8 @@ mod model_verification;
 mod models;
 mod portable_names;
 mod records;
+mod scmdb;
+mod scmdb_compare;
 mod second_uvs;
 mod skeletons;
 mod soc_chunks;

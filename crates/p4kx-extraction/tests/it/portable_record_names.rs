@@ -132,6 +132,32 @@ fn a_record_path_part_with_a_forbidden_character_is_escaped_without_collisions()
 }
 
 #[test]
+fn a_record_name_that_looks_like_an_escape_gives_way_to_the_escaped_path() -> TestResult {
+    let dir = tempfile::tempdir()?;
+
+    let report = export(
+        [
+            item(1, "%3C", "x/shared.xml"),
+            item(2, "Item.fine", "x/shared.xml"),
+            item(3, "Item.escaped", "x/shared/<.xml"),
+        ],
+        dir.path(),
+    )?;
+
+    assert!(report.is_complete(), "{report:?}");
+    assert_eq!(
+        files(dir.path())?,
+        [
+            format!("x/shared/%3C.{GUID_1}.xml"),
+            "x/shared/%3C.xml".to_owned(),
+            "x/shared/Item.fine.xml".to_owned(),
+        ],
+        "the Record alone at its path keeps the file; the shared Record adds its GUID"
+    );
+    Ok(())
+}
+
+#[test]
 fn a_record_path_part_no_escape_can_fit_goes_into_the_long_folder() -> TestResult {
     let dir = tempfile::tempdir()?;
     let long = format!("records/{}.xml", "<".repeat(100));

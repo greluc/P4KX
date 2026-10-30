@@ -9,7 +9,8 @@ use p4kx_dataforge::{DataForge, Record};
 use rayon::slice::ParallelSliceMut;
 
 use crate::RenameCause;
-use crate::portable_name::{OVERLONG_FOLDER, check_part, escape_record_path};
+use crate::part_escape::{OVERLONG_FOLDER, escape_record_path};
+use crate::portable_name::{check_part, fold};
 
 /// The file below the target folder that each Record of a DataForge is written to (ADR-0008).
 ///
@@ -262,14 +263,6 @@ fn shared_file(
 
 fn last_part(file: &str) -> Option<&str> {
     file.rsplit('/').next()
-}
-
-/// Returns `path` folded the way the file system of the target compares names: lower case,
-/// with `/` for `\`.
-pub(crate) fn fold(path: &str) -> impl Iterator<Item = char> + '_ {
-    path.chars()
-        .flat_map(char::to_lowercase)
-        .map(|c| if c == '\\' { '/' } else { c })
 }
 
 fn compare(left: Option<&str>, right: Option<&str>) -> Ordering {

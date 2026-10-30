@@ -5,8 +5,8 @@ use std::sync::Mutex;
 
 use p4kx_archive::Entry;
 
-use crate::case_claims::CaseClaims;
 use crate::folder_cache::FolderCache;
+use crate::written_paths::WrittenPaths;
 use crate::{ArchiveWatch, CancelToken, Progress};
 
 /// Counts the progress of one Extraction across worker threads and reports it in order.
@@ -16,7 +16,7 @@ pub(crate) struct Tracker<'a> {
     on_progress: Option<&'a (dyn Fn(Progress) + Sync)>,
     progress: Mutex<Progress>,
     pub(crate) folders: FolderCache,
-    pub(crate) case_claims: CaseClaims,
+    pub(crate) written: WrittenPaths,
 }
 
 impl<'a> Tracker<'a> {
@@ -36,7 +36,7 @@ impl<'a> Tracker<'a> {
                 ..Progress::default()
             }),
             folders: FolderCache::default(),
-            case_claims: CaseClaims::default(),
+            written: WrittenPaths::default(),
         }
     }
 

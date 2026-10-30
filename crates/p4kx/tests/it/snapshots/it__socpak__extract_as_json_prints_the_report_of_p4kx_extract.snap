@@ -8,7 +8,7 @@ expression: "serde_json::to_string_pretty(&value)?"
   "extracted": 3,
   "failed": [
     {
-      "error": "the path would leave the target folder",
+      "error": "the name \"..\" cannot be written: the name is a dot part",
       "path": "..\\escaped.txt"
     }
   ],

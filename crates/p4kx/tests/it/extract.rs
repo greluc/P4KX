@@ -173,7 +173,7 @@ fn extract_rejects_entry_paths_outside_the_target_with_exit_code_1() -> TestResu
             "extracted 1, skipped 0, failed 2, cancelled 0",
         ))
         .stderr(predicate::str::contains(
-            "failed ..\\..\\escaped.txt: the path would leave the target folder",
+            "failed ..\\..\\escaped.txt: the name \"..\" cannot be written: the name is a dot part",
         ))
         .stderr(predicate::str::contains(
             "failed C:\\drive.txt: the name \"C:\" cannot be written: the character ':' is not allowed in a file name",

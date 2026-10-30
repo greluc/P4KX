@@ -14,10 +14,11 @@ use crate::{ConversionError, NameRule, PathLimit, RecordExportReport};
 /// Why one Entry of an Extraction was not written.
 #[derive(Debug, Error)]
 pub enum ExtractionError {
-    /// The Entry path is absolute, has a drive prefix, names a device or would leave the target.
+    /// The path would leave the target folder, or a folder on the way is a link.
     #[error("the path would leave the target folder")]
     UnsafePath,
-    /// A part of the Entry path is not a file name valid on both Linux and Windows.
+    /// A part of the Entry path is not a file name valid on both Linux and Windows; an empty or
+    /// dot part, which could leave the target, is one.
     #[error("the name {part:?} cannot be written: {rule}")]
     InvalidName {
         /// The part of the path that breaks the rule.
@@ -25,12 +26,13 @@ pub enum ExtractionError {
         /// The rule it breaks.
         rule: NameRule,
     },
-    /// The full path of the file is longer than Windows or Linux accepts.
+    /// The path of the file or its folder is longer than Windows accepts, and so Linux.
     #[error(transparent)]
     PathTooLong(#[from] PathLimit),
-    /// An earlier Entry of the run is written to a path that differs from this one only in case,
-    /// which a case-insensitive file system cannot hold side by side.
-    #[error("the path differs only in case from the earlier Entry {earlier}")]
+    /// A file an earlier Entry of the run wrote differs from this path only in case, or is a file
+    /// where this path needs a folder or a folder where it is a file; a case-insensitive file
+    /// system cannot hold them side by side.
+    #[error("the path collides ignoring case with the earlier Entry {earlier}")]
     CaseCollision {
         /// The path of the earlier Entry.
         earlier: String,
@@ -99,6 +101,17 @@ pub enum ExtractionError {
 }
 
 impl ExtractionError {
+    /// Returns whether the error is about the path of the Entry, which every file of it shares.
+    pub(crate) const fn is_path_error(&self) -> bool {
+        matches!(
+            self,
+            Self::UnsafePath
+                | Self::InvalidName { .. }
+                | Self::PathTooLong(_)
+                | Self::CaseCollision { .. }
+        )
+    }
+
     /// Returns the error for a failed read of Entry data: a checksum mismatch when that is what
     /// the reader reported, otherwise [`Read`](Self::Read).
     pub(crate) fn read(source: io::Error) -> Self {

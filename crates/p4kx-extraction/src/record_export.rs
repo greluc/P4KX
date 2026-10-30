@@ -13,8 +13,8 @@ use crate::counting::holds_sized;
 use crate::dependent::split_dependent;
 use crate::entry_path::relative_path;
 use crate::folder_cache::FolderCache;
-use crate::portable_name::check_path_length;
-use crate::record_files::{RecordFiles, fold};
+use crate::portable_name::{check_path_length, fold};
+use crate::record_files::RecordFiles;
 use crate::record_format::RecordFileFormat;
 use crate::record_plan::RecordFilePlan;
 use crate::write::{create_temporary, read_existing_error, write_error};
@@ -129,8 +129,9 @@ pub(crate) fn write_records<'f, F: RecordFileFormat>(
         Selected::File(file) => *file,
         Selected::Taken(_) | Selected::Unsafe => "",
     }));
+    let absolute = std::path::absolute(target).unwrap_or_else(|_| target.to_path_buf());
     let writer = Writer {
-        target,
+        target: &absolute,
         policy: run.policy,
         annotations: run.annotations,
         stop: run.stop,
@@ -302,7 +303,7 @@ impl Writer<'_> {
         scratch: &mut Scratch<'f, F>,
     ) -> Result<RecordOutcome, RecordExportError> {
         let relative = relative_path(file)?;
-        check_path_length(self.target, &relative).map_err(ExtractionError::from)?;
+        check_path_length(&self.target.join(&relative)).map_err(ExtractionError::from)?;
         let name = relative.file_name().ok_or(ExtractionError::UnsafePath)?;
         let tree = scratch.trees.build(record)?;
         let errors = tree.error_count();

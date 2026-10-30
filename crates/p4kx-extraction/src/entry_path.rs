@@ -4,26 +4,20 @@
 use std::path::PathBuf;
 
 use crate::ExtractionError;
-use crate::portable_name::{NameRule, check_part, hex_digit};
+use crate::part_escape::hex_digit;
+use crate::portable_name::check_part;
 
-/// Returns the path below the target an Entry is written to, or why it is not written: a part
-/// that is empty, a dot part or a device name could leave the target ([`ExtractionError::UnsafePath`]), any other
-/// part must be a valid file name on Linux and Windows ([`ExtractionError::InvalidName`]).
+/// Returns the path below the target an Entry is written to, or the part that is no valid file
+/// name on Linux and Windows and the rule it breaks ([`ExtractionError::InvalidName`]); empty and
+/// dot parts, which could leave the target, are among them.
 pub(crate) fn relative_path(entry_path: &str) -> Result<PathBuf, ExtractionError> {
     let mut relative = PathBuf::new();
     for part in entry_path.split(['\\', '/']) {
-        match check_part(part) {
-            Ok(()) => relative.push(part),
-            Err(NameRule::Empty | NameRule::DotPart | NameRule::DeviceName) => {
-                return Err(ExtractionError::UnsafePath);
-            }
-            Err(rule) => {
-                return Err(ExtractionError::InvalidName {
-                    part: part.to_owned(),
-                    rule,
-                });
-            }
-        }
+        check_part(part).map_err(|rule| ExtractionError::InvalidName {
+            part: part.to_owned(),
+            rule,
+        })?;
+        relative.push(part);
     }
     Ok(relative)
 }
@@ -107,29 +101,18 @@ mod tests {
     }
 
     #[test]
-    fn paths_that_could_leave_the_target_are_unsafe() {
-        for path in [
-            "..",
-            "a\\..\\..\\b",
-            ".\\a",
-            "\\a",
-            "a\\\\b",
-            "",
-            "a\\NUL",
-            "nul.txt",
-            "COM\u{B9}",
-            "CONOUT$",
-        ] {
-            assert!(
-                matches!(relative_path(path), Err(ExtractionError::UnsafePath)),
-                "{path:?} is unsafe"
-            );
-        }
-    }
-
-    #[test]
     fn invalid_names_are_rejected_with_their_rule() {
         let cases = [
+            ("..", NameRule::DotPart),
+            ("a\\..\\..\\b", NameRule::DotPart),
+            (".\\a", NameRule::DotPart),
+            ("\\a", NameRule::Empty),
+            ("a\\\\b", NameRule::Empty),
+            ("", NameRule::Empty),
+            ("a\\NUL", NameRule::DeviceName),
+            ("nul.txt", NameRule::DeviceName),
+            ("COM\u{B9}", NameRule::DeviceName),
+            ("CONOUT$", NameRule::DeviceName),
             ("C:\\a", NameRule::ForbiddenCharacter(':')),
             ("a\\b:stream", NameRule::ForbiddenCharacter(':')),
             ("a\\b<c", NameRule::ForbiddenCharacter('<')),

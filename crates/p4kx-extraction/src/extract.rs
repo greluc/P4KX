@@ -111,9 +111,10 @@ fn run(
         return report;
     }
     let tracker = Tracker::new(entries, options.cancel, options.watch, options.progress);
+    let absolute = std::path::absolute(target).unwrap_or_else(|_| target.to_path_buf());
     let writer = EntryWriter {
         archive,
-        target,
+        target: &absolute,
         policy: options.policy,
         convert: options.convert,
         textures: options.textures,
@@ -127,23 +128,10 @@ fn run(
         .flatten();
     let (independent, dependent) =
         split_dependent(within(pool, || items(archive, entries, options, dataforge)));
-    let run = |buffers: &mut Buffers, item: Item<'_>| match item {
-        Item::Entry((index, entry)) => {
-            Ended::Entry((index, entry.path().to_owned(), writer.write(entry, buffers)))
-        }
-        Item::Texture(job) => writer.write_texture(&job, buffers),
-        Item::Sound(indexed) => writer.convert_sound_entry(
-            indexed,
-            buffers,
-            MAX_SOUND_LEN,
-            EntryWriter::try_write_sound,
-        ),
-        Item::Bank(indexed) => writer.convert_sound_entry(
-            indexed,
-            buffers,
-            MAX_SOUNDBANK_LEN,
-            EntryWriter::try_write_bank,
-        ),
+    let run = |buffers: &mut Buffers, item: Item<'_>| {
+        let ended = write_item(&writer, item, buffers);
+        writer.record_written(entries, &ended);
+        ended
     };
     let mut ended = run_parallel(independent, &run, pool, &|| tracker.should_stop());
     let mut buffers = Buffers::new();
@@ -165,6 +153,28 @@ fn run(
     report.records = records;
     report.archive_changed = options.watch.is_some_and(|watch| watch.check().is_err());
     report
+}
+
+/// Writes one item of the run and returns how it ended.
+fn write_item(writer: &EntryWriter<'_>, item: Item<'_>, buffers: &mut Buffers) -> Ended {
+    match item {
+        Item::Entry((index, entry)) => {
+            Ended::Entry((index, entry.path().to_owned(), writer.write(entry, buffers)))
+        }
+        Item::Texture(job) => writer.write_texture(&job, buffers),
+        Item::Sound(indexed) => writer.convert_sound_entry(
+            indexed,
+            buffers,
+            MAX_SOUND_LEN,
+            EntryWriter::try_write_sound,
+        ),
+        Item::Bank(indexed) => writer.convert_sound_entry(
+            indexed,
+            buffers,
+            MAX_SOUNDBANK_LEN,
+            EntryWriter::try_write_bank,
+        ),
+    }
 }
 
 /// Returns the report of a run that must not start: every Entry failed because `target` lies

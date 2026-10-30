@@ -58,6 +58,8 @@ fn an_entry_with_a_character_windows_forbids_is_reported_with_the_character() ->
         ("a\u{1}b.txt", NameRule::ForbiddenCharacter('\u{1}')),
         ("a\u{1F}b.txt", NameRule::ForbiddenCharacter('\u{1F}')),
         ("trailing.", NameRule::TrailingDotOrSpace),
+        ("con.txt", NameRule::DeviceName),
+        ("..", NameRule::DotPart),
     ];
     let mut names: Vec<&str> = cases.iter().map(|(name, _)| *name).collect();
     names.push("fine.txt");
@@ -122,6 +124,72 @@ fn entries_that_differ_only_in_case_are_a_collision_on_every_platform() -> TestR
             "{failure:?}"
         );
     }
+    Ok(())
+}
+
+fn case_variants(name: &str, count: usize) -> Vec<String> {
+    (0..count)
+        .map(|bits| {
+            name.chars()
+                .enumerate()
+                .map(|(at, character)| {
+                    if bits >> at & 1 == 1 {
+                        character.to_ascii_uppercase()
+                    } else {
+                        character
+                    }
+                })
+                .collect()
+        })
+        .collect()
+}
+
+#[test]
+fn many_case_colliding_entries_always_leave_the_first_one_written() -> TestResult {
+    let variants = case_variants("collide", 128);
+    let names: Vec<&str> = variants.iter().map(String::as_str).collect();
+    for _ in 0..5 {
+        let dir = tempfile::tempdir()?;
+
+        let report = run(dir.path(), &paths(&names))?;
+
+        assert_eq!(
+            written(dir.path())?,
+            ["collide"],
+            "the first Entry is written"
+        );
+        assert_eq!(report.failures().len(), 127);
+        assert!(
+            report.failures().iter().all(|failure| matches!(
+                failure.error(),
+                ExtractionError::CaseCollision { earlier } if earlier == "Data\\collide"
+            )),
+            "every later Entry names the first"
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn a_file_and_a_folder_that_differ_only_in_case_collide() -> TestResult {
+    let dir = tempfile::tempdir()?;
+
+    let report = run(dir.path(), &paths(&["A", "a\\x.txt", "B\\y.txt", "b"]))?;
+
+    assert_eq!(
+        written(dir.path())?,
+        ["A", "B"],
+        "the earlier Entries are written"
+    );
+    let earlier: Vec<_> = report
+        .failures()
+        .iter()
+        .map(|failure| match failure.error() {
+            ExtractionError::CaseCollision { earlier } => earlier.as_str(),
+            _ => "other",
+        })
+        .collect();
+    assert_eq!(earlier, ["Data\\A", "Data\\B\\y.txt"]);
     Ok(())
 }
 

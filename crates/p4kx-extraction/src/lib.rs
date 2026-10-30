@@ -13,7 +13,6 @@ mod archive_cause;
 mod bank;
 mod budget;
 mod buffers;
-mod case_claims;
 mod chunk_source;
 mod conversion_error;
 mod convert;
@@ -44,6 +43,7 @@ mod model_source;
 mod model_textures;
 mod options;
 mod output_file;
+mod part_escape;
 mod path_index;
 mod portable_name;
 mod query_export;
@@ -94,6 +94,7 @@ mod ui_svg;
 mod verify;
 mod watch;
 mod write;
+mod written_paths;
 
 pub use animation_listing::AnimationListing;
 pub use animation_set::{

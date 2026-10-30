@@ -50,6 +50,7 @@ impl Destination {
     /// already there.
     pub(crate) fn new(folder: PathBuf, name: &OsStr) -> Result<Self, ExtractionError> {
         let file = folder.join(name);
+        check_path_length(&file)?;
         let existing = match fs::symlink_metadata(&file) {
             Ok(metadata) => Some(metadata),
             Err(error) if error.kind() == io::ErrorKind::NotFound => None,
@@ -182,21 +183,12 @@ impl EntryWriter<'_> {
     }
 
     /// Creates the folder of `entry` below the target and returns where its file goes; fails when
-    /// the path is no valid name, too long for Windows or Linux, or differs only in case from the
-    /// path of an earlier Entry of the run.
+    /// the path is no valid name, too long for Windows or Linux, or collides ignoring case with a
+    /// file an earlier Entry of the run wrote.
     pub(crate) fn destination(&self, entry: &Entry) -> Result<Destination, ExtractionError> {
         let relative = self.relative_path(entry)?;
-        check_path_length(self.target, &relative)?;
-        if let Some(earlier) = self.tracker.case_claims.claim(&relative, entry.index()) {
-            return Err(ExtractionError::CaseCollision {
-                earlier: self
-                    .archive
-                    .entries()
-                    .get(earlier)
-                    .map(|entry| entry.path().to_owned())
-                    .unwrap_or_default(),
-            });
-        }
+        check_path_length(&self.target.join(&relative))?;
+        self.case_collision(&relative, entry)?;
         let name = relative.file_name().ok_or(ExtractionError::UnsafePath)?;
         let folder = self
             .tracker

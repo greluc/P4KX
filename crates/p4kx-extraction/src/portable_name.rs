@@ -4,7 +4,6 @@
 //! The one rule a file-name part of an Extraction or a Record export passes: valid on Linux and on
 //! Windows alike, on every platform (ADR-0248).
 
-use std::borrow::Cow;
 use std::path::Path;
 
 use thiserror::Error;
@@ -13,16 +12,13 @@ use thiserror::Error;
 /// 255 UTF-16 units of NTFS is the same number and never the tighter one.
 pub const MAX_PART_BYTES: usize = 255;
 
-/// The longest full path in UTF-16 units, with its terminating NUL, that Windows accepts without
+/// The longest file path in UTF-16 units, with its terminating NUL, that Windows accepts without
 /// long-path support (`MAX_PATH`).
-const WINDOWS_PATH_UNITS: usize = 260;
+const FILE_PATH_UNITS: usize = 260;
 
-/// The character that starts every escape written by [`escape_part`].
-const ESCAPE: char = '%';
-
-/// The folder that holds, one file per GUID, the Records whose file name no escaping can make
-/// valid.
-pub(crate) const OVERLONG_FOLDER: &str = "%long";
+/// The longest folder path in UTF-16 units, with its terminating NUL, that Windows creates
+/// without long-path support.
+const FOLDER_PATH_UNITS: usize = 248;
 
 /// The rule a name part breaks.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Error)]
@@ -48,19 +44,22 @@ pub enum NameRule {
     TooManyBytes(usize),
 }
 
-/// A full path longer than Windows opens without long-path support.
+/// A path longer than Windows opens or creates without long-path support.
 ///
-/// The limit of 260 UTF-16 units is tighter than the 4096 bytes (`PATH_MAX`) of Linux, which a
-/// path of at most 260 units, at most four bytes each, never reaches.
+/// The limits of 260 UTF-16 units for a file and 248 for a folder are tighter than the 4096 bytes
+/// (`PATH_MAX`) of Linux, which a path of at most 260 units, at most four bytes each, never
+/// reaches.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Error)]
-#[error("the full path is {units} UTF-16 units with its end, more than {WINDOWS_PATH_UNITS}")]
+#[error("the path is {units} UTF-16 units with its end, more than the {limit} Windows allows")]
 pub struct PathLimit {
     /// The length in UTF-16 units, counting the terminating NUL.
     pub units: usize,
+    /// The limit that was exceeded.
+    pub limit: usize,
 }
 
 /// Returns the first rule the name part `part` breaks, or `Ok` when it is a valid file name on
-/// Linux and Windows; runs in time linear in the length of `part`.
+/// Linux and Windows; runs in time linear in the length of `part` and allocates nothing.
 ///
 /// # Errors
 ///
@@ -86,7 +85,7 @@ pub fn check_part(part: &str) -> Result<(), NameRule> {
 
 /// Checks the length of a part. A character takes at least as many UTF-8 bytes as UTF-16 units,
 /// so the limit of 255 bytes also keeps a part within 255 UTF-16 units.
-const fn check_length(part: &str) -> Result<(), NameRule> {
+pub(crate) const fn check_length(part: &str) -> Result<(), NameRule> {
     if part.len() > MAX_PART_BYTES {
         return Err(NameRule::TooManyBytes(part.len()));
     }
@@ -94,124 +93,63 @@ const fn check_length(part: &str) -> Result<(), NameRule> {
 }
 
 /// Returns whether Windows forbids `character` in a file name, or it is a control character.
-const fn is_forbidden(character: char) -> bool {
+pub(crate) const fn is_forbidden(character: char) -> bool {
     matches!(
         character,
         '<' | '>' | ':' | '"' | '/' | '\\' | '|' | '?' | '*' | '\0'..='\u{1F}'
     )
 }
 
-fn is_device_name(part: &str) -> bool {
+/// Returns whether `part`, ignoring an extension, is a Windows device name.
+pub(crate) fn is_device_name(part: &str) -> bool {
+    const NAMES: [&str; 6] = ["CON", "PRN", "AUX", "NUL", "CONIN$", "CONOUT$"];
     let stem = part.split('.').next().unwrap_or(part).trim_end();
-    let upper = stem.to_ascii_uppercase();
-    if matches!(
-        upper.as_str(),
-        "CON" | "PRN" | "AUX" | "NUL" | "CONIN$" | "CONOUT$"
-    ) {
+    if NAMES.iter().any(|name| stem.eq_ignore_ascii_case(name)) {
         return true;
     }
-    let numbered = upper
-        .strip_prefix("COM")
-        .or_else(|| upper.strip_prefix("LPT"));
-    numbered.is_some_and(|number| {
-        let mut characters = number.chars();
-        matches!(
-            (characters.next(), characters.next()),
-            (Some('0'..='9' | '\u{B9}' | '\u{B2}' | '\u{B3}'), None)
-        )
-    })
+    let Some(prefix) = stem.get(..3) else {
+        return false;
+    };
+    if !(prefix.eq_ignore_ascii_case("COM") || prefix.eq_ignore_ascii_case("LPT")) {
+        return false;
+    }
+    let mut number = stem.get(3..).unwrap_or_default().chars();
+    matches!(
+        (number.next(), number.next()),
+        (Some('0'..='9' | '\u{B9}' | '\u{B2}' | '\u{B3}'), None)
+    )
 }
 
-/// Checks that `target` joined with `relative` stays within the path limits of Windows and Linux.
-pub(crate) fn check_path_length(target: &Path, relative: &Path) -> Result<(), PathLimit> {
-    let full = target.join(relative);
-    let units = full
+/// Checks that the absolute file path `file` and its folder stay within the path limits of
+/// Windows, and so of Linux.
+pub(crate) fn check_path_length(file: &Path) -> Result<(), PathLimit> {
+    check_units(file, FILE_PATH_UNITS)?;
+    file.parent()
+        .map_or(Ok(()), |folder| check_units(folder, FOLDER_PATH_UNITS))
+}
+
+fn check_units(path: &Path, limit: usize) -> Result<(), PathLimit> {
+    let units = path
         .as_os_str()
         .to_string_lossy()
         .chars()
         .map(char::len_utf16)
         .sum::<usize>()
         + 1;
-    if units > WINDOWS_PATH_UNITS {
-        return Err(PathLimit { units });
+    if units > limit {
+        return Err(PathLimit { units, limit });
     }
     Ok(())
 }
 
-/// Returns `part` as a valid file name that no other part maps to: the characters that break a
-/// rule, the trailing dot or space and the first letter of a device name as `%` and two upper-case
-/// hex digits, `%` as `%25`, an empty part as `%`.
-///
-/// Fails only when the escaped part is longer than a name may be.
-pub(crate) fn escape_part(part: &str) -> Result<Cow<'_, str>, NameRule> {
-    if check_part(part).is_ok() && !part.contains(ESCAPE) {
-        return Ok(Cow::Borrowed(part));
-    }
-    if part.is_empty() {
-        return Ok(Cow::Borrowed("%"));
-    }
-    let mut escaped = String::with_capacity(part.len());
-    for character in part.chars() {
-        if character == ESCAPE || is_forbidden(character) {
-            push_escape(&mut escaped, character);
-        } else {
-            escaped.push(character);
-        }
-    }
-    if let Some(last) = escaped.pop() {
-        if matches!(last, '.' | ' ') {
-            push_escape(&mut escaped, last);
-        } else {
-            escaped.push(last);
-        }
-    }
-    if is_device_name(&escaped)
-        && let Some(first) = escaped.chars().next()
-    {
-        let mut moved = String::with_capacity(escaped.len() + 2);
-        push_escape(&mut moved, first);
-        moved.push_str(escaped.get(first.len_utf8()..).unwrap_or_default());
-        escaped = moved;
-    }
-    check_length(&escaped)?;
-    Ok(Cow::Owned(escaped))
-}
-
-/// Returns the upper-case hex digit of the low four bits of `value`.
-pub(crate) fn hex_digit(value: u8) -> char {
-    b"0123456789ABCDEF"
-        .get(usize::from(value & 0x0F))
-        .copied()
-        .map_or('0', char::from)
-}
-
-/// Appends `%` and the two hex digits of `character`, which is ASCII wherever this is called.
-/// Returns the record path `path`, `/`-separated, with every part escaped by [`escape_part`], and
-/// the first rule a part broke when one had to change for a reason other than a `%`.
-///
-/// Different paths never give the same result. Fails when an escaped part is longer than a name
-/// may be.
-pub(crate) fn escape_record_path(path: &str) -> Result<(Cow<'_, str>, Option<NameRule>), NameRule> {
-    let unchanged = |part: &str| check_part(part).is_ok() && !part.contains(ESCAPE);
-    if path.split('/').all(unchanged) {
-        return Ok((Cow::Borrowed(path), None));
-    }
-    let mut escaped = String::with_capacity(path.len() + 8);
-    let mut broken = None;
-    for (position, part) in path.split('/').enumerate() {
-        if position > 0 {
-            escaped.push('/');
-        }
-        broken = broken.or_else(|| check_part(part).err());
-        escaped.push_str(&escape_part(part)?);
-    }
-    Ok((Cow::Owned(escaped), broken))
-}
-
-fn push_escape(text: &mut String, character: char) {
-    let byte = u8::try_from(character).unwrap_or(b'?');
-    text.push(ESCAPE);
-    text.extend([hex_digit(byte >> 4), hex_digit(byte & 0x0F)]);
+/// Returns `path` folded the way a case-insensitive file system compares names: Unicode simple
+/// lower case per character, with `/` for `\`. NTFS compares through its own upper-case table,
+/// which differs for a few characters such as dotless `ı`, so two names this folds apart can
+/// still collide there.
+pub(crate) fn fold(path: &str) -> impl Iterator<Item = char> + '_ {
+    path.chars()
+        .flat_map(char::to_lowercase)
+        .map(|c| if c == '\\' { '/' } else { c })
 }
 
 #[cfg(test)]
@@ -241,6 +179,8 @@ mod tests {
             "a b",
             "%41",
             "\u{7F}",
+            "co",
+            "é",
         ] {
             assert_eq!(check_part(part), Ok(()), "{part:?}");
         }
@@ -262,7 +202,7 @@ mod tests {
             "NUL",
             "nul.txt",
             "Con.tar.gz",
-            "aux ",
+            "aux .txt",
             "COM1",
             "lpt9.log",
             "COM\u{B9}",
@@ -270,7 +210,7 @@ mod tests {
             "CONOUT$",
             "com0",
         ] {
-            assert!(check_part(part).is_err(), "{part:?}");
+            assert_eq!(check_part(part), Err(NameRule::DeviceName), "{part:?}");
         }
         assert_eq!(check_part("COM10"), Ok(()));
         assert_eq!(check_part("console"), Ok(()));
@@ -315,86 +255,33 @@ mod tests {
     }
 
     #[test]
-    fn full_paths_over_a_platform_limit_are_named() {
-        let target = Path::new("out");
-        let half = "a".repeat(130);
-        assert_eq!(check_path_length(target, Path::new("a/b")), Ok(()));
+    fn a_file_path_over_260_units_or_a_folder_over_248_is_named() {
+        let short = Path::new("out").join("a").join("b");
+        assert_eq!(check_path_length(&short), Ok(()));
+        let long_file = Path::new(&"a".repeat(100))
+            .join("b".repeat(100))
+            .join("c".repeat(57));
+        assert_eq!(long_file.as_os_str().len(), 259);
+        assert_eq!(check_path_length(&long_file), Ok(()));
         assert_eq!(
-            check_path_length(target, &Path::new(&half).join(&half)),
+            check_path_length(&long_file.join("d")),
             Err(PathLimit {
-                units: 4 + 130 + 1 + 130 + 1
+                units: 262,
+                limit: 260
             })
         );
-        let part = "a".repeat(255);
-        assert_eq!(check_path_length(Path::new(""), Path::new(&part)), Ok(()));
-        assert!(check_path_length(Path::new("abcdefgh"), Path::new(&part)).is_err());
-    }
-
-    #[test]
-    fn escaping_leaves_valid_names_and_fixes_the_others() {
-        let cases = [
-            ("a.txt", "a.txt"),
-            ("a<b", "a%3Cb"),
-            ("a?b", "a%3Fb"),
-            ("a|b", "a%7Cb"),
-            ("a\tb", "a%09b"),
-            ("a%b", "a%25b"),
-            ("a.", "a%2E"),
-            ("a ", "a%20"),
-            (".", "%2E"),
-            ("..", ".%2E"),
-            ("", "%"),
-            ("CON", "%43ON"),
-            ("nul.txt", "%6Eul.txt"),
-        ];
-        for (part, expected) in cases {
-            assert_eq!(escape_part(part).as_deref(), Ok(expected), "{part:?}");
-            assert_eq!(check_part(expected), Ok(()), "{expected:?} is valid");
-        }
-    }
-
-    #[test]
-    fn escaping_never_maps_two_parts_to_one_name() {
-        let parts = [
-            "a<b", "a%3Cb", "a.", "a%2E", "CON", "%43ON", "", "%", "%25", "a%",
-        ];
-        let mut seen = std::collections::HashSet::new();
-        for part in parts {
-            let escaped = escape_part(part).map(Cow::into_owned);
-            assert!(
-                escaped.as_ref().is_ok_and(|name| seen.insert(name.clone())),
-                "{part:?}"
-            );
-        }
-    }
-
-    #[test]
-    fn record_paths_escape_part_by_part() {
+        let deep_folder = Path::new(&"a".repeat(120)).join("b".repeat(127)).join("f");
         assert_eq!(
-            escape_record_path("a/b.xml"),
-            Ok((Cow::Borrowed("a/b.xml"), None))
-        );
-        assert_eq!(
-            escape_record_path("a|b/c%d/").map(|(path, rule)| (path.into_owned(), rule)),
-            Ok((
-                "a%7Cb/c%25d/%".to_owned(),
-                Some(NameRule::ForbiddenCharacter('|'))
-            ))
-        );
-        assert_eq!(
-            escape_record_path("../x\\y").map(|(path, _)| path.into_owned()),
-            Ok(".%2E/x%5Cy".to_owned())
-        );
-        assert_eq!(
-            escape_record_path("50%/a").map(|(path, rule)| (path.into_owned(), rule)),
-            Ok(("50%25/a".to_owned(), None)),
-            "a percent sign alone is not a rule broken"
+            check_path_length(&deep_folder),
+            Err(PathLimit {
+                units: 120 + 1 + 127 + 1,
+                limit: 248
+            })
         );
     }
 
     #[test]
-    fn an_escaped_name_that_is_too_long_fails() {
-        let part = "<".repeat(100);
-        assert_eq!(escape_part(&part), Err(NameRule::TooManyBytes(300)));
+    fn folding_lowers_case_and_unifies_separators() {
+        assert_eq!(fold("Data\\Ä/X").collect::<String>(), "data/ä/x");
     }
 }

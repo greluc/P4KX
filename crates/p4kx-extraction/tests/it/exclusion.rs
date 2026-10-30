@@ -217,6 +217,15 @@ fn an_empty_exclude_is_refused() {
         Some(FilterError::EmptyExclusion),
         "an empty text matches every path"
     );
+    assert_eq!(
+        exclusion(&["  "]).err(),
+        Some(FilterError::EmptyExclusion),
+        "a blank text matches every path with a space"
+    );
+    assert!(
+        exclusion(&[" Sub"]).is_ok(),
+        "spaces around text stay literal"
+    );
 }
 
 #[test]

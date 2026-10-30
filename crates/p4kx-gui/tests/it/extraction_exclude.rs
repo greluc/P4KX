@@ -23,6 +23,12 @@ fn start(model: &mut Model, scope: ExtractionScope, exclude: &str, convert: bool
     model.submit_extraction(|| {})
 }
 
+/// Starts an Extraction of every shown Entry, which asks for confirmation, and confirms it.
+fn confirmed_start(model: &mut Model, exclude: &str, convert: bool) {
+    start(model, ExtractionScope::Shown, exclude, convert);
+    model.submit_extraction(|| {});
+}
+
 fn textures() -> Vec<TestEntry> {
     let mut entries = SplitDds::new(TestTextureFormat::LegacyDxt1, 16, 8)
         .split(2)
@@ -126,12 +132,34 @@ fn a_filter_that_is_not_accepted_does_not_start() -> TestResult {
 }
 
 #[test]
+fn a_line_of_spaces_is_refused_while_an_empty_line_is_ignored() -> TestResult {
+    let (_dir, mut model, out) = setup()?;
+    model.set_extraction_folder(Some(out));
+    check(&mut model, &["readme.txt"])?;
+
+    let started = start(&mut model, ExtractionScope::Selected, "ship\n   \n", false);
+
+    assert!(
+        !started,
+        "a blank line would leave out every path with a space"
+    );
+    let setup = model.extraction_setup_mut().ok_or("the setup stays open")?;
+    assert_eq!(
+        setup.exclusion().err(),
+        Some(p4kx_extraction::FilterError::EmptyExclusion),
+        "the problem is named"
+    );
+    setup.set_exclude("ship\n\n".to_owned());
+    assert!(setup.exclusion().is_ok(), "empty lines are ignored");
+    Ok(())
+}
+
+#[test]
 fn an_excluded_texture_header_takes_its_parts_with_it() -> TestResult {
     let (_dir, mut model, out) = setup_with(textures())?;
     model.set_extraction_folder(Some(out.clone()));
 
-    start(&mut model, ExtractionScope::Shown, "panel_diff", true);
-    model.submit_extraction(|| {});
+    confirmed_start(&mut model, "panel_diff", true);
     let summary = finished(&mut model)?;
 
     assert_eq!(summary.extracted(), 1, "only readme.txt");
@@ -145,8 +173,7 @@ fn an_excluded_part_of_a_kept_texture_is_counted_and_the_texture_is_still_built(
     let (_dir, mut model, out) = setup_with(textures())?;
     model.set_extraction_folder(Some(out.clone()));
 
-    start(&mut model, ExtractionScope::Shown, "*.dds.?", true);
-    model.submit_extraction(|| {});
+    confirmed_start(&mut model, "*.dds.?", true);
     let summary = finished(&mut model)?;
 
     assert_eq!(summary.excluded_parts(), 2, "both parts are named");
@@ -163,8 +190,7 @@ fn excluded_parts_are_not_reported_without_a_conversion() -> TestResult {
     let (_dir, mut model, out) = setup_with(textures())?;
     model.set_extraction_folder(Some(out.clone()));
 
-    start(&mut model, ExtractionScope::Shown, "*.dds.?", false);
-    model.submit_extraction(|| {});
+    confirmed_start(&mut model, "*.dds.?", false);
     let summary = finished(&mut model)?;
 
     assert_eq!(

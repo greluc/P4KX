@@ -25,8 +25,10 @@ Decided for issue #857. Extends the Filter of CONTEXT.md.
   line of the summary of the GUI Extraction. Without a Conversion the part is simply not written
   and nothing is reported.
 - Filter text from outside is bounded by `Filter::parse`: at most 1024 bytes and 32 wildcards per
-  Filter, and `Exclusion::parse` takes at most 64 Filters and refuses an empty one, which would
-  leave out every Entry. Matching is a single left-to-right pass that resumes only at the most
+  Filter, and `Exclusion::parse` takes at most 64 Filters and refuses an empty or blank one,
+  which would leave out every Entry or every Entry with a space in its path. The GUI takes one
+  Filter per line, ignores empty lines and refuses lines of spaces; its field takes at most four
+  times the Filter limit in characters and grows with its text inside the scrolling dialog. Matching is a single left-to-right pass that resumes only at the most
   recent `*`, so its work per path is at most the product of the path and Filter lengths; no
   regular expression is built and nothing backtracks over earlier wildcards. `p4kx extract`,
   `p4kx search`, `p4kx socpak extract` and the GUI use `parse`; the other callers keep `new`.

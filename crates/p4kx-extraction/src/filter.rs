@@ -33,8 +33,9 @@ pub enum FilterError {
         /// The number of `*` and `?` in the text.
         count: usize,
     },
-    /// An exclusion Filter is empty and would leave out every Entry.
-    #[error("an exclusion Filter is empty and would leave out every Entry")]
+    /// An exclusion Filter is empty or only whitespace, which would leave out every Entry or
+    /// every Entry with a space in its path.
+    #[error("an exclusion Filter is empty or blank, which would leave out nearly every Entry")]
     EmptyExclusion,
     /// More exclusion Filters were given than [`MAX_EXCLUSIONS`](crate::MAX_EXCLUSIONS).
     #[error(

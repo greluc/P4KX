@@ -13,6 +13,7 @@ use p4kx_gui::{Extraction, ExtractionStatus, Language, Model, ui};
 use p4kx_testkit::{ArchiveBuilder, DataForgeBuilder, TestEntry, TestRecord, TestStruct, TestType};
 use tempfile::TempDir;
 
+use crate::common::settle;
 use crate::waiting::{RunQuiet, wait_for_model};
 
 type TestResult = Result<(), Box<dyn Error>>;
@@ -86,15 +87,15 @@ fn run(
         model.browser().is_some()
     })?;
     harness.get_by_label("Extract shown…").click();
-    harness.run_steps(8);
+    settle(&mut harness);
     harness.get_by_label("Existing folder").click();
-    harness.run_steps(8);
+    settle(&mut harness);
     if skipping {
         harness.get_by_label("Skip").click();
-        harness.run_steps(8);
+        settle(&mut harness);
     }
     harness.get_by_label("Extract").click();
-    harness.run_steps(8);
+    settle(&mut harness);
     harness.get_by_label("Extract whole Archive").click();
     wait_for_model(&mut harness, "the Extraction summary", |model| {
         model

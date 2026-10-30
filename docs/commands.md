@@ -27,7 +27,7 @@ The first argument of nearly every command is the path of a `Data.p4k` Archive, 
   its parts. With `--exclude`, a search that finds nothing is invalid input (exit 2) and the error
   says whether the Filter matched none or the exclusion left out all it matched. `--json` lists the
   exclusion Filters as `exclude`. A Filter is at most 1024 bytes with at most 32 `*` and `?`; an
-  empty exclusion Filter is refused.
+  empty or blank exclusion Filter is refused.
 - `p4kx grep <archive> <text> [--in records,loc,entries] [--filter <filter>] [--lang <language>,…]
   [--limit <n>] [--per-item <n>] [--format table|json]` finds a text in the contents: in the string,
   localisation key and enum values of all Records (with the field path), in the texts of each
@@ -105,7 +105,7 @@ The first argument of nearly every command is the path of a `Data.p4k` Archive, 
   gives their number. A pair that selects nothing is invalid input (exit 2), and the error says
   whether the Filter matched none (`no Entry matches …`) or the exclusion left out all it matched
   (`the exclusion Filters leave out all N Entries that … matches`). A Filter longer than 1024 bytes
-  or with more than 32 `*` and `?`, an empty exclusion Filter and more than 64 of them are invalid
+  or with more than 32 `*` and `?`, an empty or blank exclusion Filter and more than 64 of them are invalid
   input too.
   `--threads <n>` limits the worker threads (default one per logical processor); more than about four rarely help on one disk (docs/performance.md).
 - `p4kx info <archive>` prints the Channel, the Build (branch, version, change number, BuildId)

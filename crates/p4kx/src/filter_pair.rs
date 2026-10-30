@@ -7,7 +7,7 @@ use anyhow::Result;
 use p4kx_extraction::{Archive, Entry, Exclusion, Filter, TextureGroups};
 use thiserror::Error;
 
-use crate::extract::NoMatch;
+use crate::no_match::NoMatch;
 
 /// An include Filter whose every match an exclusion Filter leaves out.
 #[derive(Debug, Error)]

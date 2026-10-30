@@ -145,14 +145,13 @@ impl Model {
         let Some((source, excluded_parts)) = source.filter(|(source, _)| source.len() > 0) else {
             return false;
         };
-        let Some(mut request) = self
+        let Some(request) = self
             .extraction_setup
             .as_ref()
-            .and_then(|setup| setup.request(source))
+            .and_then(|setup| setup.request(source, excluded_parts))
         else {
             return false;
         };
-        request.excluded_parts = excluded_parts;
         self.extraction_folder = Some(request.folder.clone());
         self.extraction_conversion = request.convert;
         self.extraction_textures = request.textures;

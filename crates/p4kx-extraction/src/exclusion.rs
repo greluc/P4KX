@@ -58,7 +58,7 @@ impl Exclusion {
                 return Err(FilterError::TooManyExclusions { count });
             }
             let text = text.as_ref();
-            if text.is_empty() {
+            if text.trim().is_empty() {
                 return Err(FilterError::EmptyExclusion);
             }
             filters.push(Filter::parse(text)?);

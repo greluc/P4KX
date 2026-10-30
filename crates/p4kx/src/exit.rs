@@ -25,12 +25,12 @@ use crate::dcb_query::{InvalidQuery, JsonNeedsJsonFormat, OutputIsArchive, Unrea
 use crate::dcb_refs::{JsonWithTable, UnknownRecord};
 use crate::dcb_tags::UnknownTag;
 use crate::entity_glb::GlbOutputIsArchive;
-use crate::extract::NoMatch;
 use crate::filter_pair::ExcludedAll;
 use crate::grep::EmptySearchText;
 use crate::interior_glb::InteriorOutputIsArchive;
 use crate::key::InvalidKey;
 use crate::loc::{LanguageNotInArchive, NoLanguages};
+use crate::no_match::NoMatch;
 use crate::wwise::{UnknownAudioLanguage, UnknownTrigger};
 use crate::{model, texture};
 use p4kx_render::OffscreenError;
@@ -49,8 +49,8 @@ pub(crate) const DIFFERENCES: u8 = 1;
 /// neither Archive contains), a file or geometry companion that does not exist, a mip level the
 /// texture, a chunk the chunk file or a LOD the model does not have, has a Filter that matches no
 /// Entry or Record, has Filter text that is too long or has too many wildcards, an empty
-/// exclusion Filter, or exclusion Filters that leave out every Entry the Filter matches, names an output that is one of its inputs or lies inside a Star Citizen
-/// installation, names a package output folder that exists and holds something else than an
+/// exclusion Filter, or exclusion Filters that leave out every Entry the Filter matches, names an
+/// output that is one of its inputs or lies inside a Star Citizen installation, names a package output folder that exists and holds something else than an
 /// earlier package, names an armour `--loadout` that is neither an Entity nor an XML Loadout that
 /// can be read, has an invalid Query or a Query or field-statistics output that does not fit
 /// --json, names a Loadout change (`--exclude`, `--replace`) that is malformed, names a port the
@@ -95,9 +95,9 @@ pub(crate) const EXIT_CODES_HELP: &str = "Exit codes:
      Entities cannot be looked up (the triggers are still listed); compare: the Archives or the
      --diff Entry differ; chf diff: the CHF files differ
   2  invalid input: bad arguments, an Entry path the Archive does not contain (for --diff:
-     neither Archive contains), a Filter that matches no Entry or Record or whose --exclude Filters leave nothing, Filter text that is
-     too long or has too many wildcards, a Channel path that
-     does not exist or was never added, a texture, sound, soundbank, chunk file, UI movie
+     neither Archive contains), a Filter that matches no Entry or Record or whose --exclude
+     Filters leave nothing, Filter text that is too long or has too many wildcards, a Channel
+     path that does not exist or was never added, a texture, sound, soundbank, chunk file, UI movie
      file, model or geometry companion that does not exist, a mip level the texture, a chunk
      the chunk file or a LOD the model does not have, an output that is one of its inputs or
      lies inside a Star Citizen installation (the tool never writes there), a package folder

@@ -231,7 +231,7 @@ impl ExtractionSetup {
         self.confirmation = Some(confirmation);
     }
 
-    pub(crate) fn request(&self, source: Source) -> Option<Request> {
+    pub(crate) fn request(&self, source: Source, excluded_parts: usize) -> Option<Request> {
         if self.refusal.is_some() {
             return None;
         }
@@ -246,7 +246,7 @@ impl ExtractionSetup {
             convert: self.convert,
             textures: self.textures,
             audio: self.audio,
-            excluded_parts: 0,
+            excluded_parts,
         })
     }
 }

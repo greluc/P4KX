@@ -24,7 +24,7 @@ use p4kx_testkit::{ArchiveBuilder, TestEntry};
 type TestResult = Result<(), Box<dyn Error>>;
 
 const DANGER: [u8; 3] = [0xA3, 0x00, 0x0A];
-const SIZE: [f32; 2] = [1100.0, 800.0];
+const SIZE: [f32; 2] = [1100.0, 1000.0];
 
 fn save(name: &str, width: u32, height: u32, image: &[u8]) -> TestResult {
     let Some(folder) = std::env::var_os("P4KX_RENDER_DIR").map(PathBuf::from) else {
@@ -128,6 +128,15 @@ fn the_exclusion_field_is_drawn_and_turns_red_for_a_filter_that_is_not_accepted(
             &mut harness,
             &format!("extraction-exclude-convert-{tag}.png"),
         )?;
+        if language == Language::BritishEnglish {
+            for foot in ["Close", "Extract"] {
+                let bottom = harness.get_by_label(foot).rect().max.y;
+                assert!(
+                    bottom <= SIZE[1],
+                    "{foot} stays in the foot of the window: {bottom}"
+                );
+            }
+        }
 
         assert_eq!(valid, plain, "a valid Filter draws nothing red");
         assert!(

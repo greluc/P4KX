@@ -146,13 +146,13 @@ pub(super) fn group_label(ui: &mut Ui, text: &str) {
 
 fn choices(ui: &mut Ui, model: &Model, setup: &mut ExtractionSetup) -> Option<Action> {
     let texts = model.texts();
-    let action = frames::scrolling_body(ui, "extraction-setup-body", |ui| {
+    let (action, exclusion_accepted) = frames::scrolling_body(ui, "extraction-setup-body", |ui| {
         choice_groups(ui, model, setup)
     });
     let ready = setup.folder().is_some()
         && setup.refusal().is_none()
         && model.scope_len(setup.scope()) > 0
-        && setup.exclusion().is_ok();
+        && exclusion_accepted;
     let pressed = foot(ui, texts, (T::Start, ready), T::Close);
     action.or(match pressed {
         Some(true) => Some(Action::Submit),
@@ -162,10 +162,15 @@ fn choices(ui: &mut Ui, model: &Model, setup: &mut ExtractionSetup) -> Option<Ac
 }
 
 /// Shows the scope, exclusion, target and Conversion choices; returns the action a control asked
-/// for.
-fn choice_groups(ui: &mut Ui, model: &Model, setup: &mut ExtractionSetup) -> Option<Action> {
+/// for, and whether the exclusion text is accepted.
+fn choice_groups(
+    ui: &mut Ui,
+    model: &Model,
+    setup: &mut ExtractionSetup,
+) -> (Option<Action>, bool) {
     let texts = model.texts();
     let mut action = None;
+    let mut exclusion_accepted = true;
     group_label(ui, &texts.get(T::ScopeHeading));
     if let ExtractionScope::Changes(side) = setup.scope() {
         comparison_extraction::scope(ui, model, side);
@@ -177,7 +182,7 @@ fn choice_groups(ui: &mut Ui, model: &Model, setup: &mut ExtractionSetup) -> Opt
                 setup.set_scope(scope);
             }
         }
-        extraction_exclude::show(ui, texts, setup);
+        exclusion_accepted = extraction_exclude::show(ui, texts, setup);
     }
     ui.add_space(MODAL_GROUP_GAP);
     group_label(ui, &texts.get(T::TargetHeading));
@@ -202,7 +207,7 @@ fn choice_groups(ui: &mut Ui, model: &Model, setup: &mut ExtractionSetup) -> Opt
     });
     refusal_notice(ui, texts, setup.refusal());
     writing(ui, model, setup);
-    action
+    (action, exclusion_accepted)
 }
 
 /// Shows the name of a new folder or the Conflict policy for an existing one, then the

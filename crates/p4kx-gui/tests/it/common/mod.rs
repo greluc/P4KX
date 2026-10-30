@@ -8,6 +8,7 @@ use std::error::Error;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use egui_kittest::Harness;
 use p4kx_gui::{ExtractionScope, ExtractionStatus, ExtractionSummary, Language, Model, TargetKind};
 use p4kx_testkit::{ArchiveBuilder, TestEntry, write_build_manifest};
 use tempfile::TempDir;
@@ -42,6 +43,11 @@ fn opened(archive: &Path) -> Result<Model, Box<dyn Error>> {
         |model| format!("failure {:?}", model.failure()),
     )?;
     Ok(model)
+}
+
+/// Runs the window until a modal that sizes itself from its content has taken its place.
+pub(crate) fn settle(harness: &mut Harness<'_, Model>) {
+    harness.run_steps(8);
 }
 
 /// Opens an Archive of `entries` and creates an empty folder `out` next to it.

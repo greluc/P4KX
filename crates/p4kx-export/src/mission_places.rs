@@ -124,25 +124,4 @@ impl<'s, 'f> Places<'s, 'f> {
             })
             .collect()
     }
-
-    /// Returns the pickup places of `levels`; when there are none, those of the single starmap
-    /// object `broker_location` (the location of the contract's broker entry).
-    pub(crate) fn pickup_or_broker(
-        &self,
-        index: &MissionIndex<'f>,
-        levels: &[&Where],
-        broker_location: Option<Guid>,
-    ) -> Vec<PickupPlace<'f>> {
-        let pickup = self.pickup(index, levels);
-        match broker_location {
-            Some(location) if pickup.is_empty() => {
-                let at_broker = Where {
-                    localities: Vec::new(),
-                    locations: vec![location],
-                };
-                self.pickup(index, &[&at_broker])
-            }
-            _ => pickup,
-        }
-    }
 }

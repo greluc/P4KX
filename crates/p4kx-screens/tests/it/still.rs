@@ -87,6 +87,7 @@ const fn request(format: StillFormat) -> StillRequest<'static> {
     StillRequest {
         screen: CANVAS,
         brand: None,
+        variables: &[],
         raster: RasterOptions {
             size: CanvasSize::Stage,
             background: Background::Transparent,

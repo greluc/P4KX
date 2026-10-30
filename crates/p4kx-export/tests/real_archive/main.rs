@@ -9,6 +9,7 @@ mod real_archive_catalog_ships;
 mod real_archive_commodity_refining;
 mod real_archive_compression;
 mod real_archive_contract_cooldowns;
+mod real_archive_contract_facts;
 mod real_archive_contracts;
 mod real_archive_crafters;
 mod real_archive_crafting;

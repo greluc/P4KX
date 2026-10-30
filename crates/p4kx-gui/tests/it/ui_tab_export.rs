@@ -75,6 +75,7 @@ fn screen_by_library(
     let request = StillRequest {
         screen: MFD,
         brand: Some("test"),
+        variables: &[],
         raster: STAGE,
         format,
     };

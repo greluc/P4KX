@@ -224,6 +224,31 @@ fn only_a_reference_of_type_tag_may_carry_a_tag_path() -> TestResult {
 }
 
 #[test]
+fn a_dangling_reference_is_an_error_with_the_guid_and_older_errors_stay_valid() -> TestResult {
+    let validator = jsonschema::draft202012::new(&schema()?)?;
+    let written = written_records(&database())?;
+    let ship = written
+        .iter()
+        .find(|record| record["$name"] == "Ship.Avenger")
+        .ok_or("the ship")?;
+    let reason = "the Reference refers to the Record 00000000-0000-0000-0000-000000000077, \
+                  which does not exist";
+
+    assert_eq!(
+        ship["parts"][2],
+        json!({"error": reason, "guid": "00000000-0000-0000-0000-000000000077"}),
+        "the reason and the GUID of the missing Record"
+    );
+    let mut older_export = ship.clone();
+    older_export["parts"][2] = json!({"error": reason});
+    assert!(
+        validator.is_valid(&older_export),
+        "an error without guid is valid"
+    );
+    Ok(())
+}
+
+#[test]
 fn the_schema_rejects_what_the_export_never_writes() -> TestResult {
     let validator = jsonschema::draft202012::new(&schema()?)?;
     let valid = json!({
@@ -261,8 +286,11 @@ fn the_schema_rejects_what_the_export_never_writes() -> TestResult {
     let mut nested_guid = valid.clone();
     nested_guid["spare"] =
         json!({"$type": "Wheel", "$guid": "cbee34fd-6441-4000-b99f-924f7f26e19f"});
-    let mut bad_error = valid;
+    let mut bad_error = valid.clone();
     bad_error["maker"] = json!({"error": "x", "more": 1});
+    let mut upper_case_dangling = valid;
+    upper_case_dangling["maker"] =
+        json!({"error": "x", "guid": "50E8A9F6-F956-4000-8ACE-7C0CA9A91F5D"});
 
     for (name, document) in [
         ("no $guid", no_guid),
@@ -271,6 +299,10 @@ fn the_schema_rejects_what_the_export_never_writes() -> TestResult {
         ("Reference without path and type", half_reference),
         ("unknown $ key", unknown_key),
         ("error with more keys", bad_error),
+        (
+            "dangling Reference with an upper-case GUID",
+            upper_case_dangling,
+        ),
         ("$guid in a nested struct", nested_guid),
     ] {
         assert!(!validator.is_valid(&document), "{name} is rejected");

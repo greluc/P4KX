@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-//! One contract with a pickup place, a reputation gain and a hauling order, and a cargo manifest.
+//! One contract with a pickup place, a reputation gain, the contract facts and a hauling order,
+//! and a cargo manifest.
 
 use serde_json::json;
 
@@ -18,7 +19,7 @@ pub(super) fn contracts() -> serde_json::Value {
         "scopeName": "faction",
         "amount": 200
     }]);
-    json!([{
+    let mut entry = json!({
         "guid": "20000000-0000-4000-8000-000000000001",
         "subContractGuid": "30000000-0000-4000-8000-000000000002",
         "recordGuid": "10000000-0000-4000-8000-000000000001",
@@ -29,6 +30,7 @@ pub(super) fn contracts() -> serde_json::Value {
         "notForRelease": false,
         "workInProgress": null,
         "title": {"key": "@title_a", "en": "Deliver Scrap to [LOCATION]", "de": null},
+        "description": {"key": "@desc_handler", "en": "Wanted", "de": null},
         "missionTypeGuid": "50000000-0000-4000-8000-000000000001",
         "missionType": {"key": "@type_delivery", "en": "Delivery", "de": null},
         "contractor": {"key": null, "en": null, "de": null},
@@ -55,8 +57,33 @@ pub(super) fn contracts() -> serde_json::Value {
         "personalCooldownTimeVariation": 60.0,
         "abandonedCooldownTime": 30.0,
         "abandonedCooldownTimeVariation": null,
+        "fixedRewards": [{"currency": "UEC", "amount": 40000, "max": 0, "plusBonuses": false}],
         "haulingOrders": orders()
-    }])
+    });
+    if let (Some(entry), Some(facts)) = (entry.as_object_mut(), facts().as_object()) {
+        entry.extend(facts.clone());
+    }
+    json!([entry])
+}
+
+fn facts() -> serde_json::Value {
+    json!({
+        "timeToComplete": 20.0,
+        "buyInAmount": 0,
+        "canBeShared": {"value": true, "layer": "template"},
+        "illegal": {"value": false, "layer": "contract"},
+        "onceOnly": {"value": true, "layer": "subContract"},
+        "maxPlayersPerInstance": {"value": 1, "layer": "handler"},
+        "availableInPrison": null,
+        "canReacceptAfterAbandoning": {"value": true, "layer": "handler"},
+        "canReacceptAfterFailing": null,
+        "hideInMobiGlas": null,
+        "requiredIntros": [{
+            "level": "handler",
+            "tagGuid": "90000000-0000-4000-8000-000000000002",
+            "introContracts": ["20000000-0000-4000-8000-000000000001"]
+        }]
+    })
 }
 
 fn orders() -> serde_json::Value {

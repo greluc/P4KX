@@ -29,9 +29,13 @@ mod dependent;
 mod entry_content;
 mod entry_path;
 mod entry_tree;
+mod exclusion;
 mod extract;
 mod filter;
 mod folder_cache;
+pub mod hirc_select;
+pub mod hirc_view;
+mod hirc_view_build;
 mod loaded_dataforge;
 mod localization;
 mod localization_set;
@@ -116,8 +120,9 @@ pub use entry_content::{
     read_text,
 };
 pub use entry_tree::{EntryTree, Folder, FolderId};
+pub use exclusion::{Exclusion, LeftOut, MAX_EXCLUSIONS};
 pub use extract::extract;
-pub use filter::Filter;
+pub use filter::{Filter, FilterError, MAX_FILTER_LEN, MAX_FILTER_WILDCARDS};
 pub use loaded_dataforge::{DataForgeStopped, LoadedDataForge};
 pub use localization::{LocalizationEntry, LocalizationLoadError};
 pub use localization_set::{LocalizationNote, LocalizationSet};
@@ -176,15 +181,18 @@ pub use p4kx_guard::{
 pub use p4kx_localization::{
     GlobalIni, IniEncoding, IniText, Language, LocalizationError, Lookup, MAX_GLOBAL_INI_KEYS,
     MAX_GLOBAL_INI_SIZE, OwnedTextSet, PLACEHOLDER_KEYS, ParseLanguageError, TextSet,
-    decode_line_breaks, is_placeholder_key,
+    decode_line_breaks, display_text, is_placeholder_key,
 };
 pub use p4kx_model as model;
 pub use p4kx_texture::{
     BlockLayout, DdsHeader, DxgiFormat, HdrImage, MergeReport, Mip, RgbaImage, TextureError,
     TextureFormat,
 };
+pub use part_escape::escape_part;
 pub use path_index::{PathIndex, PathKeys};
-pub use portable_name::{MAX_PART_BYTES, NameRule, PathLimit, check_part, check_path_length};
+pub use portable_name::{
+    MAX_PART_BYTES, NameRule, PathLimit, check_part, check_path_length, fold_name,
+};
 pub use query_export::{
     QUERY_PAGE_SIZE, QueryExport, QueryExportError, QueryExportOptions, export_query, is_same_file,
 };

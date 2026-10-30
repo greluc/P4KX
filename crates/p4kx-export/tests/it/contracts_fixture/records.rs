@@ -3,14 +3,14 @@
 
 use p4kx_testkit::{DataForgeBuilder, TestInstance, TestRecord, TestValue};
 
-use super::lookups::legacy;
+use super::lookups::{amount, bounty_params, empty_payout, legacy, payout};
 use super::prerequisites::{locality, location, standing_prerequisite};
 use super::{
-    AFFINITY, BOUNTY, BROKER, CONTRACT_A, CONTRACT_B, CONTRACT_C, CONTRACT_D, CONTRACT_DEV,
-    CONTRACT_E, CONTRACT_F, CONTRACT_G, CONTRACT_H, CONTRACT_I, ESCORT, FACTION, FACTION_SCOPE,
-    GENERATOR, GENERATOR_COPY, GENERATOR_DEV, LOC_A, LOC_B, LOSS, MISSING_TEMPLATE, OBJ_PLANET,
-    ORGANIZATION, PLAIN_TEMPLATE, RANK_FIFTY, RANK_TWO_HUNDRED, SOLO_ORGANIZATION, STRAY_TEMPLATE,
-    SUB_ONE, SUB_TWO, TEMPLATE,
+    AFFINITY, BROKER, CONTRACT_A, CONTRACT_B, CONTRACT_C, CONTRACT_D, CONTRACT_DEV, CONTRACT_E,
+    CONTRACT_F, CONTRACT_G, CONTRACT_H, CONTRACT_I, ESCORT, FACTION, FACTION_SCOPE, GENERATOR,
+    GENERATOR_COPY, GENERATOR_DEV, LOC_A, LOC_B, LOSS, MISSING_TEMPLATE, OBJ_PLANET, ORGANIZATION,
+    PLAIN_TEMPLATE, RANK_FIFTY, RANK_TWO_HUNDRED, SOLO_ORGANIZATION, STRAY_TEMPLATE, SUB_ONE,
+    SUB_TWO, TEMPLATE,
 };
 
 pub(super) const fn reference(guid: u128) -> TestValue {
@@ -80,15 +80,6 @@ fn overrides(
                 TestValue::Array(title.map(|key| param("Title", key)).into_iter().collect()),
             )
             .value("propertyOverrides", TestValue::Array(properties)),
-    )
-}
-
-fn amount(scope: u128, reward: u128) -> TestValue {
-    TestValue::Struct(
-        TestInstance::new("ReputationAmount")
-            .value("factionReputation", reference(FACTION))
-            .value("reputationScope", reference(scope))
-            .value("reward", reference(reward)),
     )
 }
 
@@ -209,6 +200,9 @@ fn delivery_contract() -> TestInstance {
                 [false, false, true, false, false],
                 vec![amount(FACTION_SCOPE, LOSS)],
             ),
+            payout([true, false, false, false, false], 40_000),
+            payout([false, true, false, false, false], 1_000),
+            empty_payout([true, false, false, false, false]),
             TestValue::Struct(TestInstance::new("ContractResult_CompletionTags")),
         ]),
     )
@@ -239,7 +233,7 @@ fn bounty_handler() -> TestValue {
         .value("template", reference(TEMPLATE));
     handler(
         "Bounty_Career",
-        overrides(Some("@title_handler"), Some(BOUNTY), Vec::new()),
+        bounty_params(),
         vec![TestValue::Struct(bounty)],
         vec![TestValue::Struct(leftover), TestValue::Struct(without_id)],
         0,

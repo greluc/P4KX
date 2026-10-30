@@ -13,6 +13,7 @@ mod dataforge;
 mod dataforge_conversion;
 mod dataforge_file;
 mod entry_tree;
+mod exclusion;
 mod extraction;
 mod filter;
 mod folder_links;

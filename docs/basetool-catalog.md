@@ -47,9 +47,12 @@ The rule is ADR-0054 (amending ADR-0002):
   (#830, ADR-0242), the kinds `legacyLootTables` and `legacyLootArchetypes` (#818, ADR-0238), the
   contract fields `cooldownLayer`, `hasPersonalCooldown`, `personalCooldownTime`,
   `personalCooldownTimeVariation`, `abandonedCooldownTime` and `abandonedCooldownTimeVariation`
-  (#832, ADR-0244), the kind `crafters` (#831, ADR-0243) and the kind `cargoManifests` with the
-  contract field `haulingOrders` (#814, ADR-0265). Later additions keep version 2 as long as they
-  are additive.
+  (#832, ADR-0244), the kind `crafters` (#831, ADR-0243), the contract fields `timeToComplete`,
+  `buyInAmount`, `canBeShared`, `illegal`, `onceOnly`, `maxPlayersPerInstance`, `availableInPrison`,
+  `canReacceptAfterAbandoning`, `canReacceptAfterFailing`, `hideInMobiGlas` and `requiredIntros`
+  (#898, ADR-0263), and the kind `cargoManifests` with the contract field `haulingOrders` (#814,
+  ADR-0265). Later additions keep version 2 as long as they are additive. The contract field
+  `fixedRewards` (#888, ADR-0268) is one.
 - **A production import takes catalogs of the Channel `LIVE` only.** `PTU`, `EPTU`, `TECH-PREVIEW`
   and `HOTFIX` are confidential test Channels (ADR-0038).
 
@@ -67,6 +70,7 @@ identifiers, short names or fact values. The catalog keeps the `description` fie
 Basetool's logged-in members; the Basetool keeps them, `displayType` and the contract texts away
 from third parties. Every such field carries
 `"x-gameText": true` in the JSON Schema, and no other field does; a test checks this.
+Every game text is trimmed of leading and trailing white space; see Texts.
 
 ```powershell
 p4kx catalog <archive> --out basetool-catalog.json [--filter <filter>] [--exported-at <seconds>]
@@ -1065,6 +1069,7 @@ that the rule on equal `guid` and `subContractGuid` above drops.
 | `templateGuid` | The `ContractTemplate` Record the contract names |
 | `notForRelease`, `workInProgress` | The flags as stored, `null` when absent; the catalog does not filter on them |
 | `title` | The resolved title (game text) |
+| `description` | The resolved description (game text; must not be passed on to third parties) |
 | `missionTypeGuid`, `missionType` | The `MissionType` Record and its localised name (game text) |
 | `contractor` | The `Contractor` string parameter (game text) |
 | `pickupPlaces` | Up to five starmap objects the contract is offered at, each `starmapObjectGuid`, `objectType`, `place` (game text) |
@@ -1076,6 +1081,10 @@ that the rule on equal `guid` and `subContractGuid` above drops.
 | `hasPersonalCooldown` | The `hasPersonalCooldown` flag, `null` when absent |
 | `personalCooldownTime`, `personalCooldownTimeVariation` | The personal cooldown and its variation, as stored (unit: see "Cooldowns"); `null` when absent |
 | `abandonedCooldownTime`, `abandonedCooldownTimeVariation` | The cooldown after the contract was abandoned and its variation, as stored; `null` when absent |
+| `timeToComplete`, `buyInAmount` | The `timeToComplete` (floating point) and the `contractBuyInAmount` of the contract's `contractResults`, as stored; a sub contract shares the contract's. The Archive states no unit |
+| `canBeShared`, `illegal`, `onceOnly`, `maxPlayersPerInstance`, `availableInPrison`, `canReacceptAfterAbandoning`, `canReacceptAfterFailing`, `hideInMobiGlas` | Each `{value, layer}` with `layer` `subContract`, `contract`, `handler` or `template` (see "Contract facts"), `null` when no level states it |
+| `requiredIntros` | The completion tags the contract requires with the intro contracts that grant each (see "Contract facts") |
+| `fixedRewards` | The payouts the contract states itself on success (`ContractResult_Reward`), each `currency` (`currencyType`, e.g. `UEC`), `amount` (`reward`), `max` and `plusBonuses` as stored; empty for a contract that pays through a calculated reward (see "Reward") |
 | `haulingOrders` | What the contract has to haul (see "Hauling orders"); empty for a contract that hauls nothing |
 
 **Layers.** Sub contract, contract and handler each override the template: the first of them that
@@ -1111,6 +1120,12 @@ A replacement that itself holds a `~mission(…)` is expanded up to three levels
 and past 64 replacements or about 4 KiB in one title, a token becomes `[TOKEN]`. Leading and
 trailing blanks are removed from the result; the `key` is that of the title text. The tokens are free text of the game, not facts of the Archive;
 the placeholders are the catalog's own convention.
+
+**Description (ADR-0264).** The `Description` string parameter of the first layer (sub contract,
+contract, handler), else the `description` of the broker entry; the template states none, its
+`displayString` slots carry no label. `~mission(…)` tokens, limits and trimming are those of the
+title. It is a game text (`x-gameText`) like the title, and like every game text it must not be
+passed on to third parties: the Basetool keeps it for its logged-in members.
 
 **Broker entry.** A contract that names a `missionBrokerEntry` and has no template (on LIVE the 419
 `Covalex_HaulCargo_Career` contracts and their two sub contracts) takes what the layers and the
@@ -1172,8 +1187,13 @@ elsewhere in the Archive:
   location, 85 only a `ContractPrerequisite_LocationProperty` (a variable the game fills in) and
   6 a locality that lists no object of the starmap.
 
-Not exported: a computed reward (`ContractResult_CalculatedReward` holds no value, ADR-0065) and
-descriptions.
+**Reward (ADR-0268).** `fixedRewards` lists the `ContractResult_Reward` results (a
+`MissionReward`) that fire on success. Most contracts pay through `ContractResult_CalculatedReward`,
+which holds only `missionResults`: no amount, no reference, no rule. The game computes that
+payout outside the data, so the catalog does not state it and `fixedRewards` is empty for such a
+contract.
+
+Not exported: a computed reward (see above).
 
 **Standing (ADR-0237).** `minStandingGuid` and `maxStandingGuid` are the `minStanding` and
 `maxStanding` References of the contract, entries of `reputationStandings`; a sub contract has none
@@ -1197,6 +1217,30 @@ numbers are as stored, in floating point. The Archive does not state their unit:
 type, attribute or game text shows it. The range (`personalCooldownTime` up to 2880,
 `abandonedCooldownTime` up to 60 on the `Career` handlers) fits minutes, 2880 being 48 hours, but
 that is a reading, not a fact of the Archive. On LIVE 4.10 all 5,175 entries state a cooldown.
+
+**Contract facts (ADR-0263).** `timeToComplete` and `buyInAmount` are numbers as stored. Each of
+the other eight values is `{value, layer}`: the first level that states it, nearest first. A
+level states it through a boolean or integer parameter (`CanBeShared`, `Illegal`, `OnceOnly`,
+`MaxPlayersPerInstance`, `AvailableInPrison`, `CanReacceptAfterAbandoning`,
+`CanReacceptAfterFailing`, `HideInMobiGlas`, matched without regard to case) of the sub contract,
+the contract (`paramOverrides`) or the handler (`contractParams`); when none does, the base value
+is the one of the Record that owns the default: the `defaultAvailability` of the handler (layer
+`handler`) for `onceOnly`, `maxPlayersPerInstance`, `availableInPrison`, the two re-accept flags
+and `hideInMobiGlas`; the template (layer `template`) for `illegal` (`contractDisplayInfo`) and
+`canBeShared` (`ActiveContractSettings` of the contract class). A contract without a template
+(the legacy `Covalex_HaulCargo_Career` contracts) has `null` for `illegal` and `canBeShared`
+unless a parameter states them. A negative `maxPlayersPerInstance` is as stored (-1 on 41 LIVE
+entries).
+
+`requiredIntros` lists the `ContractPrerequisite_CompletedContractTags` required tags of the handler
+(`defaultAvailability`), the contract and the sub contract (`additionalPrerequisites`), in that order
+and as stored: `level`, `tagGuid` and `introContracts`, the `id` of every contract in an
+`introContracts` array whose success result grants the tag (`ContractResult_CompletionTags`), ordered
+by `id`; empty when no intro contract grants it. The excluded tags are not exported, and the
+catalog does not decide how the levels combine. On LIVE 4.10 (2026-10-30) 2,464 of the 5,175 entries
+have a required tag and 598 have one an intro contract grants; the facts are stated by the handler
+for most values (`onceOnly` 5,049 of 5,175), by the contract for 96 `onceOnly` and 365 `illegal`
+values, and by the template for 4,501 `canBeShared` values.
 
 **Hauling orders (ADR-0265).** `haulingOrders` lists what a contract has to haul. The Archive
 states it in three places: a `MissionPropertyValue_HaulingOrders` property in the overrides of a sub
@@ -2002,6 +2046,13 @@ The placeholder keys `@LOC_EMPTY`, `@LOC_PLACEHOLDER`, `@LOC_UNINITIALIZED` and 
 `PLACEHOLDER_KEYS` in `crates/p4kx-localization/src/lookup.rs`) mean "no text": the key stays,
 `en` and `de` are `null` even where the `global.ini` holds a text for them such as
 `<= PLACEHOLDER =>`, and they count as placeholders, neither resolved nor unresolved.
+
+Leading and trailing white space, line breaks included, is removed from every text, after the
+`\n` escapes are decoded (`display_text` in `crates/p4kx-localization/src/lookup.rs`), so
+`Antium Arms Moss Camo ` becomes `Antium Arms Moss Camo`. A text that is white space only counts as
+unresolved. White space inside a text stays. The trim is the catalog's and the window's alone: Record
+XML and JSON, `p4kx loc` and `dcb export --lang` keep the text byte for byte as the `global.ini`
+stores it. It does not change the catalog's determinism: the same Archive gives the same bytes.
 
 `p4kx catalog` counts the resolved, unresolved and placeholder texts per language in its summary.
 

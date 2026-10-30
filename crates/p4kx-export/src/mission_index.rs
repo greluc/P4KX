@@ -14,7 +14,7 @@ use crate::blueprint::as_struct;
 use crate::contract_hauling::HaulingRequirement;
 use crate::mission_hauling::{HaulingProperty, objective_orders, property_orders};
 use crate::mission_layers::{Property, items, key, one, properties};
-use crate::record_fields::{integer, reference};
+use crate::record_fields::{boolean, integer, reference};
 
 const TEMPLATES: &str = "libs/foundry/records/contracts/contracttemplates/";
 const TEMPLATE_TYPE: &str = "ContractTemplate";
@@ -29,13 +29,15 @@ const FACTIONS: &str = "libs/foundry/records/factions/factionreputation/";
 #[derive(Debug, Default)]
 pub(crate) struct Broker<'f> {
     pub(crate) title: Option<&'f str>,
+    pub(crate) description: Option<&'f str>,
     pub(crate) mission_type: Option<Guid>,
     pub(crate) location: Option<Guid>,
     pub(crate) objective_orders: Vec<HaulingRequirement>,
 }
 
-/// What a `ContractTemplate` Record contributes to a contract: the title and the mission type of
-/// its display info and its properties.
+/// What a `ContractTemplate` Record contributes to a contract: the title, the mission type and the
+/// `illegal` flag of its display info, its properties and the `canBeShared` flag of its contract
+/// class.
 #[derive(Debug, Default)]
 pub(crate) struct Template<'f> {
     pub(crate) title: Option<&'f str>,
@@ -43,6 +45,8 @@ pub(crate) struct Template<'f> {
     pub(crate) properties: Vec<Property<'f>>,
     pub(crate) hauling: Vec<HaulingProperty<'f>>,
     pub(crate) objective_orders: Vec<HaulingRequirement>,
+    pub(crate) illegal: Option<bool>,
+    pub(crate) can_be_shared: Option<bool>,
 }
 
 /// A `MissionType` Record: the key of its localised name.
@@ -227,6 +231,7 @@ fn piece<'f>(
             guid,
             Broker {
                 title: key(root, "title"),
+                description: key(root, "description"),
                 mission_type: reference(root, "type").map(|guid| guid.0),
                 location: reference(root, "locationMissionAvailable").map(|guid| guid.0),
                 objective_orders: objective_orders(root),
@@ -250,6 +255,11 @@ fn template_of<'f>(root: Option<&StructValue<'f>>) -> Template<'f> {
         properties: properties(root, "contractProperties"),
         hauling: property_orders(root, "contractProperties"),
         objective_orders: objective_orders(root),
+        illegal: boolean(display, "illegal"),
+        can_be_shared: items(one(root, "contractClass"), "additionalParams")
+            .iter()
+            .filter_map(as_struct)
+            .find_map(|settings| boolean(Some(settings), "canBeShared")),
     }
 }
 

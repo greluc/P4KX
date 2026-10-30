@@ -3,7 +3,17 @@
 
 use p4kx_dataforge::{Guid, StructValue, Value, ValueError};
 
+use crate::provider::starts_with_path;
 use crate::read::{struct_field, struct_items, text};
+
+/// The folder of the human body rigs, with a trailing separator.
+const HUMAN_RIGS: &str = "Objects/Characters/Human/";
+
+/// The folder an Archive path starts with that a Record's path leaves out.
+const DATA_FOLDER: &str = "Data/";
+
+/// The extensions of the files that hold a character: definition, skeleton and skin.
+const CHARACTER_EXTENSIONS: [&str; 3] = ["cdf", "chr", "skin"];
 
 /// The deepest nesting of sub-geometry nodes that is read.
 const MAX_NESTED_SUB_GEOMETRY: usize = 4;
@@ -176,6 +186,23 @@ impl Geometry {
         self.palette.as_ref()
     }
 
+    /// Returns whether the model file is a `.cdf`, `.chr` or `.skin` file outside
+    /// `Objects/Characters/Human`, the folder of the human body rigs.
+    #[must_use]
+    pub fn is_rigged_file_outside_human_rigs(&self) -> bool {
+        let relative = self.path.trim_start_matches(['/', '\\']);
+        let relative = if starts_with_path(relative, DATA_FOLDER) {
+            relative.get(DATA_FOLDER.len()..).unwrap_or_default()
+        } else {
+            relative
+        };
+        relative.rsplit_once('.').is_some_and(|(_, extension)| {
+            CHARACTER_EXTENSIONS
+                .iter()
+                .any(|wanted| wanted.eq_ignore_ascii_case(extension))
+        }) && !starts_with_path(relative, HUMAN_RIGS)
+    }
+
     /// Reads the main geometry of a `SGeometryResourceParams` component.
     pub(crate) fn read(component: &StructValue<'_>) -> Option<Self> {
         Self::of_node(struct_field(component, "Geometry")?)
@@ -242,4 +269,51 @@ fn read_palette(data: &StructValue<'_>) -> Option<PaletteRef> {
         guid,
         child_path: text(reference, "ChildPath").trim().to_owned(),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Geometry, HUMAN_RIGS};
+    use crate::BodyVariant;
+
+    fn geometry(path: &str) -> Geometry {
+        Geometry {
+            path: path.to_owned(),
+            material: None,
+            palette: None,
+        }
+    }
+
+    #[test]
+    fn the_human_skeletons_lie_in_the_human_rig_folder() {
+        for body in BodyVariant::ALL {
+            assert!(body.skeleton().starts_with(HUMAN_RIGS), "{body:?}");
+            assert!(!geometry(body.skeleton()).is_rigged_file_outside_human_rigs());
+            assert!(!geometry(body.skin()).is_rigged_file_outside_human_rigs());
+        }
+    }
+
+    #[test]
+    fn character_files_outside_the_human_rigs_are_told_by_extension_and_folder() {
+        for path in [
+            "Objects/Characters/Creatures/x/x_skel.chr",
+            "objects\\characters\\creatures\\x\\x.CDF",
+            "/Objects/Characters/Vanduul/drone/body.skin",
+            "Objects/Spaceships/Thrusters/nozzle.cdf",
+        ] {
+            assert!(geometry(path).is_rigged_file_outside_human_rigs(), "{path}");
+        }
+        for path in [
+            "Data/Objects/Characters/Human/male_v7/export/bhm_skeleton_v7.chr",
+            "Objects/Characters/Human/heads/male/head.skin",
+            "Objects/Spaceships/Ships/AEGS/Gladius/gladius.cga",
+            "Objects/Characters/Creatures/x/x.cgf",
+            "Objects/Characters/Creatures/x/skin",
+        ] {
+            assert!(
+                !geometry(path).is_rigged_file_outside_human_rigs(),
+                "{path}"
+            );
+        }
+    }
 }

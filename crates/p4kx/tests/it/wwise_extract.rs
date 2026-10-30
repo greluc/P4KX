@@ -215,7 +215,7 @@ fn raw_keeps_the_wem_bytes() -> TestResult {
 fn unsafe_trigger_names_stay_inside_the_target() -> TestResult {
     let fixture = fixture()?;
     extract(&fixture, "..\\Evil:x", &[], 0)?;
-    assert_eq!(names(&fixture.out)?, ["___Evil_x.wav"]);
+    assert_eq!(names(&fixture.out)?, ["..%5CEvil%3Ax.wav"]);
     assert!(
         !fixture
             .out
@@ -283,7 +283,7 @@ fn entity_audio_extracts_every_trigger_with_distinct_names() -> TestResult {
 }
 
 #[test]
-fn entity_audio_separates_triggers_that_differ_only_in_case() -> TestResult {
+fn entity_audio_separates_triggers_whose_escaped_names_differ() -> TestResult {
     let fixture = fixture()?;
     let output = p4kx_testkit::p4kx()?
         .arg("--json")
@@ -297,7 +297,7 @@ fn entity_audio_separates_triggers_that_differ_only_in_case() -> TestResult {
     assert_eq!(output.status.code(), Some(0), "exit code: {output:?}");
     let report: Value = serde_json::from_slice(&output.stdout)?;
     assert_eq!(count(&report["extraction"], "written"), Some(2));
-    assert_eq!(names(&fixture.out)?, ["Play_CASE_2.wem", "Play_Case.wem"]);
+    assert_eq!(names(&fixture.out)?, ["Play%3ACase.wem", "Play_CASE.wem"]);
     Ok(())
 }
 

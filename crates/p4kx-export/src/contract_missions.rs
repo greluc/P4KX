@@ -5,7 +5,9 @@ use schemars::JsonSchema;
 use serde::Serialize;
 
 use crate::contract::{LocalisedText, every_field_required};
+use crate::contract_facts::ContractFacts;
 use crate::contract_hauling::HaulingOrder;
+use crate::contract_reward::FixedReward;
 use crate::guid_text::CatalogGuid;
 use crate::mission_cooldown::CooldownLayer;
 
@@ -42,6 +44,12 @@ pub(crate) struct ContractEntry<'a> {
     /// `[TOKEN]` when nothing states it. Trailing and leading blanks are removed.
     #[schemars(extend("x-gameText" = true))]
     pub(crate) title: LocalisedText<'a>,
+    /// The description, resolved like the title: the `Description` of the sub contract, else of
+    /// the contract, else of the handler, else the `description` of the contract's
+    /// `MissionBrokerEntry`. A game text that must not be passed on to third parties. The
+    /// template states none.
+    #[schemars(extend("x-gameText" = true))]
+    pub(crate) description: LocalisedText<'a>,
     /// The GUID of the `MissionType` Record: the override of the sub contract, else of the
     /// contract, else of the handler, else the type of the template, else the type of the
     /// contract's `MissionBrokerEntry`; `null` when there is none.
@@ -103,9 +111,16 @@ pub(crate) struct ContractEntry<'a> {
     /// hauls nothing. Where to pick up and drop off is not stated here: the game fills those
     /// properties in when the mission starts.
     pub(crate) hauling_orders: Vec<HaulingOrder<'a>>,
+    /// The time to complete, buy-in, sharing, legality and availability facts of the contract.
+    #[serde(flatten)]
+    pub(crate) facts: ContractFacts,
+    /// The payouts the contract states itself (`ContractResult_Reward`) for success, as stored;
+    /// empty for the contracts that pay through a calculated reward, whose amount the Archive
+    /// does not state.
+    pub(crate) fixed_rewards: Vec<FixedReward<'a>>,
 }
 
-/// The level at which a reputation prerequisite is stated.
+/// The level at which a prerequisite is stated.
 #[derive(Debug, Clone, Copy, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub(crate) enum StandingLevel {

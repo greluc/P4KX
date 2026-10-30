@@ -10,7 +10,10 @@ use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use crate::build::{file_key, issue};
 use crate::flatten::Draft;
 use crate::tree::GeometryChoice;
-use crate::{AssemblyError, AssemblyOptions, Issue, IssueKind, ModelFailure, ModelProvider};
+use crate::{
+    AssemblyError, AssemblyOptions, Issue, IssueKind, ModelFailure, ModelProvider,
+    ProvidedAttachment, SkeletonProblem,
+};
 
 /// The most distinct model files read at once before the vertex budget is checked again; a wave
 /// is twice the number of threads, at most this many.
@@ -21,6 +24,19 @@ pub(crate) struct Loaded {
     pub(crate) entry: String,
     pub(crate) model: Arc<Model>,
     pub(crate) left_out: Vec<String>,
+    pub(crate) attachments: Vec<ProvidedAttachment>,
+    pub(crate) skeleton: Option<SkeletonProblem>,
+}
+
+impl Loaded {
+    /// Returns the vertices the part holds: its model's and those of its bone attachments.
+    pub(crate) fn vertices(&self) -> usize {
+        self.attachments
+            .iter()
+            .fold(vertices(&self.model), |sum, attached| {
+                sum.saturating_add(vertices(&attached.model))
+            })
+    }
 }
 
 /// What reading one distinct geometry file came to.
@@ -31,7 +47,7 @@ pub(crate) enum Outcome {
 
 pub(crate) type Models = HashMap<String, Outcome>;
 
-fn vertices(model: &Model) -> usize {
+pub(crate) fn vertices(model: &Model) -> usize {
     model.lods.iter().map(Lod::vertex_count).max().unwrap_or(0)
 }
 
@@ -92,7 +108,7 @@ pub(crate) fn fall_back<'t>(
     let read = models
         .values()
         .map(|outcome| match outcome {
-            Outcome::Loaded(loaded) => vertices(&loaded.model),
+            Outcome::Loaded(loaded) => loaded.vertices(),
             Outcome::Failed { .. } => 0,
         })
         .fold(0_usize, usize::saturating_add);
@@ -122,13 +138,15 @@ fn read_files(
                     entry: provided.entry,
                     model: Arc::new(provided.model),
                     left_out: provided.left_out,
+                    attachments: provided.attachments,
+                    skeleton: provided.skeleton,
                 });
                 (key.clone(), result)
             })
             .collect();
         for (key, result) in read {
             if let Ok(loaded) = &result {
-                read_vertices = read_vertices.saturating_add(vertices(&loaded.model));
+                read_vertices = read_vertices.saturating_add(loaded.vertices());
             }
             let outcome = match result {
                 Ok(loaded) => Outcome::Loaded(loaded),
@@ -170,7 +188,7 @@ pub(crate) fn choose_models<'m>(
             let path = path.to_owned();
             match draft.model_key().and_then(|key| models.get(&key)) {
                 Some(Outcome::Loaded(loaded)) => {
-                    let count = vertices(&loaded.model);
+                    let count = loaded.vertices();
                     if total.saturating_add(count) > max_vertices {
                         let limit = max_vertices;
                         issues.push(issue(draft, IssueKind::TooManyVertices { limit }));

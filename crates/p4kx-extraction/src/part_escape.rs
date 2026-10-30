@@ -15,12 +15,15 @@ const ESCAPE: char = '%';
 /// valid.
 pub(crate) const OVERLONG_FOLDER: &str = "%long";
 
-/// Returns `part` as a valid file name that no other part maps to: the characters that break a
-/// rule, the trailing dot or space and the first letter of a device name as `%` and two upper-case
-/// hex digits, `%` as `%25`, an empty part as `%`.
+/// Returns `part` as a valid file name that no other part maps to.
 ///
-/// Fails only when the escaped part is longer than a name may be.
-pub(crate) fn escape_part(part: &str) -> Result<Cow<'_, str>, NameRule> {
+/// The characters that break a rule, the trailing dot or space and the first letter of a device
+/// name become `%` and two upper-case hex digits, `%` becomes `%25`, an empty part becomes `%`.
+///
+/// # Errors
+///
+/// Returns [`NameRule::TooManyBytes`] when the escaped part is longer than a name may be.
+pub fn escape_part(part: &str) -> Result<Cow<'_, str>, NameRule> {
     if check_part(part).is_ok() && !part.contains(ESCAPE) {
         return Ok(Cow::Borrowed(part));
     }

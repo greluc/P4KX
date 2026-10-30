@@ -155,7 +155,7 @@ pub(crate) fn soundbank_wems(
 }
 
 /// Reads the soundbank Entry at `path`, refusing one larger than the audio index reads.
-fn open_bank(opened: &Opened, path: &str) -> Result<Bank, ToolError> {
+pub(crate) fn open_bank(opened: &Opened, path: &str) -> Result<Bank, ToolError> {
     if let Some(entry) = opened.index().find(path)
         && entry.uncompressed_size() > MAX_SOUNDBANK_LEN
     {

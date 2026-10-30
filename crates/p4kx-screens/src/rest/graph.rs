@@ -92,7 +92,11 @@ pub(crate) type Input = Option<usize>;
 /// One entry of `operations`, as far as it can be evaluated at rest.
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum Node {
-    Zero(Rest),
+    /// A game variable: the `binding` it reads and the value it has at rest.
+    Variable {
+        binding: String,
+        zero: Rest,
+    },
     Param {
         parameter: String,
         default: Rest,
@@ -192,10 +196,14 @@ fn field_kind(short: &str) -> Option<FieldKind> {
 
 fn source(short: &str, op: &StructValue<'_>) -> Option<Node> {
     let parameter = || text(op, "parameter").unwrap_or_default().to_owned();
+    let variable = |zero| Node::Variable {
+        binding: text(op, "binding").unwrap_or_default().to_owned(),
+        zero,
+    };
     Some(match short {
-        "BooleanVariable" => Node::Zero(Rest::Bool(false)),
-        "NumberVariable" | "IntegerVariable" => Node::Zero(Rest::Num(0.0)),
-        "StringVariable" => Node::Zero(Rest::Text(String::new())),
+        "BooleanVariable" => variable(Rest::Bool(false)),
+        "NumberVariable" | "IntegerVariable" => variable(Rest::Num(0.0)),
+        "StringVariable" => variable(Rest::Text(String::new())),
         "BooleanComponentParameter" => Node::Param {
             parameter: parameter(),
             default: Rest::Bool(flag(op, "defaultValue").unwrap_or(false)),
@@ -332,6 +340,14 @@ impl Operations {
             found.nodes.push(node);
         }
         found
+    }
+
+    /// Returns the names the game variables of the graph are bound to.
+    pub(crate) fn variable_names(&self) -> impl Iterator<Item = &str> {
+        self.nodes.iter().filter_map(|node| match node {
+            Node::Variable { binding, .. } => Some(binding.as_str()),
+            _ => None,
+        })
     }
 
     /// Returns the index of the kind of operation `name` among the kinds that are not evaluated.

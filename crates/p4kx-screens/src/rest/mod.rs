@@ -3,7 +3,7 @@
 
 //! The state a canvas has at rest: what its `operations` bind to `Instantiated`, `IsActive`,
 //! `Alpha` and the parameters of nested canvases, evaluated with every game variable at its zero
-//! value (ADR-0110).
+//! value unless the caller sets it (ADR-0110, ADR-0259).
 
 mod eval;
 mod graph;

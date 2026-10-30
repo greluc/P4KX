@@ -2,9 +2,9 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 use crate::contract_hauling::{HaulingOrder, HaulingRequirement, HaulingSource};
+use crate::mission_facts::Levels;
 use crate::mission_hauling::HaulingProperty;
 use crate::mission_index::{Broker, Template};
-use crate::mission_layers::Layer;
 
 /// The hauling orders of the levels of one contract entry, nearest level first.
 pub(crate) struct HaulingLevels<'x, 'f> {
@@ -20,19 +20,19 @@ impl<'x, 'f> HaulingLevels<'x, 'f> {
     /// Returns the levels of a contract entry: the layers of its sub contract (when it is one),
     /// contract and handler, its template and its broker entry.
     pub(crate) fn of(
-        sub: Option<&'x Layer<'f>>,
-        contract: &'x Layer<'f>,
-        handler: &'x Layer<'f>,
+        levels: &Levels<'x, 'f>,
         template: Option<&'x Template<'f>>,
         broker: Option<&'x Broker<'f>>,
     ) -> Self {
-        let sub = sub.map(|layer| (HaulingSource::SubContract, layer.hauling.as_slice()));
+        let sub = levels
+            .sub
+            .map(|layer| (HaulingSource::SubContract, layer.hauling.as_slice()));
         Self {
             properties: sub
                 .into_iter()
                 .chain([
-                    (HaulingSource::Contract, contract.hauling.as_slice()),
-                    (HaulingSource::Handler, handler.hauling.as_slice()),
+                    (HaulingSource::Contract, levels.contract.hauling.as_slice()),
+                    (HaulingSource::Handler, levels.handler.hauling.as_slice()),
                     (
                         HaulingSource::Template,
                         template.map_or(&[][..], |data| data.hauling.as_slice()),

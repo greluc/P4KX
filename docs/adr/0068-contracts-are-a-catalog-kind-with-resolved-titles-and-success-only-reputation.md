@@ -21,7 +21,7 @@ asks whether that belongs in the Basetool catalog or in a command of its own.
   organisation's tagged string variant) and writes what the game picks at mission start as
   `[LOCATION]`, `[TARGET]` or `[SHIP]`. The placeholders are the catalog's convention, documented
   in `docs/basetool-catalog.md`; an unresolvable token becomes `[TOKEN]`. The title and the mission
-  name are game text (`x-gameText`); descriptions are not exported.
+  name are game text (`x-gameText`).
 - **Reputation is listed, not summed.** `reputationGains` has one entry per amount of the results
   that fire on success (first `missionResults` entry set), with the faction and scope Records and the
   `reputationAmount`. A failure result is not listed. Adding faction and affinity scope together is

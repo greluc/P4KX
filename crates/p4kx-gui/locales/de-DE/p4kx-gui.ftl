@@ -93,6 +93,13 @@ extraction-scope-heading = Einträge
 extraction-scope-selected = Ausgewählte ({ $number })
 extraction-scope-shown = Angezeigte ({ $number })
 extraction-scope-all = Ganzes Archiv ({ $number })
+extraction-exclude-heading = Auslassen
+extraction-exclude-hint = Ein Filter je Zeile: Glob mit * oder ?, sonst ein beliebiger Teil des Pfads
+extraction-exclude-too-long = Ein Filter ist länger als { $max } Bytes.
+extraction-exclude-too-many-wildcards = Ein Filter hat mehr als { $max } Platzhalter (* und ?).
+extraction-exclude-too-many = Es sind mehr als { $max } Filter.
+extraction-exclude-empty = Eine Zeile besteht nur aus Leerzeichen; entferne sie.
+extraction-exclude-nothing-left = Diese Filter lassen keinen Eintrag zum Extrahieren übrig.
 extraction-target-heading = Ziel
 extraction-target-new = Neuer Ordner in
 extraction-target-existing = Vorhandener Ordner
@@ -134,6 +141,11 @@ extraction-summary-changed-title = Extraktion gestoppt: Das Archiv hat sich geä
 extraction-summary-changed = Das Archiv hat sich während der Extraktion auf der Festplatte geändert. Bereits geschriebene Dateien können veraltet sein; lade das Archiv neu und extrahiere erneut.
 extraction-summary-counts = Extrahiert { $extracted }, übersprungen { $skipped }, fehlgeschlagen { $failed }, abgebrochen { $cancelled }
 extraction-summary-counts-converted = Extrahiert { $extracted } ({ $converted } umgewandelt), übersprungen { $skipped }, fehlgeschlagen { $failed }, abgebrochen { $cancelled }
+extraction-summary-excluded-parts =
+    { $count ->
+        [one] { $number } ausgelassener Teil-Eintrag einer Textur, die blieb, wurde zum Umwandeln der Textur trotzdem gelesen.
+       *[other] { $number } ausgelassene Teil-Einträge von Texturen, die blieben, wurden zum Umwandeln der Texturen trotzdem gelesen.
+    }
 extraction-summary-records = Records geschrieben { $written }, übersprungen { $skipped }, fehlgeschlagen { $failed }, abgebrochen { $cancelled }; { $errors } Fehlerwerte in { $erroneous } Records
 extraction-summary-target = Ziel: { $path }
 extraction-summary-failed = Fehlgeschlagen ({ $number })
@@ -1323,6 +1335,12 @@ ui-background-transparent = Transparent
 ui-background-movie = Filmfarbe
 ui-background-black = Schwarz
 ui-background-white = Weiß
+ui-power-label = Zustand
+ui-power-at-rest = In Ruhe
+ui-power-on = Eingeschaltet
+ui-variables-label = Variablen
+ui-variables-hint = powerstate=1 isradar=1
+ui-variables-invalid = Keine Angabe der Form NAME=WERT: { $settings }
 ui-format-label = Format
 ui-format-png = PNG
 ui-format-svg = SVG
@@ -1405,6 +1423,7 @@ ui-report-skipped = Übersprungen
 ui-report-effect = Ohne Effekt gezeichnet
 ui-report-left-out = Ausgelassen
 ui-report-missing-canvas = Canvas nicht gezeichnet
+ui-report-unknown-variable = Spielvariable, die der Screen nicht liest
 ui-report-truncated = Vorzeitig beendet: Ein Limit der Komposition wurde erreicht
 ui-report-import = Import nicht gefunden
 ui-report-tag = Unlesbarer Tag

@@ -4,6 +4,7 @@
 use p4kx_extraction::{Guid, StructValue, Value, is_placeholder_key};
 
 use crate::blueprint::as_struct;
+use crate::mission_index::Broker;
 use crate::record_fields::{reference, text};
 
 const STRING_HASH: &str = "MissionPropertyValue_StringHash";
@@ -62,6 +63,18 @@ impl<'f> Layer<'f> {
             properties: properties(params, "propertyOverrides"),
         }
     }
+}
+
+/// Returns the localisation key of the description: the first level that states one, else the
+/// broker entry's.
+pub(crate) fn description_key<'f>(
+    levels: &[&Layer<'f>],
+    broker: Option<&Broker<'f>>,
+) -> Option<&'f str> {
+    levels
+        .iter()
+        .find_map(|level| level.description)
+        .or_else(|| broker.and_then(|broker| broker.description))
 }
 
 /// Reads the mission properties the array field `name` of `parent` holds.

@@ -3,7 +3,7 @@
 
 use p4kx_testkit::{DataForgeBuilder, TestInstance, TestRecord, TestValue};
 
-use super::lookups::{bounty_params, legacy};
+use super::lookups::{amount, bounty_params, empty_payout, legacy, payout};
 use super::prerequisites::{locality, location, standing_prerequisite};
 use super::{
     AFFINITY, BROKER, CONTRACT_A, CONTRACT_B, CONTRACT_C, CONTRACT_D, CONTRACT_DEV, CONTRACT_E,
@@ -80,15 +80,6 @@ fn overrides(
                 TestValue::Array(title.map(|key| param("Title", key)).into_iter().collect()),
             )
             .value("propertyOverrides", TestValue::Array(properties)),
-    )
-}
-
-fn amount(scope: u128, reward: u128) -> TestValue {
-    TestValue::Struct(
-        TestInstance::new("ReputationAmount")
-            .value("factionReputation", reference(FACTION))
-            .value("reputationScope", reference(scope))
-            .value("reward", reference(reward)),
     )
 }
 
@@ -209,6 +200,9 @@ fn delivery_contract() -> TestInstance {
                 [false, false, true, false, false],
                 vec![amount(FACTION_SCOPE, LOSS)],
             ),
+            payout([true, false, false, false, false], 40_000),
+            payout([false, true, false, false, false], 1_000),
+            empty_payout([true, false, false, false, false]),
             TestValue::Struct(TestInstance::new("ContractResult_CompletionTags")),
         ]),
     )

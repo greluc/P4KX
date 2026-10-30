@@ -48,7 +48,7 @@ The rule is ADR-0054 (amending ADR-0002):
   contract fields `cooldownLayer`, `hasPersonalCooldown`, `personalCooldownTime`,
   `personalCooldownTimeVariation`, `abandonedCooldownTime` and `abandonedCooldownTimeVariation`
   (#832, ADR-0244) and the kind `crafters` (#831, ADR-0243). Later additions keep version 2 as
-  long as they are additive.
+  long as they are additive. The contract field `fixedRewards` (#888, ADR-0268) is one.
 - **A production import takes catalogs of the Channel `LIVE` only.** `PTU`, `EPTU`, `TECH-PREVIEW`
   and `HOTFIX` are confidential test Channels (ADR-0038).
 
@@ -1076,6 +1076,7 @@ that the rule on equal `guid` and `subContractGuid` above drops.
 | `hasPersonalCooldown` | The `hasPersonalCooldown` flag, `null` when absent |
 | `personalCooldownTime`, `personalCooldownTimeVariation` | The personal cooldown and its variation, as stored (unit: see "Cooldowns"); `null` when absent |
 | `abandonedCooldownTime`, `abandonedCooldownTimeVariation` | The cooldown after the contract was abandoned and its variation, as stored; `null` when absent |
+| `fixedRewards` | The payouts the contract states itself on success (`ContractResult_Reward`), each `currency` (`currencyType`, e.g. `UEC`), `amount` (`reward`), `max` and `plusBonuses` as stored; empty for a contract that pays through a calculated reward (see "Reward") |
 
 **Layers.** Sub contract, contract and handler each override the template: the first of them that
 states a value wins, the template last. A level states its overrides in `paramOverrides` (sub
@@ -1177,7 +1178,13 @@ elsewhere in the Archive:
   location, 85 only a `ContractPrerequisite_LocationProperty` (a variable the game fills in) and
   6 a locality that lists no object of the starmap.
 
-Not exported: a computed reward (`ContractResult_CalculatedReward` holds no value, ADR-0065).
+**Reward (ADR-0268).** `fixedRewards` lists the `ContractResult_Reward` results (a
+`MissionReward`) that fire on success. Most contracts pay through `ContractResult_CalculatedReward`,
+which holds only `missionResults`: no amount, no reference, no rule. The game computes that
+payout outside the data, so the catalog does not state it and `fixedRewards` is empty for such a
+contract.
+
+Not exported: a computed reward (see above).
 
 **Standing (ADR-0237).** `minStandingGuid` and `maxStandingGuid` are the `minStanding` and
 `maxStanding` References of the contract, entries of `reputationStandings`; a sub contract has none

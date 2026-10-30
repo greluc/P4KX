@@ -45,9 +45,9 @@ pub(crate) fn entry<'a>(
 
 pub(crate) const A: &str = "20000000-0000-4000-8000-000000000001";
 pub(crate) const B: &str = "20000000-0000-4000-8000-000000000002";
-const C: &str = "20000000-0000-4000-8000-000000000003";
+pub(crate) const C: &str = "20000000-0000-4000-8000-000000000003";
 const D: &str = "20000000-0000-4000-8000-000000000005";
-const E: &str = "20000000-0000-4000-8000-000000000006";
+pub(crate) const E: &str = "20000000-0000-4000-8000-000000000006";
 const G: &str = "20000000-0000-4000-8000-000000000008";
 const H: &str = "20000000-0000-4000-8000-000000000009";
 const I: &str = "20000000-0000-4000-8000-00000000000a";
@@ -186,27 +186,6 @@ fn a_contract_without_a_template_takes_title_type_and_place_from_its_broker_entr
     assert_eq!(brokered["title"]["en"], "Broker Haul");
     assert_eq!(brokered["missionType"]["en"], "Delivery");
     assert_eq!(places(brokered), [("Planet", "Hurston")]);
-    Ok(())
-}
-
-#[test]
-fn the_description_is_resolved_like_the_title_and_falls_back_to_the_broker_entry() -> TestResult {
-    let (_, catalog) = build(None)?;
-    assert_eq!(
-        entry(&catalog, C, None)?["description"],
-        json!({
-            "key": "@desc_handler",
-            "en": "Wanted [MISSING].\nReward on delivery.",
-            "de": null
-        }),
-        "tokens are replaced, line breaks decoded and the blanks removed"
-    );
-    assert_eq!(entry(&catalog, E, None)?["description"]["en"], "Haul it");
-    assert_eq!(
-        entry(&catalog, A, None)?["description"],
-        json!({"key": null, "en": null, "de": null}),
-        "a contract that states none"
-    );
     Ok(())
 }
 
@@ -361,6 +340,21 @@ fn only_the_reputation_a_contract_grants_on_success_is_listed() -> TestResult {
         "faction and affinity scope; the failure result with -100 is not listed"
     );
     assert_eq!(entry(&catalog, B, None)?["reputationGains"], json!([]));
+    Ok(())
+}
+
+#[test]
+fn a_payout_the_contract_states_is_listed_as_stored_and_only_for_success() -> TestResult {
+    let (_, catalog) = build(None)?;
+    assert_eq!(
+        entry(&catalog, A, None)?["fixedRewards"],
+        json!([
+            {"currency": "UEC", "amount": 40000, "max": 0, "plusBonuses": false},
+            {"currency": null, "amount": 7, "max": null, "plusBonuses": null}
+        ]),
+        "the failure payout of 1000 is not listed; fields the reward lacks are null"
+    );
+    assert_eq!(entry(&catalog, B, None)?["fixedRewards"], json!([]));
     Ok(())
 }
 

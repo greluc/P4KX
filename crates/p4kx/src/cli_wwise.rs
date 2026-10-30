@@ -47,7 +47,8 @@ pub(crate) enum WwiseAction {
     /// appended. Resolves the trigger as `resolve` does, so --lang and --fallback-lang choose the
     /// language of localised sounds. A sound that cannot be decoded is reported and written
     /// unchanged as .wem, as are plug-in media and the prefetched start of a streamed WEM; a
-    /// sound with no WEM, or none located, is listed as failed. Broken links are counted.
+    /// sound with no WEM, or none located, is listed as failed. Broken links are counted. With
+    /// --txtp, vgmstream TXTP files for the trigger's Wwise events are written too.
     #[command(after_help = EXIT_CODES_HELP)]
     Extract(WwiseExtractArgs),
 }
@@ -64,6 +65,14 @@ pub(crate) struct WwiseExtractArgs {
     pub(crate) out: PathBuf,
     #[command(flatten)]
     pub(crate) export: SoundExportArgs,
+    /// Also writes one `<event>.txtp` per Wwise event of the trigger next to the sounds: a text
+    /// file that vgmstream plays as the event does, layering an Event's actions and blend
+    /// containers, chaining sequence containers and music playlists and picking the first child of
+    /// a random or switch container (change `>1` in its `group` line to pick another). The loop of
+    /// a sound is written as `#I`. An event with a sound that has no whole file is listed instead.
+    /// P4KX only writes the text; it does not run vgmstream.
+    #[arg(long)]
+    pub(crate) txtp: bool,
     #[command(flatten)]
     pub(crate) language: AudioLanguageArgs,
 }

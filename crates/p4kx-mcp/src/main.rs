@@ -7,6 +7,7 @@ mod archives;
 mod audio;
 mod audio_convert;
 mod audio_excerpt;
+mod audio_objects;
 mod audio_params;
 mod audio_shapes;
 mod audio_tools;

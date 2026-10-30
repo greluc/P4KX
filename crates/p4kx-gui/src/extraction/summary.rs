@@ -60,6 +60,7 @@ pub struct ExtractionSummary {
     archive_changed: bool,
     records: Option<RecordCounts>,
     record_failures: Vec<FailedRecord>,
+    excluded_parts: usize,
 }
 
 impl ExtractionSummary {
@@ -78,6 +79,7 @@ impl ExtractionSummary {
                 .records()
                 .map(|records| records.failures().iter().map(FailedRecord::of).collect())
                 .unwrap_or_default(),
+            excluded_parts: 0,
         }
     }
 
@@ -142,6 +144,18 @@ impl ExtractionSummary {
     #[must_use]
     pub const fn archive_changed(&self) -> bool {
         self.archive_changed
+    }
+
+    /// Returns the number of part Entries the exclusion left out of textures that stayed; a
+    /// Conversion read them all the same.
+    #[must_use]
+    pub const fn excluded_parts(&self) -> usize {
+        self.excluded_parts
+    }
+
+    pub(crate) const fn with_excluded_parts(mut self, excluded_parts: usize) -> Self {
+        self.excluded_parts = excluded_parts;
+        self
     }
 }
 

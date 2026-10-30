@@ -46,6 +46,14 @@ pub enum ScreenError {
         /// The height in pixels.
         height: f32,
     },
+    /// More game variables were set than one composition takes.
+    #[error("{count} game variables are set, more than the {max} a screen takes")]
+    TooManyVariables {
+        /// How many were set.
+        count: usize,
+        /// The most that are taken.
+        max: usize,
+    },
     /// The caller asked to stop the drawing.
     #[error("the drawing was stopped")]
     Stopped,

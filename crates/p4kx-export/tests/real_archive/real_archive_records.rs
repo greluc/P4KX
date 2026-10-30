@@ -157,11 +157,7 @@ fn leaves(value: &Value) -> usize {
         Value::String(text) => usize::from(!text.is_empty()),
         Value::Array(items) => items.iter().map(leaves).sum(),
         Value::Object(map) if !map.contains_key("$type") && map.contains_key("error") => {
-            usize::from(
-                map["error"]
-                    .as_str()
-                    .is_some_and(|text| text.starts_with("the Reference refers to the Record ")),
-            )
+            usize::from(map.contains_key("guid"))
         }
         Value::Object(map) if !map.contains_key("$type") => 1,
         Value::Object(map) => map

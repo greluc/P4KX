@@ -51,7 +51,7 @@ pub(crate) fn link<'f>(parent: &StructValue<'f>, name: &str) -> Option<(CatalogG
     }
 }
 
-fn succeeds(result: &StructValue<'_>) -> bool {
+pub(crate) fn succeeds(result: &StructValue<'_>) -> bool {
     match items(Some(result), "missionResults").first() {
         Some(Value::Bool(set)) => *set,
         Some(Value::Struct(flag)) => boolean(Some(flag), "value").unwrap_or(false),

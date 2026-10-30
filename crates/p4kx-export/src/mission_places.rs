@@ -9,7 +9,7 @@ use crate::contract::LocalisedText;
 use crate::contract_missions::PickupPlace;
 use crate::contract_starmap::StarmapObject;
 use crate::guid_text::CatalogGuid;
-use crate::mission_index::MissionIndex;
+use crate::mission_index::{Broker, MissionIndex};
 use crate::mission_layers::items;
 use crate::record_fields::reference;
 
@@ -123,5 +123,32 @@ impl<'s, 'f> Places<'s, 'f> {
                 },
             })
             .collect()
+    }
+
+    /// Returns the pickup places of a contract, or of its sub contract `sub`: those of the sub
+    /// contract's own prerequisites, else of `inherited` (contract and handler), else the
+    /// location of the broker entry.
+    pub(crate) fn of_contract(
+        &self,
+        index: &MissionIndex<'f>,
+        sub: Option<&StructValue<'_>>,
+        (inherited, broker): (&[&Where], Option<&Broker<'f>>),
+    ) -> Vec<PickupPlace<'f>> {
+        let own = sub.map(|sub| Where::read(Some(sub), "additionalPrerequisites"));
+        let wheres: Vec<&Where> = own
+            .as_ref()
+            .filter(|own| !own.is_empty())
+            .map_or_else(|| inherited.to_vec(), |own| vec![own]);
+        let pickup = self.pickup(index, &wheres);
+        match broker.and_then(|broker| broker.location) {
+            Some(location) if pickup.is_empty() => {
+                let at_broker = Where {
+                    localities: Vec::new(),
+                    locations: vec![location],
+                };
+                self.pickup(index, &[&at_broker])
+            }
+            _ => pickup,
+        }
     }
 }

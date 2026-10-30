@@ -40,16 +40,23 @@ impl<'x, 'f> Reader<'x, 'f> {
 
     /// Reads the value of a property, `None` for a value that is neither a ship spawn description
     /// nor a location.
-    pub(crate) fn spawn(&self, value: &StructValue<'f>) -> Option<Spawn> {
-        match value.type_name() {
-            SHIPS => Some(Spawn::Ships(self.ships(value))),
-            LOCATION => Some(Spawn::Location(self.location(value, LocationCount::One))),
-            LOCATIONS => Some(Spawn::Location(self.location(value, LocationCount::Many))),
-            _ => None,
-        }
+    ///
+    /// # Errors
+    ///
+    /// Returns the error of the serialisation that makes the identifier of the content.
+    pub(crate) fn spawn(
+        &self,
+        value: &StructValue<'f>,
+    ) -> Result<Option<Spawn>, serde_json::Error> {
+        Ok(Some(match value.type_name() {
+            SHIPS => Spawn::Ships(self.ships(value)?),
+            LOCATION => Spawn::Location(self.location(value, LocationCount::One)?),
+            LOCATIONS => Spawn::Location(self.location(value, LocationCount::Many)?),
+            _ => return Ok(None),
+        }))
     }
 
-    fn ships(&self, value: &StructValue<'f>) -> ShipSpawnPool {
+    fn ships(&self, value: &StructValue<'f>) -> Result<ShipSpawnPool, serde_json::Error> {
         let allowed = boolean(Some(value), "allowedForMissionRestrictedDeliveries");
         let groups: Vec<ShipSpawnGroup> = items(Some(value), "spawnDescriptions")
             .iter()
@@ -69,11 +76,11 @@ impl<'x, 'f> Reader<'x, 'f> {
                     .collect(),
             })
             .collect();
-        ShipSpawnPool {
-            guid: content_guid(&(allowed, &groups)),
+        Ok(ShipSpawnPool {
+            guid: content_guid(&(allowed, &groups))?,
             allowed_for_mission_restricted_deliveries: allowed,
             groups,
-        }
+        })
     }
 
     fn ship_option(&self, option: &StructValue<'f>) -> ShipSpawnOption {
@@ -90,7 +97,11 @@ impl<'x, 'f> Reader<'x, 'f> {
         }
     }
 
-    fn location(&self, value: &StructValue<'f>, count: LocationCount) -> LocationQuery {
+    fn location(
+        &self,
+        value: &StructValue<'f>,
+        count: LocationCount,
+    ) -> Result<LocationQuery, serde_json::Error> {
         let many = matches!(count, LocationCount::Many);
         let log = boolean(Some(value), "logErrorOnSearchFail");
         let min = many
@@ -109,8 +120,8 @@ impl<'x, 'f> Reader<'x, 'f> {
             .map(|condition| self.condition(condition))
             .collect();
         let content = (count, min, max, fail, log, &resource_tags, &conditions);
-        LocationQuery {
-            guid: content_guid(&content),
+        Ok(LocationQuery {
+            guid: content_guid(&content)?,
             count,
             min_locations: min,
             max_locations: max,
@@ -118,7 +129,7 @@ impl<'x, 'f> Reader<'x, 'f> {
             log_error_on_search_fail: log,
             resource_tags,
             conditions,
-        }
+        })
     }
 
     fn condition(&self, condition: &StructValue<'f>) -> LocationCondition {

@@ -12,6 +12,7 @@ mod report;
 mod settings;
 mod ships;
 mod still;
+mod variables;
 mod view;
 
 use std::sync::Arc;
@@ -25,7 +26,7 @@ pub use files::FileList;
 pub use pick::{ShipPick, UiScreensStatus};
 pub use render::{UiRendered, UiSource};
 pub use report::{ReportLine, UiReport};
-pub use settings::{UiBackground, UiFormat, UiSettings, UiSize};
+pub use settings::{UiBackground, UiFormat, UiPower, UiSettings, UiSize};
 pub use ships::ShipList;
 pub use view::{UiDetail, UiFilesStatus, UiMode, UiRenderFailure};
 
@@ -62,6 +63,7 @@ pub struct UiTab {
     mode: UiMode,
     detail: UiDetail,
     settings: UiSettings,
+    variables: String,
     files_query: String,
     ships_query: String,
     files: Files,
@@ -121,6 +123,29 @@ impl UiTab {
     /// Exports in `format`.
     pub const fn set_format(&mut self, format: UiFormat) {
         self.settings.format = format;
+    }
+
+    /// Draws screens in the game state `power`.
+    pub const fn set_power(&mut self, power: UiPower) {
+        self.settings.power = power;
+    }
+
+    /// Returns the game variables typed beside the state, as `NAME=VALUE` settings.
+    #[must_use]
+    pub fn variables_text(&self) -> &str {
+        &self.variables
+    }
+
+    /// Draws screens with the game variables in `text`, `NAME=VALUE` settings separated by blanks
+    /// or commas, after those of the state.
+    pub fn set_variables_text(&mut self, text: &str) {
+        text.clone_into(&mut self.variables);
+    }
+
+    /// Returns the typed settings that are no `NAME=VALUE`.
+    #[must_use]
+    pub fn invalid_variables(&self) -> Vec<String> {
+        variables::chosen(self.settings.power, &self.variables).invalid
     }
 
     /// Returns the search text of the list the mode shows.
@@ -306,10 +331,12 @@ impl UiTab {
     /// Forgets the lists, the picks and the picture, because another Archive was opened.
     pub(crate) fn archive_opened(&mut self) {
         let (mode, detail, settings) = (self.mode, self.detail, self.settings);
+        let variables = std::mem::take(&mut self.variables);
         *self = Self {
             mode,
             detail,
             settings,
+            variables,
             ..Self::default()
         };
     }

@@ -186,6 +186,15 @@ fn finished(ui: &mut Ui, texts: &Texts, summary: &ExtractionSummary, comparison_
         T::SummaryCountsConverted
     });
     ui.label(texts.format(text, &counts));
+    if summary.excluded_parts() > 0 {
+        let parts = summary.excluded_parts();
+        let args = [
+            ("count", u64::try_from(parts).unwrap_or(u64::MAX).into()),
+            ("number", number(texts, parts)),
+        ];
+        let note = texts.format(T::SummaryExcludedParts, &args);
+        ui.colored_label(palette::GRAY_2_TEXT, note);
+    }
     if let Some(records) = summary.records() {
         let counts = [
             ("written", number(texts, records.written)),

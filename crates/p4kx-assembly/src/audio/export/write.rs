@@ -5,10 +5,12 @@ use std::collections::HashMap;
 use std::error::Error;
 use std::fs;
 use std::io::{self, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use p4kx_audio::{AudioError, Codec, Loop, Soundbank, Wem};
-use p4kx_extraction::{ConflictPolicy, ConversionError, MAX_SOUND_LEN, write_replacing_counted};
+use p4kx_extraction::{
+    ConflictPolicy, ConversionError, MAX_SOUND_LEN, check_path_length, write_replacing_counted,
+};
 use rayon::prelude::*;
 
 use super::plan::{Job, Origin};
@@ -18,12 +20,32 @@ use crate::audio::{ArchiveAudio, MAX_SOUNDBANK_LEN};
 
 type Outcome = Result<ExportedSound, ExportFailure>;
 
-/// Writes the sounds of `jobs` into `folder`: the jobs of one Entry share one read of it, and the
+/// The folder the sounds go into.
+#[derive(Debug, Clone, Copy)]
+pub(super) struct Target<'a> {
+    /// The folder as given, which the reported paths start with.
+    pub(super) folder: &'a Path,
+    /// The absolute path of the folder, on which the path limit of ADR-0248 is measured.
+    pub(super) absolute: &'a Path,
+}
+
+impl Target<'_> {
+    /// Returns the path the sound of `job` is written to in `format`, or the failure when that
+    /// path exceeds the limit of ADR-0248.
+    fn file(self, job: &Job, format: SoundFormat) -> Result<PathBuf, ExportFailure> {
+        let name = format!("{}.{}", job.stem, format.extension());
+        check_path_length(&self.absolute.join(&name))
+            .map_err(|limit| failure(job, format!("{name}: {limit}")))?;
+        Ok(self.folder.join(name))
+    }
+}
+
+/// Writes the sounds of `jobs` into `target`: the jobs of one Entry share one read of it, and the
 /// Entries are handled in parallel. The outcomes come in job order.
 pub(super) fn run(
     audio: &ArchiveAudio<'_>,
     jobs: &[Job],
-    folder: &Path,
+    target: Target<'_>,
     options: ExportOptions,
     watch: &ExportWatch,
 ) -> Vec<Outcome> {
@@ -41,7 +63,7 @@ pub(super) fn run(
     let mut outcomes: Vec<(usize, Outcome)> = groups
         .par_iter()
         .flat_map_iter(|(origin, members)| {
-            run_group(audio, jobs, (*origin, members), (folder, options), watch)
+            run_group(audio, jobs, (*origin, members), (target, options), watch)
         })
         .collect();
     outcomes.sort_unstable_by_key(|(position, _)| *position);
@@ -52,7 +74,7 @@ fn run_group(
     audio: &ArchiveAudio<'_>,
     jobs: &[Job],
     (origin, members): (Origin, &[usize]),
-    (folder, options): (&Path, ExportOptions),
+    (target, options): (Target<'_>, ExportOptions),
     watch: &ExportWatch,
 ) -> Vec<(usize, Outcome)> {
     if watch.is_cancelled() {
@@ -93,12 +115,12 @@ fn run_group(
             }
             let job = jobs.get(position)?;
             let outcome = match bank.as_ref().map(|bank| bank.wem(job.wem_id)) {
-                None => write_sound(&bytes, false, job, folder, (options, watch))?,
+                None => write_sound(&bytes, false, job, target, (options, watch))?,
                 Some(Some(wem)) => write_sound(
                     wem.bytes(),
                     wem.is_prefetch(),
                     job,
-                    folder,
+                    target,
                     (options, watch),
                 )?,
                 Some(None) => Err(failure(
@@ -138,28 +160,34 @@ fn loop_of(wem: Option<&Wem<&[u8]>>, bytes: &[u8], raw: bool) -> Option<Loop> {
     }
 }
 
+/// Parses `bytes` for a conversion to `format`, or returns why they are written unchanged: the
+/// format is raw (no reason), only the start of a streamed WEM is there, or the WEM cannot be parsed.
+fn parse_for(
+    bytes: &[u8],
+    prefetch: bool,
+    format: SoundFormat,
+) -> (Option<Wem<&[u8]>>, Option<String>) {
+    if format == SoundFormat::Raw {
+        return (None, None);
+    }
+    if prefetch {
+        let note = "only the prefetched start of a streamed WEM is available".to_owned();
+        return (None, Some(note));
+    }
+    match Wem::parse(bytes) {
+        Ok(wem) => (Some(wem), None),
+        Err(error) => (None, Some(error.to_string())),
+    }
+}
+
 fn write_sound(
     bytes: &[u8],
     prefetch: bool,
     job: &Job,
-    folder: &Path,
+    target: Target<'_>,
     (options, watch): (ExportOptions, &ExportWatch),
 ) -> Option<Outcome> {
-    let mut note = None;
-    let wem = if options.format == SoundFormat::Raw {
-        None
-    } else if prefetch {
-        note = Some("only the prefetched start of a streamed WEM is available".to_owned());
-        None
-    } else {
-        match Wem::parse(bytes) {
-            Ok(wem) => Some(wem),
-            Err(error) => {
-                note = Some(error.to_string());
-                None
-            }
-        }
-    };
+    let (wem, mut note) = parse_for(bytes, prefetch, options.format);
     let loop_points = loop_of(
         wem.as_ref(),
         bytes,
@@ -173,7 +201,10 @@ fn write_sound(
         (Some(_), _) => &[SoundFormat::Wav, SoundFormat::Raw],
     };
     for &format in chain {
-        let path = folder.join(format!("{}.{}", job.stem, format.extension()));
+        let path = match target.file(job, format) {
+            Ok(path) => path,
+            Err(failed) => return Some(Err(failed)),
+        };
         let sound = |emitted: Emitted, note: Option<String>| ExportedSound {
             trigger: job.trigger.clone(),
             wem_id: job.wem_id,

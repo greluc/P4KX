@@ -209,9 +209,6 @@ fn the_kinds_follow_the_existing_ones_in_the_catalog_order() {
             "missionTypes",
             "missionLocalities",
             "contractScenarios",
-            "missionLocationTemplates",
-            "contractShipSpawns",
-            "contractLocationQueries",
             "lootTables",
             "lootArchetypes",
             "lootPoolFilters",
@@ -220,6 +217,9 @@ fn the_kinds_follow_the_existing_ones_in_the_catalog_order() {
             "legacyLootTables",
             "legacyLootArchetypes",
             "crafters",
+            "missionLocationTemplates",
+            "contractShipSpawns",
+            "contractLocationQueries",
         ],
         "order of the catalog"
     );

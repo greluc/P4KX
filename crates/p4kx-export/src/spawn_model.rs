@@ -31,13 +31,17 @@ pub(crate) type TagPaths = Vec<String>;
 ///
 /// The Archive gives these inline structures no GUID, so equal content shares one entry and one
 /// identifier; the identifier holds as long as the content does.
-pub(crate) fn content_guid(content: &impl Serialize) -> CatalogGuid {
-    let digest = Sha256::digest(serde_json::to_vec(content).unwrap_or_default());
+///
+/// # Errors
+///
+/// Returns the error of the JSON serialisation of `content`.
+pub(crate) fn content_guid(content: &impl Serialize) -> Result<CatalogGuid, serde_json::Error> {
+    let digest = Sha256::digest(serde_json::to_vec(content)?);
     let mut bytes = [0_u8; 16];
     for (target, source) in bytes.iter_mut().zip(digest) {
         *target = source;
     }
-    CatalogGuid(Guid::from_stored(bytes))
+    Ok(CatalogGuid(Guid::from_stored(bytes)))
 }
 
 /// One alternative of a ship slot: a ship the game picks by tags.

@@ -1,7 +1,7 @@
 # Ship spawns and location queries of contracts are stored descriptions, not resolved places
 
 Decided for issue #902. Evidence: LIVE 4.10 (the DataForge Records of the contracts, their templates
-and the 2,104 `MissionLocationTemplate` Records). Builds on ADR-0054 (additive kinds) and ADR-0237.
+and the 2,105 `MissionLocationTemplate` Records, 2,104 of them under `missiondata/pu_locations`). Builds on ADR-0054 (additive kinds) and ADR-0237.
 
 ## Decision
 
@@ -24,8 +24,8 @@ and the 2,104 `MissionLocationTemplate` Records). Builds on ADR-0054 (additive k
   Archive. Equal content shares one entry whose `guid` is the first 16 bytes of the SHA-256 of the
   canonical JSON of the content (the field order of the structs). It is the catalog's identifier,
   not a GUID of the Archive, and holds as long as the content does; a consumer must not store it
-  across a change of the description. Without sharing the contracts would repeat 2,703 ship
-  properties of which 554 are distinct.
+  across a change of the description. Without sharing, each of the 7,901 ship spawn links of the
+  contracts would repeat its description; 564 are distinct.
 - **Links.** A contract's properties are found by `missionVariableName` and resolved like the other
   fields of a contract: the first of sub contract, contract, handler and template wins. A weak
   pointer to another property of the same Record (the excluded or searched property of a

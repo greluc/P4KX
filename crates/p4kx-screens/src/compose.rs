@@ -14,9 +14,10 @@ use crate::error::ScreenError;
 use crate::images::{ImageSources, Images};
 use crate::limits::Limits;
 use crate::paint::Area;
-use crate::report::Report;
+use crate::report::{Report, VariableInForce};
 use crate::style::TagPaths;
 use crate::text::Texts;
+use crate::variables::{Variable, check_variable_count};
 use crate::walk::Walk;
 use crate::widget::CanvasSizing;
 
@@ -36,6 +37,40 @@ pub struct Composed {
 }
 
 impl Composed {
+    /// Closes the composition that `cx` took part in: the canvas `path` of `size` pixels, with
+    /// the `variables` that were set.
+    fn finish(
+        cx: Context<'_>,
+        variables: Vec<VariableInForce>,
+        (path, [width, height]): (&str, [f32; 2]),
+    ) -> Self {
+        let Context {
+            painter,
+            mut report,
+            images,
+            ..
+        } = cx;
+        report.shapes = painter.len();
+        report.truncated |= painter.is_full();
+        report.variables = variables;
+        if painter.state.mask_limit_hit {
+            report.note("Overflow", CLIP_LIMIT, path);
+        }
+        #[expect(
+            clippy::cast_possible_truncation,
+            clippy::cast_sign_loss,
+            reason = "the sides are checked to be from 1 to 16384"
+        )]
+        let (pixels_wide, pixels_high) = (width.round() as u32, height.round() as u32);
+        Self {
+            scene: painter.finish(width, height),
+            bitmaps: images.into_bitmaps(),
+            report,
+            width: pixels_wide,
+            height: pixels_high,
+        }
+    }
+
     /// Returns the width of the screen in pixels.
     #[must_use]
     pub const fn width(&self) -> u32 {
@@ -104,6 +139,7 @@ pub struct ScreenComposer<'a, 'f> {
     slots: Vec<String>,
     tags: TagPaths,
     limits: Limits,
+    variables: Vec<Variable>,
     texts: Option<TextSources<'a>>,
     images: Option<ImageSources<'a>>,
 }
@@ -117,6 +153,7 @@ impl<'a, 'f> ScreenComposer<'a, 'f> {
             slots: slot_names(forge),
             tags: TagPaths::build(forge),
             limits: Limits::DEFAULT,
+            variables: Vec::new(),
             texts: None,
             images: None,
         }
@@ -144,6 +181,15 @@ impl<'a, 'f> ScreenComposer<'a, 'f> {
         self
     }
 
+    /// Evaluates the bindings with the game variables `variables` instead of zero; a variable
+    /// that is set twice takes its last value, and one that no canvas reads is listed in the
+    /// report.
+    #[must_use]
+    pub fn with_variables(mut self, variables: &[Variable]) -> Self {
+        self.variables = variables.to_vec();
+        self
+    }
+
     /// Composes the canvas that `canvas` names, a GUID or a record path, into a scene of its own
     /// size.
     ///
@@ -154,15 +200,17 @@ impl<'a, 'f> ScreenComposer<'a, 'f> {
     /// entries of those canvases and styles, whose selectors the composer evaluates, set the
     /// colours, borders, alpha, visibility and geometry of the widgets at rest. The bindings of
     /// each canvas, calculated with every game variable at zero, decide which widgets are
-    /// instantiated and active.
+    /// instantiated and active, unless [`ScreenComposer::with_variables`] sets some.
     ///
     /// # Errors
     ///
     /// Returns [`ScreenError::UnknownCanvas`], [`ScreenError::AmbiguousCanvas`] or
     /// [`ScreenError::NotACanvas`] when `canvas` names no canvas, and
     /// [`ScreenError::EmptyCanvas`] when a side is less than 1 pixel and
-    /// [`ScreenError::CanvasTooLarge`] when one is more than 16384.
+    /// [`ScreenError::CanvasTooLarge`] when one is more than 16384, and
+    /// [`ScreenError::TooManyVariables`] when more than [`crate::MAX_VARIABLES`] are set.
     pub fn compose(&mut self, canvas: &str, brand: Option<&str>) -> Result<Composed, ScreenError> {
+        check_variable_count(self.variables.len())?;
         let guid = find_canvas(self.store.forge(), canvas)?;
         self.compose_guid(guid, brand)
     }
@@ -190,7 +238,8 @@ impl<'a, 'f> ScreenComposer<'a, 'f> {
             brand,
             &mut cx,
             self.limits,
-        );
+        )
+        .with_variables(&self.variables);
         walk.survey(&root);
         walk.enter(
             &root,
@@ -204,30 +253,12 @@ impl<'a, 'f> ScreenComposer<'a, 'f> {
             0,
             CanvasSizing::Size,
         );
-        let Context {
-            painter,
-            mut report,
-            images,
-            ..
-        } = cx;
-        report.shapes = painter.len();
-        report.truncated |= painter.is_full();
-        if painter.state.mask_limit_hit {
-            report.note("Overflow", CLIP_LIMIT, &root.record_path);
-        }
-        #[expect(
-            clippy::cast_possible_truncation,
-            clippy::cast_sign_loss,
-            reason = "the sides are checked to be from 1 to 16384"
-        )]
-        let (pixels_wide, pixels_high) = (width.round() as u32, height.round() as u32);
-        Ok(Composed {
-            scene: painter.finish(width, height),
-            bitmaps: images.into_bitmaps(),
-            report,
-            width: pixels_wide,
-            height: pixels_high,
-        })
+        let variables = walk.variables_in_force();
+        Ok(Composed::finish(
+            cx,
+            variables,
+            (&root.record_path, [width, height]),
+        ))
     }
 
     fn context(&self, brand: Option<&str>, side: u32) -> Context<'a> {

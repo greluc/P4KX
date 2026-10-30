@@ -104,6 +104,18 @@ ui_texts! {
     BackgroundBlack = "ui-background-black";
     /// A white background.
     BackgroundWhite = "ui-background-white";
+    /// The label of the choice of the game state a screen is drawn in.
+    PowerLabel = "ui-power-label";
+    /// Every game variable at zero.
+    PowerAtRest = "ui-power-at-rest";
+    /// The ship is powered on.
+    PowerOn = "ui-power-on";
+    /// The label of the field for more game variables.
+    VariablesLabel = "ui-variables-label";
+    /// The hint inside the empty field for more game variables.
+    VariablesHint = "ui-variables-hint";
+    /// Settings of the field that are no `NAME=VALUE`; takes `settings`.
+    VariablesInvalid = "ui-variables-invalid";
     /// The label of the format choice.
     FormatLabel = "ui-format-label";
     /// The PNG format.
@@ -245,6 +257,8 @@ ui_texts! {
     ReportLeftOut = "ui-report-left-out";
     /// A nested canvas that could not be read.
     ReportMissingCanvas = "ui-report-missing-canvas";
+    /// A game variable that was set and that no canvas of the screen reads.
+    ReportUnknownVariable = "ui-report-unknown-variable";
     /// A limit stopped the composition.
     ReportTruncated = "ui-report-truncated";
     /// A font that could not be imported.

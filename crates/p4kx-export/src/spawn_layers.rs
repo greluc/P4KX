@@ -1,14 +1,10 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 
-use p4kx_extraction::{
-    CancelToken, DataForge, DataForgeError, Guid, Record, StructValue, TagTree, TreeBuilder,
-};
-use rayon::prelude::*;
+use p4kx_extraction::StructValue;
 
-use crate::CatalogError;
 use crate::blueprint::as_struct;
 use crate::guid_text::CatalogGuid;
 use crate::mission_layers::{items, one};
@@ -19,7 +15,6 @@ use crate::spawn_model::{
 };
 use crate::spawn_read::{Reader, Spawn};
 
-const TEMPLATE_TYPE: &str = "ContractTemplate";
 const LOCATION_PROPERTY: &str = "ContractPrerequisite_LocationProperty";
 
 /// The distinct ship spawn descriptions and location queries, by identifier.
@@ -69,23 +64,26 @@ pub(crate) struct Level {
 impl Level {
     /// Reads the properties in the array `properties` of `params` and the location prerequisites
     /// in the array `prerequisites` of `owner`, registering what they state in `pools`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the error of the serialisation that makes the identifier of a description.
     pub(crate) fn read(
         level: SpawnLevel,
         reader: &Reader<'_, '_>,
         (params, properties): (Option<&StructValue<'_>>, &str),
         (owner, prerequisites): (Option<&StructValue<'_>>, &str),
         pools: &mut SpawnPools,
-    ) -> Self {
-        let stated = items(params, properties)
-            .iter()
-            .filter_map(as_struct)
-            .filter_map(|property| stated(reader, property, pools))
-            .collect();
-        Self {
-            at: level,
-            stated,
-            prerequisites: location_prerequisites(level, owner, prerequisites),
+    ) -> Result<Self, serde_json::Error> {
+        let mut found = Vec::new();
+        for property in items(params, properties).iter().filter_map(as_struct) {
+            found.extend(stated(reader, property, pools)?);
         }
+        Ok(Self {
+            at: level,
+            stated: found,
+            prerequisites: location_prerequisites(level, owner, prerequisites),
+        })
     }
 }
 
@@ -93,31 +91,38 @@ fn stated(
     reader: &Reader<'_, '_>,
     property: &StructValue<'_>,
     pools: &mut SpawnPools,
-) -> Option<Stated> {
-    let variable = text(Some(property), "missionVariableName")?.to_owned();
-    let token = text(Some(property), "extendedTextToken").map(str::to_owned);
-    let value = one(Some(property), "value")?;
-    let (target, empty) = match reader.spawn(value)? {
-        Spawn::Ships(pool) => {
-            let empty = pool.groups.is_empty();
-            let guid = pool.guid;
-            if !empty {
-                pools.ships.entry(guid.text()).or_insert(pool);
-            }
-            (Target::Ships(guid), empty)
-        }
-        Spawn::Location(query) => {
-            let guid = query.guid;
-            pools.locations.entry(guid.text()).or_insert(query);
-            (Target::Location(guid), false)
-        }
+) -> Result<Option<Stated>, serde_json::Error> {
+    let Some(variable) = text(Some(property), "missionVariableName") else {
+        return Ok(None);
     };
-    Some(Stated {
-        variable,
+    let token = text(Some(property), "extendedTextToken").map(str::to_owned);
+    let Some(value) = one(Some(property), "value") else {
+        return Ok(None);
+    };
+    let (target, empty) = match reader.spawn(value)? {
+        None => return Ok(None),
+        Some(spawn) => match spawn {
+            Spawn::Ships(pool) => {
+                let empty = pool.groups.is_empty();
+                let guid = pool.guid;
+                if !empty {
+                    pools.ships.entry(guid.text()).or_insert(pool);
+                }
+                (Target::Ships(guid), empty)
+            }
+            Spawn::Location(query) => {
+                let guid = query.guid;
+                pools.locations.entry(guid.text()).or_insert(query);
+                (Target::Location(guid), false)
+            }
+        },
+    };
+    Ok(Some(Stated {
+        variable: variable.to_owned(),
         token,
         target,
         empty,
-    })
+    }))
 }
 
 fn location_prerequisites(
@@ -151,51 +156,61 @@ pub(crate) struct ContractSpawns<'x, 'f> {
 
 impl<'x, 'f> ContractSpawns<'x, 'f> {
     /// Reads the level of `contract`, registering what it states in `pools`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the error of the serialisation that makes the identifier of a description.
     pub(crate) fn new(
         (reader, handler): (&'x Reader<'x, 'f>, &'x Level),
         contract: &StructValue<'f>,
         template: Option<&'x Level>,
         pools: &mut SpawnPools,
-    ) -> Self {
+    ) -> Result<Self, serde_json::Error> {
         let level = Level::read(
             SpawnLevel::Contract,
             reader,
             (one(Some(contract), "paramOverrides"), "propertyOverrides"),
             (Some(contract), "additionalPrerequisites"),
             pools,
-        );
-        Self {
+        )?;
+        Ok(Self {
             reader,
             handler,
             contract: level,
             template,
-        }
+        })
     }
 
     /// Returns what the contract, or its sub contract `sub`, states.
+    ///
+    /// # Errors
+    ///
+    /// Returns the error of the serialisation that makes the identifier of a description.
     pub(crate) fn resolve(
         &self,
         sub: Option<&StructValue<'f>>,
         pools: &mut SpawnPools,
-    ) -> Resolved {
-        let sub_level = sub.map(|sub| {
-            Level::read(
-                SpawnLevel::SubContract,
-                self.reader,
-                (
-                    one(Some(sub), "paramOverrides").or(Some(sub)),
-                    "propertyOverrides",
-                ),
-                (Some(sub), "additionalPrerequisites"),
-                pools,
-            )
-        });
+    ) -> Result<Resolved, serde_json::Error> {
+        let sub_level = sub
+            .map(|sub| {
+                Level::read(
+                    SpawnLevel::SubContract,
+                    self.reader,
+                    (
+                        one(Some(sub), "paramOverrides").or(Some(sub)),
+                        "propertyOverrides",
+                    ),
+                    (Some(sub), "additionalPrerequisites"),
+                    pools,
+                )
+            })
+            .transpose()?;
         let levels: Vec<&Level> = sub_level
             .iter()
             .chain([&self.contract, self.handler])
             .chain(self.template)
             .collect();
-        resolve(&levels)
+        Ok(resolve(&levels))
     }
 }
 
@@ -245,68 +260,4 @@ fn resolve(levels: &[&Level]) -> Resolved {
         .flat_map(|level| level.prerequisites.iter().cloned())
         .collect();
     resolved
-}
-
-/// The levels of the `ContractTemplate` Records, read once.
-pub(crate) struct TemplateLevels {
-    levels: HashMap<Guid, Level>,
-}
-
-impl TemplateLevels {
-    /// Reads the `contractProperties` of every template of `forge` and registers what they state
-    /// in `pools`.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`CatalogError::Cancelled`] once `cancel` is cancelled.
-    pub(crate) fn read<'f>(
-        forge: &'f DataForge<'f>,
-        tags: &TagTree,
-        pools: &mut SpawnPools,
-        cancel: Option<&CancelToken>,
-    ) -> Result<Self, CatalogError> {
-        let records: Vec<Record<'f>> = forge.records().collect();
-        let pieces: Vec<(Guid, Level, SpawnPools)> = records
-            .par_iter()
-            .map_init(TreeBuilder::new, |trees, record| {
-                if cancel.is_some_and(CancelToken::is_cancelled) {
-                    return Err(CatalogError::Cancelled);
-                }
-                Ok(template(trees, record, tags).ok().flatten())
-            })
-            .filter_map(Result::transpose)
-            .collect::<Result<_, _>>()?;
-        let mut levels = HashMap::new();
-        for (guid, level, found) in pieces {
-            pools.merge(found);
-            levels.insert(guid, level);
-        }
-        Ok(Self { levels })
-    }
-
-    /// Returns the level of the template `guid`.
-    pub(crate) fn get(&self, guid: Guid) -> Option<&Level> {
-        self.levels.get(&guid)
-    }
-}
-
-fn template<'f>(
-    trees: &mut TreeBuilder<'f>,
-    record: &Record<'f>,
-    tags: &TagTree,
-) -> Result<Option<(Guid, Level, SpawnPools)>, DataForgeError> {
-    if record.type_name()? != TEMPLATE_TYPE {
-        return Ok(None);
-    }
-    let tree = trees.build(record)?;
-    let reader = Reader::new(tags, tree.root());
-    let mut pools = SpawnPools::default();
-    let level = Level::read(
-        SpawnLevel::Template,
-        &reader,
-        (Some(tree.root()), "contractProperties"),
-        (None, ""),
-        &mut pools,
-    );
-    Ok(Some((tree.guid(), level, pools)))
 }

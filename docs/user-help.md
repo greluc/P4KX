@@ -284,7 +284,9 @@ The **Localisation** tab lists every localisation key of the Archive with its te
 of its `global.ini` files. Type a key or a text into **Search** (`item_Name`, `Aurora`) to narrow the
 list; **Copy key** and **Copy text** put the selected row on the clipboard. A language without a
 text for a key shows *Missing*. A `global.ini` that was not read cleanly (invalid bytes, lines
-without `=`) is named in a note above the table. `p4kx loc` does the same on the command line.
+without `=`) is named in a note above the table. **Copy text** copies the text with its line breaks
+decoded and without leading and trailing blanks or line breaks; `p4kx loc` looks the same keys up on
+the command line and keeps the text exactly as the file stores it.
 
 ## Entities and the 3D view
 

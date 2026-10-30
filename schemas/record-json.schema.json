@@ -158,7 +158,7 @@
       "additionalProperties": false
     },
     "error": {
-      "description": "A value that cannot be read, with the reason for people.",
+      "description": "A value that cannot be read, with the reason for people; a Reference to a Record that does not exist also has the GUID of that Record.",
       "type": "object",
       "required": [
         "error"
@@ -166,6 +166,10 @@
       "properties": {
         "error": {
           "type": "string"
+        },
+        "guid": {
+          "description": "The GUID of the missing Record of a dangling Reference; no other error has it. Optional so that exports without it still validate.",
+          "$ref": "#/$defs/guid"
         }
       },
       "additionalProperties": false

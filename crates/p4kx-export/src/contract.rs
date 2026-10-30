@@ -129,13 +129,6 @@ pub(crate) struct Catalog<'a> {
     pub(crate) mission_localities: Vec<MissionLocality<'a>>,
     /// The contract scenarios with their reward tiers, ordered by GUID.
     pub(crate) contract_scenarios: Vec<ContractScenario<'a>>,
-    /// The mission location templates, the places a location query matches by tags, ordered by
-    /// GUID.
-    pub(crate) mission_location_templates: Vec<MissionLocationTemplate<'a>>,
-    /// The distinct ship spawn descriptions of the contracts, ordered by identifier.
-    pub(crate) contract_ship_spawns: Vec<ShipSpawnPool>,
-    /// The distinct location queries of the contracts, ordered by identifier.
-    pub(crate) contract_location_queries: Vec<LocationQuery>,
     /// The loot tables with the weighted archetypes of each, ordered by GUID.
     pub(crate) loot_tables: Vec<LootTable<'a>>,
     /// The loot archetypes with the weighted selectors of each, ordered by GUID.
@@ -150,6 +143,13 @@ pub(crate) struct Catalog<'a> {
     pub(crate) mineable_entities: Vec<MineableEntity<'a>>,
     /// The crafting stations with the limits of their job queues, ordered by GUID.
     pub(crate) crafters: Vec<Crafter<'a>>,
+    /// The mission location templates, the places a location query matches by tags, ordered by
+    /// GUID.
+    pub(crate) mission_location_templates: Vec<MissionLocationTemplate<'a>>,
+    /// The distinct ship spawn descriptions of the contracts, ordered by identifier.
+    pub(crate) contract_ship_spawns: Vec<ShipSpawnPool>,
+    /// The distinct location queries of the contracts, ordered by identifier.
+    pub(crate) contract_location_queries: Vec<LocationQuery>,
     /// The RSI store slugs that map to a ship of `ships`, with the retired ones flagged, ordered
     /// by `slug`. A curated list, not read from the Archive.
     pub(crate) ship_store_slugs: Vec<ShipStoreSlug<'a>>,
@@ -227,12 +227,6 @@ pub(crate) struct Completeness<'a> {
     pub(crate) mission_localities: KindCompleteness<'a>,
     /// The completeness of `contractScenarios`.
     pub(crate) contract_scenarios: KindCompleteness<'a>,
-    /// The completeness of `missionLocationTemplates`.
-    pub(crate) mission_location_templates: KindCompleteness<'a>,
-    /// The completeness of `contractShipSpawns`.
-    pub(crate) contract_ship_spawns: KindCompleteness<'a>,
-    /// The completeness of `contractLocationQueries`.
-    pub(crate) contract_location_queries: KindCompleteness<'a>,
     /// The completeness of `lootTables`.
     pub(crate) loot_tables: KindCompleteness<'a>,
     /// The completeness of `lootArchetypes`.
@@ -247,6 +241,12 @@ pub(crate) struct Completeness<'a> {
     pub(crate) mineable_entities: KindCompleteness<'a>,
     /// The completeness of `crafters`.
     pub(crate) crafters: KindCompleteness<'a>,
+    /// The completeness of `missionLocationTemplates`.
+    pub(crate) mission_location_templates: KindCompleteness<'a>,
+    /// The completeness of `contractShipSpawns`.
+    pub(crate) contract_ship_spawns: KindCompleteness<'a>,
+    /// The completeness of `contractLocationQueries`.
+    pub(crate) contract_location_queries: KindCompleteness<'a>,
     /// The completeness of `shipStoreSlugs`.
     pub(crate) ship_store_slugs: KindCompleteness<'a>,
 }
@@ -287,9 +287,6 @@ impl<'a> Completeness<'a> {
             mission_types: completeness,
             mission_localities: completeness,
             contract_scenarios: completeness,
-            mission_location_templates: completeness,
-            contract_ship_spawns: completeness,
-            contract_location_queries: completeness,
             loot_tables: completeness,
             loot_archetypes: completeness,
             loot_pool_filters: completeness,
@@ -297,6 +294,9 @@ impl<'a> Completeness<'a> {
             legacy_loot_archetypes: completeness,
             mineable_entities: completeness,
             crafters: completeness,
+            mission_location_templates: completeness,
+            contract_ship_spawns: completeness,
+            contract_location_queries: completeness,
             ship_store_slugs: completeness,
         }
     }

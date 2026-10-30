@@ -105,15 +105,6 @@ pub enum Kind {
     MissionLocalities,
     /// Contract scenarios: `ScenarioProgress` Records under `contracts/contractscenarios`.
     ContractScenarios,
-    /// Mission location templates: `MissionLocationTemplate` Records under
-    /// `missiondata/pu_locations`, what a location query of a contract matches by tags.
-    MissionLocationTemplates,
-    /// Contract ship spawns: the distinct ship spawn descriptions the contracts state. Derived from
-    /// the contracts, so no record-path rule of its own.
-    ContractShipSpawns,
-    /// Contract location queries: the distinct location queries the contracts state. Derived from
-    /// the contracts, so no record-path rule of its own.
-    ContractLocationQueries,
     /// Loot tables: `LootTableV3Record` Records under `lootgeneration/loottables`.
     LootTables,
     /// Loot archetypes: `LootArchetypeV3Record` Records under `lootgeneration/lootarchetypes`.
@@ -137,6 +128,15 @@ pub enum Kind {
     /// comes last; an item, ship or commodity that is a crafter is read from its own Record.
     /// [`Kind::rule`] alone does not select a crafter: the Record must also hold the component.
     Crafters,
+    /// Mission location templates: `MissionLocationTemplate` Records under
+    /// `missiondata/pu_locations`, what a location query of a contract matches by tags.
+    MissionLocationTemplates,
+    /// Contract ship spawns: the distinct ship spawn descriptions the contracts state. Derived from
+    /// the contracts, so no record-path rule of its own.
+    ContractShipSpawns,
+    /// Contract location queries: the distinct location queries the contracts state. Derived from
+    /// the contracts, so no record-path rule of its own.
+    ContractLocationQueries,
 }
 
 impl Kind {
@@ -173,9 +173,6 @@ impl Kind {
         Self::MissionTypes,
         Self::MissionLocalities,
         Self::ContractScenarios,
-        Self::MissionLocationTemplates,
-        Self::ContractShipSpawns,
-        Self::ContractLocationQueries,
         Self::LootTables,
         Self::LootArchetypes,
         Self::LootPoolFilters,
@@ -184,6 +181,9 @@ impl Kind {
         Self::LegacyLootTables,
         Self::LegacyLootArchetypes,
         Self::Crafters,
+        Self::MissionLocationTemplates,
+        Self::ContractShipSpawns,
+        Self::ContractLocationQueries,
     ];
 
     /// Returns the name of the kind's array in the catalog, e.g. `manufacturers`.
@@ -221,9 +221,6 @@ impl Kind {
             Self::MissionTypes => "missionTypes",
             Self::MissionLocalities => "missionLocalities",
             Self::ContractScenarios => "contractScenarios",
-            Self::MissionLocationTemplates => "missionLocationTemplates",
-            Self::ContractShipSpawns => "contractShipSpawns",
-            Self::ContractLocationQueries => "contractLocationQueries",
             Self::LootTables => "lootTables",
             Self::LootArchetypes => "lootArchetypes",
             Self::LootPoolFilters => "lootPoolFilters",
@@ -232,6 +229,9 @@ impl Kind {
             Self::LegacyLootTables => "legacyLootTables",
             Self::LegacyLootArchetypes => "legacyLootArchetypes",
             Self::Crafters => "crafters",
+            Self::MissionLocationTemplates => "missionLocationTemplates",
+            Self::ContractShipSpawns => "contractShipSpawns",
+            Self::ContractLocationQueries => "contractLocationQueries",
         }
     }
 

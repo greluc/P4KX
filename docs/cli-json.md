@@ -615,8 +615,10 @@ the body skeleton and follow their nearest parent that is) and `not_skinned` (th
 weights and its port names no bone to hang it on, so it is placed as it is; one that hangs on
 the bone of its port is not listed, ADR-0231), both described at the exported level of detail,
 `body_zones_hidden` (the reason lists the body zones the worn clothing covers, whose triangles of
-the body are left out, ADR-0140), `body_zones_unknown` (the submeshes of the body skin do not fit
-the zone table, so nothing is left out), `layers_without_diffuse` (only with `--materials textures`; the reason counts the layered
+the body are left out, ADR-0140), `body_zones_unknown` (no part, or several, of the character is a `Char_Body` with a model, the
+skin is not one of the variant's body, or the submeshes of the body skin do not fit the zone
+table, so nothing is left out), `layers_without_diffuse` (only with `--materials textures`; the
+reason counts the layered
 materials of the part that have no diffuse map of their own and none in a layer, and are drawn in their
 layer colours, ADR-0147) and
 `material_library`. `path` is empty and `name` is `body` for the body's skin, else the piece's

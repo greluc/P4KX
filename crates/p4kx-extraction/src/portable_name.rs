@@ -156,8 +156,8 @@ pub(crate) fn fold(path: &str) -> impl Iterator<Item = char> + '_ {
         .map(|c| if c == '\\' { '/' } else { c })
 }
 
-/// Returns `name` folded as [`fold`] does, the key two names share when they would be the same
-/// file on a case-insensitive file system.
+/// Returns `name` with every character in Unicode simple lower case and `\` as `/`: the key two
+/// names share when they would be the same file on a case-insensitive file system.
 #[must_use]
 pub fn fold_name(name: &str) -> String {
     fold(name).collect()

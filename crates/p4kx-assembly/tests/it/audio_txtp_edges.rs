@@ -143,6 +143,31 @@ fn txtp_names(events: &[&str]) -> Result<Vec<String>, Box<dyn std::error::Error>
 }
 
 #[test]
+fn a_file_line_equals_the_written_file_for_names_with_a_hash_or_a_leading_space() -> TestResult {
+    for (trigger, file) in [
+        ("Play #1", "Play %231.wav"),
+        ("#x", "%23x.wav"),
+        (" x", "%20x.wav"),
+    ] {
+        let wem = pcm().bytes();
+        Case {
+            trigger: Some(trigger.to_owned()),
+            objects: one_sound(&["Play_X"], &wem),
+            wems: vec![(7001, wem)],
+            ..Case::default()
+        }
+        .run(|folder, report, _| {
+            assert!(report.skipped.is_empty(), "{:?}", report.skipped);
+            assert!(folder.join(file).is_file(), "{file:?} is written");
+            let text = read(folder, "Play_X.txtp")?;
+            assert_eq!(text.lines().last(), Some(file), "{trigger:?}");
+            Ok(())
+        })?;
+    }
+    Ok(())
+}
+
+#[test]
 fn a_device_name_or_a_forbidden_character_in_an_event_name_is_escaped() -> TestResult {
     let names = txtp_names(&["NUL", "Play|X:Y", "a."])?;
     assert_eq!(names, ["%4EUL.txtp", "Play%7CX%3AY.txtp", "a%2E.txtp"]);

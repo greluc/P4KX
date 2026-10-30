@@ -4,6 +4,7 @@
 //! File name stems of the sound and TXTP export, under the portable rule of ADR-0248.
 
 use std::collections::HashSet;
+use std::fmt::Write;
 
 use p4kx_extraction::{MAX_PART_BYTES, escape_part, fold_name};
 
@@ -21,10 +22,25 @@ pub(in crate::audio) const MAX_STEM_BYTES: usize =
 /// Returns `text` as a file name stem that passes `check_part` with an extension and suffixes
 /// added: escaped by `escape_part`, so two different texts never give the same stem, or `fallback`
 /// when the escaped text is longer than [`MAX_STEM_BYTES`].
+///
+/// A `#` and a leading space are escaped too, so the stem stands as a file line of a TXTP, where
+/// ` #` starts a command, a leading `#` a comment and leading spaces are trimmed.
 pub(in crate::audio) fn portable_stem(text: &str, fallback: &str) -> String {
-    match escape_part(text) {
-        Ok(stem) if stem.len() <= MAX_STEM_BYTES => stem.into_owned(),
-        _ => fallback.to_owned(),
+    let Ok(escaped) = escape_part(text) else {
+        return fallback.to_owned();
+    };
+    let mut stem = String::with_capacity(escaped.len());
+    for (position, character) in escaped.chars().enumerate() {
+        if character == '#' || (position == 0 && character == ' ') {
+            let _ = write!(stem, "%{:02X}", u32::from(character));
+        } else {
+            stem.push(character);
+        }
+    }
+    if stem.len() <= MAX_STEM_BYTES {
+        stem
+    } else {
+        fallback.to_owned()
     }
 }
 
@@ -63,6 +79,14 @@ mod tests {
             "..%5C..%5Cevil%2Fx%3Ay"
         );
         assert_eq!(portable_stem("a%b", "x"), "a%25b");
+    }
+
+    #[test]
+    fn a_hash_and_a_leading_space_are_escaped_for_the_txtp() {
+        assert_eq!(portable_stem("Play #1", "x"), "Play %231");
+        assert_eq!(portable_stem("#x", "x"), "%23x");
+        assert_eq!(portable_stem(" x", "x"), "%20x");
+        assert_eq!(portable_stem("a b", "x"), "a b");
     }
 
     #[test]

@@ -92,9 +92,10 @@ impl TxtpReport {
 /// `<event>.txtp`, naming the files `exported` holds.
 ///
 /// A name is escaped to pass the portable file-name rule of ADR-0248 (`%` and two hex digits for
-/// each character it forbids), or becomes `event` when it is too long; a name already taken under
-/// the case fold of that rule gets `_2`, `_3`, … appended in event order. An event whose sounds are not all in `exported` as a
-/// whole file, because a source has no file or only its prefetched start was written, is listed
+/// each character it forbids, and for `#` and a leading space, which a TXTP line cannot hold), an
+/// empty name becomes `%`, and a name that is too long becomes `event`; a name already taken
+/// under the case fold of that rule gets `_2`, `_3`, … appended in event order. An event whose
+/// sounds are not all in `exported` as a whole file, because a source has no file or only its prefetched start was written, is listed
 /// in [`TxtpReport::skipped`] with the reason. Objects the walk does not tell apart are combined
 /// as follows: an Event's actions, blend containers, music segments and music tracks as layers;
 /// sequence containers and music playlists as segments; random and switch containers and music

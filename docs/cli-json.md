@@ -738,9 +738,10 @@ decoded, which then carries the reason in `unconverted`. A file is named `<trigg
 trigger with one WEM and `<trigger>_<wem_id>.<ext>` for several. The name follows the portable
 file-name rule of ADR-0248: each character it forbids (`<>:"/\|?*`, control characters), a trailing
 dot or space and the first letter of a Windows device name is written as `%` and two upper-case hex
-digits, and `%` itself as `%25`; a name that is still too long for a file (more than 228 bytes)
-becomes `sound`. A name already taken under the case fold of that rule gets `_2`, `_3`, … `kept` is
-true for an existing file left alone by `--conflict skip` or an identical one under `if-changed`.
+digits, and `%` itself as `%25`; so are `#` and a leading space, which a TXTP line cannot hold, and
+an empty name becomes `%`. A name that is still too long for a file (more than 228 bytes) becomes
+`sound`. A name already taken under the case fold of that rule (Unicode simple lower case, `\` as
+`/`) gets `_2`, `_3`, … `kept` is true for an existing file left alone by `--conflict skip` or an identical one under `if-changed`.
 `failures` lists the sounds that got no file: source plug-ins and external sources (`wem_id` null),
 WEMs no soundbank or loose Entry holds, and sounds whose absolute file path exceeds the limit of
 ADR-0248 (260 UTF-16 units for the file, 248 for its folder), each with its reason; the other

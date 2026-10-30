@@ -4576,7 +4576,7 @@
       "type": "object"
     },
     "MiningLaserStats": {
-      "description": "A mining laser, raw facts of `SEntityComponentMiningLaserParams` (ADR-0259).\n\nThe beams are fire modes of `weapon.fireActions`: their `hitType`, `fullDamageRange`,\n`zeroDamageRange` and `damagePerSecond`.",
+      "description": "A mining laser, raw facts of `SEntityComponentMiningLaserParams` (ADR-0262).\n\nThe beams are fire modes of `weapon.fireActions`: their `hitType`, `fullDamageRange`,\n`zeroDamageRange` and `damagePerSecond`.",
       "properties": {
         "filterModifier": {
           "description": "`filterParams.filterModifier.value`.",
@@ -4643,7 +4643,7 @@
       "type": "object"
     },
     "MiningModifierStats": {
-      "description": "A mining module or gadget, raw facts of the `EntityComponentAttachableModifierParams` that\nholds a mining modifier (ADR-0259).",
+      "description": "A mining module or gadget, raw facts of the `EntityComponentAttachableModifierParams` that\nholds a mining modifier (ADR-0262).",
       "properties": {
         "activationMethod": {
           "description": "`activationMethod`, e.g. `ActivateOnAttach` for a passive module and `ActivateOnDemand`\nfor an active module or a gadget. A closed set the game may extend; the schema keeps a\nstring.",

@@ -34,5 +34,5 @@ components the stats did not read.
 - **Third-party data stays out.** The SCMDB mining data served as a hint to find the values; no
   value of it is in the repository, the tests or CI. Tests assert what the Archive states.
 - **Additive in version 2.** Two blocks and three fire-mode fields are new fields (ADR-0054). Items
-  are grouped into variants by their stats, so the new fields can split a variant group whose
-  members differ only in them.
+  are grouped into variants by their stats; on LIVE 4.10.2 none of the 832 variant groups (4,828
+  items) changes.

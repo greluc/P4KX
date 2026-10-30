@@ -290,7 +290,7 @@ text. The additions are additive in version 1 (ADR-0054); `kind` of a fire mode 
 `trackingSignalType` are closed sets that the schema keeps as strings. The blocks `armor`,
 `clothing`, `radar`, `tractorBeam` and `weaponModifier` and the fire-mode field `damagePerSecond`
 follow ADR-0072; the blocks `miningLaser` and `miningModifier` and the fire-mode fields `hitType`,
-`fullDamageRange` and `zeroDamageRange` follow ADR-0259.
+`fullDamageRange` and `zeroDamageRange` follow ADR-0262.
 
 | Block | Present when | Fields and sources |
 |-------|--------------|--------------------|

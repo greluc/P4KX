@@ -7,7 +7,7 @@ use serde::Serialize;
 use crate::contract::every_field_required;
 use crate::guid_text::CatalogGuid;
 
-/// A mining laser, raw facts of `SEntityComponentMiningLaserParams` (ADR-0259).
+/// A mining laser, raw facts of `SEntityComponentMiningLaserParams` (ADR-0262).
 ///
 /// The beams are fire modes of `weapon.fireActions`: their `hitType`, `fullDamageRange`,
 /// `zeroDamageRange` and `damagePerSecond`.
@@ -55,7 +55,7 @@ pub(crate) struct MiningModifierValues {
 }
 
 /// A mining module or gadget, raw facts of the `EntityComponentAttachableModifierParams` that
-/// holds a mining modifier (ADR-0259).
+/// holds a mining modifier (ADR-0262).
 #[derive(Debug, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 #[schemars(transform = every_field_required)]

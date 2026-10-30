@@ -113,6 +113,7 @@ mod read;
 mod resolver;
 mod resolver_prefetch;
 mod resolver_vehicle;
+mod skeleton;
 mod spec;
 mod tree;
 mod vehicle;
@@ -165,6 +166,7 @@ pub use prefab::{
 };
 pub use provider::{ArchiveModels, ModelFailure, ModelProvider, ProvidedModel};
 pub use resolver::LoadoutResolver;
+pub use skeleton::{MAX_SKELETON_LEN, SkeletonProblem};
 pub use spec::LoadoutOrigin;
 pub use tree::{Attachment, EntityNode, PortNode, PortSource, Target, Unresolved};
 pub use vehicle::{

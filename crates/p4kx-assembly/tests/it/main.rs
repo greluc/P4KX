@@ -33,6 +33,7 @@ mod audio_trigger_fields;
 mod body_zones;
 mod character_definitions;
 mod character_item_ports;
+mod character_skeletons;
 mod docked_vehicles;
 mod entity_catalogue;
 mod entity_interior;

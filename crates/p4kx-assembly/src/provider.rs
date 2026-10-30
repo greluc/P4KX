@@ -12,6 +12,7 @@ use p4kx_extraction::{
 use thiserror::Error;
 
 use crate::cdf::{self, MAX_CDF_BYTES, is_character_definition};
+use crate::skeleton::SkeletonProblem;
 
 /// A model a [`ModelProvider`] read and the Entry it was read from.
 #[derive(Debug, Clone)]
@@ -25,6 +26,9 @@ pub struct ProvidedModel {
     /// The files of the attachments of a character definition (`.cdf`) that are not part of
     /// `model`; empty for every other file.
     pub left_out: Vec<String>,
+    /// What is wrong with the skeleton file a character definition (`.cdf`) names; `None` when
+    /// the file is fine, the definition names none, or the file is no character definition.
+    pub skeleton: Option<SkeletonProblem>,
 }
 
 /// Why a [`ModelProvider`] cannot supply a model.
@@ -146,7 +150,7 @@ pub trait ModelProvider: Sync {
 }
 
 /// Returns whether `path` starts with `prefix`, ignoring ASCII case and treating `\` as `/`.
-fn starts_with_path(path: &str, prefix: &str) -> bool {
+pub(crate) fn starts_with_path(path: &str, prefix: &str) -> bool {
     let mut own = path.bytes();
     prefix.bytes().all(|byte| {
         own.next().is_some_and(|found| {
@@ -295,6 +299,10 @@ impl ArchiveModels<'_> {
         if let Some(material) = &character.material {
             provided.model.material_library = Some(without_mtl(material).to_owned());
         }
+        provided.skeleton = character
+            .skeleton
+            .as_deref()
+            .map_or(Ok(None), |path| self.skeleton_problem(path))?;
         Ok(provided)
     }
 
@@ -325,6 +333,7 @@ impl ArchiveModels<'_> {
             entry,
             model,
             left_out,
+            skeleton: None,
         })
     }
 }

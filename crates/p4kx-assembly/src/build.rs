@@ -16,6 +16,7 @@ use crate::placement::{bone_transform, node_transform, offset};
 use crate::{
     Assembly, AssemblyError, AssemblyOptions, EntityNode, Issue, IssueKind, ModelProvider,
     ObjectContainerRef, PaletteProvider, Part, Placement, PortDefinition, PortNode, PortTransform,
+    SkeletonProblem,
 };
 
 type Libraries = HashMap<String, Arc<MaterialStatus>>;
@@ -90,7 +91,7 @@ impl Assembly {
                 &mut reported,
                 &mut issues,
             );
-            note_attachments(draft, *model, &mut characters, &mut issues);
+            note_character(draft, *model, &mut characters, &mut issues);
             let (palette, unresolved) = palettes.of_part(draft, *model, &materials);
             issues.extend(unresolved.into_iter().map(|kind| issue(draft, kind)));
             let (local, placement) = place(draft, &parts, *model, &mut issues);
@@ -170,19 +171,34 @@ fn containers_of(drafts: &[Draft<'_>]) -> Vec<Arc<[ObjectContainerRef]>> {
         .collect()
 }
 
-/// Lists the attachments of a character definition that are not drawn, once per definition.
-fn note_attachments(
+/// Lists the attachments of a character definition that are not drawn and the problem with its
+/// skeleton file, once per definition.
+fn note_character(
     draft: &Draft<'_>,
     model: Option<&Loaded>,
     seen: &mut HashSet<String>,
     issues: &mut Vec<Issue>,
 ) {
-    if let (Some(loaded), Some(path)) = (model, draft.geometry_path())
-        && !loaded.left_out.is_empty()
-        && seen.insert(file_key(path))
-    {
+    let (Some(loaded), Some(path)) = (model, draft.geometry_path()) else {
+        return;
+    };
+    if (loaded.left_out.is_empty() && loaded.skeleton.is_none()) || !seen.insert(file_key(path)) {
+        return;
+    }
+    if !loaded.left_out.is_empty() {
         let files = loaded.left_out.clone();
         issues.push(issue(draft, IssueKind::AttachmentsLeftOut { files }));
+    }
+    match &loaded.skeleton {
+        Some(SkeletonProblem::Missing { path }) => {
+            let path = path.clone();
+            issues.push(issue(draft, IssueKind::SkeletonMissing { path }));
+        }
+        Some(SkeletonProblem::Unreadable { path, reason }) => {
+            let (path, reason) = (path.clone(), reason.clone());
+            issues.push(issue(draft, IssueKind::SkeletonUnreadable { path, reason }));
+        }
+        None => {}
     }
 }
 

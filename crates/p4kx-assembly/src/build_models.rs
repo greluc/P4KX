@@ -10,7 +10,9 @@ use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use crate::build::{file_key, issue};
 use crate::flatten::Draft;
 use crate::tree::GeometryChoice;
-use crate::{AssemblyError, AssemblyOptions, Issue, IssueKind, ModelFailure, ModelProvider};
+use crate::{
+    AssemblyError, AssemblyOptions, Issue, IssueKind, ModelFailure, ModelProvider, SkeletonProblem,
+};
 
 /// The most distinct model files read at once before the vertex budget is checked again; a wave
 /// is twice the number of threads, at most this many.
@@ -21,6 +23,7 @@ pub(crate) struct Loaded {
     pub(crate) entry: String,
     pub(crate) model: Arc<Model>,
     pub(crate) left_out: Vec<String>,
+    pub(crate) skeleton: Option<SkeletonProblem>,
 }
 
 /// What reading one distinct geometry file came to.
@@ -122,6 +125,7 @@ fn read_files(
                     entry: provided.entry,
                     model: Arc::new(provided.model),
                     left_out: provided.left_out,
+                    skeleton: provided.skeleton,
                 });
                 (key.clone(), result)
             })

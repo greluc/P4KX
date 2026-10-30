@@ -83,6 +83,8 @@ pub enum Text {
     MenuArchive,
     /// The action that opens an Archive through a file dialog.
     ActionOpen,
+    /// The action that opens a DataForge file such as `Game2.dcb` through a file dialog.
+    ActionOpenDataForge,
     /// The action that adds a folder as a manual entry through a folder dialog.
     ActionAddFolder,
     /// The action that adds an Archive as a manual entry through a file dialog.
@@ -113,6 +115,8 @@ pub enum Text {
     UpdateAvailable,
     /// The file type filter of the open dialog.
     DialogArchiveFilter,
+    /// The file type filter of the dialog that opens a DataForge file.
+    DialogDataForgeFilter,
     /// The name column.
     ColumnName,
     /// The compression column.

@@ -20,8 +20,10 @@ mod content_tools;
 mod definitions;
 mod entries;
 mod error;
+mod forge_file;
 mod forge_params;
 mod forge_shapes;
+mod forge_state;
 mod gate;
 mod image;
 mod image_tools;
@@ -113,7 +115,7 @@ fn main() -> Result<()> {
     let default_archive = args
         .archive
         .as_deref()
-        .map(|archive| locations.resolve(archive))
+        .map(|archive| locations.resolve(archive, locate::Accepts::Archive))
         .transpose()
         .map_err(|error| anyhow::anyhow!(error.message()))?;
     let runtime = tokio::runtime::Builder::new_current_thread()

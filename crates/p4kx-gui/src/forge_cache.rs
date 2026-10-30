@@ -108,7 +108,12 @@ impl ForgeCache {
         let changed = |error| ReadFailure::ArchiveChanged(describe(&error));
         index.watch().check().map_err(changed)?;
         reading();
-        let entry = match DataForgeEntry::read_until(index.archive(), stop) {
+        let read = if index.is_dataforge_file() {
+            DataForgeEntry::read_file_until(index.archive().path(), stop)
+        } else {
+            DataForgeEntry::read_until(index.archive(), stop)
+        };
+        let entry = match read {
             Ok(entry) => entry,
             Err(DataForgeLoadError::Cancelled) => return Ok(None),
             Err(error) => return Err(ReadFailure::Unreadable(describe(&error))),

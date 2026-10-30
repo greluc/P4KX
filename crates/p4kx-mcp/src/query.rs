@@ -10,9 +10,9 @@ use p4kx_extraction::query::{
 use p4kx_extraction::{CancelToken, DataForge};
 use serde_json::value::RawValue;
 
-use crate::archives::Opened;
 use crate::budget::{Counter, MAX_RESPONSE_LEN, json_len};
 use crate::error::{ToolError, chain};
+use crate::forge_file::ForgeSource;
 use crate::forge_shapes::{ColumnShape, FailedRow, QueryResult};
 use crate::page::Page;
 
@@ -32,7 +32,7 @@ pub(crate) const TIME_LIMIT: Duration = Duration::from_secs(30);
 pub(crate) struct Target<'a> {
     pub(crate) forge: &'a DataForge<'a>,
     pub(crate) archive: String,
-    pub(crate) opened: &'a Opened,
+    pub(crate) opened: &'a ForgeSource,
 }
 
 /// Runs `text` and returns one page of its rows: at most the page size, and no more than fit
@@ -72,7 +72,7 @@ pub(crate) fn run(
 }
 
 fn selection(
-    opened: &Opened,
+    opened: &ForgeSource,
     compiled: &CompiledQuery<'_>,
     canonical: &str,
     cancel: &CancelToken,

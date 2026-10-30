@@ -10,7 +10,8 @@ use crate::cli::QueryFormat;
 /// Arguments of `p4kx dcb fields`.
 #[derive(Debug, Args)]
 pub(crate) struct DcbFieldsArgs {
-    /// Path of the Data.p4k Archive.
+    /// Path of the Data.p4k Archive, or of a DataForge file such as Game2.dcb (recognised by its
+    /// content, not by its name).
     pub(crate) archive: PathBuf,
     /// The Records to count: a type name, e.g. `EntityClassDefinition`, which selects the Records
     /// of that type and of the types deriving from it, or a Query, defined in docs/query.md, whose

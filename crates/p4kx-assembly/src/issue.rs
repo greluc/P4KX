@@ -236,7 +236,8 @@ pub enum IssueKind {
     /// Worn clothing covers these zones of the body, so the body's triangles in them are left out.
     #[error("the body zones {} are covered by the clothing and left out", .0.join(", "))]
     BodyZonesHidden(Vec<String>),
-    /// The body's submeshes do not fit its zone table, so no body triangles are left out.
+    /// The body has no part to cut or its submeshes do not fit its zone table, so no body
+    /// triangles are left out.
     #[error("the body cannot be cut by zone: {0}")]
     BodyZonesUnknown(String),
     /// This many layered materials of the part have no diffuse map, neither their own nor one in

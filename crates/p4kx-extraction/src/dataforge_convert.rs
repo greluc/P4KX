@@ -49,9 +49,7 @@ impl EntryWriter<'_> {
         if self.tracker.should_stop() {
             return Ok((Outcome::Cancelled, None));
         }
-        let relative = self
-            .relative_path(entry)
-            .ok_or(ExtractionError::UnsafePath)?;
+        let relative = self.relative_path(entry)?;
         let size = entry.uncompressed_size();
         let too_large = || ExtractionError::TooLargeToConvert {
             size,

@@ -110,6 +110,15 @@ empty or `error` is set.
 With `--lang <language>` the report also holds `"language": "de"`, the code of the language the
 texts were resolved in; without it the field is absent.
 
+When a Record's file does not follow its name or record path, the report also holds `"renamed":
+[{"guid": "…", "path": "records/a|b", "reason": "…"}]` with one item per cause, in definition
+order; without such a Record the field is absent. `path` is the record path as the DataForge
+states it and `reason` says which rule broke and what was done: the Record name is no valid file
+name on Linux and Windows and the GUID names the file, or a part of the record path is escaped
+(`%` and two hex digits) or, when no escape fits, the Record is written to `%long/<GUID>`
+([ADR-0248](adr/0248-written-file-names-are-valid-on-linux-and-windows-on-every-platform.md)).
+Renamed Records are written, so they do not make the exit code 1.
+
 With `--tags` the report also holds `"tags": true`: the Records carry the tag path of every tag
 Reference ([record-xml.md](record-xml.md#tag-paths)); without it the field is absent.
 
@@ -2030,8 +2039,14 @@ XMA2 to WAV is not supported"}`, written unchanged; a soundbank is listed once f
 WEM that could not be converted, the error naming `<bank> WEM <ID>`. The exit code is then 1. Without `--convert` both
 fields are absent. When `--convert` converted the DataForge Entry, the report also holds
 `records` with the fields `exported`, `skipped`, `failed`, `cancelled`, `error_values` and
-`records_with_errors` of [`p4kx dcb export`](#p4kx-dcb-export-archive---json); `skipped` lists
+`records_with_errors` of [`p4kx dcb export`](#p4kx-dcb-export-archive---json), and, only when a
+Record's file does not follow its name or record path, `renamed` as there
+(`{"guid", "path", "reason"}`); `skipped` lists
 the Record files relative to the folder of the DataForge Entry. Otherwise that field is absent.
+An Entry whose path has a part that is no valid file name on Linux and Windows, a path that is too
+long for Windows or that differs only in case from an earlier written Entry is listed in `failed`
+with the part and the rule it breaks
+([ADR-0248](adr/0248-written-file-names-are-valid-on-linux-and-windows-on-every-platform.md)).
 `skipped` lists the Entries whose existing file in the target was kept under `--conflict`;
 `failed` lists the Entries that were not written, with the reason and its causes joined by `: `;
 `cancelled` lists the Entries not written because the run was cancelled and, once a cancelled run

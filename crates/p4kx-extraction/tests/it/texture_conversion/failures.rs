@@ -3,7 +3,7 @@
 
 use std::error::Error;
 
-use p4kx_extraction::{ConflictPolicy, ExtractionError, ExtractionReport};
+use p4kx_extraction::{ConflictPolicy, ExtractionError, ExtractionReport, NameRule};
 use p4kx_testkit::{SplitDds, TestEntry, TestTextureFormat};
 
 use super::fixture::{Fixture, HEADER, files, merged_layout, rock, run, texture_entries};
@@ -169,10 +169,13 @@ fn a_texture_whose_path_would_leave_the_target_fails_once_and_writes_nothing() -
     assert!(report.unconverted().is_empty(), "{report:?}");
     assert_eq!(report.failures().len(), 2, "the header and its part");
     assert!(
-        report
-            .failures()
-            .iter()
-            .all(|failure| matches!(failure.error(), ExtractionError::UnsafePath)),
+        report.failures().iter().all(|failure| matches!(
+            failure.error(),
+            ExtractionError::InvalidName {
+                rule: NameRule::DotPart,
+                ..
+            }
+        )),
         "{report:?}"
     );
     assert!(files(&fixture.target)?.is_empty(), "nothing written");

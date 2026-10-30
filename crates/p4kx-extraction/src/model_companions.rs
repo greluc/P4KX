@@ -117,7 +117,7 @@ impl CompanionResolver for DiskCompanions<'_> {
 }
 
 fn plain_name(name: &str) -> Result<&str, CompanionError> {
-    let single = relative_path(name).is_some_and(|path| path.components().count() == 1);
+    let single = relative_path(name).is_ok_and(|path| path.components().count() == 1);
     if single {
         Ok(name)
     } else {

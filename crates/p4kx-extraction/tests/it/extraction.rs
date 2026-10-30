@@ -275,11 +275,11 @@ fn entry_paths_that_leave_the_target_are_rejected() -> TestResult {
         "every unsafe path fails"
     );
     assert!(
-        report
-            .failures()
-            .iter()
-            .all(|failure| matches!(failure.error(), ExtractionError::UnsafePath)),
-        "every failure is an unsafe path: {:?}",
+        report.failures().iter().all(|failure| matches!(
+            failure.error(),
+            ExtractionError::UnsafePath | ExtractionError::InvalidName { .. }
+        )),
+        "every failure is an unsafe path or an invalid name: {:?}",
         report.failures()
     );
     assert_eq!(

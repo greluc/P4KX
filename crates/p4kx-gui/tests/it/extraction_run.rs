@@ -224,7 +224,7 @@ fn failed_entries_are_reported_with_their_reason() -> TestResult {
     );
     assert_eq!(
         summary.failures().get(1).map(|f| f.reason.as_str()),
-        Some("the path would leave the target folder"),
+        Some("the name \"NUL\" cannot be written: the name is a Windows device name"),
         "the reason of the service"
     );
     Ok(())

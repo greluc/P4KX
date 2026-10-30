@@ -22,8 +22,14 @@ the hull and stay unused for glass.
   colour) unless that colour is white.
 - The vertex alpha is not used; the alpha follows the glass rule of ADR-0100.
 - The rule is structural: the shader family and the generation mask, never a material or ship name.
-- The GLB needs no rule: glTF multiplies `COLOR_0` into the base colour, and the writer
-  writes `COLOR_0` for meshes that have vertex colours.
+- The node reads the attribute `Color`, which Blender's glTF import writes for `COLOR_0`. Glass on
+  a mesh without that attribute drops the tint and keeps its plain colour, because the node would
+  read black.
+- The GLB has no rule of its own. glTF multiplies `COLOR_0` into the base colour, so `PER_VERTEX_TINT`
+  glass is tinted there. The limit: the writer writes `COLOR_0` for every primitive of a mesh that has
+  vertex colours, so glass without the flag, such as `glass_ext` next to mask colours, is also tinted
+  and faded by mask data in glTF viewers, while the add-on ignores it. The add-on needs `COLOR_0` for
+  layered surfaces, so the fix is writing it per primitive (#877).
 
 ## Consequences
 

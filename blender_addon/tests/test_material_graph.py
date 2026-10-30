@@ -15,7 +15,7 @@ from p4kx_importer.graph_spec import GraphSpec, Ref
 from p4kx_importer.material_graph import BuildContext, build_graph, family_of
 from p4kx_importer.material_model import parse_materials, parse_palettes
 from p4kx_importer.material_pairing import index_of, pair_by_index
-from synthetic_materials import description, manifest_11, slot
+from synthetic_materials import description, entry, manifest_11, slot
 
 
 def load() -> package.Package:
@@ -290,6 +290,41 @@ def test_glass_without_per_vertex_tint_and_other_shaders_ignore_the_vertex_colou
     assert clear.node("bsdf").inputs["Base Color"] == (1.0, 1.0, 1.0)
     illum = single([description("x0001", "Illum", gen_mask=["PER_VERTEX_TINT"])])
     assert "ShaderNodeVertexColor" not in illum.kinds()
+
+
+def test_the_vertex_colour_node_names_the_attribute_the_gltf_import_writes() -> None:
+    graph = single([description("x0001", "GlassPBR", gen_mask=["PER_VERTEX_TINT"])])
+    colours = graph.linked("bsdf", "Base Color")
+    assert colours is not None
+    assert graph.node(colours.key).props == {"layer_name": "Color"}
+
+
+def test_the_glass_shader_name_is_tinted_like_glasspbr() -> None:
+    graph = single([description("x0001", "Glass", gen_mask=["PER_VERTEX_TINT"])])
+    colours = graph.linked("bsdf", "Base Color")
+    assert colours is not None
+    assert graph.node(colours.key).kind == "ShaderNodeVertexColor"
+
+
+def test_a_white_palette_glass_colour_with_the_flag_links_the_vertex_colours_alone() -> None:
+    palette = parse_palettes(
+        [
+            {
+                "id": "p0002",
+                "name": "white",
+                "primary": entry([0.8, 0.1, 0.1], 200.0),
+                "secondary": entry([0.1, 0.8, 0.1], 100.0),
+                "tertiary": entry([0.1, 0.1, 0.8], 50.0),
+                "glass": [1.0, 1.0, 1.0],
+            }
+        ],
+        [],
+    )["p0002"]
+    raw = description("x0001", "GlassPBR", gen_mask=["PER_VERTEX_TINT"], palette="glass")
+    graph = single([raw], palette=palette)
+    colours = graph.linked("bsdf", "Base Color")
+    assert colours is not None
+    assert graph.node(colours.key).kind == "ShaderNodeVertexColor"
 
 
 NODRAW_KINDS = {"ShaderNodeBsdfTransparent", "ShaderNodeOutputMaterial"}

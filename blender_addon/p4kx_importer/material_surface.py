@@ -20,7 +20,10 @@ NODRAW_SHADERS = frozenset({"nodraw", "nodraw_proxy", "proxy"})
 MAX_BLENDED_LAYERS = 4
 MASKED_LAYERS = 4
 TINT_PALETTE_DECAL = "$TintPaletteDecal"
+# Generation-mask flag: the vertex colours tint the material.
 PER_VERTEX_TINT = "PER_VERTEX_TINT"
+# Name Blender's glTF importer gives the attribute of COLOR_0.
+GLTF_COLOUR_ATTRIBUTE = "Color"
 MAX_PROPERTIES = 64
 METAL_FROM = 0.15
 METAL_TO = 0.5

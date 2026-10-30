@@ -9,6 +9,7 @@ use rayon::prelude::*;
 
 use crate::blueprint::as_struct;
 use crate::contract_missions::{ContractEntry, ContractFaction, PickupPlace, ReputationGain};
+use crate::contract_reward::{FixedReward, fixed_rewards};
 use crate::contract_starmap::StarmapObject;
 use crate::guid_text::CatalogGuid;
 use crate::mission_cooldown::Cooldown;
@@ -210,6 +211,7 @@ impl<'f> Parent<'_, 'f> {
             gains: gains(self.contract, index),
             standing: Standing::read(self.handler, self.contract),
             cooldown: Cooldown::read(self.handler),
+            fixed_rewards: fixed_rewards(self.contract),
         };
         let make = |sub: Option<&StructValue<'f>>| {
             let sub_layer =
@@ -324,6 +326,7 @@ impl<'f> Parent<'_, 'f> {
             personal_cooldown_time_variation: shared.cooldown.personal_time_variation,
             abandoned_cooldown_time: shared.cooldown.abandoned_time,
             abandoned_cooldown_time_variation: shared.cooldown.abandoned_time_variation,
+            fixed_rewards: shared.fixed_rewards.clone(),
         }
     }
 
@@ -343,6 +346,7 @@ struct Shared<'f> {
     gains: Vec<ReputationGain<'f>>,
     standing: Standing,
     cooldown: Cooldown,
+    fixed_rewards: Vec<FixedReward<'f>>,
 }
 
 fn identity(structure: &StructValue<'_>) -> Option<p4kx_extraction::Guid> {
@@ -384,7 +388,7 @@ fn link<'f>(parent: &StructValue<'f>, name: &str) -> Option<(CatalogGuid, &'f st
     }
 }
 
-fn succeeds(result: &StructValue<'_>) -> bool {
+pub(crate) fn succeeds(result: &StructValue<'_>) -> bool {
     match items(Some(result), "missionResults").first() {
         Some(Value::Bool(set)) => *set,
         Some(Value::Struct(flag)) => boolean(Some(flag), "value").unwrap_or(false),

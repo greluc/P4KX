@@ -6,9 +6,10 @@ use rmcp::{tool, tool_router};
 
 use crate::audio;
 use crate::audio_excerpt;
+use crate::audio_objects::{self, SoundbankObjectsResult};
 use crate::audio_params::{
-    EntitySoundsParams, ExcerptParams, MAX_NAME_LEN, SearchTriggersParams, SoundbankParams,
-    TriggerParams, WemParams,
+    EntitySoundsParams, ExcerptParams, MAX_NAME_LEN, SearchTriggersParams, SoundbankObjectsParams,
+    SoundbankParams, TriggerParams, WemParams,
 };
 use crate::audio_shapes::{EntitySoundsResult, TriggerSearchResult, TriggerSoundsResult};
 use crate::audio_wem;
@@ -160,6 +161,51 @@ impl Server {
             let page = Page::new(&listing, params.cursor.as_deref(), params.limit)?;
             let _permit = state.model().hold()?;
             audio_wem::soundbank_wems(&opened, &params, page)
+        })
+        .await
+    }
+
+    #[tool(
+        description = "List the HIRC objects of a soundbank (.bnk Entry) in bank order, page by page, as `p4kx bnk objects \
+        --json` does: per object its position, ID, type, how far the reader decodes it (decoded, undecoded, unsupported or \
+        malformed, with the reason), parent and children, and for sounds, actions, containers and music segments, tracks, \
+        switch containers and playlists their fields (media source, target, clips, markers, stingers, switches, playlist \
+        items with nesting and loop counts). type (e.g. music-playlist, sound, event) and id narrow the list; matched \
+        counts the objects that pass, total and layouts count the whole bank, and objects the reader does not decode are \
+        listed and counted, not skipped. Only structure is returned, no audio; resolve_audio_trigger resolves a trigger \
+        to its sounds. The content may be forwarded by the client to third parties; game texts and media must not be \
+        redistributed.",
+        output_schema = rmcp::handler::server::tool::schema_for_output::<SoundbankObjectsResult>(),
+        annotations(
+            title = "List soundbank objects",
+            read_only_hint = true,
+            destructive_hint = false,
+            idempotent_hint = true,
+            open_world_hint = false
+        )
+    )]
+    async fn list_soundbank_objects(
+        &self,
+        Parameters(params): Parameters<SoundbankObjectsParams>,
+    ) -> Result<Noted<SoundbankObjectsResult>, String> {
+        self.run(move |state| {
+            let soundbank = capped("soundbank", &params.soundbank, MAX_PATH_LEN)?;
+            let kind = capped(
+                "type",
+                params.kind.as_deref().unwrap_or_default(),
+                MAX_NAME_LEN,
+            )?;
+            let opened = state.archive(params.archive.as_deref())?;
+            let listing = (
+                "list_soundbank_objects",
+                opened.version(),
+                soundbank,
+                kind,
+                params.id,
+            );
+            let page = Page::new(&listing, params.cursor.as_deref(), params.limit)?;
+            let _permit = state.model().hold()?;
+            audio_objects::soundbank_objects(&opened, &params, page)
         })
         .await
     }

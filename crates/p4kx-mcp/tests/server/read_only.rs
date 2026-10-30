@@ -47,6 +47,10 @@ fn audio_tools_leave_their_archive_untouched() -> TestResult<Vec<&'static str>> 
             "list_soundbank_wems",
             json!({ "soundbank": "Data/Sounds/wwise/Ship.bnk" }),
         ),
+        (
+            "list_soundbank_objects",
+            json!({ "soundbank": "Data/Sounds/wwise/Ship.bnk" }),
+        ),
         ("get_wem_info", json!({ "wem_id": 5000 })),
         ("get_audio_excerpt", json!({ "wem_id": 5000 })),
     ];

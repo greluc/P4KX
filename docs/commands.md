@@ -286,9 +286,12 @@ The first argument of nearly every command is the path of a `Data.p4k` Archive, 
   `--sounds` lists the sounds of every trigger with their source and location, in `--lang`.
 - `p4kx wwise extract <archive> <trigger> --out <folder>` writes the sounds of an audio trigger as
   `<trigger>[_<WEM ID>].ogg|wav` (`--format ogg|wav|raw`, `--conflict skip|overwrite|if-changed`,
-  `--lang`); a sound that cannot be decoded is reported and written as `.wem`. `--txtp` also
-  writes one vgmstream `<event>.txtp` text file per Wwise event of the trigger next to the sounds
-  (ADR-0254); P4KX writes the text only and does not run vgmstream.
+  `--lang`); a sound that cannot be decoded is reported and written as `.wem`. Names follow the
+  portable file-name rule of ADR-0248 (forbidden characters, `#` and a leading space become `%`
+  and two hex digits, an empty name becomes `%`, a name taken under the case fold of the rule gets
+  `_2`, `_3`, …), and a sound whose path exceeds its limit is reported as failed while the others
+  are written. `--txtp` also writes one vgmstream `<event>.txtp` text file per Wwise event of the
+  trigger next to the sounds (ADR-0254); P4KX writes the text only and does not run vgmstream.
   `p4kx entity audio --extract <folder>` does the same for every trigger of an Entity.
 - `p4kx loc languages <archive>` lists the languages the Archive holds a `global.ini` for, with
   their codes (`en`, `de`, `fr`, `it`, `es-ES`, `es-419`, `pt-BR`, `ja`, `ko`, `zh-Hans`,
@@ -639,6 +642,7 @@ change. `p4kx-mcp --version` and `-V` show the legal notice.
 | `get_entity_sounds` | The audio triggers an Entity (`entity`: GUID, record path or class name) names, each with its ATL definition, events and soundbanks, as `p4kx entity audio` |
 | `resolve_audio_trigger` | The sound variants of a trigger (`trigger`, `lang`, `fallback_lang`) as `p4kx wwise resolve`: soundbank, WEM ID, source kind, where the WEM is and the object path; broken links with the first page |
 | `list_soundbank_wems` | The WEMs a soundbank (`soundbank`) embeds, paged, as `p4kx bnk list`: ID, size, codec, channels, sample rate, frames, duration, prefetch. No audio |
+| `list_soundbank_objects` | The `HIRC` objects of a soundbank (`soundbank`) in bank order, paged with a cursor, as `p4kx bnk objects --json` lists them: type, ID, parent, children, how far the reader decodes the object, and the fields of sounds, actions, containers and music objects. `type` (as `p4kx bnk objects --type`) and `id` narrow it; `matched` counts the objects that pass, `total` and `layouts` the whole bank. Objects the reader does not decode are listed and counted. No audio |
 | `get_wem_info` | One WEM by `wem_id` or loose Entry `path`: every place that holds it and its codec, channels, sample rate, duration and loop. No audio |
 | `get_audio_excerpt` | A short decoded excerpt of one WEM (`wem_id` or `path`, `start_seconds`, `duration_seconds`) as an `audio/wav` content block next to its metadata; at most 10 seconds and 1 MiB, see [ADR-0131](adr/0131-the-mcp-audio-excerpt-is-a-bounded-wav-and-the-only-tool-that-returns-audio.md) |
 | `image_preview` | A DDS texture (`path`) as one PNG image content block of at most 1 MiB, with its format, size and mip count as structured content: the mip chosen by `mip` or the largest that fits `max_side` (512 by default, at most 2048), a cubemap as a cross or one `face`, an array or volume as a sheet |

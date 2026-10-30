@@ -13,14 +13,13 @@ decoding) and ADR-0250 (the object kinds). The format is that of vgmstream's `do
   order, so the tree of objects is rebuilt from their paths: a path step equal to the last open
   child is the same object. A Sound object is a leaf; a music track holds its sources as leaves.
 - **One file per event** that leads to sounds, named after the event (`<event>.txtp`) by the
-  rule of the sound files: ASCII letters, digits, `_` and `-`, at most 120 bytes, a name taken
-  ignoring case gets `_2`, `_3`, …. The file lines name the exported files, which carry the same
-  safe names and lie in the same folder, so every path in a TXTP is a bare file name. The portable
-  file-name rule of ADR-0248 (`check_part`) is in force since #861; these names are a strict
-  subset of what it accepts, so they pass it. The path-length limit of ADR-0248 is applied to
-  every TXTP file (`check_path_length` on the absolute path): a file over the limit is listed in
-  the report for its event and the run goes on. The sound export does not check the path length
-  and still has its own name rule; moving it and the TXTP names onto ADR-0248 is issue #879.
+  rule of the sound files, which is the portable file-name rule of ADR-0248: the name is escaped
+  with `escape_part` (`event` when it is longer than 228 bytes) and a name taken under the case
+  fold of that rule gets `_2`, `_3`, …. The file lines name the exported files, which follow the
+  same rule and lie in the same folder, so every path in a TXTP is a bare file name. The
+  path-length limit of ADR-0248 is applied to every TXTP file (`check_path_length` on the
+  absolute path): a file over the limit is listed in the report for its event and the run goes
+  on. The sound export applies the same rule and limit (issue #879).
 - **Layout.** File lines are indented by two spaces per nesting level, which the TXTP document
   allows before files and commands. A `group` line carries only the macro `#@layer-v`; the
   comment about the object, and for a choice how to pick another child, is the line above it.

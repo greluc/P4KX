@@ -739,11 +739,17 @@ DataForge, so `entities_skipped` is `null` and `unreadable_records` is 0 there.
 links. The top-level `format` is the value given to `--format` (`ogg`, `wav` or `raw`); each file's `format` is the one
 written, `wav` for a codec without an Ogg form and `wem` (raw) for a sound that cannot be
 decoded, which then carries the reason in `unconverted`. A file is named `<trigger>.<ext>` for a
-trigger with one WEM and `<trigger>_<wem_id>.<ext>` for several, cut to ASCII letters, digits, `_`
-and `-`; a name already taken, ignoring case, gets `_2`, `_3`, … `kept` is true for an existing
-file left alone by `--conflict skip` or an identical one under `if-changed`. `failures` lists the
-sounds that got no file: source plug-ins and external sources (`wem_id` null) and WEMs no
-soundbank or loose Entry holds. `cancelled` is true when Ctrl+C stopped the export before it handled
+trigger with one WEM and `<trigger>_<wem_id>.<ext>` for several. The name follows the portable
+file-name rule of ADR-0248: each character it forbids (`<>:"/\|?*`, control characters), a trailing
+dot or space and the first letter of a Windows device name is written as `%` and two upper-case hex
+digits, and `%` itself as `%25`; so are `#` and a leading space, which a TXTP line cannot hold, and
+an empty name becomes `%`. A name that is still too long for a file (more than 228 bytes) becomes
+`sound`. A name already taken under the case fold of that rule (Unicode simple lower case, `\` as
+`/`) gets `_2`, `_3`, … `kept` is true for an existing file left alone by `--conflict skip` or an identical one under `if-changed`.
+`failures` lists the sounds that got no file: source plug-ins and external sources (`wem_id` null),
+WEMs no soundbank or loose Entry holds, and sounds whose absolute file path exceeds the limit of
+ADR-0248 (260 UTF-16 units for the file, 248 for its folder), each with its reason; the other
+sounds are still written. `cancelled` is true when Ctrl+C stopped the export before it handled
 every sound; no partial file is left. Exit code 1 when anything is in `failures` or `unconverted`,
 or `cancelled` is true.
 
@@ -752,7 +758,7 @@ With `--txtp`, the object has a `txtp` member, absent without it:
 "file": "…\\Play_Multi.txtp", "size": 120, "kept": false, "breaks": 0}, …], "skips": [{"trigger": "Play_Multi",
 "event": "Play_Other", "reason": "plug-in source 9 has no file"}, …]}`. One `.txtp` file in
 vgmstream's TXTP syntax is written per Wwise event that leads to sounds, named after the event by
-the rule of the sound files and holding the names of the exported files, which lie in the same
+the rule of the sound files (`event` for a name too long for a file) and holding the names of the exported files, which lie in the same
 folder. An Event's actions, blend containers, music segments and music tracks are layers (`group =
 -L<n> #@layer-v`), sequence containers and music playlists segments (`-S<n>`), and a random or
 switch container or music switch a choice that the file settles on the first child (`-R<n>>1`);

@@ -13,7 +13,6 @@ use serde::Serialize;
 use crate::bnk::open;
 use crate::bnk_objects_text::write_object;
 use crate::cli::BnkObjectsArgs;
-use crate::cli_bnk_objects::ObjectType;
 use crate::{exit, json};
 
 #[derive(Serialize)]
@@ -36,13 +35,7 @@ pub(crate) fn run(args: &BnkObjectsArgs, as_json: bool) -> Result<ExitCode> {
     let objects = bank.soundbank().objects();
     let offset = usize::try_from(args.offset)?;
     let limit = usize::try_from(args.limit)?;
-    let page = select(
-        objects,
-        args.kind.map(ObjectType::kind),
-        args.id,
-        offset,
-        limit,
-    );
+    let page = select(objects, args.kind, args.id, offset, limit);
     let counts = LayoutCounts::of(objects);
     if as_json {
         json::print(&ObjectsJson {

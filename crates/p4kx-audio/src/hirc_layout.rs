@@ -69,8 +69,9 @@ impl HircKind {
     }
 
     /// Returns the kinds this reader names, in type byte order.
+    #[must_use = "the kinds are only listed by iterating"]
     pub fn known() -> impl Iterator<Item = Self> {
-        (FIRST_KNOWN_TYPE..=LAST_KNOWN_TYPE).map(Self::from_byte)
+        KNOWN.into_iter()
     }
 
     /// Returns the kind whose [`slug`](Self::slug) is `slug`; `None` for `other` and for text
@@ -81,9 +82,31 @@ impl HircKind {
     }
 }
 
-/// The type bytes [`HircKind::from_byte`] names, as banks of version 128 and later number them.
-const FIRST_KNOWN_TYPE: u8 = 1;
-const LAST_KNOWN_TYPE: u8 = 22;
+/// Every kind but [`HircKind::Other`], in type byte order.
+const KNOWN: [HircKind; 22] = [
+    HircKind::State,
+    HircKind::Sound,
+    HircKind::Action,
+    HircKind::Event,
+    HircKind::RandomSequenceContainer,
+    HircKind::SwitchContainer,
+    HircKind::ActorMixer,
+    HircKind::AudioBus,
+    HircKind::LayerContainer,
+    HircKind::MusicSegment,
+    HircKind::MusicTrack,
+    HircKind::MusicSwitch,
+    HircKind::MusicPlaylist,
+    HircKind::Attenuation,
+    HircKind::DialogueEvent,
+    HircKind::FxShareSet,
+    HircKind::FxCustom,
+    HircKind::AuxiliaryBus,
+    HircKind::Lfo,
+    HircKind::Envelope,
+    HircKind::AudioDevice,
+    HircKind::TimeModulator,
+];
 
 impl HircObject {
     /// Returns how far the reader decodes the object.
@@ -140,7 +163,14 @@ mod tests {
 
     #[test]
     fn every_known_kind_is_found_by_its_slug() {
-        assert_eq!(HircKind::known().count(), 22, "the kinds of the type table");
+        for (byte, kind) in (1..).zip(HircKind::known()) {
+            assert_eq!(HircKind::from_byte(byte), kind, "type byte {byte}");
+        }
+        assert_eq!(
+            HircKind::from_byte(23),
+            HircKind::Other(23),
+            "no kind follows the table"
+        );
         for kind in HircKind::known() {
             assert_eq!(HircKind::from_slug(kind.slug()), Some(kind), "{kind}");
         }

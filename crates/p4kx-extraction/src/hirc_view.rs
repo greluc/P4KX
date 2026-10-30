@@ -26,7 +26,7 @@ pub struct ObjectView<'a> {
     /// How far the reader decodes the object: `decoded`, `undecoded`, `unsupported` or
     /// `malformed`; `status` in JSON.
     #[serde(rename = "status", serialize_with = "serialize_layout")]
-    #[schemars(with = "String")]
+    #[schemars(with = "Status")]
     pub layout: HircLayout,
     /// Why the object is unsupported or malformed.
     pub error: Option<String>,
@@ -106,7 +106,7 @@ pub struct SegmentDetail<'a> {
     pub beat_value: u8,
     /// The named positions in the segment.
     pub markers: Vec<MarkerView<'a>>,
-    /// The segments that triggers play.
+    /// The triggers of the segment and the segments they play.
     pub stingers: Vec<StingerView>,
 }
 
@@ -247,15 +247,31 @@ impl<'a> ObjectView<'a> {
     }
 }
 
+/// The `status` of an object in JSON: [`HircLayout`] by name.
+#[derive(Serialize, JsonSchema)]
+#[serde(rename_all = "lowercase")]
+enum Status {
+    Decoded,
+    Undecoded,
+    Unsupported,
+    Malformed,
+}
+
+impl From<HircLayout> for Status {
+    fn from(layout: HircLayout) -> Self {
+        match layout {
+            HircLayout::Decoded => Self::Decoded,
+            HircLayout::Undecoded => Self::Undecoded,
+            HircLayout::Unsupported => Self::Unsupported,
+            HircLayout::Malformed => Self::Malformed,
+        }
+    }
+}
+
 #[expect(
     clippy::trivially_copy_pass_by_ref,
     reason = "serde's serialize_with passes the field by reference"
 )]
 fn serialize_layout<S: Serializer>(layout: &HircLayout, serializer: S) -> Result<S::Ok, S::Error> {
-    serializer.serialize_str(match layout {
-        HircLayout::Decoded => "decoded",
-        HircLayout::Undecoded => "undecoded",
-        HircLayout::Unsupported => "unsupported",
-        HircLayout::Malformed => "malformed",
-    })
+    Status::from(*layout).serialize(serializer)
 }

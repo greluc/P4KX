@@ -34,10 +34,32 @@ fn install() -> TestResult<Install> {
         .object(TestHircObject::raw(7, 16, [0; 8]))
         .object(TestHircObject::raw(2, 17, [0; 3]))
         .bytes();
-    Install::new(vec![TestEntry::stored(
-        "Data\\Sounds\\wwise\\Music.bnk",
-        bank,
-    )])
+    let newer = TestBank::new(2)
+        .version(160)
+        .object(TestHircObject::event(1, &[2]))
+        .object(TestHircObject::raw(7, 3, [0; 8]))
+        .bytes();
+    Install::new(vec![
+        TestEntry::stored("Data\\Sounds\\wwise\\Music.bnk", bank),
+        TestEntry::stored("Data\\Sounds\\wwise\\Newer.bnk", newer),
+    ])
+}
+
+#[test]
+fn objects_of_a_newer_bank_version_are_listed_as_unsupported() -> TestResult {
+    let install = install()?;
+    let mut server = serve(&install)?;
+    let result = server.ok(
+        "list_soundbank_objects",
+        &json!({ "soundbank": "Data/Sounds/wwise/Newer.bnk" }),
+    )?;
+    assert_eq!(
+        result["layouts"],
+        json!({ "decoded": 0, "undecoded": 1, "unsupported": 1, "malformed": 0 }),
+        "counted"
+    );
+    assert_eq!(result["objects"][0]["status"], "unsupported", "listed");
+    Ok(())
 }
 
 fn ids(result: &Value) -> Vec<u64> {

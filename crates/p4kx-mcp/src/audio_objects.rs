@@ -1,11 +1,14 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
+//! `list_soundbank_objects`: one page of the `HIRC` objects of a soundbank, in the shape of
+//! `p4kx bnk objects --json`.
+
 use p4kx_extraction::HircKind;
 use p4kx_extraction::hirc_select::{LayoutCounts, select};
 use p4kx_extraction::hirc_view::ObjectView;
 use schemars::JsonSchema;
-use serde::Serialize;
+use serde::{Serialize, Serializer};
 use serde_json::value::RawValue;
 
 use crate::archives::Opened;
@@ -35,10 +38,32 @@ pub(crate) struct SoundbankObjectsResult {
     pub(crate) matched: usize,
     /// The matching objects on this page in bank order, as `p4kx bnk objects --json` lists them.
     #[schemars(with = "Vec<ObjectView<'static>>")]
-    pub(crate) objects: Vec<Box<RawValue>>,
+    pub(crate) objects: Vec<Listed>,
     /// The cursor of the next page; absent on the last page.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) next_cursor: Option<String>,
+}
+
+/// An object rendered once as JSON, with its ID for messages.
+#[derive(Debug)]
+pub(crate) struct Listed {
+    id: u32,
+    json: Box<RawValue>,
+}
+
+impl Serialize for Listed {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        self.json.serialize(serializer)
+    }
+}
+
+impl Listed {
+    fn new(view: &ObjectView<'_>) -> Result<Self, ToolError> {
+        Ok(Self {
+            id: view.id,
+            json: serde_json::value::to_raw_value(view)?,
+        })
+    }
 }
 
 /// Returns the object type `text` names, as [`HircKind::slug`] spells it.
@@ -76,24 +101,27 @@ pub(crate) fn soundbank_objects(
         objects: Vec::new(),
         next_cursor: None,
     };
-    let items = selected.shown.iter().map(raw);
+    let items = selected.shown.iter().map(Listed::new);
     let (listed, next_cursor) =
         fill_within(page, selected.matched, json_len(&result), items, |object| {
-            format!("object {}", object_id(object))
-        })?;
+            format!("object {}", object.id)
+        })
+        .map_err(narrowest_filter)?;
     result.objects = listed;
     result.next_cursor = next_cursor;
     Ok(result)
 }
 
-fn raw(view: &ObjectView<'_>) -> Result<Box<RawValue>, ToolError> {
-    Ok(serde_json::value::to_raw_value(view)?)
-}
-
-/// Reads the ID back from a rendered object, for the message of an object too large to list.
-fn object_id(object: &RawValue) -> String {
-    serde_json::from_str::<serde_json::Value>(object.get())
-        .ok()
-        .and_then(|value| value.get("id").cloned())
-        .map_or_else(String::new, |id| id.to_string())
+/// Rewrites the hint of an object too large for a response: it is too large alone, so the ID
+/// filter cannot narrow it further.
+fn narrowest_filter(error: ToolError) -> ToolError {
+    match error {
+        ToolError::TooLargeItem { what, limit, .. } => ToolError::TooLargeItem {
+            what,
+            limit,
+            hint: "the object alone exceeds it, so no filter narrows it further; read the \
+                   soundbank with `p4kx bnk objects` instead",
+        },
+        other => other,
+    }
 }

@@ -31,6 +31,7 @@ mod audio_search;
 mod audio_streamed_localised;
 mod audio_trigger_fields;
 mod body_zones;
+mod character_bone_attachments;
 mod character_definitions;
 mod character_item_ports;
 mod docked_vehicles;

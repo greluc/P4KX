@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use crate::markup::{self, Budget};
+use crate::cdf_bone::BoneAttachment;
+use crate::markup::{self, Budget, Element};
 
 /// The most bytes of a character definition that are read.
 pub(crate) const MAX_CDF_BYTES: u64 = 1 << 20;
@@ -9,12 +10,17 @@ pub(crate) const MAX_CDF_BYTES: u64 = 1 << 20;
 /// The most attachments of a character definition that are listed as left out.
 const MAX_LEFT_OUT: usize = 256;
 
+/// The most bone attachments of a character definition that are drawn.
+const MAX_BONE_ATTACHMENTS: usize = 64;
+
 /// What is drawn of a character definition (`.cdf`): the model of its first skin attachment, else
-/// of its first attachment, and the files of the attachments that are not drawn.
-#[derive(Debug, PartialEq, Eq)]
+/// of its first attachment, its bone attachments, and the files of the attachments that are not
+/// drawn.
+#[derive(Debug, PartialEq)]
 pub(crate) struct Character {
     pub(crate) model: String,
     pub(crate) material: Option<String>,
+    pub(crate) bones: Vec<BoneAttachment>,
     pub(crate) left_out: Vec<String>,
     pub(crate) skeleton: Option<String>,
 }
@@ -50,7 +56,7 @@ pub(crate) fn read(bytes: &[u8]) -> Result<Character, String> {
             let skin = attachment
                 .attribute("Type")
                 .is_some_and(|kind| kind.eq_ignore_ascii_case("CA_SKIN"));
-            Some((binding, skin, attachment.attribute("Material")))
+            Some((binding, skin, attachment))
         })
         .collect();
     let chosen = attachments
@@ -58,42 +64,64 @@ pub(crate) fn read(bytes: &[u8]) -> Result<Character, String> {
         .position(|(_, skin, _)| *skin)
         .or_else(|| (!attachments.is_empty()).then_some(0));
     let (model, material) = match chosen.and_then(|at| attachments.get(at)) {
-        Some((binding, _, material)) => (slashes(binding), material.map(slashes)),
+        Some((binding, _, attachment)) => (
+            slashes(binding),
+            attachment.attribute("Material").map(slashes),
+        ),
         None => (
-            slashes(
-                root.child("Model")
-                    .and_then(|model| model.attribute("File"))
-                    .filter(|file| !file.is_empty())
-                    .ok_or("it names no model and no attachment")?,
-            ),
+            slashes(skeleton_file(&root).ok_or("it names no model and no attachment")?),
             None,
         ),
     };
     if is_character_definition(&model) {
         return Err("it names another character definition".to_owned());
     }
-    let left_out = attachments
-        .iter()
-        .enumerate()
-        .filter(|(at, _)| Some(*at) != chosen)
-        .take(MAX_LEFT_OUT)
-        .map(|(_, (binding, _, _))| slashes(binding))
-        .collect();
-    let skeleton = root
-        .child("Model")
-        .and_then(|model| model.attribute("File"))
-        .filter(|file| !file.is_empty())
-        .map(slashes);
+    let (bones, left_out) = sort_rest(
+        attachments
+            .iter()
+            .enumerate()
+            .filter(|(at, _)| Some(*at) != chosen)
+            .map(|(_, (binding, _, attachment))| (*binding, *attachment)),
+    );
+    let skeleton = skeleton_file(&root).map(slashes);
     Ok(Character {
         model,
         material,
+        bones,
         left_out,
         skeleton,
     })
 }
 
+/// Returns the file of the definition's `Model` element, its skeleton.
+fn skeleton_file(root: &Element) -> Option<&str> {
+    root.child("Model")
+        .and_then(|model| model.attribute("File"))
+        .filter(|file| !file.is_empty())
+}
+
+/// Splits the attachments that are not the drawn model into the bone attachments that are drawn
+/// and the files of those that are not.
+fn sort_rest<'a>(
+    rest: impl Iterator<Item = (&'a str, &'a Element)>,
+) -> (Vec<BoneAttachment>, Vec<String>) {
+    let mut bones = Vec::new();
+    let mut left_out = Vec::new();
+    for (binding, attachment) in rest {
+        let bone = BoneAttachment::read(attachment, binding).filter(|bone| {
+            !is_character_definition(&bone.binding) && bones.len() < MAX_BONE_ATTACHMENTS
+        });
+        match bone {
+            Some(bone) => bones.push(bone),
+            None if left_out.len() < MAX_LEFT_OUT => left_out.push(slashes(binding)),
+            None => {}
+        }
+    }
+    (bones, left_out)
+}
+
 /// Returns `path` with `/` as separator, as the other paths of a report are spelled.
-fn slashes(path: &str) -> String {
+pub(crate) fn slashes(path: &str) -> String {
     path.replace('\\', "/")
 }
 
@@ -114,7 +142,56 @@ mod tests {
         let character = read(THRUSTER.as_bytes()).expect("a character");
         assert_eq!(character.model, "Objects/t/nozzle.skin");
         assert_eq!(character.material.as_deref(), Some("Objects/t/paint.mtl"));
-        assert_eq!(character.left_out, ["Objects/t/housing.cga"]);
+        assert_eq!(character.left_out.len(), 0);
+        let [housing] = character.bones.as_slice() else {
+            panic!("one bone attachment: {:?}", character.bones);
+        };
+        assert_eq!(housing.name, "Housing");
+        assert_eq!(housing.bone, "housing_attach");
+        assert_eq!(housing.binding, "Objects/t/housing.cga");
+        assert_eq!(housing.position, [0.0; 3]);
+        assert_eq!(housing.rotation, [1.0, 0.0, 0.0, 0.0]);
+    }
+
+    #[test]
+    fn a_bone_attachment_reads_its_offset_rotation_and_material() {
+        let text = r#"<CharacterDefinition><AttachmentList>
+            <Attachment Type="CA_SKIN" Binding="s.skin"/>
+            <Attachment Type="CA_BONE" BoneName="b" Binding="x\Part.cga" Material="m.mtl"
+              RelPosition="1,-2.5,3" RelRotation="0,0,1,0"/>
+            </AttachmentList></CharacterDefinition>"#;
+        let character = read(text.as_bytes()).expect("a character");
+        let [part] = character.bones.as_slice() else {
+            panic!("one bone attachment: {:?}", character.bones);
+        };
+        assert_eq!(part.name, "Part");
+        assert_eq!(part.material.as_deref(), Some("m.mtl"));
+        assert_eq!(part.position, [1.0, -2.5, 3.0]);
+        assert_eq!(part.rotation, [0.0, 0.0, 1.0, 0.0]);
+    }
+
+    #[test]
+    fn a_bone_attachment_that_cannot_be_read_is_left_out() {
+        let text = r#"<CharacterDefinition><AttachmentList>
+            <Attachment Type="CA_SKIN" Binding="s.skin"/>
+            <Attachment Type="CA_BONE" Binding="nobone.cga"/>
+            <Attachment Type="CA_BONE" BoneName="b" Binding="badpos.cga" RelPosition="1,2"/>
+            <Attachment Type="CA_BONE" BoneName="b" Binding="zero.cga" RelRotation="0,0,0,0"/>
+            <Attachment Type="CA_BONE" BoneName="b" Binding="nested.cdf"/>
+            <Attachment Type="CA_SKIN" Binding="second.skin"/>
+            </AttachmentList></CharacterDefinition>"#;
+        let character = read(text.as_bytes()).expect("a character");
+        assert_eq!(character.bones.len(), 0);
+        assert_eq!(
+            character.left_out,
+            [
+                "nobone.cga",
+                "badpos.cga",
+                "zero.cga",
+                "nested.cdf",
+                "second.skin"
+            ]
+        );
     }
 
     #[test]

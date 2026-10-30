@@ -12,8 +12,13 @@ use p4kx_export::{
     write_record_export,
 };
 use p4kx_extraction::{
+<<<<<<< HEAD
     Archive, DataForge, Filter, LanguageTexts, LocalizationSet, Record, RecordExportReport,
     TagResolver, TagTree, TextResolver, export_combined,
+=======
+    Archive, DataForge, DataForgeEntry, Filter, LanguageTexts, LocalizationSet, Record,
+    RecordExportReport, RecordRenamed, TagResolver, TagTree, TextResolver, export_combined,
+>>>>>>> origin/main
 };
 use serde::Serialize;
 use thiserror::Error;
@@ -24,6 +29,7 @@ use crate::extract::{cancel_on_interrupt, policy, prepare_target};
 use crate::forge_input::ForgeInput;
 use crate::json;
 use crate::loc::{LanguageNotInArchive, print_notes};
+use crate::renamed_report::{RenamedJson, renamed_json, write_renamed};
 
 /// `--combined` with another format than Record XML.
 #[derive(Debug, Error)]
@@ -98,6 +104,8 @@ struct ReportJson<'a> {
     exported: usize,
     skipped: &'a [String],
     failed: Vec<FailureJson<'a>>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    renamed: Vec<RenamedJson<'a>>,
     cancelled: usize,
     error_values: usize,
     records_with_errors: usize,
@@ -215,6 +223,7 @@ impl Job<'_, '_> {
                 exported: report.written,
                 skipped: report.skipped,
                 failed: report.failures.iter().map(failure_json).collect(),
+                renamed: report.renamed.iter().map(renamed_json).collect(),
                 cancelled: report.cancelled,
                 error_values: report.error_values,
                 records_with_errors: report.records_with_errors,
@@ -229,11 +238,7 @@ impl Job<'_, '_> {
         {
             return Err(error.into());
         }
-        Ok(ExitCode::from(if report.is_complete() {
-            exit::SUCCESS
-        } else {
-            exit::PARTIAL_FAILURE
-        }))
+        Ok(report.exit_code())
     }
 }
 
@@ -274,6 +279,7 @@ pub(crate) struct Outcome<'a> {
     written: usize,
     skipped: &'a [String],
     failures: &'a [RecordFailure],
+    renamed: &'a [RecordRenamed],
     cancelled: usize,
     error_values: usize,
     records_with_errors: usize,
@@ -284,6 +290,14 @@ impl Outcome<'_> {
     const fn is_complete(&self) -> bool {
         self.failures.is_empty() && self.cancelled == 0 && self.error.is_none()
     }
+
+    fn exit_code(&self) -> ExitCode {
+        ExitCode::from(if self.is_complete() {
+            exit::SUCCESS
+        } else {
+            exit::PARTIAL_FAILURE
+        })
+    }
 }
 
 impl<'a> From<&'a RecordExportSummary> for Outcome<'a> {
@@ -292,6 +306,7 @@ impl<'a> From<&'a RecordExportSummary> for Outcome<'a> {
             written: summary.written(),
             skipped: summary.skipped(),
             failures: summary.failures(),
+            renamed: summary.renamed(),
             cancelled: summary.cancelled(),
             error_values: summary.error_values(),
             records_with_errors: summary.records_with_errors(),
@@ -306,6 +321,7 @@ impl<'a> From<&'a RecordExportReport> for Outcome<'a> {
             written: report.written(),
             skipped: report.skipped(),
             failures: report.failures(),
+            renamed: report.renamed(),
             cancelled: report.cancelled(),
             error_values: report.error_values(),
             records_with_errors: report.records_with_errors(),
@@ -343,6 +359,7 @@ pub(crate) fn print_report(
             reason(failure.error())
         )?;
     }
+    write_renamed(&mut err, report.renamed)?;
     if let Some(error) = report.error {
         writeln!(err, "failed {file}: {}", reason(error))?;
     }

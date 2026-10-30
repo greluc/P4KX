@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use p4kx_extraction::{ExtractionError, RecordExportReport, RecordFailure};
+use p4kx_extraction::{ExtractionError, RecordExportReport, RecordFailure, RecordRenamed};
 
 use crate::RecordForm;
 
@@ -12,6 +12,7 @@ pub struct RecordExportSummary {
     pub(crate) written: usize,
     pub(crate) skipped: Vec<String>,
     pub(crate) failures: Vec<RecordFailure>,
+    pub(crate) renamed: Vec<RecordRenamed>,
     pub(crate) cancelled: usize,
     pub(crate) error_values: usize,
     pub(crate) records_with_errors: usize,
@@ -24,6 +25,7 @@ impl RecordExportSummary {
             form,
             written: report.written(),
             skipped: report.skipped().to_vec(),
+            renamed: report.renamed().to_vec(),
             cancelled: report.cancelled(),
             error_values: report.error_values(),
             records_with_errors: report.records_with_errors(),
@@ -55,6 +57,13 @@ impl RecordExportSummary {
     #[must_use]
     pub fn failures(&self) -> &[RecordFailure] {
         &self.failures
+    }
+
+    /// Returns the Records whose file does not follow their name or record path because it is no
+    /// valid file name on both Linux and Windows.
+    #[must_use]
+    pub fn renamed(&self) -> &[RecordRenamed] {
+        &self.renamed
     }
 
     /// Returns the number of Records not written because the run was cancelled.

@@ -398,6 +398,15 @@ The first argument of nearly every command is the path of a `Data.p4k` Archive, 
   Opus.
   Both also take a soundbank file on disk. A corrupt soundbank fails with an error naming the
   section.
+- `p4kx bnk objects <archive> <entry> [--type <type>] [--id <id>] [--limit <n>] [--offset <n>]`
+  prints the objects of the `HIRC` section in bank order: type, ID, parent and children, and for
+  music objects a segment's duration, markers and stingers, a track's clips, a switch container's
+  groups and targets and a playlist's items with their nesting and loop counts. `--type` keeps
+  one object type, `--id` one object (decimal or `0x` hexadecimal); `--limit` (default 100) and
+  `--offset` page the result, and the summary line gives the next offset. Objects of a type the
+  reader does not decode, of a bank version it does not support or with a malformed body are
+  marked and counted in the summary line, not skipped. It prints the structure only; `p4kx wwise
+  resolve` resolves a trigger to its sounds.
 - `p4kx ui assets <archive> <entry>` lists what a GFx or SWF UI movie holds: its header, every
   tag code with its count (unknown tags kept and counted), and the shapes, morph shapes, bitmaps
   (lossless, JPEG, PNG, GFx external and sub-images), fonts and sprites with their IDs and export

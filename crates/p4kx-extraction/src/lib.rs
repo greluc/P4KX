@@ -44,7 +44,9 @@ mod model_source;
 mod model_textures;
 mod options;
 mod output_file;
+mod part_escape;
 mod path_index;
+mod portable_name;
 mod query_export;
 mod record_combined;
 mod record_export;
@@ -93,6 +95,7 @@ mod ui_svg;
 mod verify;
 mod watch;
 mod write;
+mod written_paths;
 
 pub use animation_listing::AnimationListing;
 pub use animation_set::{
@@ -134,9 +137,10 @@ pub use p4kx_archive::{
 };
 pub use p4kx_audio::{
     ActionTarget, BankError, BankHeader, BankWarning, Container, ContainerKind, EmbeddedWem,
-    HircKind, HircObject, HircValue, MediaStorage, MusicClip, MusicMarker, MusicMeter, MusicNode,
-    MusicPlaylist, MusicPlaylistItem, MusicSegment, MusicStinger, MusicSwitch, MusicTrack,
-    MusicTrackKind, MusicTrackSwitch, PlayBank, Section, SectionId, SoundSource, Soundbank,
+    HircKind, HircLayout, HircObject, HircValue, MediaStorage, MusicClip, MusicGroupKind,
+    MusicMarker, MusicMeter, MusicNode, MusicPlayMode, MusicPlaylist, MusicPlaylistItem,
+    MusicSegment, MusicStinger, MusicSwitch, MusicTrack, MusicTrackKind, MusicTrackSwitch,
+    PlayBank, Section, SectionId, SoundSource, Soundbank,
 };
 pub use p4kx_audio::{
     AudioError, ByteOrder, Codebooks, Codec, MediaClass, OggReport, OpusError, VorbisError,
@@ -180,6 +184,7 @@ pub use p4kx_texture::{
     TextureFormat,
 };
 pub use path_index::{PathIndex, PathKeys};
+pub use portable_name::{MAX_PART_BYTES, NameRule, PathLimit, check_part};
 pub use query_export::{
     QUERY_PAGE_SIZE, QueryExport, QueryExportError, QueryExportOptions, export_query, is_same_file,
 };
@@ -188,7 +193,8 @@ pub use record_export::{export_planned_record_files, export_record_files, export
 pub use record_format::RecordFileFormat;
 pub use record_plan::RecordFilePlan;
 pub use record_report::{
-    RecordExportError, RecordExportOptions, RecordExportReport, RecordFailure,
+    RecordExportError, RecordExportOptions, RecordExportReport, RecordFailure, RecordRenamed,
+    RenameCause,
 };
 pub use report::{EntryFailure, ExtractionError, ExtractionReport};
 pub use resolved_texts::LanguageTexts;

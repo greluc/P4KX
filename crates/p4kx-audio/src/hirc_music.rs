@@ -3,6 +3,8 @@
 
 //! The music objects of the `HIRC` section, decoded in bank version 154.
 
+use std::fmt;
+
 use crate::hirc::SoundSource;
 
 /// The tempo and time signature of a music node.
@@ -170,6 +172,88 @@ pub struct MusicPlaylistItem {
     pub shuffle: bool,
 }
 
+/// How a playlist item chooses among its children.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum MusicPlayMode {
+    /// Plays a child at random, play mode 0.
+    Random,
+    /// Plays the children in turn without stopping, play mode 1.
+    SequenceContinuous,
+    /// Plays one child at random per step, play mode 2.
+    RandomStep,
+    /// Plays one child in turn per step, play mode 3.
+    SequenceStep,
+    /// A play mode this reader does not know.
+    Other(u32),
+}
+
+impl MusicPlayMode {
+    /// Returns the mode of the play mode code `code`.
+    #[must_use]
+    pub const fn from_code(code: u32) -> Self {
+        match code {
+            0 => Self::Random,
+            1 => Self::SequenceContinuous,
+            2 => Self::RandomStep,
+            3 => Self::SequenceStep,
+            other => Self::Other(other),
+        }
+    }
+}
+
+impl fmt::Display for MusicPlayMode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Random => f.write_str("random"),
+            Self::SequenceContinuous => f.write_str("sequence continuous"),
+            Self::RandomStep => f.write_str("random step"),
+            Self::SequenceStep => f.write_str("sequence step"),
+            Self::Other(code) => write!(f, "play mode {code}"),
+        }
+    }
+}
+
+impl MusicPlaylistItem {
+    /// Returns how the item chooses among its children.
+    #[must_use]
+    pub const fn mode(&self) -> MusicPlayMode {
+        MusicPlayMode::from_code(self.play_mode)
+    }
+}
+
+/// The kind of group a switch track follows.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum MusicGroupKind {
+    /// A switch group, group type 0.
+    Switch,
+    /// A state group, group type 1.
+    State,
+    /// A group type this reader does not know.
+    Other(u8),
+}
+
+impl fmt::Display for MusicGroupKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Switch => f.write_str("switch"),
+            Self::State => f.write_str("state"),
+            Self::Other(code) => write!(f, "group type {code}"),
+        }
+    }
+}
+
+impl MusicTrackSwitch {
+    /// Returns the kind of group the track follows.
+    #[must_use]
+    pub const fn group_kind(&self) -> MusicGroupKind {
+        match self.group_type {
+            0 => MusicGroupKind::Switch,
+            1 => MusicGroupKind::State,
+            other => MusicGroupKind::Other(other),
+        }
+    }
+}
+
 /// A music playlist container.
 #[derive(Debug, Clone, PartialEq)]
 #[non_exhaustive]
@@ -180,4 +264,25 @@ pub struct MusicPlaylist {
     pub rule_count: u32,
     /// The playlist items in bank order, children after their parent.
     pub items: Vec<MusicPlaylistItem>,
+}
+
+impl MusicPlaylist {
+    /// Returns the nesting depth of every item, 0 for an item of the top group: an item with
+    /// `children` of N is followed by its N child items (each with their own).
+    pub fn item_depths(&self) -> impl Iterator<Item = usize> + '_ {
+        let mut open: Vec<u32> = Vec::new();
+        self.items.iter().map(move |item| {
+            while open.last() == Some(&0) {
+                open.pop();
+            }
+            let depth = open.len();
+            if let Some(left) = open.last_mut() {
+                *left = left.saturating_sub(1);
+            }
+            if item.children > 0 {
+                open.push(item.children);
+            }
+            depth
+        })
+    }
 }

@@ -82,7 +82,9 @@ fn extract_all_asks_before_it_writes_and_then_shows_the_summary() -> TestResult 
     assert_eq!(written_before, 0, "nothing is written before confirming");
     harness.get_by_label("Extraction finished");
     harness.get_by_label("Extracted 2, skipped 0, failed 1, cancelled 0");
-    harness.get_by_label("Data\\NUL: the path would leave the target folder");
+    harness.get_by_label(
+        "Data\\NUL: the name \"NUL\" cannot be written: the name is a Windows device name",
+    );
     assert_eq!(fs::read(out.join("readme.txt"))?, b"readme", "written");
     Ok(())
 }

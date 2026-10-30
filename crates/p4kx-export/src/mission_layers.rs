@@ -4,6 +4,7 @@
 use p4kx_extraction::{Guid, StructValue, Value, is_placeholder_key};
 
 use crate::blueprint::as_struct;
+use crate::mission_hauling::{HaulingProperty, property_orders};
 use crate::mission_index::Broker;
 use crate::record_fields::{boolean, integer, reference, text};
 
@@ -42,6 +43,7 @@ pub(crate) struct Layer<'f> {
     pub(crate) mission_type: Option<Guid>,
     pub(crate) contractor: Option<&'f str>,
     pub(crate) properties: Vec<Property<'f>>,
+    pub(crate) hauling: Vec<HaulingProperty<'f>>,
     bools: Vec<(&'f str, bool)>,
     ints: Vec<(&'f str, i64)>,
 }
@@ -70,6 +72,7 @@ impl<'f> Layer<'f> {
             contractor: string_param(CONTRACTOR),
             mission_type: reference(params, "missionTypeOverride").map(|guid| guid.0),
             properties: properties(params, "propertyOverrides"),
+            hauling: property_orders(params, "propertyOverrides"),
             bools: named("boolParamOverrides")
                 .into_iter()
                 .filter_map(|(name, param)| Some((name, boolean(Some(param), "value")?)))

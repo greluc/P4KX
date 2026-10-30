@@ -46,6 +46,7 @@ impl Kind {
             Self::LegacyLootTables => 36,
             Self::LegacyLootArchetypes => 37,
             Self::Crafters => 38,
+            Self::CargoManifests => 39,
         }
     }
 }

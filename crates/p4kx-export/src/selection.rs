@@ -128,11 +128,13 @@ pub enum Kind {
     /// comes last; an item, ship or commodity that is a crafter is read from its own Record.
     /// [`Kind::rule`] alone does not select a crafter: the Record must also hold the component.
     Crafters,
+    /// Cargo manifests: `CargoManifest` Records under `cargomanifest`.
+    CargoManifests,
 }
 
 impl Kind {
     /// Every kind, in the order of the catalog.
-    pub const ALL: [Self; 39] = [
+    pub const ALL: [Self; 40] = [
         Self::Manufacturers,
         Self::Items,
         Self::Ships,
@@ -172,6 +174,7 @@ impl Kind {
         Self::LegacyLootTables,
         Self::LegacyLootArchetypes,
         Self::Crafters,
+        Self::CargoManifests,
     ];
 
     /// Returns the name of the kind's array in the catalog, e.g. `manufacturers`.
@@ -217,6 +220,7 @@ impl Kind {
             Self::LegacyLootTables => "legacyLootTables",
             Self::LegacyLootArchetypes => "legacyLootArchetypes",
             Self::Crafters => "crafters",
+            Self::CargoManifests => "cargoManifests",
         }
     }
 

@@ -217,6 +217,7 @@ fn the_kinds_follow_the_existing_ones_in_the_catalog_order() {
             "legacyLootTables",
             "legacyLootArchetypes",
             "crafters",
+            "cargoManifests",
         ],
         "order of the catalog"
     );

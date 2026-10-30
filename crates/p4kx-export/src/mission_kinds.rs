@@ -4,9 +4,10 @@
 use p4kx_extraction::RecordTree;
 
 use crate::Kind;
+use crate::cargo_manifest::cargo_manifest;
 use crate::contract::{
-    ContractScenario, FactionReputation, MissionLocality, MissionType, ReputationContext,
-    ReputationScope, ReputationStanding,
+    CargoManifest, ContractScenario, FactionReputation, MissionLocality, MissionType,
+    ReputationContext, ReputationScope, ReputationStanding,
 };
 use crate::guid_text::sort_by_guid;
 use crate::mission_data::{contract_scenario, mission_locality, mission_type};
@@ -31,6 +32,8 @@ pub(crate) enum MissionPick<'f> {
     Locality(MissionLocality<'f>),
     /// A contract scenario.
     Scenario(ContractScenario<'f>),
+    /// A cargo manifest.
+    Manifest(CargoManifest<'f>),
 }
 
 impl<'f> MissionPick<'f> {
@@ -45,6 +48,7 @@ impl<'f> MissionPick<'f> {
             Kind::MissionTypes => Self::Type(mission_type(tree, texts)),
             Kind::MissionLocalities => Self::Locality(mission_locality(tree)),
             Kind::ContractScenarios => Self::Scenario(contract_scenario(tree)),
+            Kind::CargoManifests => Self::Manifest(cargo_manifest(tree)),
             _ => return None,
         })
     }
@@ -60,6 +64,7 @@ pub(crate) struct MissionKinds<'f> {
     pub(crate) types: Vec<MissionType<'f>>,
     pub(crate) localities: Vec<MissionLocality<'f>>,
     pub(crate) scenarios: Vec<ContractScenario<'f>>,
+    pub(crate) manifests: Vec<CargoManifest<'f>>,
 }
 
 impl<'f> MissionKinds<'f> {
@@ -73,6 +78,7 @@ impl<'f> MissionKinds<'f> {
             MissionPick::Type(entity) => self.types.push(entity),
             MissionPick::Locality(entity) => self.localities.push(entity),
             MissionPick::Scenario(entity) => self.scenarios.push(entity),
+            MissionPick::Manifest(entity) => self.manifests.push(entity),
         }
     }
 
@@ -85,6 +91,7 @@ impl<'f> MissionKinds<'f> {
         sort_by_guid(&mut self.types, |entity| entity.guid);
         sort_by_guid(&mut self.localities, |entity| entity.guid);
         sort_by_guid(&mut self.scenarios, |entity| entity.guid);
+        sort_by_guid(&mut self.manifests, |entity| entity.guid);
     }
 
     /// Returns how many entities `kind` holds, 0 for a kind that is not one of these.
@@ -97,6 +104,7 @@ impl<'f> MissionKinds<'f> {
             Kind::MissionTypes => self.types.len(),
             Kind::MissionLocalities => self.localities.len(),
             Kind::ContractScenarios => self.scenarios.len(),
+            Kind::CargoManifests => self.manifests.len(),
             _ => 0,
         }
     }

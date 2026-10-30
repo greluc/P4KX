@@ -47,11 +47,12 @@ The rule is ADR-0054 (amending ADR-0002):
   (#830, ADR-0242), the kinds `legacyLootTables` and `legacyLootArchetypes` (#818, ADR-0238), the
   contract fields `cooldownLayer`, `hasPersonalCooldown`, `personalCooldownTime`,
   `personalCooldownTimeVariation`, `abandonedCooldownTime` and `abandonedCooldownTimeVariation`
-  (#832, ADR-0244), the kind `crafters` (#831, ADR-0243) and the contract fields `timeToComplete`,
+  (#832, ADR-0244), the kind `crafters` (#831, ADR-0243), the contract fields `timeToComplete`,
   `buyInAmount`, `canBeShared`, `illegal`, `onceOnly`, `maxPlayersPerInstance`, `availableInPrison`,
   `canReacceptAfterAbandoning`, `canReacceptAfterFailing`, `hideInMobiGlas` and `requiredIntros`
-  (#898, ADR-0263). Later additions keep version 2 as long as they are additive. The contract
-  field `fixedRewards` (#888, ADR-0268) is one.
+  (#898, ADR-0263), and the kind `cargoManifests` with the contract field `haulingOrders` (#814,
+  ADR-0265). Later additions keep version 2 as long as they are additive. The contract field
+  `fixedRewards` (#888, ADR-0268) is one.
 - **A production import takes catalogs of the Channel `LIVE` only.** `PTU`, `EPTU`, `TECH-PREVIEW`
   and `HOTFIX` are confidential test Channels (ADR-0038).
 
@@ -152,6 +153,7 @@ same in every kind. Every field is always present; one that has no value is `nul
 | `missionTypes` | The mission types, the targets of `contracts[].missionTypeGuid`, ordered by GUID |
 | `missionLocalities` | The mission localities, named sets of starmap objects, ordered by GUID |
 | `contractScenarios` | The contract scenarios with the reward tiers of each faction, ordered by GUID |
+| `cargoManifests` | The cargo manifests (`CargoManifest`) with their fill and spawn rules, ordered by GUID |
 | `lootTables` | The loot tables (`LootTableV3Record`) with the weighted archetypes of each, ordered by GUID |
 | `lootArchetypes` | The loot archetypes (`LootArchetypeV3Record`) with the weighted selectors of each, ordered by GUID |
 | `lootPoolFilters` | The pool filters of the loot generation, ordered by GUID |
@@ -1089,6 +1091,7 @@ that the rule on equal `guid` and `subContractGuid` above drops.
 | `canBeShared`, `illegal`, `onceOnly`, `maxPlayersPerInstance`, `availableInPrison`, `canReacceptAfterAbandoning`, `canReacceptAfterFailing`, `hideInMobiGlas` | Each `{value, layer}` with `layer` `subContract`, `contract`, `handler` or `template` (see "Contract facts"), `null` when no level states it |
 | `requiredIntros` | The completion tags the contract requires with the intro contracts that grant each (see "Contract facts") |
 | `fixedRewards` | The payouts the contract states itself on success (`ContractResult_Reward`), each `currency` (`currencyType`, e.g. `UEC`), `amount` (`reward`), `max` and `plusBonuses` as stored; empty for a contract that pays through a calculated reward (see "Reward") |
+| `haulingOrders` | What the contract has to haul (see "Hauling orders"); empty for a contract that hauls nothing |
 
 **Layers.** Sub contract, contract and handler each override the template: the first of them that
 states a value wins, the template last. A level states its overrides in `paramOverrides` (sub
@@ -1245,6 +1248,39 @@ have a required tag and 598 have one an intro contract grants; the facts are sta
 for most values (`onceOnly` 5,049 of 5,175), by the contract for 96 `onceOnly` and 365 `illegal`
 values, and by the template for 4,501 `canBeShared` values.
 
+**Hauling orders (ADR-0265).** `haulingOrders` lists what a contract has to haul. The Archive
+states it in three places: a `MissionPropertyValue_HaulingOrders` property in the overrides of a sub
+contract or contract, the parameters of the handler or the `contractProperties` of the template;
+the hauling objectives (`ObjectiveHandler_Hauling`) of the template; and the same objectives of the
+`MissionBrokerEntry` the contracts without a template use. An order has
+
+| Field | Meaning |
+|-------|---------|
+| `source` | `subContract`, `contract`, `handler` or `template` for a property of that level, `templateObjective` or `brokerObjective` for the orders of an objective |
+| `variableName` | The `missionVariableName` of the property; `null` for an objective order |
+| `requirements` | What is hauled: per requirement `options`, the alternatives of which one is hauled, each a list of items that are all hauled. A plain order is one option with one item; an `or` has one option per alternative |
+
+Of the property levels the nearest wins per `variableName` (the layer rule above; a property without a name shadows nothing); the objective
+orders are those of the template, else those of the broker entry. An item has a `kind` and the
+fields of that kind, the others `null`:
+
+| `kind` | Fields |
+|--------|--------|
+| `resource` | `resourceGuid` (the `subtypeGuid` of a commodity), `minScu`, `maxScu`, `maxContainerSize` |
+| `entityClass` | `entityClassGuid` (the `EntityClassDefinition` Record), `minAmount`, `maxAmount` |
+| `entityClasses` | `entityClassesGuid` (a `Hauling_EntityClasses` Record, a list of entity classes of which any counts; no kind lists these Records), `minAmount`, `maxAmount` |
+| `missionItem` | `minAmount`, `maxAmount`; the item itself is a mission property the game fills in |
+
+The numbers are as stored: `maxSCU` and `maxAmount` of 0 and a `maxContainerSize` of -1 mean no
+limit. The pickup and drop-off of an objective order are references to template properties that
+the game fills in when the mission starts, so they are not exported; where a contract is offered
+stays in `pickupPlaces`. Objective orders that only name a drop-off, point at a property or name a
+mission item are left out. On LIVE 4.10 (2026-10-30) 1,966 of the 5,175 entries haul: the
+orders come from the contract (1,440), the template objective (369), the broker objective (419),
+the template (53) and the sub contract (18); the items are 2,587 resources, 647 entity classes,
+109 entity class lists and 988 mission items; 5 of the `entityClassGuid`s name an entity class that no kind of the catalog lists (items, ships, commodities). 11 of the resources are no commodity of the catalog
+(a `ResourceType` that no commodity Record carries).
+
 ### Factions, reputation and missions
 
 Seven kinds (ADR-0237, schema version 2, no bump) hold what the contracts refer to. Each is the
@@ -1290,9 +1326,27 @@ the struct, `periodScenarioGuid`), each with `tiers`: `minPoints`, `badgeToAward
 `blueprintPoolGuids`, entries of `blueprintPools`. The progression texts and the multiplier rewards
 (empty on LIVE) are not exported.
 
-Not exported, for want of a consumer: contract templates, mission broker entries, hauling orders,
-NPC and ship spawns, `MissionLocationTemplate` and the sandbox triggers and perks of the reputation
-Records.
+Not exported, for want of a consumer: contract templates, mission broker entries, NPC and ship
+spawns, `MissionLocationTemplate` and the sandbox triggers and perks of the reputation Records.
+
+### Cargo manifests
+
+`cargoManifests` lists the `CargoManifest` Records under `cargomanifest` (ADR-0265), ordered by GUID,
+with `guid`, `className` and `recordPath`. A manifest tells the game how to fill the cargo grid of a
+ship it spawns. Facts only; the tags and the description tags are not exported.
+
+| Field | Meaning |
+|-------|---------|
+| `fillType` | `even`, `random` or `custom`: the type of `cargoFillCapacity` (4 `custom`, 34 `even`, 43 `random` on LIVE); `null` for another type |
+| `minCapacityRange`, `maxCapacityRange` | The share of the cargo capacity that is filled, 0 to 1; `null` for `custom`, which states shares per resource |
+| `lockCargoGridsOnSpawn` | The flag as stored, `null` when absent |
+| `resources` | The resources of the fill in stored order: `resourceGuid` (the `subtypeGuid` of a commodity), `probability`, and for `custom` `minAllocation` and `maxAllocation` (the allocation percentages as stored, else `null`) |
+| `spawnRules` | The `cargoSpawnRules` in stored order: `kind` (`entities` or `resources`), `probability`, `entityGuids`, `resourceGuids`, the struct type of the quantity algorithm in `quantityAlgorithm` and its `quantity` (fixed) or `proportion` |
+
+The Archive refers to a manifest only from the members of an `AIWaveCollection` (the ship
+encounters), never from a contract, so the kind has no link from `contracts`. On LIVE 4.10
+(2026-10-30) the kind holds 81 manifests with 515 resources, 4 of which (4 distinct `ResourceType`
+Records) have no commodity in the catalog, and 2 spawn rules, both of one manifest.
 
 ### Starmap objects
 
@@ -2043,6 +2097,7 @@ stores it. It does not change the catalog's determinism: the same Archive gives 
 | `missionTypes` | `libs/foundry/records/missiontype/` | `MissionType` |
 | `missionLocalities` | `libs/foundry/records/missiondata/pu_missionlocality/` | `MissionLocality` |
 | `contractScenarios` | `libs/foundry/records/contracts/contractscenarios/` | `ScenarioProgress` |
+| `cargoManifests` | `libs/foundry/records/cargomanifest/` | `CargoManifest` |
 | `lootTables` | `libs/foundry/records/lootgeneration/loottables/` | `LootTableV3Record` |
 | `lootArchetypes` | `libs/foundry/records/lootgeneration/lootarchetypes/` | `LootArchetypeV3Record` |
 | `lootPoolFilters` | `libs/foundry/records/lootgeneration/filters/` | `PoolFilterRecord` |

@@ -337,6 +337,7 @@ fn every_kind_states_its_completeness() -> TestResult {
             "missionTypes": {"status": "complete"},
             "missionLocalities": {"status": "complete"},
             "contractScenarios": {"status": "complete"},
+            "cargoManifests": {"status": "complete"},
             "lootTables": {"status": "complete"},
             "lootArchetypes": {"status": "complete"},
             "lootPoolFilters": {"status": "complete"},

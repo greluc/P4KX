@@ -184,7 +184,7 @@ pub use p4kx_texture::{
     TextureFormat,
 };
 pub use path_index::{PathIndex, PathKeys};
-pub use portable_name::{MAX_PART_BYTES, NameRule, PathLimit, check_part};
+pub use portable_name::{MAX_PART_BYTES, NameRule, PathLimit, check_part, check_path_length};
 pub use query_export::{
     QUERY_PAGE_SIZE, QueryExport, QueryExportError, QueryExportOptions, export_query, is_same_file,
 };

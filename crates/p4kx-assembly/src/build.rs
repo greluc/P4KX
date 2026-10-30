@@ -80,7 +80,7 @@ impl Assembly {
         let mut reported = HashSet::new();
         let mut characters = HashSet::new();
         let mut palettes = Palettes::new(palettes);
-        let cut = BodyCut::of(tree, &drafts, &chosen);
+        let cut = BodyCut::of(tree, &drafts, &chosen, &mut issues);
         let mut parts: Vec<Part> = Vec::with_capacity(drafts.len());
         for (draft, model) in drafts.iter().zip(&chosen) {
             let materials = materials_of(

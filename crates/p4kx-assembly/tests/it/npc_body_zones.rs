@@ -50,6 +50,7 @@ fn wear(
     let options = NpcZoneOptions {
         female: variant == BodyVariant::Female,
         headless,
+        ..NpcZoneOptions::default()
     };
     wear_on(&BodyVariant::ALL.map(places), chunks, options)
 }
@@ -188,5 +189,45 @@ fn a_tree_without_a_head_keeps_the_body_whole_and_reports_no_zones() -> TestResu
         BodyVariant::Male.zone_names().len()
     );
     assert!(!has_zone_issue(&assembly));
+    Ok(())
+}
+
+#[test]
+fn a_body_that_names_another_skin_file_is_cut_too() -> TestResult {
+    let chunks = [TestZoneChunk::new("torso01_zone", 1)];
+    let options = NpcZoneOptions {
+        body_skin: Some("Objects/Characters/Human/male_v7/body/m_body_alt.skin"),
+        ..NpcZoneOptions::default()
+    };
+
+    let assembly = wear_on(&BodyVariant::ALL.map(places), &chunks, options)?;
+
+    assert_eq!(
+        drawn_nodes(&assembly)?.len(),
+        BodyVariant::Male.zone_names().len() - 1
+    );
+    assert_eq!(hidden_zones(&assembly), [["torso01_zone"]]);
+    Ok(())
+}
+
+#[test]
+fn a_cut_that_finds_no_body_part_is_reported() -> TestResult {
+    let chunks = [TestZoneChunk::new("torso01_zone", 1)];
+    let options = NpcZoneOptions {
+        body_type: Some("Char_Clothing_Legs"),
+        ..NpcZoneOptions::default()
+    };
+
+    let assembly = wear_on(&BodyVariant::ALL.map(places), &chunks, options)?;
+
+    assert_eq!(
+        drawn_nodes(&assembly)?.len(),
+        BodyVariant::Male.zone_names().len()
+    );
+    assert!(hidden_zones(&assembly).is_empty());
+    assert!(assembly.issues().iter().any(|issue| matches!(
+        issue.kind(),
+        IssueKind::BodyZonesUnknown(reason) if reason.contains("Char_Body")
+    )));
     Ok(())
 }

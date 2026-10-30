@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use crate::entity_armour::{MALE_ARMOUR, armour_database};
+use crate::entity_armour::MALE_ARMOUR;
 use crate::entity_clothing::TestZoneChunk;
-use crate::entity_zones::{zone_entries, zone_shirt};
+use crate::entity_zones::{zone_entries_with, zone_shirt};
 use crate::{TestEntity, TestEntry, TestLoadout, TestLoadoutEntry, ZONE_SHIRT};
 
 /// The class name of the character of [`npc_zone_entries`].
@@ -20,6 +20,11 @@ pub struct NpcZoneOptions {
     /// Leaves the head out; the shirt then names the male suit skin as its main geometry, so that
     /// it has a model without a body to choose by.
     pub headless: bool,
+    /// Gives the body Entity a copy of the body skin under this path below `Data` instead of the
+    /// default skin file.
+    pub body_skin: Option<&'static str>,
+    /// Gives the body Entity another attach type than `Char_Body`.
+    pub body_type: Option<&'static str>,
 }
 
 /// Returns the Entries of [`zone_entries`] with a character whose body Entity names the zoned
@@ -34,6 +39,11 @@ pub fn npc_zone_entries(
     chunks: &[TestZoneChunk],
     options: NpcZoneOptions,
 ) -> Vec<TestEntry> {
+    let default_skin = if options.female {
+        FEMALE_SKIN
+    } else {
+        MALE_SKIN
+    };
     let head = TestEntity::new(
         0x31,
         "TEST_ZoneNpcHead",
@@ -46,15 +56,8 @@ pub fn npc_zone_entries(
         "TEST_ZoneNpcBody",
         "entities/scitem/test_zone_body.xml",
     )
-    .attach_type("Char_Body")
-    .geometry(
-        if options.female {
-            FEMALE_SKIN
-        } else {
-            MALE_SKIN
-        },
-        None::<&str>,
-    );
+    .attach_type(options.body_type.unwrap_or("Char_Body"))
+    .geometry(options.body_skin.unwrap_or(default_skin), None::<&str>);
     let mut worn = vec![TestLoadoutEntry::class("Clothing_Torso_0", ZONE_SHIRT)];
     let mut shirt = zone_shirt(chunks);
     if options.headless {
@@ -71,14 +74,27 @@ pub fn npc_zone_entries(
                 .loadout(TestLoadout::Manual(worn)),
         ]),
     );
-    let database = [shirt, head, body, npc]
-        .iter()
-        .fold(armour_database(), |builder, entity| {
-            builder.record(entity.record())
-        })
-        .build();
-    let mut entries = zone_entries(bodies, chunks);
-    entries.retain(|entry| !entry.path.eq_ignore_ascii_case("Data\\Game2.dcb"));
-    entries.push(TestEntry::zstd("Data\\Game2.dcb", database));
+    let npc = [head, body, npc];
+    let mut entries = zone_entries_with(bodies, &shirt, &npc);
+    if let Some(skin) = options.body_skin {
+        entries.extend(copies_of(&entries, default_skin, skin));
+    }
     entries
+}
+
+fn copies_of(entries: &[TestEntry], from: &str, to: &str) -> Vec<TestEntry> {
+    let stem = |path: &str| format!("Data\\{}", path.trim_end_matches(".skin")).replace('/', "\\");
+    let (from, to) = (stem(from), stem(to));
+    entries
+        .iter()
+        .filter_map(|entry| {
+            let start = entry.path.get(..from.len())?;
+            let rest = entry.path.get(from.len()..)?;
+            start.eq_ignore_ascii_case(&from).then(|| {
+                let mut copy = entry.clone();
+                copy.path = format!("{to}{rest}");
+                copy
+            })
+        })
+        .collect()
 }

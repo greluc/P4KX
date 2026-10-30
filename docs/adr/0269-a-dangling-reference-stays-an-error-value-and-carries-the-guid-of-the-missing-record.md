@@ -24,7 +24,8 @@ schema `schemas/record-json.schema.json` allows an error object with `error` and
     error element in an array.
   No other error value has `guid`, so its presence is what marks a dangling Reference.
 - **The schema gains an optional `guid` on the error object.** Exports written before keep
-  validating, and an error object with other keys still fails.
+  validating, and an error object with other keys still fails. The change is additive in one
+  direction only: a new export with `guid` does not validate against the older schema.
 - **The declared type of the field is not written.** The value of a dangling Reference holds only
   the GUID; the struct a Reference field declares is a fact of the schema, the same for every
   Record of the type, and reading it would tie the lifetime of the DataForge to `ValueError`,

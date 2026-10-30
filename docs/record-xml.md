@@ -164,7 +164,7 @@ levels. The reason is English text for people, not a stable code.
 
 A Reference to a Record that does not exist (a dangling Reference) also carries the GUID of the
 missing Record, in lower case, in the attribute `guid` after `reason`, in a field and in an array
-alike (ADR-0258); no other error has it:
+alike (ADR-0269); no other error has it:
 
 ```xml
 <p4kx:error field="entityClass" reason="the Reference refers to the Record 3cf6753c-d69c-4980-a45e-724151407096, which does not exist" guid="3cf6753c-d69c-4980-a45e-724151407096"/>

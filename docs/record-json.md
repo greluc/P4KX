@@ -121,8 +121,9 @@ and `$<n>` are the only keys that do.
 | Reference to a Record that does not exist | An error with the GUID of the missing Record: `{"error": "…", "guid": "…"}` |
 
 A struct object always has `$type`, a Reference never; an error has `error` and, only for a
-Reference to a Record that does not exist, `guid` (ADR-0258). The errors and
-the Records that are not written at all are those of [Record XML](record-xml.md#errors).
+Reference to a Record that does not exist, `guid` (ADR-0269). An export with `guid` does not
+validate against the schema of an earlier version. The errors and the Records that are not
+written at all are those of [Record XML](record-xml.md#errors).
 
 ## Resolved texts
 

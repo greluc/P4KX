@@ -133,7 +133,8 @@ path selected twice appears once, as its values are the same. The values are typ
 | float, double | A number in its Record XML text (`25000.5`, `1e21`, `-0`); `NaN`, `INF` and `-INF` as strings |
 | string, localisation key, enum | A string: the text, the key as stored, the option name |
 | GUID | A string, lower case, `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` |
-| a value that cannot be read | An object `{"error": "<reason>"}`; for a Reference to a Record that does not exist also the GUID of that Record, `{"error": "<reason>", "guid": "<guid>"}` |
+| a value that cannot be read | An object `{"error": "<reason>"}` |
+| a Reference to a Record that does not exist | An object `{"error": "<reason>", "guid": "<guid>"}` with the GUID of the missing Record |
 | a list of a path through `[*]` or `[TypeName]` | An array of the values, each typed by this table, `null` for a null; `[]` when there is none |
 | an empty cell | `null` |
 

@@ -7,7 +7,7 @@ use std::fs;
 use std::io::{self, Write};
 use std::path::Path;
 
-use p4kx_audio::{AudioError, Codec, Soundbank, Wem};
+use p4kx_audio::{AudioError, Codec, Loop, Soundbank, Wem};
 use p4kx_extraction::{ConflictPolicy, ConversionError, MAX_SOUND_LEN, write_replacing_counted};
 use rayon::prelude::*;
 
@@ -128,6 +128,16 @@ struct Emitted {
     state: ExportState,
 }
 
+/// Returns the loop of `wem`, or, when `raw` and no WEM was parsed for a conversion, of the WEM
+/// `bytes` hold.
+fn loop_of(wem: Option<&Wem<&[u8]>>, bytes: &[u8], raw: bool) -> Option<Loop> {
+    match wem {
+        Some(wem) => wem.loop_points(),
+        None if raw => Wem::parse(bytes).ok().and_then(|wem| wem.loop_points()),
+        None => None,
+    }
+}
+
 fn write_sound(
     bytes: &[u8],
     prefetch: bool,
@@ -150,6 +160,11 @@ fn write_sound(
             }
         }
     };
+    let loop_points = loop_of(
+        wem.as_ref(),
+        bytes,
+        options.format == SoundFormat::Raw && !prefetch,
+    );
     let chain: &[SoundFormat] = match (&wem, options.format) {
         (None, _) => &[SoundFormat::Raw],
         (Some(wem), SoundFormat::Ogg) if matches!(wem.codec(), Codec::Vorbis | Codec::Opus) => {
@@ -168,7 +183,7 @@ fn write_sound(
             state: emitted.state,
             unconverted: note
                 .filter(|_| format == SoundFormat::Raw && options.format != SoundFormat::Raw),
-            loop_points: wem.as_ref().and_then(Wem::loop_points),
+            loop_points,
             prefetch_only: prefetch,
         };
         if options.policy == ConflictPolicy::Skip

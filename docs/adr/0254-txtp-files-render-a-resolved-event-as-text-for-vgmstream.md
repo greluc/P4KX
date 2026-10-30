@@ -15,9 +15,15 @@ decoding) and ADR-0250 (the object kinds). The format is that of vgmstream's `do
 - **One file per event** that leads to sounds, named after the event (`<event>.txtp`) by the
   rule of the sound files: ASCII letters, digits, `_` and `-`, at most 120 bytes, a name taken
   ignoring case gets `_2`, `_3`, …. The file lines name the exported files, which carry the same
-  safe names and lie in the same folder, so every path in a TXTP is a bare file name. The rule is
-  the safe subset of the portable file-name rule of issue #861, so it holds on Linux and Windows
-  alike whether or not that rule is shared code by then.
+  safe names and lie in the same folder, so every path in a TXTP is a bare file name. The portable
+  file-name rule of ADR-0248 (`check_part`) is in force since #861; these names are a strict
+  subset of what it accepts, so they pass it. The path-length limit of ADR-0248 is applied to
+  every TXTP file (`check_path_length` on the absolute path): a file over the limit is listed in
+  the report for its event and the run goes on. The sound export does not check the path length
+  and still has its own name rule; moving it and the TXTP names onto ADR-0248 is issue #879.
+- **Layout.** File lines are indented by two spaces per nesting level, which the TXTP document
+  allows before files and commands. A `group` line carries only the macro `#@layer-v`; the
+  comment about the object, and for a choice how to pick another child, is the line above it.
 - **How objects combine.**
 
   | Object | TXTP |
@@ -30,7 +36,12 @@ decoding) and ADR-0250 (the object kinds). The format is that of vgmstream's `do
   game; the file selects its first child, and the `group` line says how to select another.
 - **Loops come from the WEM.** The loop of the WEM (`smpl` chunk, issue #95) is written as
   `#I <start> <end>` in frames, the values the sound file carries as `smpl` or `LOOPSTART` too.
-  `ExportedSound` gains `loop_points` and `prefetch_only` for this.
+  `ExportedSound` gains `loop_points` and `prefetch_only` for this; the header of the WEM is
+  parsed for the loop whatever the format written, so `--format raw` keeps it.
+- **A broken link makes the file incomplete, not absent.** The events of a trigger that the walk
+  broke on (a missing object, a path too deep, too many children) are written for what was
+  reached, with the header comment `incomplete: <n> broken links`; `TxtpFile::breaks` and the
+  JSON `breaks` of each file count them, and the CLI summary counts the incomplete files.
 - **No guess where a file is missing.** An event with a sound that has no whole file (plug-in
   or external source, a WEM no soundbank holds, only the prefetched start of a streamed WEM) gets
   no TXTP and is listed with the reason in the report; the exit code is that of the sound export,
@@ -43,6 +54,10 @@ decoding) and ADR-0250 (the object kinds). The format is that of vgmstream's `do
 - Music timing (clip positions, trims, transitions, the loop counts of containers and playlist
   items) is not reproduced; a music event plays its tracks as layers. The map above is a faithful
   rendition for events of sounds and containers and an approximation for music.
+- The segments of an `-S` group are decoded by vgmstream one after another: it takes the highest
+  sample rate of them, and segments of different channel counts may need mixing (a mono segment
+  next to a stereo one will not sound right without it), so a sequence of sounds with unequal
+  format may play differently from the game.
 - `ExportedSound` has two new public fields; constructing one outside the crate needs them.
 - The JSON of `wwise extract` has an optional `txtp` object only with `--txtp`.
 

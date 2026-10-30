@@ -38,6 +38,7 @@ pub(super) struct Leaf {
     pub(super) kind: SourceKind,
 }
 
+/// A child of a group: a sound or another group.
 #[derive(Debug, PartialEq, Eq)]
 pub(super) enum Node {
     Leaf(Leaf),

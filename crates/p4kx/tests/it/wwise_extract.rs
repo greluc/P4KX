@@ -330,8 +330,8 @@ fn txtp_layers_the_actions_of_an_event() -> TestResult {
     );
     assert!(
         lines
-            .get(3)
-            .is_some_and(|line| line.starts_with("group = -L2 #@layer-v")),
+            .get(4)
+            .is_some_and(|line| line == &"group = -L2 #@layer-v"),
         "{text}"
     );
     Ok(())

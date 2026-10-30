@@ -122,7 +122,11 @@ pub(crate) fn is_device_name(part: &str) -> bool {
 
 /// Checks that the absolute file path `file` and its folder stay within the path limits of
 /// Windows, and so of Linux.
-pub(crate) fn check_path_length(file: &Path) -> Result<(), PathLimit> {
+///
+/// # Errors
+///
+/// Returns the [`PathLimit`] the path or its folder exceeds.
+pub fn check_path_length(file: &Path) -> Result<(), PathLimit> {
     check_units(file, FILE_PATH_UNITS)?;
     file.parent()
         .map_or(Ok(()), |folder| check_units(folder, FOLDER_PATH_UNITS))

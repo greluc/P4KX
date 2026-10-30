@@ -130,8 +130,8 @@ pub struct ExportedSound {
     /// Why the sound is written unchanged although a conversion was asked for: it cannot be
     /// decoded, is plug-in media or is only the prefetched start of a streamed WEM.
     pub unconverted: Option<String>,
-    /// The loop of the sound in frames, from its WEM; `None` for a sound without one, or one that
-    /// was not parsed.
+    /// The loop of the sound in frames, from the header of its WEM, whatever the format written;
+    /// `None` for a sound without one, a WEM that cannot be parsed or only a prefetched start.
     pub loop_points: Option<Loop>,
     /// Whether the file holds only the prefetched start of a streamed WEM, not the whole sound.
     pub prefetch_only: bool,

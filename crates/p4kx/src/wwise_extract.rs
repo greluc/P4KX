@@ -190,9 +190,7 @@ pub(crate) fn run(args: &WwiseExtractArgs, as_json: bool) -> Result<ExitCode> {
         .resolve_trigger_in(&args.trigger, &choice)
         .ok_or_else(|| UnknownTrigger::new(&args.trigger))?;
     let report = export(&audio, &[&sounds], &args.out, &args.export, &cancel)?;
-    let txtp = (args.txtp && !report.cancelled)
-        .then(|| wwise_txtp::write(&sounds, &report, args))
-        .transpose()?;
+    let txtp = (args.txtp && !report.cancelled).then(|| wwise_txtp::write(&sounds, &report, args));
     if as_json {
         json::print(&ExtractJson {
             archive: json::path(archive.path()),

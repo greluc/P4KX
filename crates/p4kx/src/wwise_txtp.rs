@@ -4,7 +4,6 @@
 use std::io::{self, Write};
 use std::path::Path;
 
-use anyhow::Result;
 use p4kx_assembly::audio::{ExportReport, ExportState, TriggerSounds, TxtpReport, write_txtp};
 use serde::Serialize;
 
@@ -29,6 +28,7 @@ struct TxtpFileJson {
     file: String,
     size: u64,
     kept: bool,
+    breaks: usize,
 }
 
 #[derive(Serialize)]
@@ -43,13 +43,8 @@ pub(crate) fn write(
     sounds: &TriggerSounds<'_>,
     exported: &ExportReport,
     args: &WwiseExtractArgs,
-) -> Result<TxtpReport> {
-    Ok(write_txtp(
-        &[sounds],
-        exported,
-        &args.out,
-        policy(args.export.conflict),
-    )?)
+) -> TxtpReport {
+    write_txtp(&[sounds], exported, &args.out, policy(args.export.conflict))
 }
 
 /// Returns the JSON shape of `report`.
@@ -67,6 +62,7 @@ pub(crate) fn to_json(report: &TxtpReport) -> TxtpJson {
                 file: json::path(&file.path),
                 size: file.size,
                 kept: file.state == ExportState::Kept,
+                breaks: file.breaks,
             })
             .collect(),
         skips: report
@@ -93,10 +89,11 @@ pub(crate) fn print(report: &TxtpReport, out: &Path) -> io::Result<()> {
     }
     writeln!(
         io::stdout().lock(),
-        "wrote {} TXTP files into {}; {} kept, {} events skipped",
+        "wrote {} TXTP files into {}; {} kept, {} incomplete because of broken links, {} events skipped",
         report.written_count(),
         out.display(),
         report.kept_count(),
+        report.files.iter().filter(|file| file.breaks > 0).count(),
         report.skipped.len()
     )
 }

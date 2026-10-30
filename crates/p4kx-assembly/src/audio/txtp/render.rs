@@ -19,6 +19,7 @@ const INDENT: usize = 2;
 pub(super) struct SoundFile<'a> {
     /// The file name in the export folder.
     pub(super) name: &'a str,
+    /// The loop of the WEM in frames, written as `#I`.
     pub(super) loop_points: Option<Loop>,
     /// Whether the file holds only the prefetched start of a streamed WEM.
     pub(super) prefetch_only: bool,
@@ -86,7 +87,7 @@ fn leaf_line(
         .ok_or_else(|| format!("{} {} has no file", leaf.kind.label(), leaf.source_id))?;
     if file.prefetch_only {
         return Err(format!(
-            "{} {} is only the prefetched start of a streamed WEM",
+            "{} {}: only its start was written, the rest is streamed",
             leaf.kind.label(),
             leaf.source_id
         ));
@@ -106,13 +107,13 @@ fn group_line(text: &mut String, group: &Group, depth: usize) {
         Combine::Segments => ('S', "", ""),
         Combine::Select => ('R', ">1", ""),
     };
+    let indent = depth * INDENT;
     let _ = write!(
         text,
-        "{:indent$}group = -{kind}{count}{selection}{mix} # {} {}",
+        "{:indent$}# {} {}",
         "",
         group.step.kind.name(),
-        group.step.id,
-        indent = depth * INDENT,
+        group.step.id
     );
     if group.combine == Combine::Select {
         let _ = write!(
@@ -120,7 +121,11 @@ fn group_line(text: &mut String, group: &Group, depth: usize) {
             ": plays the first of {count}, change >1 to pick another"
         );
     }
-    text.push('\n');
+    let _ = writeln!(
+        text,
+        "\n{:indent$}group = -{kind}{count}{selection}{mix}",
+        ""
+    );
 }
 
 #[cfg(test)]
@@ -189,9 +194,15 @@ mod tests {
 
         assert_eq!(
             text.as_deref(),
-            Ok(
-                "# x\n  a.ogg\n    a.ogg\n    b.ogg #I 10 90\n  group = -R2>1 # random 7: plays the first of 2, change >1 to pick another\ngroup = -L2 #@layer-v # event 5\n"
-            )
+            Ok("# x
+  a.ogg
+    a.ogg
+    b.ogg #I 10 90
+  # random 7: plays the first of 2, change >1 to pick another
+  group = -R2>1
+# event 5
+group = -L2 #@layer-v
+")
         );
     }
 
@@ -201,7 +212,14 @@ mod tests {
 
         let text = render(&tree, &[], &files()).expect("renders");
 
-        assert!(text.contains("group = -S2 # sequence 9\n"), "{text}");
+        assert!(
+            text.contains(
+                "# sequence 9
+group = -S2
+"
+            ),
+            "{text}"
+        );
     }
 
     #[test]

@@ -16,7 +16,9 @@ mod tree;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-use p4kx_extraction::{ConflictPolicy, ConversionError, write_replacing_counted};
+use p4kx_extraction::{
+    ConflictPolicy, ConversionError, check_path_length, write_replacing_counted,
+};
 
 use self::render::{SoundFile, comment_text, render};
 use super::export::name::{StemSet, safe_stem};
@@ -38,9 +40,15 @@ pub struct TxtpFile {
     pub size: u64,
     /// Whether the file was written or kept.
     pub state: ExportState,
+    /// How many broken links the walk met in the event; above 0 the file is incomplete, as its
+    /// header says, because the objects behind a broken link are not played.
+    pub breaks: usize,
 }
 
 /// A Wwise event that got no TXTP.
+///
+/// The reason is one of: a sound has no whole file, or the file could not be written, for
+/// instance because its path is too long.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TxtpSkip {
     /// The audio trigger the Wwise event belongs to.
@@ -88,15 +96,16 @@ impl TxtpReport {
 /// sequence containers and music playlists as segments; random and switch containers and music
 /// switches as a choice. Music timing, transitions and container loop counts are not reproduced.
 ///
-/// # Errors
-///
-/// Returns a [`ConversionError`] when a file cannot be written.
+/// An event with broken links is written with a header comment that says it is incomplete, and
+/// [`TxtpFile::breaks`] counts them. A file that cannot be written, e.g. because its path is too
+/// long, is listed in [`TxtpReport::skipped`] with the error; the other events are still written.
+#[must_use]
 pub fn write_txtp(
     triggers: &[&TriggerSounds<'_>],
     exported: &ExportReport,
     folder: &Path,
     policy: ConflictPolicy,
-) -> Result<TxtpReport, ConversionError> {
+) -> TxtpReport {
     let sounds: HashMap<(&str, u32), &ExportedSound> = exported
         .sounds
         .iter()
@@ -113,36 +122,57 @@ pub fn write_txtp(
             let Some(first) = variants.first() else {
                 continue;
             };
-            let event = first.event().name();
+            let event = first.event();
+            let breaks = trigger
+                .breaks()
+                .iter()
+                .filter(|broken| std::ptr::eq(broken.event(), event))
+                .count();
             let files = files_of(name, variants, &sounds);
-            let text = tree::build(variants)
-                .ok_or_else(|| "the event has no object path".to_owned())
-                .and_then(|tree| {
-                    let header = [format!("P4KX: event {event} of trigger {name}")];
-                    render(&tree, &header, &files)
+            let written =
+                event_text(name, event.name(), variants, &files, breaks).and_then(|text| {
+                    let path = folder.join(format!(
+                        "{}.{EXTENSION}",
+                        stems.unique(&safe_stem(event.name()))
+                    ));
+                    write_file(&path, &text, policy).map(|(size, state)| (path, size, state))
                 });
-            match text {
-                Ok(text) => {
-                    let path =
-                        folder.join(format!("{}.{EXTENSION}", stems.unique(&safe_stem(event))));
-                    let (size, state) = write_file(&path, &text, policy)?;
-                    report.files.push(TxtpFile {
-                        trigger: name.to_owned(),
-                        event: event.to_owned(),
-                        path,
-                        size,
-                        state,
-                    });
-                }
+            match written {
+                Ok((path, size, state)) => report.files.push(TxtpFile {
+                    trigger: name.to_owned(),
+                    event: event.name().to_owned(),
+                    path,
+                    size,
+                    state,
+                    breaks,
+                }),
                 Err(reason) => report.skipped.push(TxtpSkip {
                     trigger: name.to_owned(),
-                    event: comment_text(event),
+                    event: comment_text(event.name()),
                     reason,
                 }),
             }
         }
     }
-    Ok(report)
+    report
+}
+
+/// Returns the TXTP text of one event, or why it cannot be written.
+fn event_text(
+    trigger: &str,
+    event: &str,
+    variants: &[SoundVariant<'_>],
+    files: &HashMap<u32, SoundFile<'_>>,
+    breaks: usize,
+) -> Result<String, String> {
+    let tree = tree::build(variants).ok_or_else(|| "the event has no object path".to_owned())?;
+    let mut header = vec![format!("P4KX: event {event} of trigger {trigger}")];
+    if breaks > 0 {
+        header.push(format!(
+            "incomplete: {breaks} broken links; the objects behind them are not played here"
+        ));
+    }
+    render(&tree, &header, files)
 }
 
 /// Returns the usable files of the WEMs the variants play: those written whole.
@@ -173,7 +203,9 @@ fn write_file(
     path: &Path,
     text: &str,
     policy: ConflictPolicy,
-) -> Result<(u64, ExportState), ConversionError> {
+) -> Result<(u64, ExportState), String> {
+    let absolute = std::path::absolute(path).map_err(|error| error.to_string())?;
+    check_path_length(&absolute).map_err(|limit| limit.to_string())?;
     if policy == ConflictPolicy::Skip
         && let Ok(existing) = std::fs::symlink_metadata(path)
     {
@@ -185,7 +217,8 @@ fn write_file(
                 path: path.to_path_buf(),
                 source,
             })
-    })?;
+    })
+    .map_err(|error| error.to_string())?;
     let state = if replaced.changed {
         ExportState::Written
     } else {

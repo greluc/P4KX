@@ -34,7 +34,7 @@ fn the_txtp_of_a_real_trigger_names_exported_files() -> TestResult {
     let triggers = [&sounds];
     let exported = audio.export_sounds(&triggers, out.path(), options)?;
 
-    let report = write_txtp(&triggers, &exported, out.path(), ConflictPolicy::Overwrite)?;
+    let report = write_txtp(&triggers, &exported, out.path(), ConflictPolicy::Overwrite);
 
     println!(
         "{} variants, {} files, {} TXTP written, {} skipped: {:?}",

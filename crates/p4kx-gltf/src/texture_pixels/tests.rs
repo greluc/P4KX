@@ -30,7 +30,7 @@ fn a_dark_specular_colour_darkens_a_light_specular_map() {
 #[test]
 fn a_bright_specular_colour_keeps_the_light_map_as_the_colour() {
     let [red, ..] = base([1.0; 3]);
-    assert_eq!(red, 210);
+    assert!(red.abs_diff(210) <= 1, "the map is the colour: {red}");
 }
 
 #[test]

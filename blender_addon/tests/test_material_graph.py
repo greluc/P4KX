@@ -395,11 +395,8 @@ def _specular_map_material(**values: object) -> GraphSpec:
 
 def test_a_specular_map_is_multiplied_by_the_specular_colour() -> None:
     graph = _specular_map_material(specular=[0.061] * 3)
-    reflected = next(
-        n
-        for n in graph.nodes
-        if n.kind == "ShaderNodeMix" and n.props["blend_type"] == "MULTIPLY" and n.inputs.get("B") == (0.061,) * 3
-    )
+    reflected = _multiply_nodes(graph)[0]
+    assert reflected.inputs["B"] == (0.061,) * 3
     texture = graph.linked(reflected.key, "A")
     assert texture is not None and graph.node(texture.key).kind == "ShaderNodeTexImage"
     metallic = graph.linked("bsdf", "Metallic")
@@ -411,11 +408,43 @@ def test_a_specular_map_is_multiplied_by_the_specular_colour() -> None:
     assert colour is not None and graph.linked(colour.key, "B") == Ref(reflected.key, "Result")
 
 
-def test_a_bright_specular_colour_keeps_the_map_a_metal() -> None:
+def _multiply_nodes(graph: GraphSpec) -> list:
+    return [n for n in graph.nodes if n.kind == "ShaderNodeMix" and n.props.get("blend_type") == "MULTIPLY"]
+
+
+def test_a_white_specular_colour_feeds_the_map_straight_into_ramp_and_colour() -> None:
     graph = _specular_map_material(specular=[1.0] * 3)
-    assert graph.linked("bsdf", "Metallic") is not None
-    reflected = next(n for n in graph.nodes if n.kind == "ShaderNodeMix" and n.props["blend_type"] == "MULTIPLY")
-    assert reflected.inputs["B"] == (1.0, 1.0, 1.0)
+    assert _multiply_nodes(graph) == []
+    metallic = graph.linked("bsdf", "Metallic")
+    assert metallic is not None
+    grey = graph.linked(graph.node(metallic.key).key, "Value")
+    assert grey is not None
+    texture = graph.linked(grey.key, "Color")
+    assert texture is not None and graph.node(texture.key).kind == "ShaderNodeTexImage"
+    colour = graph.linked("bsdf", "Base Color")
+    assert colour is not None and graph.linked(colour.key, "B") == texture
+
+
+def test_a_map_without_a_specular_colour_uses_the_dielectric_default_and_is_no_metal() -> None:
+    raw = description(
+        "x0001",
+        "Illum",
+        textures=[slot("TexSlot1", "diffuse", "t0001"), slot("TexSlot4", "specular", "t0002")],
+    )
+    del raw["specular"]
+    graph = single([raw])
+    reflected = _multiply_nodes(graph)[0]
+    assert reflected.inputs["B"] == (0.04, 0.04, 0.04)
+    ramp = graph.node(graph.linked("bsdf", "Metallic").key)  # type: ignore[union-attr]
+    grey = graph.linked(ramp.key, "Value")
+    assert grey is not None and graph.linked(grey.key, "Color") == Ref(reflected.key, "Result")
+    assert ramp.inputs["From Min"] == 0.15
+
+
+def test_a_non_finite_colour_falls_back_to_the_default() -> None:
+    graph = single([description("x0001", "Illum", specular=[float("nan"), float("inf"), 1.0])])
+    assert graph.node("bsdf").inputs["Base Color"] == (1.0, 1.0, 1.0)
+    assert graph.node("bsdf").inputs["Metallic"] == 0.0
 
 
 def test_a_long_parameter_name_is_not_kept_as_a_property() -> None:

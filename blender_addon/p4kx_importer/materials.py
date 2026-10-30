@@ -16,13 +16,8 @@ import bpy
 
 from .graph_groups import group_spec
 from .graph_spec import GraphSpec, Socket
-from .material_graph import (
-    METAL_FROM,
-    METAL_TO,
-    SPECULAR_LEVEL_PER_F0,
-    BuildContext,
-    build_graph,
-)
+from .material_graph import BuildContext, build_graph
+from .material_model import BLACK, DIELECTRIC, WHITE, MaterialDesc, Palette, TextureSlot
 from .material_pairing import INDEX_PROPERTY, index_of, pair_by_index
 from .package import Mesh, Package, PackageError, Texture, resolve_file
 
@@ -33,6 +28,7 @@ _COLOUR_SPACE_NAMES = {"srgb": "sRGB", "linear": "Non-Color"}
 _ALPHA_MODES = {"opacity": "STRAIGHT", "smoothness": "CHANNEL_PACKED", "none": "NONE"}
 _COLUMN = 280.0
 _ROW = 260.0
+BASIC_USAGES = frozenset({"diffuse", "normal", "specular"})
 
 
 class ImageCache:
@@ -75,11 +71,7 @@ def apply_materials(
         [(entry.index, entry.name) for entry in mesh.materials],
         [(name, index_of(m.get(INDEX_PROPERTY))) for name, m in materials.items()],
     )
-    context = BuildContext(
-        package.material_descriptions,
-        package.palettes.get(mesh.palette_id) if mesh.palette_id else None,
-        {texture.id: texture.alpha for texture in package.textures.values()},
-    )
+    context = _context(package, package.palettes.get(mesh.palette_id) if mesh.palette_id else None)
     for entry in mesh.materials:
         blender = materials.get(pairs.get(entry.index, ""))
         if blender is None:
@@ -189,84 +181,47 @@ def apply_textures(
 ) -> None:
     """Connects the textures of ``described`` to the Principled BSDF of ``material``.
 
-    This is the basic setup of format 1.0 packages and of materials without a description.
+    This is the basic setup of format 1.0 packages and of materials without a description. It
+    is the graph of a neutral ``Illum`` material with those textures, so a specular map follows
+    the same rule as everywhere else.
     """
-    if material.node_tree is None:
-        material.use_nodes = True
-    tree = material.node_tree
-    bsdf = _principled(tree)
-    row = 0
-    textured: dict[str, bpy.types.Node] = {}
-    for role, texture_id in described.textures.items():
-        image = images.get(texture_id)
-        if image is None:
-            continue
-        node = tree.nodes.new("ShaderNodeTexImage")
-        node.image = image
-        node.location = (bsdf.location.x - 700, bsdf.location.y - 300 * row)
-        row += 1
-        if role == "diffuse":
-            tree.links.new(node.outputs["Color"], bsdf.inputs["Base Color"])
-            if package.textures[texture_id].alpha == "opacity":
-                tree.links.new(node.outputs["Alpha"], bsdf.inputs["Alpha"])
-        elif role == "normal":
-            normal = tree.nodes.new("ShaderNodeNormalMap")
-            normal.location = (bsdf.location.x - 350, node.location.y)
-            tree.links.new(node.outputs["Color"], normal.inputs["Color"])
-            tree.links.new(normal.outputs["Normal"], bsdf.inputs["Normal"])
-        if role in ("diffuse", "specular"):
-            textured[role] = node
-    if "specular" in textured:
-        _apply_specular(tree, bsdf, textured["specular"], textured.get("diffuse"))
+    spec = build_graph(basic_description(described, package), _context(package))
+    build_tree(material, spec, images)
 
 
-def _apply_specular(
-    tree: bpy.types.ShaderNodeTree,
-    bsdf: bpy.types.Node,
-    specular: bpy.types.Node,
-    diffuse: bpy.types.Node | None,
-) -> None:
-    """Wires a specular map as the viewer does: metal share, colour mix and specular level."""
-    x, y = bsdf.location.x - 350, specular.location.y
-    grey = tree.nodes.new("ShaderNodeRGBToBW")
-    grey.location = (x, y)
-    tree.links.new(specular.outputs["Color"], grey.inputs["Color"])
-    ramp = tree.nodes.new("ShaderNodeMapRange")
-    ramp.location = (x + 150, y)
-    ramp.data_type = "FLOAT"
-    ramp.clamp = True
-    ramp.inputs["From Min"].default_value = METAL_FROM
-    ramp.inputs["From Max"].default_value = METAL_TO
-    tree.links.new(grey.outputs["Val"], ramp.inputs["Value"])
-    tree.links.new(ramp.outputs["Result"], bsdf.inputs["Metallic"])
-    level = tree.nodes.new("ShaderNodeMath")
-    level.location = (x + 150, y - 200)
-    level.operation = "MULTIPLY"
-    level.use_clamp = True
-    level.inputs[1].default_value = SPECULAR_LEVEL_PER_F0
-    tree.links.new(grey.outputs["Val"], level.inputs[0])
-    tree.links.new(level.outputs["Value"], bsdf.inputs["Specular IOR Level"])
-    if diffuse is not None:
-        mix = tree.nodes.new("ShaderNodeMix")
-        mix.location = (x + 300, y)
-        mix.data_type = "RGBA"
-        tree.links.new(diffuse.outputs["Color"], _enabled(mix.inputs, "A"))
-        tree.links.new(specular.outputs["Color"], _enabled(mix.inputs, "B"))
-        tree.links.new(ramp.outputs["Result"], _enabled(mix.inputs, "Factor"))
-        tree.links.new(_enabled(mix.outputs, "Result"), bsdf.inputs["Base Color"])
+def basic_description(described: MeshMaterial, package: Package) -> MaterialDesc:
+    """Returns a neutral ``Illum`` description with the textures written for ``described``."""
+    slots = tuple(
+        TextureSlot(slot=role, file="", usage=role, texture=texture_id)
+        for role, texture_id in described.textures.items()
+        if role in BASIC_USAGES and texture_id in package.textures
+    )
+    diffuse = next((s for s in slots if s.usage == "diffuse"), None)
+    opacity = diffuse is not None and package.textures[diffuse.texture or ""].alpha == "opacity"
+    return MaterialDesc(
+        id=f"basic{described.index}",
+        name=described.name,
+        shader="Illum",
+        gen_mask=frozenset(),
+        surface_type="",
+        two_sided=False,
+        no_draw=False,
+        diffuse=WHITE,
+        specular=DIELECTRIC,
+        emissive=BLACK,
+        shininess=0.0,
+        opacity=1.0,
+        alpha_test=0.0,
+        glow=0.0,
+        alpha_mode="blend" if opacity else "opaque",
+        palette=None,
+        textures=slots,
+    )
 
 
-def _enabled(sockets: Any, name: str) -> bpy.types.NodeSocket:
-    return next(s for s in sockets if s.name == name and s.enabled)
-
-
-def _principled(tree: bpy.types.ShaderNodeTree) -> bpy.types.Node:
-    for node in tree.nodes:
-        if node.type == "BSDF_PRINCIPLED":
-            return node
-    bsdf = tree.nodes.new("ShaderNodeBsdfPrincipled")
-    output = next((n for n in tree.nodes if n.type == "OUTPUT_MATERIAL"), None)
-    if output is None:
-        output = tree.nodes.new("ShaderNodeOutputMaterial")
-    tree.links.new(bsdf.outputs["BSDF"], output.inputs["Surface"])
-    return bsdf
+def _context(package: Package, palette: Palette | None = None) -> BuildContext:
+    return BuildContext(
+        package.material_descriptions,
+        palette,
+        {texture.id: texture.alpha for texture in package.textures.values()},
+    )

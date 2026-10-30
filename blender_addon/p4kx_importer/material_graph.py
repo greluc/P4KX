@@ -191,8 +191,8 @@ class _Maker(LayerBlending):
                 scale = SPECULAR_LEVEL_PER_F0 * luminance(specular)
                 colour, share = self._by_share(diffuse, specular)
                 return colour, share, b.math("MULTIPLY", Ref(grey, "Val"), scale, clamp=True)
-            # The reflectance is the map times the material's Specular colour, as in the GLB writer.
-            reflected = b.mix(texture, specular, 1.0, blend="MULTIPLY")
+            # Reflectance is the specular map times the material's Specular colour.
+            reflected = texture if specular == WHITE else b.mix(texture, specular, 1.0, blend="MULTIPLY")
             grey = b.add("ShaderNodeRGBToBW")
             b.link(reflected, grey, "Color")
             texel = Ref(grey, "Val")

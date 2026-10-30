@@ -27,17 +27,8 @@ const STANDING_SIDES: [&str; 2] = ["minStanding", "maxStanding"];
 pub(crate) struct ContractFields {
     time_to_complete: Option<f64>,
     buy_in: Option<f64>,
-    min_standing: MinStanding,
-}
-
-/// The `minStanding` field of a contract.
-#[derive(Debug, Default, PartialEq)]
-enum MinStanding {
-    /// The contract has no `minStanding` field.
-    #[default]
-    Absent,
-    /// The GUID the field links to, `None` for a null Reference.
-    Field(Option<String>),
+    /// The GUID `minStanding` links to; `None` when the field is absent or a null Reference.
+    min_standing: Option<String>,
 }
 
 impl ContractFields {
@@ -48,9 +39,8 @@ impl ContractFields {
             buy_in: results["contractBuyInAmount"].as_f64(),
             min_standing: contract
                 .get("minStanding")
-                .map_or(MinStanding::Absent, |standing| {
-                    MinStanding::Field(reference_guid(standing).map(str::to_owned))
-                }),
+                .and_then(reference_guid)
+                .map(str::to_owned),
         }
     }
 }
@@ -119,28 +109,27 @@ fn compare_contract(
         format!("{ident}: id {id} is in no contract Record")
     });
     let Some(contract) = contract else { return };
-    let time = scmdb["timeToComplete"].as_f64();
-    if time.is_some() && contract.time_to_complete.is_some() {
-        findings.number(
-            category,
-            ident,
-            "timeToComplete",
-            time,
-            contract.time_to_complete,
-        );
-    }
-    if contract.buy_in.is_some() {
-        let buy_in = scmdb["buyIn"].as_f64().unwrap_or_default();
-        findings.number(category, ident, "buyIn", Some(buy_in), contract.buy_in);
-    }
-    if let (Some(expected), MinStanding::Field(linked)) = (
+    findings.number_if_both(
+        category,
+        ident,
+        "timeToComplete",
+        scmdb["timeToComplete"].as_f64(),
+        contract.time_to_complete,
+    );
+    findings.number_if_both(
+        category,
+        ident,
+        "buyIn",
+        scmdb["buyIn"].as_f64(),
+        contract.buy_in,
+    );
+    findings.text_if_both(
+        category,
+        ident,
+        "minStanding",
         scmdb["minStanding"]["guid"].as_str(),
-        &contract.min_standing,
-    ) {
-        findings.check(category, linked.as_deref() == Some(expected), || {
-            format!("{ident}: minStanding SCMDB={expected} p4kx={linked:?}")
-        });
-    }
+        contract.min_standing.as_deref(),
+    );
 }
 
 /// Returns every standing a contract of `merged` names, by its GUID.

@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use serde_json::{Value, json};
 
 use super::version::matches_build;
-use super::*;
+use super::{Dumps, Findings, P4kx, collect_contracts, compare};
 
 const BLUEPRINT: &str = "00000000-0000-0000-0000-0000000000b1";
 const PRODUCT: &str = "00000000-0000-0000-0000-0000000000e1";
@@ -148,9 +148,70 @@ fn a_contract_in_no_record_disagrees() {
 fn numbers_agree_within_the_tolerance_of_an_f32() {
     let mut findings = Findings::default();
     findings.number("n", "x", "f", Some(0.3), Some(f64::from(0.3_f32)));
-    findings.number("n", "x", "f", None, None);
     assert!(findings.is_empty());
     findings.number("n", "x", "f", Some(1.0), None);
     findings.number("n", "x", "f", Some(1.0), Some(1.001));
     assert_eq!(findings.mismatches_of("n"), 2);
+}
+
+#[test]
+fn a_field_missing_on_both_sides_is_tallied_and_not_compared() {
+    let mut findings = Findings::default();
+    findings.number("n", "x", "f", Some(1.0), Some(1.0));
+    findings.number("n", "x", "f", None, None);
+    assert!(findings.is_empty());
+    assert_eq!(findings.compared("n", "f"), 1);
+    assert_eq!(findings.absent_on_both("n", "f"), 1);
+    assert_eq!(findings.absent_on_one_side("n", "f"), 0);
+    assert!(
+        findings
+            .summary()
+            .iter()
+            .any(|line| line.contains("f: compared 1 of 2")),
+        "{:?}",
+        findings.summary()
+    );
+}
+
+#[test]
+fn an_optional_field_missing_on_one_side_is_tallied_without_a_disagreement() {
+    let mut findings = Findings::default();
+    findings.number_if_both("n", "x", "f", Some(1.0), None);
+    findings.text_if_both("n", "x", "t", None, Some("a"));
+    assert!(findings.is_empty());
+    assert_eq!(findings.compared("n", "f"), 0);
+    assert_eq!(findings.absent_on_one_side("n", "f"), 1);
+    assert_eq!(findings.absent_on_one_side("n", "t"), 1);
+}
+
+#[test]
+fn a_renamed_contract_field_shows_in_the_tally() {
+    let mut p4kx = p4kx(&json!({"guid": PRODUCT}), 1.1);
+    p4kx.contracts.clear();
+    collect_contracts(
+        &json!({"contracts": [{
+            "id": CONTRACT, "contractResults": {"timeToCompleteRenamed": 10},
+            "minStanding": {"guid": STANDING}
+        }]}),
+        &mut p4kx.contracts,
+    );
+    let findings = compare(&dumps(), &p4kx);
+    assert_eq!(findings.compared("contracts", "timeToComplete"), 0);
+    assert_eq!(
+        findings.absent_on_one_side("contracts", "timeToComplete"),
+        1
+    );
+}
+
+#[test]
+fn contract_fields_present_on_both_sides_are_compared() {
+    let findings = compare(&dumps(), &p4kx(&json!({"guid": PRODUCT}), 1.1));
+    assert_eq!(findings.compared("contracts", "timeToComplete"), 1);
+    assert_eq!(
+        findings.absent_on_one_side("contracts", "timeToComplete"),
+        1
+    );
+    assert_eq!(findings.compared("contracts", "minStanding"), 1);
+    assert_eq!(findings.absent_on_both("contracts", "minStanding"), 1);
+    assert_eq!(findings.absent_on_one_side("contracts", "buyIn"), 1);
 }

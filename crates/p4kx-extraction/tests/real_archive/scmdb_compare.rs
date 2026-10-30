@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 //! Compares Record JSON with an SCMDB data dump of the same Build; a development check, never an
-//! export source (ADR-0259).
+//! export source (ADR-0267).
 //!
 //! Only values SCMDB takes from the DataForge unchanged are compared. Display names, texts,
 //! densities and the maximum standing of a contract are SCMDB's own processing and left out.

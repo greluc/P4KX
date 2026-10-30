@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-//! DataForge values against SCMDB data dumps of the same Build saved by hand (ADR-0259); runs
+//! DataForge values against SCMDB data dumps of the same Build saved by hand (ADR-0267); runs
 //! with `--ignored` when `P4KX_DATA_P4K` names an Archive and `P4KX_REF_SCMDB` the folder.
 
 use std::collections::{BTreeSet, HashMap};
@@ -31,7 +31,7 @@ fn dataforge_values_agree_with_scmdb_dumps_of_the_same_build() -> Result<(), Sen
         report("skipped: set P4KX_REF_SCMDB to the folder of the SCMDB dumps");
         return Ok(());
     };
-    let archive = Archive::open_with_key(real_archive_path()?, Some(real_archive_key()?))?;
+    let archive = Archive::open_with_key(real_archive_path()?, real_archive_key().ok())?;
     let Some(build) = archive.build() else {
         report("skipped: the Archive has no build manifest");
         return Ok(());

@@ -43,8 +43,14 @@ otherwise, the dumps are treated like the ship matrix of ADR-0245.
 - A blueprint product that is a dangling Reference in the game data agrees when the error value
   names the GUID SCMDB states. A sub-contract counts as a contract of its `id` without compared
   fields.
+- The Records that hold contracts are chosen by the substring `contract` (case-insensitive) in
+  the Record's type name or record path; contracts in a Record named otherwise are not seen.
+- A field missing on both sides, or on one side, is not counted as agreeing. The summary lists
+  per field how many occurrences were compared of how many were seen, with the two kinds of
+  absence apart, so a renamed or dropped field shows. A blueprint, mining or standing field
+  missing on one side disagrees; a contract field (`timeToComplete`, `buyIn`, `minStanding`),
+  which a source may omit at its default, is only tallied.
 
 ## Consequences
 
 - Each Build SCMDB publishes can be cross-checked locally without automated access to SCMDB.
-- If the operator permits automated access, a later ADR may add a fetch.

@@ -66,7 +66,7 @@ The ship matrix check of `p4kx-export` (ADR-0245) reads the JSON the owner saved
 `local-data/ship-matrix/ship-matrix.json` (excluded from git locally; nothing fetches it) from
 `P4KX_REF_SHIP_MATRIX` (`p4kx_testkit::reference_ship_matrix_path`) and skips when it is unset.
 
-The SCMDB cross-check of `p4kx-extraction` (ADR-0259) reads the SCMDB dumps the owner saved by
+The SCMDB cross-check of `p4kx-extraction` (ADR-0267) reads the SCMDB dumps the owner saved by
 hand to `local-data/scmdb/` (`merged-<v>.json`, `crafting_blueprints-<v>.json`,
 `mining_data-<v>.json`; excluded from git locally; nothing fetches them) from `P4KX_REF_SCMDB`
 (`p4kx_testkit::reference_scmdb_path`). It skips when the variable is unset or no `<v>` matches the

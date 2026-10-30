@@ -8,7 +8,7 @@
 //! its WEM as `#I start end`, and one `group` line after the children of every object that plays
 //! several: `-L<n>` layers, `-S<n>` segments and `-R<n>>1` for a choice at run time, which the
 //! file settles on the first child. Names in a TXTP are file names of the export folder, so they
-//! hold only ASCII letters, digits, `_`, `-` and the extension dot.
+//! follow the portable rule of ADR-0248.
 
 mod render;
 mod tree;
@@ -21,11 +21,14 @@ use p4kx_extraction::{
 };
 
 use self::render::{SoundFile, comment_text, render};
-use super::export::name::{StemSet, safe_stem};
+use super::export::name::{StemSet, portable_stem};
 use super::{ExportReport, ExportState, ExportedSound, SoundVariant, TriggerSounds};
 
 /// The extension of a TXTP file, without the dot.
 const EXTENSION: &str = "txtp";
+
+/// The stem of a TXTP whose event name is too long for a file name.
+const FALLBACK_STEM: &str = "event";
 
 /// A TXTP file of an export.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -88,8 +91,9 @@ impl TxtpReport {
 /// Writes one TXTP per Wwise event of `triggers` that leads to sounds, into `folder` as
 /// `<event>.txtp`, naming the files `exported` holds.
 ///
-/// A name is cut to ASCII letters, digits, `_` and `-`; a name already taken, ignoring case, gets
-/// `_2`, `_3`, … appended in event order. An event whose sounds are not all in `exported` as a
+/// A name is escaped to pass the portable file-name rule of ADR-0248 (`%` and two hex digits for
+/// each character it forbids), or becomes `event` when it is too long; a name already taken under
+/// the case fold of that rule gets `_2`, `_3`, … appended in event order. An event whose sounds are not all in `exported` as a
 /// whole file, because a source has no file or only its prefetched start was written, is listed
 /// in [`TxtpReport::skipped`] with the reason. Objects the walk does not tell apart are combined
 /// as follows: an Event's actions, blend containers, music segments and music tracks as layers;
@@ -133,7 +137,7 @@ pub fn write_txtp(
                 event_text(name, event.name(), variants, &files, breaks).and_then(|text| {
                     let path = folder.join(format!(
                         "{}.{EXTENSION}",
-                        stems.unique(&safe_stem(event.name()))
+                        stems.unique(&portable_stem(event.name(), FALLBACK_STEM))
                     ));
                     write_file(&path, &text, policy).map(|(size, state)| (path, size, state))
                 });

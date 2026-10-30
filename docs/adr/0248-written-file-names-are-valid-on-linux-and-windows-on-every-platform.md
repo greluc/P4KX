@@ -49,6 +49,14 @@ Decided for issue #861. Refines ADR-0008 (Record files by record path).
   Records that collide ignoring case applies: the Record alone at its record path keeps
   `<record path><extension>` and the shared Record takes `<name>.<GUID><extension>`.
 
+- The sound export (`p4kx wwise extract`, `p4kx entity audio --extract`) and its TXTP files
+  (ADR-0254) use the same rule (issue #879): the trigger or event name is escaped as a record path
+  part is, so `Play|X` is written as `Play%7CX`; a name whose escaped form exceeds 228 bytes, the
+  room that is left for an extension and two suffixes, is written as `sound` (`event` for a TXTP).
+  A name taken under the fold above gets `_2`, `_3`, …, and a sound whose absolute path exceeds
+  the path limit is reported as failed in the report of its own (`ExportFailure`) while the others
+  are written.
+
 ## Consequences
 
 - The record path `a|b` is written as `a%7Cb`; a record path that contains `%` is written with

@@ -156,6 +156,13 @@ pub(crate) fn fold(path: &str) -> impl Iterator<Item = char> + '_ {
         .map(|c| if c == '\\' { '/' } else { c })
 }
 
+/// Returns `name` folded as [`fold`] does, the key two names share when they would be the same
+/// file on a case-insensitive file system.
+#[must_use]
+pub fn fold_name(name: &str) -> String {
+    fold(name).collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -287,5 +294,6 @@ mod tests {
     #[test]
     fn folding_lowers_case_and_unifies_separators() {
         assert_eq!(fold("Data\\Ä/X").collect::<String>(), "data/ä/x");
+        assert_eq!(fold_name("Play_A"), fold_name("PLAY_a"));
     }
 }

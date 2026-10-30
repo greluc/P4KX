@@ -268,7 +268,10 @@ The first argument of nearly every command is the path of a `Data.p4k` Archive, 
   `--sounds` lists the sounds of every trigger with their source and location, in `--lang`.
 - `p4kx wwise extract <archive> <trigger> --out <folder>` writes the sounds of an audio trigger as
   `<trigger>[_<WEM ID>].ogg|wav` (`--format ogg|wav|raw`, `--conflict skip|overwrite|if-changed`,
-  `--lang`); a sound that cannot be decoded is reported and written as `.wem`. `--txtp` also
+  `--lang`); a sound that cannot be decoded is reported and written as `.wem`. Names follow the
+  portable file-name rule of ADR-0248 (forbidden characters become `%` and two hex digits, a name
+  taken ignoring case gets `_2`, `_3`, …), and a sound whose path exceeds its limit is reported as
+  failed while the others are written. `--txtp` also
   writes one vgmstream `<event>.txtp` text file per Wwise event of the trigger next to the sounds
   (ADR-0254); P4KX writes the text only and does not run vgmstream.
   `p4kx entity audio --extract <folder>` does the same for every trigger of an Entity.

@@ -269,6 +269,16 @@ impl Assembly {
         self.lod
     }
 
+    /// Returns the bone attachments of all parts, each with the index of its part, in the order
+    /// of the parts.
+    pub fn attached_models(&self) -> impl Iterator<Item = (usize, &AttachedModel)> {
+        self.parts.iter().enumerate().flat_map(|(index, part)| {
+            part.attachments
+                .iter()
+                .map(move |attached| (index, attached))
+        })
+    }
+
     /// Returns the number of parts that have a model.
     #[must_use]
     pub fn modelled_parts(&self) -> usize {
@@ -337,17 +347,15 @@ impl Assembly {
             }
             scene.push(node)?;
         }
-        for (index, part) in self.parts.iter().enumerate() {
-            for attached in &part.attachments {
-                let drawn = ScenePart::new(&attached.model, &attached.materials);
-                let node = SceneNode::new(attached.name.clone(), Some(index), attached.local)
-                    .with_part(
-                        part.palette
-                            .as_deref()
-                            .map_or(drawn, |palette| drawn.with_palette(palette)),
-                    );
-                scene.push(node)?;
-            }
+        for (index, attached) in self.attached_models() {
+            let drawn = ScenePart::new(&attached.model, &attached.materials);
+            let palette = self
+                .parts
+                .get(index)
+                .and_then(|part| part.palette.as_deref());
+            let node = SceneNode::new(attached.name.clone(), Some(index), attached.local)
+                .with_part(palette.map_or(drawn, |palette| drawn.with_palette(palette)));
+            scene.push(node)?;
         }
         if let Some(interior) = &self.interior {
             interior.add_to_scene(&mut scene, self.parts.len())?;

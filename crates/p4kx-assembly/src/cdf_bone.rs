@@ -62,13 +62,14 @@ impl BoneAttachment {
     }
 }
 
-/// Reads `N` comma-separated numbers, or `None` for another count or an unreadable number.
+/// Reads `N` comma-separated numbers, or `None` for another count, an unreadable number or one
+/// that is not finite as an `f32`.
 fn numbers<const N: usize>(text: &str) -> Option<[f32; N]> {
     let mut out = [0.0_f32; N];
     let mut parts = text.split(',');
     for slot in &mut out {
         let number = read_text_number(parts.next()?).filter(|number| !number.is_partial())?;
-        *slot = narrow(number.value());
+        *slot = Some(narrow(number.value())).filter(|value| value.is_finite())?;
     }
     parts.next().is_none().then_some(out)
 }

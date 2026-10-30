@@ -46,7 +46,7 @@ pub(crate) enum Outcome {
 
 pub(crate) type Models = HashMap<String, Outcome>;
 
-fn vertices(model: &Model) -> usize {
+pub(crate) fn vertices(model: &Model) -> usize {
     model.lods.iter().map(Lod::vertex_count).max().unwrap_or(0)
 }
 

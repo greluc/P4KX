@@ -55,8 +55,8 @@ pub(crate) fn attached(
         .collect()
 }
 
-/// Returns the transform of the attachment's own position and rotation; the identity for a
-/// rotation without length, which the reader of the definition never lets through.
+/// Returns the transform of the attachment's own position and rotation; the reader of the
+/// definition lets only finite values and a rotation with length through.
 fn offset_of(attachment: &ProvidedAttachment) -> Transform {
     let [w, x, y, z] = attachment.rotation.map(f64::from);
     Transform::from_quaternion([w, x, y, z], attachment.position.map(f64::from))

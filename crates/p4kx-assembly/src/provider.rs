@@ -12,6 +12,7 @@ use p4kx_extraction::{
 };
 use thiserror::Error;
 
+use crate::MAX_ASSEMBLY_VERTICES;
 use crate::cdf::is_character_definition;
 
 mod character;
@@ -191,6 +192,7 @@ fn starts_with_path(path: &str, prefix: &str) -> bool {
 pub struct ArchiveModels<'a> {
     archive: &'a Archive,
     index: PathIndex<'a>,
+    max_attachment_vertices: usize,
 }
 
 impl<'a> ArchiveModels<'a> {
@@ -200,7 +202,18 @@ impl<'a> ArchiveModels<'a> {
         Self {
             archive,
             index: PathIndex::new(archive),
+            max_attachment_vertices: MAX_ASSEMBLY_VERTICES,
         }
+    }
+
+    /// Returns the provider with a limit of `max` vertices for the models of one character
+    /// definition together, its skin and its bone attachments, at most [`MAX_ASSEMBLY_VERTICES`].
+    /// Attachments that would pass it are not read further and are listed in
+    /// [`ProvidedModel::left_out`].
+    #[must_use]
+    pub fn with_max_attachment_vertices(mut self, max: usize) -> Self {
+        self.max_attachment_vertices = max.min(MAX_ASSEMBLY_VERTICES);
+        self
     }
 
     /// Returns whether the Archive holds a file at `path`, a path below `Data` as an Entity Record

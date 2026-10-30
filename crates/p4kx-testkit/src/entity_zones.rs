@@ -29,8 +29,22 @@ pub(crate) fn zone_shirt(chunks: &[TestZoneChunk]) -> TestEntity {
 /// material of the zones is layered and has no diffuse map.
 #[must_use]
 pub fn zone_entries(bodies: [&[[f32; 2]]; 2], chunks: &[TestZoneChunk]) -> Vec<TestEntry> {
-    let database = armour_database()
-        .record(zone_shirt(chunks).record())
+    zone_entries_with(bodies, &zone_shirt(chunks), &[])
+}
+
+/// Returns the Entries of [`zone_entries`] with `shirt` as the shirt, whose database also holds
+/// the Records of `entities`.
+pub(crate) fn zone_entries_with(
+    bodies: [&[[f32; 2]]; 2],
+    shirt: &TestEntity,
+    entities: &[TestEntity],
+) -> Vec<TestEntry> {
+    let database = entities
+        .iter()
+        .fold(
+            armour_database().record(shirt.record()),
+            |builder, entity| builder.record(entity.record()),
+        )
         .build();
     let mut entries = vec![TestEntry::zstd("Data\\Game2.dcb", database)];
     let replaced = [MALE_BODY, FEMALE_BODY, LIBRARY].map(str::to_ascii_lowercase);

@@ -90,8 +90,8 @@ pub(crate) fn read_zones(components: &[&StructValue<'_>]) -> ZoneList {
     }
 }
 
-/// Returns the zones of the body that some zone of `chunks` covers: those a chunk above the body
-/// names without letting the body show through it.
+/// Returns the zones of the body that the `chunks` of any worn Entity cover: those a chunk above
+/// the body names without letting the body show through it.
 pub(crate) fn covered<'c>(chunks: impl IntoIterator<Item = &'c ZoneChunk>) -> BTreeSet<&'c str> {
     chunks
         .into_iter()

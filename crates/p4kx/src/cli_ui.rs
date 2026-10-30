@@ -6,6 +6,7 @@ use std::path::PathBuf;
 use clap::{ArgGroup, Args, Subcommand};
 use p4kx_extraction::Language;
 use p4kx_extraction::gfx::{Background, CanvasSize, MAX_CANVAS_PIXELS, MAX_CANVAS_SIDE, Rgba};
+use p4kx_screens::Variable;
 
 use crate::cli_hologram::HologramArgs;
 use crate::exit::EXIT_CODES_HELP;
@@ -76,6 +77,23 @@ pub(crate) enum UiAction {
         /// without a match the first brand style of the canvas is used.
         #[arg(long, value_name = "BRAND", requires = "screen")]
         brand: Option<String>,
+        /// Set a game variable before the bindings of the screens are evaluated, as `NAME=VALUE`,
+        /// e.g. `--var powerstate=1` for a ship that is powered on; every variable is zero at
+        /// rest, so the MFD of a cold ship draws nothing. A name is the last segment of the path
+        /// a binding reads (`powerstate` for `/seatdashboard/powerstate`), or the whole path when
+        /// it holds a `/`. Repeatable, at most 64; the last
+        /// setting of a name wins and case is ignored. The value is read as a boolean (`true`,
+        /// `false` or a number), a number or a text, as the binding takes it. A name that no
+        /// canvas of the screen reads is reported, and the variables in force are listed in the
+        /// report.
+        #[arg(
+            long = "var",
+            value_name = "NAME=VALUE",
+            requires = "screen",
+            action = clap::ArgAction::Append,
+            value_parser = clap::value_parser!(Variable)
+        )]
+        variables: Vec<Variable>,
         /// The file to write, a PNG or with `--svg` an SVG; replaced if it exists.
         #[arg(long, value_name = "FILE")]
         out: PathBuf,

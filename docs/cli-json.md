@@ -1708,13 +1708,26 @@ screen by type, `rendered` says whether `ui render --screen` draws the type. `mo
 `moviePath` of UI owner components. A canvas that cannot be read keeps its row with the GUID as
 `canvas`, size 0 and no assets. The exit code is 0.
 
-## `p4kx ui render <archive> --screen <canvas> --out <file.png> [--svg] [--size <W>x<H>|<W>] [--background …] [--brand <code>] [--lang <language>] --json`
+## `p4kx ui render <archive> --screen <canvas> --out <file.png> [--svg] [--size <W>x<H>|<W>] [--background …] [--brand <code>] [--var <name>=<value>]… [--lang <language>] --json`
 
 Renders a `BuildingBlocks` canvas, by record path or GUID, instead of a movie; an ENTRY excludes
 `--screen`. Texts are drawn from the fonts of the movie the `UIElement` Record
 `uielements/buildingblocks` names (`fonts_en.gfx`) and their localisation keys resolve in `--lang`,
 English by default; when the font movie or the language cannot be read, a warning goes to stderr and
 the texts are left out.
+
+`--var <name>=<value>` (repeatable, at most 64, only with `--screen`) sets a game variable before
+the bindings are evaluated (ADR-0259); every other variable stays at zero, the state at rest
+(ADR-0110). `p4kx ui render … --screen <MFD> --var powerstate=1` draws the MFD of a powered ship.
+The bindings of a screen read variables by path, such as `/seatdashboard/powerstate`: a name
+without `/` is the last segment of that path, one with `/` is the whole path, and case is ignored.
+The value is read as the kind of variable a binding names: `true`, `false` or a number for a
+boolean, a finite number for a number or integer, any text for a string; a value of another kind
+leaves the bindings that read it undecided and lists them as `Binding` (`the game variable <name>
+is set to `<value>`, which is not <kind>`). A name is at most 128 bytes and a value 256, neither
+holds a control character, and the last setting of a name wins. A malformed setting, more than 64
+settings and a name or value beyond those bounds are refused (exit code 2); the values are never
+evaluated beyond that reading.
 
 ```json
 {"screen": "libs/foundry/records/ui/buildingblocks/test/test_mfd",
@@ -1726,8 +1739,16 @@ the texts are left out.
                  {"element": "WidgetImage", "reason": "texture missing or unreadable",
                   "count": 1, "examples": ["UI/Textures/Test/picture.dds: no Entry named …"]}],
  "missing_canvases": [], "truncated": false,
+ "variables": [{"name": "powerstate", "value": "1", "used": true}],
  "skipped": [{"reason": "fill_budget", "message": "the fills cover more than the budget"}]}
 ```
+
+`variables` is present only when `--var` was given: the variables in force, the last setting of
+each name with its value as given, and `used`, whether an operation of a canvas the screen can
+reach reads a variable that name matches. A setting with `used` false is reported on stderr as
+`unknown game variable: <name> (no operation of the screen reads it)` and changes nothing; the
+exit code does not depend on it. Without `--json`, a line `game variables in force: …` goes to
+stdout before the summary.
 
 `width` and `height` are the pixels written. `widgets` counts the widgets visited in every canvas
 composed, `shapes` the shapes drawn (every placed glyph counts), `texts_drawn` and `texts_left_out`
@@ -1767,7 +1788,8 @@ node that is not evaluated (`<kind> is not evaluated`), an input that is not con
 a number that is not finite, an operation that does not exist, a value of the wrong kind, or more
 than 128 nodes in a chain. A root widget that a binding takes out of the screen is listed as `not
 drawn at rest: Instantiated is bound to game variables, which are zero at rest`, or `IsActive` for
-one that is hidden, so that an empty picture says why. Since a list that is not empty makes the
+one that is hidden, so that an empty picture says why; with `--var` it reads `not drawn:
+Instantiated is bound to game variables, whose values leave it off`. Since a list that is not empty makes the
 exit code 1 (below), many screens of the game, whose bindings are not all evaluated, exit with 1
 although they are drawn. `missing_canvases` names nested canvases that cannot be
 read, that no Record answers or that contain themselves; widgets whose parents form a cycle are

@@ -6,6 +6,7 @@ use std::hash::{DefaultHasher, Hash, Hasher};
 
 use super::Rest;
 use super::graph::{FieldKind, Input, Node, Operations};
+use crate::variables::Variable;
 
 const MAX_DEPTH: usize = 128;
 const PARAMETER: &str = "ParamInput";
@@ -24,6 +25,7 @@ struct Eval<'a> {
     nodes: &'a [Node],
     kinds: &'a [String],
     inputs: &'a [(String, Rest)],
+    variables: &'a [Variable],
     memo: Vec<Memo>,
 }
 
@@ -104,7 +106,12 @@ impl Eval<'_> {
 
     fn node(&mut self, node: &Node, depth: usize) -> Outcome {
         match node {
-            Node::Zero(zero) => Ok(zero.clone()),
+            Node::Variable { binding, zero } => self
+                .variables
+                .iter()
+                .rev()
+                .find(|variable| variable.matches(binding))
+                .map_or_else(|| Ok(zero.clone()), |variable| variable.coerce(zero)),
             Node::Param { parameter, default } => Ok(self
                 .inputs
                 .iter()
@@ -230,9 +237,14 @@ pub(crate) fn key_of(inputs: &[(String, Rest)]) -> u64 {
 }
 
 impl AtRest {
-    /// Evaluates the field bindings of `operations` with every game variable at its zero value
-    /// and the component parameters at `inputs`, else at their defaults.
-    pub(crate) fn of(operations: &Operations, inputs: &[(String, Rest)]) -> Self {
+    /// Evaluates the field bindings of `operations` with the game variables at the values of
+    /// `variables`, else at zero, and the component parameters at `inputs`, else at their
+    /// defaults.
+    pub(crate) fn of(
+        operations: &Operations,
+        inputs: &[(String, Rest)],
+        variables: &[Variable],
+    ) -> Self {
         let mut found = Self {
             key: key_of(inputs),
             ..Self::default()
@@ -244,6 +256,7 @@ impl AtRest {
             nodes: &operations.nodes,
             kinds: &operations.kinds,
             inputs,
+            variables,
             memo: operations.nodes.iter().map(|_| Memo::Fresh).collect(),
         };
         for binding in &operations.bindings {

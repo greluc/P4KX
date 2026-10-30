@@ -14,7 +14,7 @@ use std::path::PathBuf;
 use eframe::egui_wgpu::RendererOptions;
 use egui_kittest::Harness;
 use egui_kittest::wgpu::{WgpuTestRenderer, create_render_state, default_wgpu_setup};
-use p4kx_gui::{Language, Model, UiDetail, UiMode};
+use p4kx_gui::{Language, Model, UiDetail, UiMode, UiPower};
 
 use crate::tagging::wait_until;
 use crate::ui_tabbing::{TestResult, drawn, listed_with, pick_file, pick_ship};
@@ -126,6 +126,13 @@ fn drawn_at(size: [f32; 2], tag: &str) -> TestResult {
         render(
             &mut window.harness,
             &format!("ui-ships-report-{tag}{suffix}.png"),
+        )?;
+        let tab = window.harness.state_mut().ui_mut();
+        tab.set_power(UiPower::PoweredOn);
+        tab.set_variables_text("isradar=1 bad");
+        render(
+            &mut window.harness,
+            &format!("ui-ships-power-{tag}{suffix}.png"),
         )?;
         wait_until(&mut window.harness, drawn)?;
     }

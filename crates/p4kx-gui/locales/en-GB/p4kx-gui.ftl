@@ -1323,6 +1323,12 @@ ui-background-transparent = Transparent
 ui-background-movie = Movie colour
 ui-background-black = Black
 ui-background-white = White
+ui-power-label = State
+ui-power-at-rest = At rest
+ui-power-on = Powered on
+ui-variables-label = Variables
+ui-variables-hint = powerstate=1 isradar=1
+ui-variables-invalid = Not a setting of the form NAME=VALUE: { $settings }
 ui-format-label = Format
 ui-format-png = PNG
 ui-format-svg = SVG
@@ -1405,7 +1411,8 @@ ui-report-skipped = Skipped
 ui-report-effect = Drawn without effect
 ui-report-left-out = Left out
 ui-report-missing-canvas = Canvas not drawn
-ui-report-truncated = Stopped early: a limit of the composition was reached
+ui-report-unknown-variable = Game variable that the screen does not read
+ui-report-truncated =Stopped early: a limit of the composition was reached
 ui-report-import = Import not found
 ui-report-tag = Unreadable tag
 ui-report-bitmap = Unreadable bitmap

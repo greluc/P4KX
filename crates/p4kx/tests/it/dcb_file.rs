@@ -353,6 +353,25 @@ fn a_file_that_is_neither_an_archive_nor_a_dataforge_exits_with_code_3() -> Test
 }
 
 #[test]
+fn executable_zero_filled_and_tiny_files_exit_with_code_3() -> TestResult {
+    let fixture = fixture()?;
+    let mut executable = b"MZ\x90\x00\x03\x00\x00\x00\x04\x00\x00\x00".to_vec();
+    executable.resize(1 << 20, 0x41);
+    let inputs: [(&str, Vec<u8>); 3] = [
+        ("an executable", executable),
+        ("a zero-filled file", vec![0; 4096]),
+        ("a file under 8 bytes", vec![0, 0, 0, 0, 6]),
+    ];
+
+    for (what, bytes) in inputs {
+        fs::write(&fixture.file, bytes)?;
+        let message = run(&["info"], &fixture.file, &[], 3)?;
+        assert!(!message.contains("DataForge version"), "{what}: {message}");
+    }
+    Ok(())
+}
+
+#[test]
 fn a_missing_file_exits_with_code_3() -> TestResult {
     let fixture = fixture()?;
 

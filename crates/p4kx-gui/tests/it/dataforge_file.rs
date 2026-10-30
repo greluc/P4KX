@@ -7,7 +7,7 @@ use std::error::Error;
 use std::fs;
 use std::path::PathBuf;
 
-use p4kx_gui::{Browser, Language, Model, RecordTree, RecordTreeStatus};
+use p4kx_gui::{Browser, Language, Model, RecordTree, RecordTreeStatus, WorkTab};
 use p4kx_testkit::{DataForgeBuilder, TestRecord, TestStruct};
 use tempfile::TempDir;
 
@@ -64,6 +64,48 @@ fn records(model: &Model) -> Result<&RecordTree, Box<dyn Error>> {
         .browser()
         .and_then(Browser::records)
         .ok_or_else(|| "no DataForge node".into())
+}
+
+#[test]
+fn the_tabs_that_read_entries_and_the_catalog_are_off_for_a_file() -> TestResult {
+    let (_dir, _, mut model) = opened("Game2.dcb", &database().build())?;
+    model.set_work_tab(WorkTab::Sounds);
+
+    assert!(model.is_dataforge_file());
+    assert!(!model.catalog_available(), "the catalog reads Entries");
+    for tab in [
+        WorkTab::Localization,
+        WorkTab::Entities,
+        WorkTab::Sounds,
+        WorkTab::Characters,
+        WorkTab::Ui,
+    ] {
+        assert!(tab.needs_entries(), "{tab:?}");
+    }
+    for tab in [
+        WorkTab::Archive,
+        WorkTab::Query,
+        WorkTab::Tags,
+        WorkTab::Search,
+    ] {
+        assert!(!tab.needs_entries(), "{tab:?}");
+    }
+    Ok(())
+}
+
+#[test]
+fn opening_a_file_leaves_a_tab_that_reads_entries() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let path = dir.path().join("Game2.dcb");
+    fs::write(&path, database().build())?;
+    let mut model = Model::new(Language::BritishEnglish);
+    model.set_work_tab(WorkTab::Sounds);
+
+    model.open(path, || {});
+    wait_until(&mut model, |model| model.browser().is_some())?;
+
+    assert_eq!(model.work_tab(), WorkTab::Archive);
+    Ok(())
 }
 
 #[test]

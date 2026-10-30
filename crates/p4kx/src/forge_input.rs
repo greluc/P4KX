@@ -4,7 +4,7 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::Result;
-use p4kx_extraction::{Archive, DataForgeEntry, is_dataforge_file};
+use p4kx_extraction::{Archive, DataForgeEntry, DataForgeLoadError, is_dataforge_file};
 
 /// The DataForge a `p4kx dcb` command reads, from an Archive or from a DataForge file on disk,
 /// whichever the path given is.
@@ -18,8 +18,12 @@ impl ForgeInput {
     /// Reads the DataForge at `path`: the file itself when its content is a DataForge header,
     /// otherwise the DataForge Entry of the Archive at `path`.
     pub(crate) fn open(path: &Path) -> Result<Self> {
-        if is_dataforge_file(path).unwrap_or(false) {
-            crate::guard::on_archive_open(path);
+        crate::guard::on_archive_open(path);
+        let sniffed = is_dataforge_file(path).map_err(|source| DataForgeLoadError::Read {
+            path: path.display().to_string(),
+            source,
+        })?;
+        if sniffed {
             let entry = DataForgeEntry::read_file(path)?;
             return Ok(Self {
                 path: path.to_path_buf(),

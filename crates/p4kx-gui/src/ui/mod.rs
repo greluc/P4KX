@@ -359,13 +359,20 @@ const WORK_TABS: [(WorkTab, Text); 10] = [
 ];
 
 fn work_tabs(ui: &mut Ui, model: &mut Model) {
-    let labels = WORK_TABS.map(|(_, text)| model.texts().get(text));
-    let current = WORK_TABS
+    let file = model.is_dataforge_file();
+    let offered: Vec<_> = WORK_TABS
+        .iter()
+        .filter(|(tab, _)| !(file && tab.needs_entries()))
+        .collect();
+    let labels: Vec<String> = offered
+        .iter()
+        .map(|(_, text)| model.texts().get(*text))
+        .collect();
+    let current = offered
         .iter()
         .position(|(tab, _)| *tab == model.work_tab())
         .unwrap_or(0);
-    if let Some((tab, _)) =
-        tab::tab_bar(ui, &labels, current).and_then(|index| WORK_TABS.get(index))
+    if let Some((tab, _)) = tab::tab_bar(ui, &labels, current).and_then(|index| offered.get(index))
     {
         model.set_work_tab(*tab);
     }

@@ -62,6 +62,21 @@ fn a_cursor_of_a_file_pages_on() -> TestResult {
 }
 
 #[test]
+fn only_the_dataforge_tools_take_a_dcb_file() -> TestResult {
+    let (install, file) = with_file()?;
+    let mut server = install.serve(&["--archive", "LIVE"])?;
+
+    let message = server.error("archive_info", &json!({ "archive": file }))?;
+
+    assert!(message.contains("`.p4k` file"), "{message}");
+    assert!(
+        message.contains("`.dcb`"),
+        "the wording names both: {message}"
+    );
+    Ok(())
+}
+
+#[test]
 fn a_file_that_is_no_dataforge_is_an_error() -> TestResult {
     let (install, _) = with_file()?;
     let text = install.work().join("Other.dcb");

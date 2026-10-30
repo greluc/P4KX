@@ -35,11 +35,21 @@ pub(crate) struct CombinedNeedsXml;
 #[error("no Record matches {0}")]
 pub(crate) struct NoRecordMatch(String);
 
-/// A combination of `--flat`, `--format`, `--csv-raw`, `--combined`, `--tags`, `--lang` and
-/// `--archive` that has no meaning.
+/// A combination of `--flat`, `--format`, `--csv-raw`, `--combined` and `--tags` that has no
+/// meaning.
 #[derive(Debug, Error)]
 #[error("{0}")]
 pub(crate) struct FlatConflict(pub(crate) &'static str);
+
+/// `--lang` on a DataForge file without the `--archive` that holds the texts.
+#[derive(Debug, Error)]
+#[error("--lang on a DataForge file needs --archive <Data.p4k> for the localisation texts")]
+pub(crate) struct TextsNeedArchive;
+
+/// `--archive` with an Archive as input, which supplies its own texts.
+#[derive(Debug, Error)]
+#[error("--archive supplies the texts of a DataForge file; the input is an Archive already")]
+pub(crate) struct ArchiveOptionRefused;
 
 /// Returns the form of the export `args` ask for.
 const fn record_form(args: &DcbExportArgs) -> Result<RecordForm, FlatConflict> {
@@ -128,9 +138,7 @@ pub(crate) fn run(args: &DcbExportArgs, as_json: bool) -> Result<ExitCode> {
     let text_archive = given
         .as_ref()
         .or_else(|| input.archive())
-        .ok_or(FlatConflict(
-            "--lang on a DataForge file needs --archive <Data.p4k> for the localisation texts",
-        ))?;
+        .ok_or(TextsNeedArchive)?;
     let set = LocalizationSet::read(text_archive, &[language])?;
     if set.entry(language).is_none() {
         return Err(LanguageNotInArchive { language }.into());
@@ -147,10 +155,7 @@ fn given_text_archive(input: &ForgeInput, given: Option<&Path>) -> Result<Option
         return Ok(None);
     };
     if input.archive().is_some() {
-        return Err(FlatConflict(
-            "--archive supplies the texts of a DataForge file; the input is an Archive already",
-        )
-        .into());
+        return Err(ArchiveOptionRefused.into());
     }
     Ok(Some(crate::key::open(path)?))
 }

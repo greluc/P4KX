@@ -8,20 +8,21 @@ use std::path::Path;
 use p4kx_dataforge::{SNIFF_LEN, looks_like_dataforge};
 
 use crate::dataforge::check_size;
-use crate::{DataForgeEntry, DataForgeLoadError};
+use crate::{ArchiveChanged, DataForgeEntry, DataForgeLoadError};
 
-/// Returns whether the file at `path` starts like a DataForge database (the header of
-/// `Data\Game2.dcb`), whatever its name; a file of any version passes, a supported one or not.
+/// Returns whether the file at `path` starts like a DataForge database, whatever its name.
+///
+/// A file of any version passes, a supported one or not; a file shorter than the header is none.
 ///
 /// # Errors
 ///
 /// Returns the error of opening or reading the file.
 pub fn is_dataforge_file(path: &Path) -> io::Result<bool> {
+    let file = File::open(path)?;
+    let len = file.metadata()?.len();
     let mut prefix = Vec::with_capacity(SNIFF_LEN);
-    File::open(path)?
-        .take(SNIFF_LEN as u64)
-        .read_to_end(&mut prefix)?;
-    Ok(looks_like_dataforge(&prefix))
+    file.take(SNIFF_LEN as u64).read_to_end(&mut prefix)?;
+    Ok(looks_like_dataforge(&prefix, len))
 }
 
 impl DataForgeEntry {
@@ -58,8 +59,14 @@ impl DataForgeEntry {
             source,
         };
         let handle = File::open(file).map_err(read)?;
-        let size = handle.metadata().map_err(read)?.len();
+        let opened = handle.metadata().map_err(read)?;
+        let size = opened.len();
         check_size(&name, size)?;
-        Self::read_stream(name.clone(), size, handle, stop)
+        let entry = Self::read_stream(name.clone(), size, handle, stop)?;
+        let now = std::fs::metadata(file).map_err(read)?;
+        if now.len() != size || now.modified().ok() != opened.modified().ok() {
+            return Err(DataForgeLoadError::ArchiveChanged(ArchiveChanged::of(file)));
+        }
+        Ok(entry)
     }
 }

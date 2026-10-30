@@ -290,6 +290,9 @@ impl Model {
                 let path = opening.path;
                 self.recent.push(std::path::absolute(&path).unwrap_or(path));
                 self.browser = Some(Browser::new(index));
+                if self.is_dataforge_file() && self.work_tab.needs_entries() {
+                    self.work_tab = WorkTab::Archive;
+                }
                 self.apply_record_language();
                 self.stopped_by_change = false;
                 self.key_archive_opened();

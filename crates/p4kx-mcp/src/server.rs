@@ -17,7 +17,7 @@ use crate::error::{ToolError, capped};
 use crate::forge_file::ForgeSource;
 use crate::gate::Gate;
 use crate::keys::KeyChoice;
-use crate::locate::Locations;
+use crate::locate::{Accepts, Locations};
 use crate::noted::{self, Noted};
 use crate::ordered::Ordered;
 use crate::page::Page;
@@ -174,7 +174,7 @@ impl State {
 
     /// Returns the Archive `archive` names, or the default Archive when it is `None`.
     pub(crate) fn archive(&self, archive: Option<&str>) -> Result<Arc<Opened>, ToolError> {
-        let path = self.path(archive)?;
+        let path = self.path(archive, Accepts::Archive)?;
         let opened = self.archives.get(&path)?;
         noted::remember(opened.notice());
         Ok(opened)
@@ -183,7 +183,7 @@ impl State {
     /// Returns the DataForge input `archive` names, an Archive or a DataForge file, or the
     /// default Archive when it is `None`.
     pub(crate) fn forge(&self, archive: Option<&str>) -> Result<ForgeSource, ToolError> {
-        let path = self.path(archive)?;
+        let path = self.path(archive, Accepts::Forge)?;
         let source = self.archives.forge(&path)?;
         if let ForgeSource::Archive(opened) = &source {
             noted::remember(opened.notice());
@@ -191,10 +191,10 @@ impl State {
         Ok(source)
     }
 
-    fn path(&self, archive: Option<&str>) -> Result<PathBuf, ToolError> {
+    fn path(&self, archive: Option<&str>, accepts: Accepts) -> Result<PathBuf, ToolError> {
         archive.map_or_else(
             || self.default_archive.clone().ok_or(ToolError::NoArchive),
-            |text| self.locations.resolve(text),
+            |text| self.locations.resolve(text, accepts),
         )
     }
 }

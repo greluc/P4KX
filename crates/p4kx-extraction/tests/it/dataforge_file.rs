@@ -137,6 +137,22 @@ fn a_missing_file_is_a_read_error() {
 }
 
 #[test]
+fn a_file_replaced_while_it_is_read_is_reported_as_changed() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let file = dir.path().join("Game2.dcb");
+    fs::write(&file, database(1))?;
+    let replace = || {
+        let _ = fs::write(&file, database(2));
+        false
+    };
+
+    let read = DataForgeEntry::read_file_until(&file, &replace);
+
+    assert!(matches!(read, Err(DataForgeLoadError::ArchiveChanged(_))));
+    Ok(())
+}
+
+#[test]
 fn reading_stops_once_asked_to() -> TestResult {
     let dir = tempfile::tempdir()?;
     let file = dir.path().join("Game2.dcb");

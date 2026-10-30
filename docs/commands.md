@@ -102,20 +102,22 @@ The first argument of nearly every command is the path of a `Data.p4k` Archive, 
   lines to stderr for the Entries concerned.
 - **Input of every `p4kx dcb` command:** `<archive>` is a `Data.p4k` Archive or a DataForge file
   on disk, e.g. a `Game2.dcb` kept from an earlier patch (ADR-0249). A file is recognised by its
-  content, a DataForge header that is not an Archive's, not by its name; the file is only read, never
-  written. The limits are those of the Entry in an Archive: versions 6 and 8, and no more than
-  2 GiB. A file that is neither an Archive nor a DataForge exits with code 3. `export` without
-  `--out` names its default folder `SC-EXPORT-UnknownChannel-UnknownBuild-<timestamp>` for a file,
-  as a file carries neither Channel nor build. A DataForge holds no localisation texts:
-  `export --lang` on a file needs `--archive <Data.p4k>` for them and exits with code 2 without it.
-  Tags and the other values resolve from the DataForge alone. The `archive` field of the JSON
-  documents holds the path that was given.
+  content, a DataForge header, not by its name; the file is only read, never written. The limits
+  are those of the Entry in an Archive: versions 6 and 8, and no more than 2 GiB. A file that is
+  neither an Archive nor a DataForge, such as a zero-filled file, an executable or one shorter
+  than the header, exits with code 3. `export` without `--out` names its default folder
+  `SC-EXPORT-UnknownChannel-UnknownBuild-<timestamp>` for a file, as a file carries neither Channel
+  nor build. A DataForge holds no localisation texts: `export --lang` on a file needs
+  `--archive <Data.p4k>` for them and exits with code 2 without it. Tags and the other values
+  resolve from the DataForge alone. The `archive` field of the JSON documents holds the path that
+  was given.
 - `p4kx dcb info <archive>` opens the DataForge of the Archive (`Data\Game2.dcb`, falling back to
   `Data\Game.dcb`) and prints the Entry it was read from, its version and its number of Records,
   structs and enums. DataForge versions 6 and 8 are read; any other version, version 5 and older included, is
   reported as not supported with exit code 5 (ADR-0136), and a DataForge Entry claiming more than 2 GiB is rejected before it is read.
 - `p4kx dcb export <archive> [--format xml|json|ndjson] [--combined] [--filter <filter>]`
-  `[--lang <language> [--archive <Data.p4k>]] [--tags] [--out <folder>] [--conflict …]` writes Records as Record XML
+  `[--lang <language> [--archive <Data.p4k>]] [--tags] [--out <folder>] [--conflict …]` writes
+  Records as Record XML
   ([docs/record-xml.md](record-xml.md)) or Record JSON
   ([docs/record-json.md](record-json.md)), one file per Record: `<record path>.xml`, or
   `<record path>/<Record name>.xml` for Records that share a record path (`.json` for JSON).

@@ -4,6 +4,8 @@
 use p4kx_foundation::{ByteReader, ParseError};
 
 use crate::record_table::RecordLayout;
+use crate::rows::{DataMapping, EnumDef, PropertyDef, StructDef};
+use crate::table::Row;
 use crate::{DataForgeError, ValueKind};
 
 /// The DataForge versions this reader understands.
@@ -11,27 +13,58 @@ pub const SUPPORTED_VERSIONS: [u32; 2] = [6, 8];
 
 const PART: &str = "header";
 
-/// The number of leading bytes [`looks_like_dataforge`] reads: the reserved and the version word.
-pub const SNIFF_LEN: usize = 8;
+/// The number of words before the value counts: reserved, version, two more, five table counts.
+const LEADING_WORDS: usize = 9;
+
+/// The number of leading bytes [`looks_like_dataforge`] reads: the whole header.
+pub const SNIFF_LEN: usize = 4 * (LEADING_WORDS + ValueKind::COUNT + 2);
 
 /// The largest version word that is taken for a DataForge version.
 const MAX_PLAUSIBLE_VERSION: u32 = u16::MAX as u32;
 
-/// The first two bytes of a ZIP-based Archive.
-const ARCHIVE_SIGNATURE: [u8; 2] = *b"PK";
+/// The size of one Record row of the smallest layout.
+const MIN_RECORD_ROW: u64 = 32;
 
-/// Returns whether `prefix`, the first [`SNIFF_LEN`] bytes of a file, has the shape of a DataForge
-/// header: not the signature of an Archive and a small version word after the reserved word.
+/// Returns whether `prefix`, the first [`SNIFF_LEN`] bytes of a file of `file_len` bytes, is a
+/// DataForge header: a reserved word of zero and a version from 1 to 65,535.
 ///
 /// Any version passes, so that a version this reader does not support is reported as such and
-/// not as an unknown file.
+/// not as an unknown file; but only a supported version may claim tables larger than the file,
+/// so that a truncated DataForge is reported as truncated while other files with a zero word
+/// and a small number in front are not taken for one. A file shorter than the header never
+/// passes.
 #[must_use]
-pub fn looks_like_dataforge(prefix: &[u8]) -> bool {
-    let Some(&[_, _, _, _, v0, v1, v2, v3]) = prefix.first_chunk::<SNIFF_LEN>() else {
+pub fn looks_like_dataforge(prefix: &[u8], file_len: u64) -> bool {
+    let Some(header) = prefix.get(..SNIFF_LEN) else {
         return false;
     };
-    !prefix.starts_with(&ARCHIVE_SIGNATURE)
-        && u32::from_le_bytes([v0, v1, v2, v3]) <= MAX_PLAUSIBLE_VERSION
+    let mut words = header
+        .as_chunks::<4>()
+        .0
+        .iter()
+        .copied()
+        .map(u32::from_le_bytes);
+    let mut next = || words.next().unwrap_or_default();
+    let (reserved, version) = (next(), next());
+    if reserved != 0 || !(1..=MAX_PLAUSIBLE_VERSION).contains(&version) {
+        return false;
+    }
+    let _words = (next(), next());
+    let mut needed = 0_u64;
+    for size in [
+        StructDef::SIZE as u64,
+        PropertyDef::SIZE as u64,
+        EnumDef::SIZE as u64,
+        DataMapping::SIZE as u64,
+        MIN_RECORD_ROW,
+    ] {
+        needed += u64::from(next()) * size;
+    }
+    for kind in ValueKind::HEADER {
+        needed += u64::from(next()) * kind.element_len() as u64;
+    }
+    needed += u64::from(next()) + u64::from(next());
+    needed <= file_len || SUPPORTED_VERSIONS.contains(&version)
 }
 
 /// The counts and sizes the header gives for every table.

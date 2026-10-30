@@ -66,7 +66,8 @@ starmap object (a place name that comes from localisation, by the owner's decisi
 the `title`, `missionType`, `contractor`, the `displayName` of a contract's faction and the `place`
 of a pickup place of a contract, the `processName` of a refining process and the `depositName`
 of a mineable composition, the `displayName` of a faction, a reputation scope and a reputation
-standing and the `typeName` of a mission type, each with
+standing, the `displayName` of each name variant of a mission location template and the
+`typeName` of a mission type, each with
 its `key`, `en` and `de`. `name` of the other kinds, `role`, `career` and the other fields are
 identifiers, short names or fact values. The catalog keeps the `description` fields for the
 Basetool's logged-in members; the Basetool keeps them, `displayType` and the contract texts away
@@ -2319,21 +2320,32 @@ on `P4KX_DATA_P4K` and `P4KX_DATA_P4K_B`.
 - Texts that carry a key (placeholder keys excluded), checked per kind against the Archive's own
   `global.ini` files (ADR-0270): a key a file holds resolves in the catalog, a key it lacks is
   `null` and the Basetool falls back to `en`. The verification prints the numbers per kind and
-  holds each kind to a baseline of the share it may lack. LIVE, keyed `name`, `description` and
-  location template `displayName` texts:
+  holds each kind to a baseline of the share it may lack. LIVE, every `name` and every game text
+  field (`x-gameText`) that carries a key, wherever it sits in an entry:
 
   | Kind | Keyed texts | Missing in en | Missing in de |
   |------|------------:|--------------:|--------------:|
   | manufacturers | 2,248 | 8 | 116 |
-  | items | 23,179 | 118 | 11,252 |
+  | items | 31,104 | 118 | 11,653 |
   | ships | 2,130 | 12 | 657 |
-  | commodities | 339 | 0 | 74 |
+  | commodities | 474 | 0 | 75 |
   | blueprints | 1 | 0 | 1 |
   | resourceGroups | 12 | 0 | 0 |
   | gameplayProperties | 29 | 0 | 28 |
   | starmapObjects | 2,041 | 73 | 1,357 |
-  | contracts | 5,130 | 22 | 5,130 |
+  | contracts | 44,506 | 706 | 22,825 |
+  | refiningProcesses | 9 | 0 | 9 |
+  | mineableCompositions | 231 | 1 | 36 |
+  | factionReputations | 37 | 0 | 27 |
+  | reputationScopes | 39 | 9 | 12 |
+  | reputationStandings | 213 | 17 | 44 |
+  | missionTypes | 41 | 0 | 23 |
   | missionLocationTemplates | 3,211 | 274 | 3,160 |
+
+  A contract text that holds a `~mission(…)` token is rewritten by the exporter, so the
+  verification only checks that such a text is present. The location templates have 3,297 name
+  variants; 86 of them carry a placeholder key or none, which is not counted as a keyed text, so the
+  German file lacks 3,246 of the 3,297 variants and 3,160 of the 3,211 keyed texts.
 
   The `p4kx catalog` summary counts them over all texts of the catalog: English 72,462 resolved,
   585 unresolved, German 31,353 resolved, 41,694 unresolved, 23,717 placeholders in each.

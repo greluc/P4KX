@@ -13,7 +13,7 @@ use p4kx_extraction::{
 };
 use p4kx_screens::{
     ImageSources, MAX_SVG_BYTES, Report, ScreenComposer, Still, StillFormat, StillRequest,
-    TextSources, Variable,
+    TextSources, Variable, check_variable_count,
 };
 use serde::Serialize;
 
@@ -119,6 +119,7 @@ fn draw(archive: &Archive, options: &Options<'_>) -> Result<Still> {
 
 /// Runs `p4kx ui render --screen`.
 pub(crate) fn run(archive: &Path, options: &Options<'_>, as_json: bool) -> Result<ExitCode> {
+    check_variable_count(options.variables.len())?;
     let archive = crate::key::open(archive)?;
     let still = draw(&archive, options)?;
     write_bytes_replacing(options.out, &still.encode()?)?;

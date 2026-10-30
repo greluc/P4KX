@@ -59,8 +59,9 @@ listed at the end.
   have a flex container. A behaviour keeps the amount of the size it replaces unless the entry
   sets one; `Auto` takes the size from the content. Numbers are finite and held to ±10^6.
 - **The state at rest** is what the `operations` of a canvas give its widgets when every game
-  variable has its zero value (false, 0, an empty text), unless the caller sets it (ADR-0259). Component parameters take the value the
-  holding canvas widget names (`paramInputValues`) or binds to a `ParamInput` field, else their
+  variable has its zero value (false, 0, an empty text), unless the caller sets it (ADR-0259).
+  Component parameters take the value the holding canvas widget names (`paramInputValues`) or
+  binds to a `ParamInput` field, else their
   `defaultValue`. The graph is evaluated per canvas and per set of parameters, once, with the
   nodes listed above; a node that is not evaluated, an input that is not connected, a cycle, a
   chain deeper than 128 and a number that is not finite make the value unknown, and the widget

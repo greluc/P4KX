@@ -74,11 +74,8 @@ impl Walk<'_, '_, '_, '_> {
         if self.variables.is_empty() {
             return;
         }
-        for path in canvas.operations.variable_names() {
-            if !self.known_variables.contains(path) {
-                self.known_variables.insert(path.to_owned());
-            }
-        }
+        self.known_variables
+            .extend(canvas.operations.variable_names().map(str::to_owned));
     }
 
     /// Returns the variables that were set, the last setting of each name, and whether a canvas

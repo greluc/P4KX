@@ -17,7 +17,7 @@ use crate::paint::Area;
 use crate::report::{Report, VariableInForce};
 use crate::style::TagPaths;
 use crate::text::Texts;
-use crate::variables::{MAX_VARIABLES, Variable};
+use crate::variables::{Variable, check_variable_count};
 use crate::walk::Walk;
 use crate::widget::CanvasSizing;
 
@@ -208,14 +208,9 @@ impl<'a, 'f> ScreenComposer<'a, 'f> {
     /// [`ScreenError::NotACanvas`] when `canvas` names no canvas, and
     /// [`ScreenError::EmptyCanvas`] when a side is less than 1 pixel and
     /// [`ScreenError::CanvasTooLarge`] when one is more than 16384, and
-    /// [`ScreenError::TooManyVariables`] when more than [`MAX_VARIABLES`] are set.
+    /// [`ScreenError::TooManyVariables`] when more than [`crate::MAX_VARIABLES`] are set.
     pub fn compose(&mut self, canvas: &str, brand: Option<&str>) -> Result<Composed, ScreenError> {
-        if self.variables.len() > MAX_VARIABLES {
-            return Err(ScreenError::TooManyVariables {
-                count: self.variables.len(),
-                max: MAX_VARIABLES,
-            });
-        }
+        check_variable_count(self.variables.len())?;
         let guid = find_canvas(self.store.forge(), canvas)?;
         self.compose_guid(guid, brand)
     }

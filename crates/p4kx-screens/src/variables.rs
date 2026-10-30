@@ -7,6 +7,7 @@ use std::str::FromStr;
 
 use thiserror::Error;
 
+use crate::ScreenError;
 use crate::rest::Rest;
 
 /// The most variables one composition takes.
@@ -18,14 +19,30 @@ pub const MAX_NAME_BYTES: usize = 128;
 /// The longest value of a variable, in bytes.
 pub const MAX_VALUE_BYTES: usize = 256;
 
+/// Checks that `count` settings are no more than [`MAX_VARIABLES`], so that a caller can refuse
+/// them before it reads anything.
+///
+/// # Errors
+///
+/// Returns [`ScreenError::TooManyVariables`] when there are more.
+pub const fn check_variable_count(count: usize) -> Result<(), ScreenError> {
+    if count > MAX_VARIABLES {
+        return Err(ScreenError::TooManyVariables {
+            count,
+            max: MAX_VARIABLES,
+        });
+    }
+    Ok(())
+}
+
 /// Why a variable setting was refused.
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum VariableError {
     /// The setting has no `=` between name and value.
     #[error("a game variable is set as NAME=VALUE")]
     NoValue,
-    /// The name is empty or holds a control character.
-    #[error("the name of a game variable is not empty and holds no control character")]
+    /// The name has nothing but `/` or holds a control character.
+    #[error("the name of a game variable is more than `/` and holds no control character")]
     BadName,
     /// The name is longer than [`MAX_NAME_BYTES`].
     #[error("the name of a game variable is at most {MAX_NAME_BYTES} bytes")]
@@ -58,7 +75,7 @@ impl Variable {
     /// Returns the [`VariableError`] that says which bound the name or value breaks.
     pub fn new(name: &str, value: &str) -> Result<Self, VariableError> {
         let (name, value) = (name.trim(), value.trim());
-        if name.is_empty() || name.chars().any(char::is_control) {
+        if name.trim_matches('/').is_empty() || name.chars().any(char::is_control) {
             return Err(VariableError::BadName);
         }
         if name.len() > MAX_NAME_BYTES {
@@ -160,6 +177,8 @@ mod tests {
     fn a_setting_that_breaks_a_bound_is_refused() {
         assert_eq!("power".parse::<Variable>(), Err(VariableError::NoValue));
         assert_eq!("=1".parse::<Variable>(), Err(VariableError::BadName));
+        assert_eq!("/=1".parse::<Variable>(), Err(VariableError::BadName));
+        assert_eq!(" // =1".parse::<Variable>(), Err(VariableError::BadName));
         assert_eq!("a\u{7}=1".parse::<Variable>(), Err(VariableError::BadName));
         assert_eq!(
             "a=\n".parse::<Variable>(),

@@ -254,7 +254,7 @@ fn a_malformed_or_stray_variable_is_invalid_input() -> TestResult {
         .collect();
     p4kx()?
         .args(["ui", "render"])
-        .arg(&archive)
+        .arg(dir.path().join("missing.p4k"))
         .args(["--screen", MFD])
         .args(&many)
         .arg("--out")

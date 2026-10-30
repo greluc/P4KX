@@ -1807,9 +1807,9 @@ a number that is not finite, an operation that does not exist, a value of the wr
 than 128 nodes in a chain. A root widget that a binding takes out of the screen is listed as `not
 drawn at rest: Instantiated is bound to game variables, which are zero at rest`, or `IsActive` for
 one that is hidden, so that an empty picture says why; with `--var` it reads `not drawn:
-Instantiated is bound to game variables, whose values leave it off`. Since a list that is not empty makes the
-exit code 1 (below), many screens of the game, whose bindings are not all evaluated, exit with 1
-although they are drawn. `missing_canvases` names nested canvases that cannot be
+Instantiated is bound to game variables, whose values leave it off`. Since a list that is not
+empty makes the exit code 1 (below), many screens of the game, whose bindings are not all
+evaluated, exit with 1 although they are drawn. `missing_canvases` names nested canvases that cannot be
 read, that no Record answers or that contain themselves; widgets whose parents form a cycle are
 listed in `unsupported` (`not reachable from a root: its parents form a cycle`). Textures and SVG
 files add `texture missing or unreadable` and `vector graphic missing or unreadable` (an example is

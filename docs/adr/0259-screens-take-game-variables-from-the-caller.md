@@ -9,10 +9,11 @@ ship, and it makes the MFD of the Avenger Titan draw nothing: its content is ins
 when `/seatdashboard/powerstate` is not 0. A viewer needs to choose the state.
 
 Found on LIVE with `p4kx dcb export` over the Records below `ui/buildingblocks`: a variable
-operation (`BindingsBooleanVariable`, `…NumberVariable`, `…IntegerVariable`, `…StringVariable`)
-has a `binding`, the path of the variable. Paths are absolute (`/seatdashboard/powerstate`,
-`/MobiGlas/CursorScreenRelPos/x`) or relative to a namespace the holding canvas widget sets
-(`ammocount`, `tempIndicator/maxTemp`, `StarMapData/CommonData/IsRadar`).
+operation (`BindingsBooleanVariable`, `…NumberVariable`, `…IntegerVariable` or
+`…StringVariable`) has a `binding`, the path of the variable. Paths are absolute
+(`/seatdashboard/powerstate`, `/MobiGlas/CursorScreenRelPos/x`) or relative to a namespace the
+holding canvas widget sets (`ammocount`, `tempIndicator/maxTemp`,
+`StarMapData/CommonData/IsRadar`).
 
 ## Decision
 
@@ -30,9 +31,10 @@ has a `binding`, the path of the variable. Paths are absolute (`/seatdashboard/p
   with the name, the value and the kind; the widget keeps its own value, as for any undecided
   binding. Nothing is evaluated beyond this reading.
 - **Bounds.** At most 64 variables per composition (`ScreenError::TooManyVariables`), a name of at
-  most 128 bytes and a value of at most 256, neither holding a control character
-  (`VariableError`). The command line refuses a malformed setting with exit code 2. The GUI reads
-  at most 65 typed settings and the renderer refuses the 65th.
+  most 128 bytes and a value of at most 256, neither holding a control character, and a name that
+  is more than `/` (`VariableError`). The command line refuses a malformed setting and a 65th
+  setting with exit code 2, the count before it opens the Archive. The GUI reads at most 65 typed
+  settings and the renderer refuses the 65th.
 - **Unknown names are reported.** Before the first canvas is laid out, the survey of ADR-0110
   reads every canvas that can be reached, and notes the paths of their variable operations. A
   variable that no path matches is listed with `used: false` in `Report::variables`, in JSON as
@@ -51,17 +53,12 @@ has a `binding`, the path of the variable. Paths are absolute (`/seatdashboard/p
   again in each session; the persisted render settings do not hold them. Settings that are no
   `NAME=VALUE` are shown below the field and ignored.
 
-## What this makes of the Avenger Titan on LIVE, `--brand aegs`
+## What this makes of the Avenger Titan on LIVE
 
-| Screen | At rest | With variables |
-| --- | --- | --- |
-| `m_mfd_screen` | 1 widget | `powerstate=1`: 48 widgets in 6 canvases, no shape |
-| `mapdisplaymaster` | 127 widgets in 10 canvases, 28 shapes | `isradar=1`, `ismapactive=1`: 14 widgets in 3 canvases, 1 shape |
-
-`powerstate=1` instantiates the content of the MFD but draws no shape: what the MFD shows is
-chosen at run time by `CanvasReferenceRecord` (ADR-0110, out of scope), and its backgrounds take
-their textures from run-time data. The radar canvas switches between the map and the radar by
-`IsRadar`; the radar view is mostly the star map, which the game draws into a render target.
+`--var powerstate=1` instantiates the content of the MFD but the picture stays empty, since what
+an MFD shows is chosen at run time by `CanvasReferenceRecord` (ADR-0110, out of scope); the radar
+canvas switches from its map to its radar branch with `isradar=1`, whose view is the star map
+that the game draws into a render target.
 
 ## Considered Options
 

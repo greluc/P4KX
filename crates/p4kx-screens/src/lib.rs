@@ -98,4 +98,6 @@ pub use report::{Report, Unsupported, VariableInForce};
 pub use screens::{EntityScreens, MovieUse, Screen};
 pub use still::{Still, StillFormat, StillRequest};
 pub use svg::MAX_SVG_BYTES;
-pub use variables::{MAX_NAME_BYTES, MAX_VALUE_BYTES, MAX_VARIABLES, Variable, VariableError};
+pub use variables::{
+    MAX_NAME_BYTES, MAX_VALUE_BYTES, MAX_VARIABLES, Variable, VariableError, check_variable_count,
+};

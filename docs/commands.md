@@ -475,13 +475,16 @@ The first argument of nearly every command is the path of a `Data.p4k` Archive, 
   and localisation keys it uses, and its widgets by element type with whether they are drawn; the
   UI movies the Entities name are listed after them. `--json` carries the same.
 - `p4kx ui render <archive> --screen <canvas> --out <file.png> [--svg] [--size …] [--background …]
-  [--brand <code>]` renders such a canvas, named by record path or GUID, as a still through the
+  [--brand <code>] [--var <name>=<value>]…` renders such a canvas, named by record path or GUID,
+  as a still through the
   GFx renderer: the layout of its widgets (sizes, margins, padding, flex containers, raw units)
   is computed from the Records and the boxes, circles and polygons are drawn in the colours of
   the style cascade (palette slots of the default and manufacturer style, style entries with type,
   tag, parent and ancestor selectors at rest). Texts, textures, vector graphics, lists, clones and
   every other widget type without a renderer are left out and listed, with the features the layout
-  approximates (exit code 1); no ActionScript is run.
+  approximates (exit code 1); no ActionScript is run. Every game variable is zero, so the MFD of a
+  cold ship is off; `--var powerstate=1` sets one (repeatable), and the report lists the variables
+  in force and those the screen does not read.
 - `p4kx chf to-json <file> [--out <file>] [--archive <Data.p4k>]` converts a CHF character file, e.g. one saved by the
   character customiser, to indented JSON on stdout or in `--out`: its inner versions (7 and 8
   are read), body type, face DNA with every face part named, item ports and material choices.

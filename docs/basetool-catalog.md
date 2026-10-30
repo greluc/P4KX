@@ -48,7 +48,7 @@ The rule is ADR-0054 (amending ADR-0002):
   contract fields `cooldownLayer`, `hasPersonalCooldown`, `personalCooldownTime`,
   `personalCooldownTimeVariation`, `abandonedCooldownTime` and `abandonedCooldownTimeVariation`
   (#832, ADR-0244), the kind `crafters` (#831, ADR-0243) and the kind `cargoManifests` with the
-  contract field `haulingOrders` (#814, ADR-0270). Later additions keep version 2 as long as they
+  contract field `haulingOrders` (#814, ADR-0265). Later additions keep version 2 as long as they
   are additive.
 - **A production import takes catalogs of the Channel `LIVE` only.** `PTU`, `EPTU`, `TECH-PREVIEW`
   and `HOTFIX` are confidential test Channels (ADR-0038).
@@ -1198,7 +1198,7 @@ type, attribute or game text shows it. The range (`personalCooldownTime` up to 2
 `abandonedCooldownTime` up to 60 on the `Career` handlers) fits minutes, 2880 being 48 hours, but
 that is a reading, not a fact of the Archive. On LIVE 4.10 all 5,175 entries state a cooldown.
 
-**Hauling orders (ADR-0270).** `haulingOrders` lists what a contract has to haul. The Archive
+**Hauling orders (ADR-0265).** `haulingOrders` lists what a contract has to haul. The Archive
 states it in three places: a `MissionPropertyValue_HaulingOrders` property in the overrides of a sub
 contract or contract, the parameters of the handler or the `contractProperties` of the template;
 the hauling objectives (`ObjectiveHandler_Hauling`) of the template; and the same objectives of the
@@ -1281,7 +1281,7 @@ spawns, `MissionLocationTemplate` and the sandbox triggers and perks of the repu
 
 ### Cargo manifests
 
-`cargoManifests` lists the `CargoManifest` Records under `cargomanifest` (ADR-0270), ordered by GUID,
+`cargoManifests` lists the `CargoManifest` Records under `cargomanifest` (ADR-0265), ordered by GUID,
 with `guid`, `className` and `recordPath`. A manifest tells the game how to fill the cargo grid of a
 ship it spawns. Facts only; the tags and the description tags are not exported.
 

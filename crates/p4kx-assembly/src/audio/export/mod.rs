@@ -3,7 +3,7 @@
 
 //! Exports the sounds of audio triggers as files named after the trigger.
 
-mod name;
+pub(super) mod name;
 mod plan;
 mod write;
 
@@ -11,6 +11,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
+use p4kx_audio::Loop;
 use p4kx_extraction::{CancelToken, ConflictPolicy, ConversionError, ensure_writable};
 
 use super::{ArchiveAudio, TriggerSounds};
@@ -129,6 +130,11 @@ pub struct ExportedSound {
     /// Why the sound is written unchanged although a conversion was asked for: it cannot be
     /// decoded, is plug-in media or is only the prefetched start of a streamed WEM.
     pub unconverted: Option<String>,
+    /// The loop of the sound in frames, from the header of its WEM, whatever the format written;
+    /// `None` for a sound without one, a WEM that cannot be parsed or only a prefetched start.
+    pub loop_points: Option<Loop>,
+    /// Whether the file holds only the prefetched start of a streamed WEM, not the whole sound.
+    pub prefetch_only: bool,
 }
 
 /// A sound that was not exported.

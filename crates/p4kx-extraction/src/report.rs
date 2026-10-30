@@ -9,7 +9,7 @@ use p4kx_cryxml::CryXmlError;
 use p4kx_dataforge::DataForgeError;
 use thiserror::Error;
 
-use crate::{ConversionError, RecordExportReport};
+use crate::{ConversionError, NameRule, PathLimit, RecordExportReport};
 
 /// Why one Entry of an Extraction was not written.
 #[derive(Debug, Error)]
@@ -17,6 +17,24 @@ pub enum ExtractionError {
     /// The Entry path is absolute, has a drive prefix, names a device or would leave the target.
     #[error("the path would leave the target folder")]
     UnsafePath,
+    /// A part of the Entry path is not a file name valid on both Linux and Windows.
+    #[error("the name {part:?} cannot be written: {rule}")]
+    InvalidName {
+        /// The part of the path that breaks the rule.
+        part: String,
+        /// The rule it breaks.
+        rule: NameRule,
+    },
+    /// The full path of the file is longer than Windows or Linux accepts.
+    #[error(transparent)]
+    PathTooLong(#[from] PathLimit),
+    /// An earlier Entry of the run is written to a path that differs from this one only in case,
+    /// which a case-insensitive file system cannot hold side by side.
+    #[error("the path differs only in case from the earlier Entry {earlier}")]
+    CaseCollision {
+        /// The path of the earlier Entry.
+        earlier: String,
+    },
     /// The Entry could not be read from the Archive.
     #[error(transparent)]
     Archive(#[from] ArchiveError),

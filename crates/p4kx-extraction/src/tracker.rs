@@ -5,6 +5,7 @@ use std::sync::Mutex;
 
 use p4kx_archive::Entry;
 
+use crate::case_claims::CaseClaims;
 use crate::folder_cache::FolderCache;
 use crate::{ArchiveWatch, CancelToken, Progress};
 
@@ -15,6 +16,7 @@ pub(crate) struct Tracker<'a> {
     on_progress: Option<&'a (dyn Fn(Progress) + Sync)>,
     progress: Mutex<Progress>,
     pub(crate) folders: FolderCache,
+    pub(crate) case_claims: CaseClaims,
 }
 
 impl<'a> Tracker<'a> {
@@ -34,6 +36,7 @@ impl<'a> Tracker<'a> {
                 ..Progress::default()
             }),
             folders: FolderCache::default(),
+            case_claims: CaseClaims::default(),
         }
     }
 

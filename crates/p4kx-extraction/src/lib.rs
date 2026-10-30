@@ -13,6 +13,7 @@ mod archive_cause;
 mod bank;
 mod budget;
 mod buffers;
+mod case_claims;
 mod chunk_source;
 mod conversion_error;
 mod convert;
@@ -44,6 +45,7 @@ mod model_textures;
 mod options;
 mod output_file;
 mod path_index;
+mod portable_name;
 mod query_export;
 mod record_combined;
 mod record_export;
@@ -178,6 +180,7 @@ pub use p4kx_texture::{
     TextureFormat,
 };
 pub use path_index::{PathIndex, PathKeys};
+pub use portable_name::{MAX_PART_BYTES, NameRule, PathLimit, check_part};
 pub use query_export::{
     QUERY_PAGE_SIZE, QueryExport, QueryExportError, QueryExportOptions, export_query, is_same_file,
 };
@@ -186,7 +189,8 @@ pub use record_export::{export_planned_record_files, export_record_files, export
 pub use record_format::RecordFileFormat;
 pub use record_plan::RecordFilePlan;
 pub use record_report::{
-    RecordExportError, RecordExportOptions, RecordExportReport, RecordFailure,
+    RecordExportError, RecordExportOptions, RecordExportReport, RecordFailure, RecordRenamed,
+    RenameCause,
 };
 pub use report::{EntryFailure, ExtractionError, ExtractionReport};
 pub use resolved_texts::LanguageTexts;

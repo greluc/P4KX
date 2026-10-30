@@ -23,6 +23,8 @@ mod model_observed;
 mod model_textures;
 mod non_utf8_paths;
 mod path_index;
+mod portable_entry_names;
+mod portable_record_names;
 mod query_export;
 mod record_combined;
 mod record_export;

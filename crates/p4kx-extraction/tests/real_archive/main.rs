@@ -42,6 +42,7 @@ mod model_details;
 mod model_lods;
 mod model_verification;
 mod models;
+mod portable_names;
 mod records;
 mod second_uvs;
 mod skeletons;

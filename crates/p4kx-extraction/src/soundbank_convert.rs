@@ -74,7 +74,7 @@ impl EntryWriter<'_> {
         let stem = sound_role(&disk_name)
             .map(|(_, stem)| stem)
             .ok_or(ExtractionError::UnsafePath)?;
-        let wem_folder = relative_path(stem).ok_or(ExtractionError::UnsafePath)?;
+        let wem_folder = relative_path(stem)?;
         let destination = self.destination(entry)?;
         if !self.read_sound(entry, buffers, credited)? {
             return Ok(Converted::of(Outcome::Cancelled));

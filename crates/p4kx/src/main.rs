@@ -108,6 +108,7 @@ mod progress;
 mod query_file;
 mod query_rows;
 mod query_table;
+mod renamed_report;
 mod ships;
 mod socpak;
 mod test_build;

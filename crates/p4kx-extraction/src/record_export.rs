@@ -13,13 +13,14 @@ use crate::counting::holds_sized;
 use crate::dependent::split_dependent;
 use crate::entry_path::relative_path;
 use crate::folder_cache::FolderCache;
+use crate::portable_name::check_path_length;
 use crate::record_files::{RecordFiles, fold};
 use crate::record_format::RecordFileFormat;
 use crate::record_plan::RecordFilePlan;
 use crate::write::{create_temporary, read_existing_error, write_error};
 use crate::{
     ConflictPolicy, ExtractionError, RecordExportError, RecordExportOptions, RecordExportReport,
-    RecordFailure,
+    RecordFailure, RecordRenamed,
 };
 
 /// Writes `records` of `forge` as Record XML, one file per Record, below the existing folder
@@ -159,7 +160,28 @@ pub(crate) fn write_records<'f, F: RecordFileFormat>(
     let mut scratch = Scratch::default();
     outcomes.extend(dependent.into_iter().map(|index| run(&mut scratch, index)));
     outcomes.sort_unstable_by_key(|(index, _)| *index);
-    summarise(records, outcomes)
+    let mut report = summarise(records, outcomes);
+    report.renamed = renamed(forge, plan, records);
+    report
+}
+
+/// Returns a note for every selected Record of `forge` whose file does not follow its name or
+/// record path.
+fn renamed(
+    forge: &DataForge<'_>,
+    plan: &RecordFiles,
+    records: &[Record<'_>],
+) -> Vec<RecordRenamed> {
+    records
+        .iter()
+        .filter(|record| record.is_from(forge))
+        .flat_map(|record| {
+            plan.renames(record).map(|cause| {
+                let path = record.record_path().unwrap_or_default();
+                RecordRenamed::new(record.guid(), path.to_owned(), cause)
+            })
+        })
+        .collect()
 }
 
 /// Returns the planned file of every selected Record; a file an earlier Record of the selection
@@ -279,7 +301,8 @@ impl Writer<'_> {
         file: &str,
         scratch: &mut Scratch<'f, F>,
     ) -> Result<RecordOutcome, RecordExportError> {
-        let relative = relative_path(file).ok_or(ExtractionError::UnsafePath)?;
+        let relative = relative_path(file)?;
+        check_path_length(self.target, &relative).map_err(ExtractionError::from)?;
         let name = relative.file_name().ok_or(ExtractionError::UnsafePath)?;
         let tree = scratch.trees.build(record)?;
         let errors = tree.error_count();

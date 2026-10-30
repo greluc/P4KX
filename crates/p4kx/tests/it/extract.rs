@@ -176,7 +176,7 @@ fn extract_rejects_entry_paths_outside_the_target_with_exit_code_1() -> TestResu
             "failed ..\\..\\escaped.txt: the path would leave the target folder",
         ))
         .stderr(predicate::str::contains(
-            "failed C:\\drive.txt: the path would leave the target folder",
+            "failed C:\\drive.txt: the name \"C:\" cannot be written: the character ':' is not allowed in a file name",
         ));
 
     assert!(

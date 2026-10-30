@@ -14,6 +14,7 @@ use p4kx_archive::{Archive, ArchiveError, Checksum, ChecksumHasher, Entry, Entry
 use crate::buffers::Buffers;
 use crate::convert::{PEEK_LEN, is_cryxml};
 use crate::entry_path::{escaped_raw_path, relative_path};
+use crate::portable_name::check_path_length;
 use crate::tracker::Tracker;
 use crate::{AudioConversion, ConflictPolicy, ExtractionError, TextureConversion};
 
@@ -175,16 +176,27 @@ impl EntryWriter<'_> {
         )
     }
 
-    /// Returns the path below the target `entry` is written to, or `None` when it is unsafe.
-    pub(crate) fn relative_path(&self, entry: &Entry) -> Option<PathBuf> {
+    /// Returns the path below the target `entry` is written to, or why it is not written.
+    pub(crate) fn relative_path(&self, entry: &Entry) -> Result<PathBuf, ExtractionError> {
         relative_path(&self.disk_name(entry))
     }
 
-    /// Creates the folder of `entry` below the target and returns where its file goes.
+    /// Creates the folder of `entry` below the target and returns where its file goes; fails when
+    /// the path is no valid name, too long for Windows or Linux, or differs only in case from the
+    /// path of an earlier Entry of the run.
     pub(crate) fn destination(&self, entry: &Entry) -> Result<Destination, ExtractionError> {
-        let relative = self
-            .relative_path(entry)
-            .ok_or(ExtractionError::UnsafePath)?;
+        let relative = self.relative_path(entry)?;
+        check_path_length(self.target, &relative)?;
+        if let Some(earlier) = self.tracker.case_claims.claim(&relative, entry.index()) {
+            return Err(ExtractionError::CaseCollision {
+                earlier: self
+                    .archive
+                    .entries()
+                    .get(earlier)
+                    .map(|entry| entry.path().to_owned())
+                    .unwrap_or_default(),
+            });
+        }
         let name = relative.file_name().ok_or(ExtractionError::UnsafePath)?;
         let folder = self
             .tracker

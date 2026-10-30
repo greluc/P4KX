@@ -1,21 +1,24 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-//! The containers of a real ship's Interior hold the hardpoints they serve: the pilot seat and
-//! flight controller lie in a cockpit's room box, the cargo grids in a cargo room's box.
+//! The containers of a real ship's Interior hold the hardpoints they serve: the root vehicle's
+//! flight controller and pilot seat lie in one container, every cargo grid in a container without
+//! cockpit hardpoints, and doors and animated parts at the rooms they close.
 
 use std::error::Error;
 use std::fmt::Write as _;
 
 use p4kx_assembly::{
     ArchiveFiles, ArchiveModels, Assembly, AssemblyOptions, EntityInterior, HardpointFit,
-    HardpointKind, InteriorFit, InteriorOptions, LoadoutResolver,
+    HardpointKind, InteriorFit, InteriorOptions, LoadoutResolver, Misfit,
 };
 use p4kx_extraction::{Archive, DataForgeEntry};
 use p4kx_testkit::{real_archive_key, real_archive_path};
 
 type TestResult = Result<(), Box<dyn Error>>;
 
+/// How far in metres a hardpoint's origin may lie outside a room box and still count as in it:
+/// an Entity's origin can sit on a room's floor or wall, which the box of its models only touches.
 const TOLERANCE: f32 = 0.5;
 
 fn measure(class_name: &str) -> Result<InteriorFit, Box<dyn Error>> {
@@ -48,16 +51,26 @@ fn describe(fit: &InteriorFit, at: &HardpointFit) -> String {
     )
 }
 
-#[expect(clippy::print_stdout, reason = "the numbers go into the PR body")]
+fn describe_index(fit: &InteriorFit, index: usize) -> String {
+    fit.hardpoints()
+        .get(index)
+        .map_or_else(|| format!("hardpoint {index}"), |at| describe(fit, at))
+}
+
+#[expect(
+    clippy::print_stdout,
+    reason = "the report is printed for the test log"
+)]
 fn report(class_name: &str, fit: &InteriorFit) {
     println!("== {class_name}");
     for container in fit.containers() {
-        println!("container {} room {:?}", container.file(), container.room());
-        for &index in container.inside() {
-            if let Some(at) = fit.hardpoints().get(index) {
-                println!("  inside  {}", describe(fit, at));
-            }
-        }
+        println!(
+            "container {} room {:?}, {} unreadable models, holds {:?}",
+            container.file(),
+            container.room(),
+            container.unreadable_models(),
+            container.inside()
+        );
         for part in container.animated() {
             println!(
                 "  animated {} {:?} at {:?}: {:?} m from the room",
@@ -73,34 +86,55 @@ fn report(class_name: &str, fit: &InteriorFit) {
     }
 }
 
+/// Checks the containers of `class_name`: the rules of [`InteriorFit::misfits`], which hold for
+/// the root vehicle (a docked ship's flight controller sits at that ship's origin, below its
+/// cockpit), and doors and animated parts within [`TOLERANCE`] of a room.
 fn check(class_name: &str) -> TestResult {
     let fit = measure(class_name)?;
     report(class_name, &fit);
-    // A docked ship's flight controller sits at that ship's origin, below its cockpit.
-    let controllers: Vec<&HardpointFit> = fit
+    assert!(
+        fit.unplaced().is_empty(),
+        "{class_name}: {:?}",
+        fit.unplaced()
+    );
+    let roots = fit
         .of_kind(HardpointKind::Controller)
         .filter(|at| at.hardpoint().vehicle().is_empty())
-        .collect();
-    let pilot_seats = fit.pilot_seats();
-    let grids: Vec<&HardpointFit> = fit.of_kind(HardpointKind::CargoGrid).collect();
-    assert!(!controllers.is_empty(), "{class_name}: no controller");
-    assert!(!pilot_seats.is_empty(), "{class_name}: no pilot seat");
-    assert!(!grids.is_empty(), "{class_name}: no cargo grid");
-    let doors: Vec<&HardpointFit> = fit.of_kind(HardpointKind::Door).collect();
-    let served = controllers
-        .iter()
-        .chain(&pilot_seats)
-        .chain(&grids)
-        .chain(&doors);
-    let mut misplaced = String::new();
-    for at in served.filter(|at| !at.is_within(TOLERANCE)) {
-        writeln!(misplaced, "{}", describe(&fit, at))?;
+        .count();
+    assert!(roots > 0, "{class_name}: no controller of the root vehicle");
+    assert!(!fit.pilot_seats().is_empty(), "{class_name}: no pilot seat");
+    assert!(
+        fit.of_kind(HardpointKind::CargoGrid).count() > 0,
+        "{class_name}: no cargo grid"
+    );
+    let mut failures = String::new();
+    for misfit in fit.misfits(TOLERANCE) {
+        match misfit {
+            Misfit::CockpitSplit { controller, seat } => writeln!(
+                failures,
+                "no container holds both\n  {}\n  {}",
+                describe_index(&fit, controller),
+                describe_index(&fit, seat)
+            )?,
+            Misfit::CargoOutsideCargoRoom { grid } => writeln!(
+                failures,
+                "no cargo room holds\n  {}",
+                describe_index(&fit, grid)
+            )?,
+            _ => writeln!(failures, "unknown misfit {misfit:?}")?,
+        }
+    }
+    for at in fit
+        .of_kind(HardpointKind::Door)
+        .filter(|at| !at.is_within(TOLERANCE))
+    {
+        writeln!(failures, "{}", describe(&fit, at))?;
     }
     for container in fit.containers() {
         for part in container.animated() {
             if part.distance().is_none_or(|distance| distance > TOLERANCE) {
                 writeln!(
-                    misplaced,
+                    failures,
                     "animated {} of {} at {:?}: {:?} m from the room",
                     part.name(),
                     container.file(),
@@ -111,8 +145,8 @@ fn check(class_name: &str) -> TestResult {
         }
     }
     assert!(
-        misplaced.is_empty(),
-        "{class_name}: outside every room box by more than {TOLERANCE} m:\n{misplaced}"
+        failures.is_empty(),
+        "{class_name}: displaced beyond {TOLERANCE} m:\n{failures}"
     );
     Ok(())
 }

@@ -15,7 +15,8 @@ pub enum HardpointKind {
     Seat,
     /// A cargo grid: the space cargo is stored in.
     CargoGrid,
-    /// A door, ramp or docking hatch: animated geometry that closes a room.
+    /// A door, ramp or docking hatch: animated geometry that closes a room; the item types `Door`
+    /// and `DockingAnimator`.
     Door,
 }
 

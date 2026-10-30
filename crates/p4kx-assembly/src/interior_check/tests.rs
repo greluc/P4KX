@@ -6,11 +6,11 @@ use super::*;
 
 const NAN: f32 = f32::NAN;
 
-fn unit_box() -> WorldBox {
+pub(super) fn unit_box() -> WorldBox {
     WorldBox::around([[0.0; 3], [1.0; 3]]).expect("two finite points")
 }
 
-fn hardpoint(kind: HardpointKind, position: [f32; 3]) -> Hardpoint {
+pub(super) fn hardpoint(kind: HardpointKind, position: [f32; 3]) -> Hardpoint {
     Hardpoint {
         path: "hp".to_owned(),
         class_name: "Class".to_owned(),
@@ -20,13 +20,14 @@ fn hardpoint(kind: HardpointKind, position: [f32; 3]) -> Hardpoint {
     }
 }
 
-fn container(room: Option<WorldBox>) -> ContainerFit {
+pub(super) fn container(room: Option<WorldBox>) -> ContainerFit {
     ContainerFit {
         file: "a.socpak".to_owned(),
         room,
         inside: Vec::new(),
         outside: Vec::new(),
         animated: Vec::new(),
+        unreadable: 0,
     }
 }
 
@@ -148,6 +149,7 @@ fn a_hardpoint_without_a_box_or_a_finite_position_is_within_nothing() {
 fn fit_of(hardpoints: Vec<Hardpoint>) -> InteriorFit {
     InteriorFit {
         containers: Vec::new(),
+        unplaced: Vec::new(),
         hardpoints: hardpoints
             .into_iter()
             .map(|hardpoint| HardpointFit::measure(hardpoint, &[]))

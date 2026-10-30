@@ -61,11 +61,29 @@ pub struct ContainerFit {
     pub(crate) inside: Vec<usize>,
     pub(crate) outside: Vec<usize>,
     pub(crate) animated: Vec<AnimatedPart>,
+    pub(crate) unreadable: usize,
+}
+
+/// Splits the indices of `hardpoints` into those inside `room` and the rest.
+pub(super) fn classify(
+    room: Option<&WorldBox>,
+    hardpoints: &[Hardpoint],
+) -> (Vec<usize>, Vec<usize>) {
+    let (mut inside, mut outside) = (Vec::new(), Vec::new());
+    for (index, hardpoint) in hardpoints.iter().enumerate() {
+        if room.is_some_and(|room| room.contains(hardpoint.position)) {
+            inside.push(index);
+        } else {
+            outside.push(index);
+        }
+    }
+    (inside, outside)
 }
 
 impl ContainerFit {
-    /// Measures `container`, whose owner part sits at `owner` in the world: the world box of its
-    /// static model parts, the `hardpoints` inside and outside it and its animated parts.
+    /// Measures `container`, whose owner part sits at `owner` in the world: the world box of the
+    /// static models its `.soc` files place (props such as doors, lockers and cabinets do not
+    /// bound the room), the `hardpoints` inside and outside it and its animated parts.
     pub(super) fn measure(
         owner: &Transform,
         container: &EntityContainer,
@@ -74,10 +92,12 @@ impl ContainerFit {
         let base = owner.then(container.placement());
         let mut room = None;
         let mut animated = Vec::new();
+        let mut unreadable = 0;
         for part in container.interior().parts() {
-            let (InteriorPartKind::Model | InteriorPartKind::Prop) = part.kind() else {
+            let kind = part.kind();
+            if !matches!(kind, InteriorPartKind::Model | InteriorPartKind::Prop) {
                 continue;
-            };
+            }
             let world = base.then(part.world());
             if is_animated(part.model_path()) {
                 animated.push(AnimatedPart {
@@ -86,28 +106,41 @@ impl ContainerFit {
                     position: world.translation(),
                     distance: None,
                 });
-            } else if let Some(model) = part.model() {
-                WorldBox::grow_with_model(&mut room, model, &world);
+            } else if kind == InteriorPartKind::Model {
+                match part.model() {
+                    Some(model) => WorldBox::grow_with_model(&mut room, model, &world),
+                    None => unreadable += 1,
+                }
             }
         }
         for part in &mut animated {
             part.distance = room.and_then(|room| room.distance(part.position));
         }
-        let (mut inside, mut outside) = (Vec::new(), Vec::new());
-        for (index, hardpoint) in hardpoints.iter().enumerate() {
-            if room.is_some_and(|room| room.contains(hardpoint.position)) {
-                inside.push(index);
-            } else {
-                outside.push(index);
-            }
-        }
+        let (inside, outside) = classify(room.as_ref(), hardpoints);
         Self {
             file: container.reference().file().to_owned(),
             room,
             inside,
             outside,
             animated,
+            unreadable,
         }
+    }
+
+    /// Returns whether `point` is at most `tolerance` metres from the room box; a container
+    /// without a room box holds nothing.
+    #[must_use]
+    pub fn holds(&self, point: [f32; 3], tolerance: f32) -> bool {
+        self.room
+            .and_then(|room| room.distance(point))
+            .is_some_and(|distance| distance <= tolerance)
+    }
+
+    /// Returns the number of static model parts whose model could not be read; they are missing
+    /// from the room box.
+    #[must_use]
+    pub const fn unreadable_models(&self) -> usize {
+        self.unreadable
     }
 
     /// Returns the container file as the Record spells it.

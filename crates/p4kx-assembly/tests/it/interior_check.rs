@@ -1,25 +1,29 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-//! The check of an Interior's containers against the hardpoints of its Assembly, on a synthetic
-//! ship.
+//! The check of an Interior's containers against the hardpoints of its Assembly, on synthetic
+//! ships whose rooms are 4 m cubes.
 
 use p4kx_assembly::{
-    ArchiveModels, Assembly, AssemblyOptions, EntityInterior, InteriorFit, InteriorOptions,
-    LoadoutResolver,
+    ArchiveModels, Assembly, AssemblyOptions, EntityInterior, HardpointKind, InteriorFit,
+    InteriorOptions, LoadoutResolver, Misfit,
 };
 use p4kx_extraction::{Archive, DataForgeEntry};
-use p4kx_testkit::{ENTITY_INTERIOR_CLASS, entity_interior_entries};
+use p4kx_testkit::{
+    ENTITY_FIT_CLASS, ENTITY_FIT_MERGED_CLASS, ENTITY_FIT_MOVED_CLASS, entity_fit_entries,
+};
 
 use crate::assembly_support::{TestResult, fixture};
 
-fn measured() -> Result<InteriorFit, Box<dyn std::error::Error>> {
-    let fixture = fixture(entity_interior_entries())?;
+const TOLERANCE: f32 = 0.5;
+
+fn measured(class_name: &str) -> Result<InteriorFit, Box<dyn std::error::Error>> {
+    let fixture = fixture(entity_fit_entries())?;
     let archive = Archive::open(&fixture.path)?;
     let entry = DataForgeEntry::read(&archive)?;
     let forge = entry.open()?;
     let mut resolver = LoadoutResolver::new(&forge);
-    let record = resolver.entities().find(ENTITY_INTERIOR_CLASS)?;
+    let record = resolver.entities().find(class_name)?;
     let tree = resolver.resolve(&record)?;
     let models = ArchiveModels::new(&archive);
     let assembly = Assembly::build(&tree, &models, &AssemblyOptions::default())?;
@@ -27,24 +31,55 @@ fn measured() -> Result<InteriorFit, Box<dyn std::error::Error>> {
     Ok(InteriorFit::new(&assembly, &tree, &interior))
 }
 
-#[test]
-fn every_container_is_measured_with_a_room_box_at_its_placement() -> TestResult {
-    let fit = measured()?;
+fn holders(fit: &InteriorFit, kind: HardpointKind) -> Result<Vec<usize>, String> {
+    let at = fit
+        .of_kind(kind)
+        .next()
+        .ok_or_else(|| format!("no {} hardpoint", kind.code()))?;
+    Ok(fit
+        .containers()
+        .iter()
+        .enumerate()
+        .filter(|(_, container)| container.holds(at.hardpoint().position(), 0.0))
+        .map(|(index, _)| index)
+        .collect())
+}
 
-    assert_eq!(fit.containers().len(), 6);
-    let front = &fit.containers()[0];
-    let room = front.room().ok_or("the front container has no room box")?;
-    assert!(room.contains([1.0, 6.0, 0.0]), "{room:?}");
-    assert!(!room.contains([1.0, -20.0, 0.0]), "{room:?}");
+#[test]
+fn rooms_over_their_hardpoints_hold_them_each_in_its_own_room() -> TestResult {
+    let fit = measured(ENTITY_FIT_CLASS)?;
+
+    assert_eq!(fit.containers().len(), 2);
+    assert_eq!(fit.hardpoints().len(), 3);
+    assert_eq!(fit.pilot_seats().len(), 1);
+    assert_eq!(holders(&fit, HardpointKind::Seat)?, [0]);
+    assert_eq!(holders(&fit, HardpointKind::Controller)?, [0]);
+    assert_eq!(holders(&fit, HardpointKind::CargoGrid)?, [1]);
+    assert_eq!(fit.misfits(TOLERANCE), []);
     Ok(())
 }
 
 #[test]
-fn a_ship_without_functional_hardpoints_has_none_to_place() -> TestResult {
-    let fit = measured()?;
+fn a_cockpit_room_moved_away_leaves_the_seat_and_controller_outside_every_room() -> TestResult {
+    let fit = measured(ENTITY_FIT_MOVED_CLASS)?;
 
-    assert_eq!(fit.hardpoints().len(), 0);
-    assert_eq!(fit.pilot_seats().len(), 0);
-    assert!(fit.containers().iter().all(|c| c.inside().is_empty()));
+    assert_eq!(holders(&fit, HardpointKind::Seat)?, Vec::<usize>::new());
+    assert_eq!(holders(&fit, HardpointKind::CargoGrid)?, [1]);
+    assert!(matches!(
+        fit.misfits(TOLERANCE).as_slice(),
+        [Misfit::CockpitSplit { .. }]
+    ));
+    Ok(())
+}
+
+#[test]
+fn rooms_put_on_the_cockpit_leave_no_cargo_room_for_a_grid_in_it() -> TestResult {
+    let fit = measured(ENTITY_FIT_MERGED_CLASS)?;
+
+    assert_eq!(holders(&fit, HardpointKind::CargoGrid)?, [0, 1]);
+    assert!(matches!(
+        fit.misfits(TOLERANCE).as_slice(),
+        [Misfit::CargoOutsideCargoRoom { .. }]
+    ));
     Ok(())
 }

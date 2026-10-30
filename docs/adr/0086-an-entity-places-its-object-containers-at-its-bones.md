@@ -56,17 +56,31 @@ used up the remaining containers are left out with `too_many_containers`, `too_m
 
 ## Verification
 
-`InteriorFit::new(assembly, tree, interior)` measures each container in the world: the box around
-its static models (a model file that is not a `.cga`), the functional hardpoints of the Assembly
-inside and outside it, and how far its animated parts (`.cga` models: doors, ramps, drawers) lie
-from it. Hardpoints are told by the item type of the Entity at the port, never by name: a
-`FlightController`, a `Seat`, a `CargoGrid` and a `Door` or `DockingAnimator`. The pilot seat is
-the seat of the same vehicle nearest to the flight controller. The real-Archive tests check, with
-0.5 m of slack, that the flight controller, the pilot seat, every cargo grid and every door of the
-Constellation and the Cutlass lie in the box of a container, and that every animated part lies
-at the room of its container. They hold: the placement rule above puts every container of both
-ships where its hardpoints are. A docked ship's flight controller sits at that ship's origin,
-below its cockpit, so only the controller of the root vehicle is checked.
+`InteriorFit::new(assembly, tree, interior)` (feature `verification` of `p4kx-assembly`) measures
+each container in the world: the box around the static models its `.soc` files place (models
+that are not `.cga`; props such as doors, lockers and cabinets do not bound the room), the
+functional hardpoints of the Assembly inside and outside it, and how far its animated parts
+(`.cga` models: doors, ramps, drawers) lie from it. Hardpoints are told by the item type of the
+Entity at the port, never by name: a `FlightController`, a `Seat`, a `CargoGrid`, a `Door` or a
+`DockingAnimator`. The pilot seat is the seat of the same vehicle nearest to the flight
+controller.
+
+`InteriorFit::misfits` applies two rules, with 0.5 m of slack in the real-Archive tests: the
+flight controller of the root vehicle and its pilot seat lie in the same container, and every
+cargo grid lies in a container that holds no flight controller and no pilot seat. A docked ship's
+flight controller sits at that ship's origin, below its cockpit, so only the root vehicle's is
+checked. The tests also keep every door and every animated part within the slack of a room. The
+Constellation holds all of this: its cockpit, neck, body and tail rooms sit where their hardpoints
+are. Synthetic ships show the checks fail for a cockpit room moved away and for a cargo grid in
+the cockpit room.
+
+**Limit.** The Cutlass is verified only coarsely. Its cockpit socpak places the middle hull
+section's model (`int_body`) in its own `.soc` next to the cockpit model, so the cockpit's room box
+runs 15.7 m along the hull and would still hold the pilot seat and flight controller if the
+container were moved several metres. What holds for the Cutlass is that the cargo grids, the ramp
+and the side doors lie in the body container, not in the cockpit container, and that nothing is
+unreadable or unplaced. A tighter check (a hardpoint against the box of a single room model) is
+tracked in a follow-up issue.
 
 ## Open points
 

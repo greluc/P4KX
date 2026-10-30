@@ -87,6 +87,7 @@ mod gear_pose;
 mod geometry;
 mod hologram;
 mod interior;
+#[cfg(feature = "verification")]
 mod interior_check;
 mod issue;
 mod issue_code;
@@ -143,8 +144,10 @@ pub use interior::{
     InteriorWatch, MAX_INTERIOR_CONTAINERS, MAX_INTERIOR_DEPTH, MAX_INTERIOR_FILE_LEN,
     MAX_INTERIOR_PARTS,
 };
+#[cfg(feature = "verification")]
 pub use interior_check::{
-    AnimatedPart, ContainerFit, Hardpoint, HardpointFit, HardpointKind, InteriorFit, WorldBox,
+    AnimatedPart, ContainerFit, Hardpoint, HardpointFit, HardpointKind, InteriorFit, Misfit,
+    WorldBox,
 };
 pub use issue::{Issue, IssueKind};
 pub use loadout_entry::LoadoutEntry;

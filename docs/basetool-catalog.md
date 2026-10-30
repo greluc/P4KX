@@ -1110,7 +1110,7 @@ and past 64 replacements or about 4 KiB in one title, a token becomes `[TOKEN]`.
 trailing blanks are removed from the result; the `key` is that of the title text. The tokens are free text of the game, not facts of the Archive;
 the placeholders are the catalog's own convention.
 
-**Description (ADR-0255).** The `Description` string parameter of the first layer (sub contract,
+**Description (ADR-0269).** The `Description` string parameter of the first layer (sub contract,
 contract, handler), else the `description` of the broker entry; the template states none, its
 `displayString` slots carry no label. `~mission(…)` tokens, limits and trimming are those of the
 title. It is a game text (`x-gameText`) like the title, and like every game text it must not be

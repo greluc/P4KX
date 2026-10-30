@@ -3,19 +3,22 @@
 
 use p4kx_extraction::{
     CancelToken, DataForge, DataForgeError, Filter, Record, RecordTree, StructValue, TreeBuilder,
-    Value,
 };
 use rayon::prelude::*;
 
 use crate::blueprint::as_struct;
+use crate::contract_facts::ContractFacts;
 use crate::contract_missions::{ContractEntry, ContractFaction, PickupPlace, ReputationGain};
 use crate::contract_reward::{FixedReward, fixed_rewards};
 use crate::contract_starmap::StarmapObject;
 use crate::guid_text::CatalogGuid;
 use crate::mission_cooldown::Cooldown;
+use crate::mission_facts::{Levels, SharedFacts};
 use crate::mission_index::{Broker, MissionIndex, Template};
+use crate::mission_intros::{Grants, record_grants, resolve};
 use crate::mission_layers::{Layer, Prop, Property, description_key, items, one};
 use crate::mission_places::{Places, Where};
+use crate::mission_results::{gains, granted_tags, link};
 use crate::mission_standing::Standing;
 use crate::mission_title::{Token, expand_text};
 use crate::record_fields::{boolean, guid_value, reference, text};
@@ -25,11 +28,11 @@ use crate::{CatalogError, CatalogFailure};
 
 const CONTAINERS: [&str; 4] = [
     "contracts",
-    "introContracts",
+    INTRO_CONTRACTS,
     "legacyContracts",
     "PVPBountyContract",
 ];
-const LEGACY_REPUTATION: &str = "ContractResult_LegacyReputation";
+const INTRO_CONTRACTS: &str = "introContracts";
 
 /// The contracts of a DataForge and what was left out.
 pub(crate) struct Missions<'f> {
@@ -39,7 +42,7 @@ pub(crate) struct Missions<'f> {
 }
 
 enum Piece<'f> {
-    Contracts(Vec<ContractEntry<'f>>, usize),
+    Contracts(Vec<ContractEntry<'f>>, usize, Grants),
     Failed(CatalogFailure),
 }
 
@@ -106,16 +109,21 @@ pub(crate) fn read<'f>(
         skipped: 0,
         failures: Vec::new(),
     };
+    let mut grants = Grants::new();
     for piece in pieces {
         match piece {
-            Piece::Contracts(contracts, skipped) => {
+            Piece::Contracts(contracts, skipped, granted) => {
                 missions.contracts.extend(contracts);
                 missions.skipped = missions.skipped.saturating_add(skipped);
+                for (tag, intros) in granted {
+                    grants.entry(tag).or_default().extend(intros);
+                }
             }
             Piece::Failed(failure) => missions.failures.push(failure),
         }
     }
     missions.order();
+    resolve(&mut missions.contracts, &mut grants);
     Ok(missions)
 }
 
@@ -153,6 +161,7 @@ fn piece<'f>(
     let tree = trees.build(record)?;
     let mut contracts = Vec::new();
     let mut skipped = 0_usize;
+    let mut grants = Grants::new();
     for handler in items(Some(tree.root()), "generators")
         .iter()
         .filter_map(as_struct)
@@ -170,6 +179,9 @@ fn piece<'f>(
                     skipped = skipped.saturating_add(1);
                     continue;
                 }
+                if container == INTRO_CONTRACTS {
+                    record_grants(&mut grants, CatalogGuid(id), &granted_tags(contract));
+                }
                 let parent = Parent {
                     tree: &tree,
                     handler,
@@ -183,7 +195,7 @@ fn piece<'f>(
             }
         }
     }
-    Ok(Some(Piece::Contracts(contracts, skipped)))
+    Ok(Some(Piece::Contracts(contracts, skipped, grants)))
 }
 
 struct Parent<'t, 'f> {
@@ -211,37 +223,25 @@ impl<'f> Parent<'_, 'f> {
             gains: gains(self.contract, index),
             standing: Standing::read(self.handler, self.contract),
             cooldown: Cooldown::read(self.handler),
+            facts: SharedFacts::read(self.handler, self.contract),
             fixed_rewards: fixed_rewards(self.contract),
         };
         let make = |sub: Option<&StructValue<'f>>| {
             let sub_layer =
                 sub.map(|sub| Layer::read(one(Some(sub), "paramOverrides").or(Some(sub))));
-            let levels: Vec<&Layer<'f>> = sub_layer
-                .iter()
-                .chain([&contract_layer, self.handler_layer])
-                .collect();
-            let own = sub.map(|sub| Where::read(Some(sub), "additionalPrerequisites"));
-            let inherited = [&contract_where, self.handler_where];
-            let wheres: Vec<&Where> = own
-                .as_ref()
-                .filter(|own| !own.is_empty())
-                .map_or_else(|| inherited.to_vec(), |own| vec![own]);
-            let mut pickup = context.places.pickup(index, &wheres);
-            if pickup.is_empty()
-                && let Some(location) = broker.and_then(|broker| broker.location)
-            {
-                let at_broker = Where {
-                    localities: Vec::new(),
-                    locations: vec![location],
-                };
-                pickup = context.places.pickup(index, &[&at_broker]);
-            }
+            let levels = Levels {
+                sub: sub_layer.as_ref(),
+                contract: &contract_layer,
+                handler: self.handler_layer,
+            };
+            let facts = shared.facts.facts(sub, &levels, template_data);
+            let pickup = self.pickup(sub, &contract_where, broker, context);
             self.entry(
                 sub,
                 &levels,
                 template,
                 (template_data, broker),
-                (&shared, pickup),
+                (&shared, pickup, facts),
                 context,
             )
         };
@@ -261,13 +261,40 @@ impl<'f> Parent<'_, 'f> {
         skipped
     }
 
+    /// Returns the pickup places of the contract or of its sub contract `sub`.
+    fn pickup(
+        &self,
+        sub: Option<&StructValue<'f>>,
+        contract_where: &Where,
+        broker: Option<&Broker<'f>>,
+        context: &Context<'_, 'f>,
+    ) -> Vec<PickupPlace<'f>> {
+        let own = sub.map(|sub| Where::read(Some(sub), "additionalPrerequisites"));
+        let inherited = [contract_where, self.handler_where];
+        let wheres: Vec<&Where> = own
+            .as_ref()
+            .filter(|own| !own.is_empty())
+            .map_or_else(|| inherited.to_vec(), |own| vec![own]);
+        let mut pickup = context.places.pickup(context.index, &wheres);
+        if pickup.is_empty()
+            && let Some(location) = broker.and_then(|broker| broker.location)
+        {
+            let at_broker = Where {
+                localities: Vec::new(),
+                locations: vec![location],
+            };
+            pickup = context.places.pickup(context.index, &[&at_broker]);
+        }
+        pickup
+    }
+
     fn entry(
         &self,
         sub: Option<&StructValue<'f>>,
-        levels: &[&Layer<'f>],
+        levels: &Levels<'_, 'f>,
         template: Option<p4kx_extraction::Guid>,
         (template_data, broker): (Option<&Template<'f>>, Option<&Broker<'f>>),
-        (shared, pickup): (&Shared<'f>, Vec<PickupPlace<'f>>),
+        (shared, pickup, facts): (&Shared<'f>, Vec<PickupPlace<'f>>, ContractFacts),
         context: &Context<'_, 'f>,
     ) -> ContractEntry<'f> {
         let (index, texts) = (context.index, context.texts);
@@ -307,7 +334,7 @@ impl<'f> Parent<'_, 'f> {
             not_for_release: boolean(Some(self.contract), "notForRelease"),
             work_in_progress: boolean(Some(self.contract), "workInProgress"),
             title: expand_text(title_key, texts, &resolve),
-            description: expand_text(description_key(levels, broker), texts, &resolve),
+            description: expand_text(description_key(levels.iter(), broker), texts, &resolve),
             mission_type_guid: mission_type.map(CatalogGuid),
             mission_type: texts.localised(
                 mission_type
@@ -327,6 +354,7 @@ impl<'f> Parent<'_, 'f> {
             personal_cooldown_time_variation: shared.cooldown.personal_time_variation,
             abandoned_cooldown_time: shared.cooldown.abandoned_time,
             abandoned_cooldown_time_variation: shared.cooldown.abandoned_time_variation,
+            facts,
             fixed_rewards: shared.fixed_rewards.clone(),
         }
     }
@@ -341,58 +369,16 @@ impl<'f> Parent<'_, 'f> {
     }
 }
 
-/// What the entries of one contract share: the reputation it grants and requires and the cooldown
-/// of its handler.
+/// What the entries of one contract share: the reputation it grants and requires, the cooldown
+/// of its handler and its facts.
 struct Shared<'f> {
     gains: Vec<ReputationGain<'f>>,
     standing: Standing,
     cooldown: Cooldown,
+    facts: SharedFacts,
     fixed_rewards: Vec<FixedReward<'f>>,
 }
 
 fn identity(structure: &StructValue<'_>) -> Option<p4kx_extraction::Guid> {
     guid_value(Some(structure), "id").filter(|id| *id != p4kx_extraction::Guid::default())
-}
-
-fn gains<'f>(contract: &StructValue<'f>, index: &MissionIndex<'f>) -> Vec<ReputationGain<'f>> {
-    let block = one(Some(contract), "contractResults");
-    items(block, "contractResults")
-        .iter()
-        .filter_map(as_struct)
-        .filter(|result| result.type_name() == LEGACY_REPUTATION && succeeds(result))
-        .flat_map(|result| items(Some(result), "contractResultReputationAmounts"))
-        .filter_map(as_struct)
-        .map(|amount| {
-            let faction = link(amount, "factionReputation");
-            let scope = link(amount, "reputationScope");
-            ReputationGain {
-                faction_reputation_guid: faction.map(|(guid, _)| guid),
-                faction_reputation_name: faction.map(|(_, name)| name),
-                scope_guid: scope.map(|(guid, _)| guid),
-                scope_name: scope.map(|(_, name)| name),
-                amount: reference(Some(amount), "reward").and_then(|reward| index.reward(reward.0)),
-            }
-        })
-        .collect()
-}
-
-fn link<'f>(parent: &StructValue<'f>, name: &str) -> Option<(CatalogGuid, &'f str)> {
-    match parent.field(name)? {
-        Value::Reference(target) if target.location().is_none() => {
-            let path = target.record_path();
-            Some((
-                CatalogGuid(target.guid()),
-                path.rsplit('/').next().unwrap_or(path),
-            ))
-        }
-        _ => None,
-    }
-}
-
-pub(crate) fn succeeds(result: &StructValue<'_>) -> bool {
-    match items(Some(result), "missionResults").first() {
-        Some(Value::Bool(set)) => *set,
-        Some(Value::Struct(flag)) => boolean(Some(flag), "value").unwrap_or(false),
-        _ => false,
-    }
 }

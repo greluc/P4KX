@@ -869,6 +869,58 @@
             "null"
           ]
         },
+        "availableInPrison": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Stated_boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Parameter `AvailableInPrison`; base: `availableInPrison` of the handler's\n`defaultAvailability`."
+        },
+        "buyInAmount": {
+          "description": "The `contractBuyInAmount` of the contract's `contractResults`, as stored; `null` when\nabsent. A sub contract shares the contract's value.",
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "canBeShared": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Stated_boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Parameter `CanBeShared`; base: `canBeShared` of the template's contract class."
+        },
+        "canReacceptAfterAbandoning": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Stated_boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Parameter `CanReacceptAfterAbandoning`; base: `canReacceptAfterAbandoning` of the handler's\n`defaultAvailability`."
+        },
+        "canReacceptAfterFailing": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Stated_boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Parameter `CanReacceptAfterFailing`; base: `canReacceptAfterFailing` of the handler's\n`defaultAvailability`."
+        },
         "contractor": {
           "$ref": "#/$defs/LocalisedText",
           "description": "The `Contractor` string parameter of the first level that states one (sub contract,\ncontract, handler): the text the game shows as the giver of the contract, e.g. the\nagency, when the contract has no faction reputation.",
@@ -933,6 +985,39 @@
             "null"
           ]
         },
+        "hideInMobiGlas": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Stated_boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Parameter `HideInMobiGlas`; base: `hideInMobiGlas` of the handler's `defaultAvailability`."
+        },
+        "illegal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Stated_boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Parameter `Illegal`; base: `illegal` of the template's display info."
+        },
+        "maxPlayersPerInstance": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Stated_int64"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Parameter `MaxPlayersPerInstance`; base: `maxPlayersPerInstance` of the handler's\n`defaultAvailability`. A negative value is as stored."
+        },
         "maxStandingGuid": {
           "anyOf": [
             {
@@ -978,6 +1063,17 @@
             "null"
           ]
         },
+        "onceOnly": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Stated_boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Parameter `OnceOnly`; base: `onceOnly` of the handler's `defaultAvailability`."
+        },
         "personalCooldownTime": {
           "description": "The `personalCooldownTime`, as stored; `null` when absent. The Archive does not state the\nunit; the value range (up to 2880) fits minutes.",
           "format": "float",
@@ -1016,6 +1112,13 @@
           },
           "type": "array"
         },
+        "requiredIntros": {
+          "description": "The `ContractPrerequisite_CompletedContractTags` tags of the handler, the contract and the\nsub contract, in that order and as stored, each with the intro contracts that grant the tag.\nThe catalog does not decide how the levels combine.",
+          "items": {
+            "$ref": "#/$defs/RequiredIntro"
+          },
+          "type": "array"
+        },
         "standingRequirements": {
           "description": "The `ContractPrerequisite_Reputation` prerequisites of the handler, the contract and the\nsub contract, in that order and as stored. The catalog does not decide how they combine.",
           "items": {
@@ -1045,6 +1148,14 @@
           ],
           "description": "The GUID of the `ContractTemplate` Record the contract names, `null` when it names none."
         },
+        "timeToComplete": {
+          "description": "The `timeToComplete` of the contract's `contractResults`, as stored, in floating point;\n`null` when absent. A sub contract shares the contract's value. The Archive states no unit.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
         "title": {
           "$ref": "#/$defs/LocalisedText",
           "description": "The title: the `Title` of the sub contract, else of the contract, else of the handler, else\nthe first display string of the template, else the title of the contract's\n`MissionBrokerEntry`. A `~mission(Token)` in it is replaced by the text the first of sub\ncontract, contract, handler and template states for the token, or by a placeholder such as\n`[LOCATION]`, `[TARGET]` or `[SHIP]` for what the game picks when the mission starts, or\n`[TOKEN]` when nothing states it. Trailing and leading blanks are removed.",
@@ -1061,6 +1172,11 @@
       "required": [
         "abandonedCooldownTime",
         "abandonedCooldownTimeVariation",
+        "availableInPrison",
+        "buyInAmount",
+        "canBeShared",
+        "canReacceptAfterAbandoning",
+        "canReacceptAfterFailing",
         "contractor",
         "cooldownLayer",
         "debugName",
@@ -1070,20 +1186,26 @@
         "guid",
         "handler",
         "hasPersonalCooldown",
+        "hideInMobiGlas",
+        "illegal",
+        "maxPlayersPerInstance",
         "maxStandingGuid",
         "minStandingGuid",
         "missionType",
         "missionTypeGuid",
         "notForRelease",
+        "onceOnly",
         "personalCooldownTime",
         "personalCooldownTimeVariation",
         "pickupPlaces",
         "recordGuid",
         "recordPath",
         "reputationGains",
+        "requiredIntros",
         "standingRequirements",
         "subContractGuid",
         "templateGuid",
+        "timeToComplete",
         "title",
         "workInProgress"
       ],
@@ -1765,6 +1887,31 @@
         "defaultVolume"
       ],
       "type": "object"
+    },
+    "FactLayer": {
+      "description": "The level that states a value of a contract.",
+      "oneOf": [
+        {
+          "const": "subContract",
+          "description": "The parameter overrides of the sub contract.",
+          "type": "string"
+        },
+        {
+          "const": "contract",
+          "description": "The parameter overrides of the contract.",
+          "type": "string"
+        },
+        {
+          "const": "handler",
+          "description": "The parameter overrides or the `defaultAvailability` of the handler.",
+          "type": "string"
+        },
+        {
+          "const": "template",
+          "description": "The `ContractTemplate` Record.",
+          "type": "string"
+        }
+      ]
     },
     "FactionReputation": {
       "description": "A faction: a `FactionReputation` Record under `factions/factionreputation`.",
@@ -5595,6 +5742,32 @@
       ],
       "type": "object"
     },
+    "RequiredIntro": {
+      "description": "A completion tag a contract requires and the intro contracts that grant it.",
+      "properties": {
+        "introContracts": {
+          "description": "The `id` of every intro contract (an element of `introContracts` of a handler) whose success\nresult grants the tag, ordered by `id`; empty when none does.",
+          "items": {
+            "$ref": "#/$defs/Guid"
+          },
+          "type": "array"
+        },
+        "level": {
+          "$ref": "#/$defs/StandingLevel",
+          "description": "Where the prerequisite is stated."
+        },
+        "tagGuid": {
+          "$ref": "#/$defs/Guid",
+          "description": "The `Tag` Record the prerequisite requires among the completed contracts."
+        }
+      },
+      "required": [
+        "introContracts",
+        "level",
+        "tagGuid"
+      ],
+      "type": "object"
+    },
     "ResistanceEntry": {
       "description": "The resistance to one damage type, as stored: the multiplier is the factor damage is scaled\nby, not a mitigation.",
       "properties": {
@@ -6616,7 +6789,7 @@
       "type": "object"
     },
     "StandingLevel": {
-      "description": "The level at which a reputation prerequisite is stated.",
+      "description": "The level at which a prerequisite is stated.",
       "oneOf": [
         {
           "const": "handler",
@@ -6812,6 +6985,43 @@
         "system",
         "type",
         "typeGuid"
+      ],
+      "type": "object"
+    },
+    "Stated_boolean": {
+      "description": "A value as stored, with the level that states it.",
+      "properties": {
+        "layer": {
+          "$ref": "#/$defs/FactLayer",
+          "description": "The first level of sub contract, contract, handler and template that states the value."
+        },
+        "value": {
+          "description": "The value.",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "layer",
+        "value"
+      ],
+      "type": "object"
+    },
+    "Stated_int64": {
+      "description": "A value as stored, with the level that states it.",
+      "properties": {
+        "layer": {
+          "$ref": "#/$defs/FactLayer",
+          "description": "The first level of sub contract, contract, handler and template that states the value."
+        },
+        "value": {
+          "description": "The value.",
+          "format": "int64",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "layer",
+        "value"
       ],
       "type": "object"
     },

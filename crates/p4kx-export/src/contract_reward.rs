@@ -8,7 +8,7 @@ use serde::Serialize;
 use crate::blueprint::as_struct;
 use crate::contract::every_field_required;
 use crate::mission_layers::{items, one};
-use crate::missions::succeeds;
+use crate::mission_results::succeeds;
 use crate::record_fields::{boolean, integer, text};
 
 const REWARD_RESULT: &str = "ContractResult_Reward";

@@ -99,6 +99,7 @@ mod contract_quantization;
 mod contract_recipe;
 mod contract_recovery;
 mod contract_reputation;
+mod contract_reward;
 mod contract_rewards;
 mod contract_shops;
 mod contract_starmap;

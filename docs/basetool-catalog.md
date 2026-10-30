@@ -50,7 +50,8 @@ The rule is ADR-0054 (amending ADR-0002):
   (#832, ADR-0244), the kind `crafters` (#831, ADR-0243) and the contract fields `timeToComplete`,
   `buyInAmount`, `canBeShared`, `illegal`, `onceOnly`, `maxPlayersPerInstance`, `availableInPrison`,
   `canReacceptAfterAbandoning`, `canReacceptAfterFailing`, `hideInMobiGlas` and `requiredIntros`
-  (#898, ADR-0263). Later additions keep version 2 as long as they are additive.
+  (#898, ADR-0263). Later additions keep version 2 as long as they are additive. The contract
+  field `fixedRewards` (#888, ADR-0268) is one.
 - **A production import takes catalogs of the Channel `LIVE` only.** `PTU`, `EPTU`, `TECH-PREVIEW`
   and `HOTFIX` are confidential test Channels (ADR-0038).
 
@@ -68,6 +69,7 @@ identifiers, short names or fact values. The catalog keeps the `description` fie
 Basetool's logged-in members; the Basetool keeps them, `displayType` and the contract texts away
 from third parties. Every such field carries
 `"x-gameText": true` in the JSON Schema, and no other field does; a test checks this.
+Every game text is trimmed of leading and trailing white space; see Texts.
 
 ```powershell
 p4kx catalog <archive> --out basetool-catalog.json [--filter <filter>] [--exported-at <seconds>]
@@ -1079,6 +1081,7 @@ that the rule on equal `guid` and `subContractGuid` above drops.
 | `timeToComplete`, `buyInAmount` | The `timeToComplete` (floating point) and the `contractBuyInAmount` of the contract's `contractResults`, as stored; a sub contract shares the contract's. The Archive states no unit |
 | `canBeShared`, `illegal`, `onceOnly`, `maxPlayersPerInstance`, `availableInPrison`, `canReacceptAfterAbandoning`, `canReacceptAfterFailing`, `hideInMobiGlas` | Each `{value, layer}` with `layer` `subContract`, `contract`, `handler` or `template` (see "Contract facts"), `null` when no level states it |
 | `requiredIntros` | The completion tags the contract requires with the intro contracts that grant each (see "Contract facts") |
+| `fixedRewards` | The payouts the contract states itself on success (`ContractResult_Reward`), each `currency` (`currencyType`, e.g. `UEC`), `amount` (`reward`), `max` and `plusBonuses` as stored; empty for a contract that pays through a calculated reward (see "Reward") |
 
 **Layers.** Sub contract, contract and handler each override the template: the first of them that
 states a value wins, the template last. A level states its overrides in `paramOverrides` (sub
@@ -1174,8 +1177,13 @@ elsewhere in the Archive:
   location, 85 only a `ContractPrerequisite_LocationProperty` (a variable the game fills in) and
   6 a locality that lists no object of the starmap.
 
-Not exported: a computed reward (`ContractResult_CalculatedReward` holds no value, ADR-0065) and
-descriptions.
+**Reward (ADR-0268).** `fixedRewards` lists the `ContractResult_Reward` results (a
+`MissionReward`) that fire on success. Most contracts pay through `ContractResult_CalculatedReward`,
+which holds only `missionResults`: no amount, no reference, no rule. The game computes that
+payout outside the data, so the catalog does not state it and `fixedRewards` is empty for such a
+contract.
+
+Not exported: a computed reward (see above) and descriptions.
 
 **Standing (ADR-0237).** `minStandingGuid` and `maxStandingGuid` are the `minStanding` and
 `maxStanding` References of the contract, entries of `reputationStandings`; a sub contract has none
@@ -1977,6 +1985,13 @@ The placeholder keys `@LOC_EMPTY`, `@LOC_PLACEHOLDER`, `@LOC_UNINITIALIZED` and 
 `PLACEHOLDER_KEYS` in `crates/p4kx-localization/src/lookup.rs`) mean "no text": the key stays,
 `en` and `de` are `null` even where the `global.ini` holds a text for them such as
 `<= PLACEHOLDER =>`, and they count as placeholders, neither resolved nor unresolved.
+
+Leading and trailing white space, line breaks included, is removed from every text, after the
+`\n` escapes are decoded (`display_text` in `crates/p4kx-localization/src/lookup.rs`), so
+`Antium Arms Moss Camo ` becomes `Antium Arms Moss Camo`. A text that is white space only counts as
+unresolved. White space inside a text stays. The trim is the catalog's and the window's alone: Record
+XML and JSON, `p4kx loc` and `dcb export --lang` keep the text byte for byte as the `global.ini`
+stores it. It does not change the catalog's determinism: the same Archive gives the same bytes.
 
 `p4kx catalog` counts the resolved, unresolved and placeholder texts per language in its summary.
 

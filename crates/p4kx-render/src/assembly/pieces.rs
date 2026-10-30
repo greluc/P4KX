@@ -1,11 +1,15 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use p4kx_assembly::{Assembly, INTERIOR_NODE};
+use std::borrow::Cow;
+
+use p4kx_assembly::{Assembly, EntityInterior, INTERIOR_NODE};
 use p4kx_extraction::model::{MaterialStatus, Model, TintPalette};
 
 use crate::scene::Rows;
 
+#[cfg(test)]
+mod attached_tests;
 #[cfg(test)]
 mod tests;
 
@@ -13,7 +17,7 @@ mod tests;
 /// transform of its container and the hull applied.
 pub(super) struct Piece<'a> {
     pub(super) name: String,
-    pub(super) path: &'a str,
+    pub(super) path: Cow<'a, str>,
     pub(super) parent: Option<usize>,
     pub(super) model: Option<&'a Model>,
     pub(super) world: Rows,
@@ -22,15 +26,16 @@ pub(super) struct Piece<'a> {
     pub(super) interior: bool,
 }
 
-/// Lists the pieces of `assembly`: its parts, then the parts of the containers of its Interior,
-/// each container's root below the part of the Entity that names it.
+/// Lists the pieces of `assembly`: its parts, then the bone attachments of the parts, each below
+/// its part, then the parts of the containers of its Interior, each container's root below the
+/// part of the Entity that names it.
 pub(super) fn pieces_of(assembly: &Assembly) -> Vec<Piece<'_>> {
     let mut pieces: Vec<Piece<'_>> = assembly
         .parts()
         .iter()
         .map(|part| Piece {
             name: part.name().to_owned(),
-            path: part.path(),
+            path: Cow::Borrowed(part.path()),
             parent: part.parent(),
             model: part.model(),
             world: part.world().rows,
@@ -39,9 +44,36 @@ pub(super) fn pieces_of(assembly: &Assembly) -> Vec<Piece<'_>> {
             interior: false,
         })
         .collect();
-    let Some(interior) = assembly.interior() else {
-        return pieces;
-    };
+    for (index, attached) in assembly.attached_models() {
+        let Some(part) = assembly.parts().get(index) else {
+            continue;
+        };
+        let path = match part.path() {
+            "" => attached.name().to_owned(),
+            folder => format!("{folder}/{}", attached.name()),
+        };
+        pieces.push(Piece {
+            name: format!("{}/{}", part.name(), attached.name()),
+            path: Cow::Owned(path),
+            parent: Some(index),
+            model: Some(attached.model()),
+            world: part.world().then(attached.local()).rows,
+            materials: attached.materials(),
+            palette: part.palette(),
+            interior: false,
+        });
+    }
+    if let Some(interior) = assembly.interior() {
+        push_containers(&mut pieces, assembly, interior);
+    }
+    pieces
+}
+
+fn push_containers<'a>(
+    pieces: &mut Vec<Piece<'a>>,
+    assembly: &'a Assembly,
+    interior: &'a EntityInterior,
+) {
     for container in interior.containers() {
         let base = pieces.len();
         let owner = assembly.parts().get(container.part());
@@ -57,7 +89,7 @@ pub(super) fn pieces_of(assembly: &Assembly) -> Vec<Piece<'_>> {
         for part in container.interior().parts() {
             pieces.push(Piece {
                 name: format!("{prefix}/{}", part.name()),
-                path: "",
+                path: Cow::Borrowed(""),
                 parent: part
                     .parent()
                     .map_or(owner_index, |parent| Some(base + parent)),
@@ -69,5 +101,4 @@ pub(super) fn pieces_of(assembly: &Assembly) -> Vec<Piece<'_>> {
             });
         }
     }
-    pieces
 }

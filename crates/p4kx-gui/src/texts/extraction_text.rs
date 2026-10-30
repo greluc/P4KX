@@ -20,6 +20,20 @@ pub enum ExtractionText {
     ScopeShown,
     /// Every Entry; takes `number`.
     ScopeAll,
+    /// The heading of the exclusion field.
+    ExcludeHeading,
+    /// The hint of the empty exclusion field.
+    ExcludeHint,
+    /// A Filter of the exclusion is too long; takes `max`.
+    ExcludeTooLong,
+    /// A Filter of the exclusion has too many wildcards; takes `max`.
+    ExcludeTooManyWildcards,
+    /// The exclusion has too many Filters; takes `max`.
+    ExcludeTooMany,
+    /// A Filter of the exclusion is empty.
+    ExcludeEmpty,
+    /// The exclusion leaves no Entry to extract.
+    ExcludeNothingLeft,
     /// The heading of the target choice.
     TargetHeading,
     /// A new folder inside the chosen folder.
@@ -96,6 +110,9 @@ pub enum ExtractionText {
     /// The counts of the summary with Conversion on; takes `extracted`, `converted`, `skipped`,
     /// `failed` and `cancelled`.
     SummaryCountsConverted,
+    /// The note that the exclusion left out parts of textures that stay, which the Conversion read
+    /// all the same; takes `count` and `number`.
+    SummaryExcludedParts,
     /// The counts of the Records written for the DataForge Entry; takes `written`, `skipped`,
     /// `failed`, `cancelled`, `errors` and `erroneous`.
     SummaryRecords,
@@ -125,7 +142,7 @@ pub enum ExtractionText {
 
 impl ExtractionText {
     /// Every text, for checks of the Fluent files.
-    pub const ALL: [Self; 57] = [
+    pub const ALL: [Self; 65] = [
         Self::ActionSelected,
         Self::ActionShown,
         Self::ActionAll,
@@ -134,6 +151,13 @@ impl ExtractionText {
         Self::ScopeSelected,
         Self::ScopeShown,
         Self::ScopeAll,
+        Self::ExcludeHeading,
+        Self::ExcludeHint,
+        Self::ExcludeTooLong,
+        Self::ExcludeTooManyWildcards,
+        Self::ExcludeTooMany,
+        Self::ExcludeEmpty,
+        Self::ExcludeNothingLeft,
         Self::TargetHeading,
         Self::TargetNew,
         Self::TargetExisting,
@@ -171,6 +195,7 @@ impl ExtractionText {
         Self::SummaryChanged,
         Self::SummaryCounts,
         Self::SummaryCountsConverted,
+        Self::SummaryExcludedParts,
         Self::SummaryRecords,
         Self::SummaryTarget,
         Self::SummaryFailed,
@@ -187,6 +212,7 @@ impl ExtractionText {
 
     /// Returns the Fluent message id.
     #[must_use]
+    #[expect(clippy::too_many_lines, reason = "one arm per text")]
     pub const fn id(self) -> &'static str {
         match self {
             Self::ActionSelected => "extract-selected",
@@ -197,6 +223,13 @@ impl ExtractionText {
             Self::ScopeSelected => "extraction-scope-selected",
             Self::ScopeShown => "extraction-scope-shown",
             Self::ScopeAll => "extraction-scope-all",
+            Self::ExcludeHeading => "extraction-exclude-heading",
+            Self::ExcludeHint => "extraction-exclude-hint",
+            Self::ExcludeTooLong => "extraction-exclude-too-long",
+            Self::ExcludeTooManyWildcards => "extraction-exclude-too-many-wildcards",
+            Self::ExcludeTooMany => "extraction-exclude-too-many",
+            Self::ExcludeEmpty => "extraction-exclude-empty",
+            Self::ExcludeNothingLeft => "extraction-exclude-nothing-left",
             Self::TargetHeading => "extraction-target-heading",
             Self::TargetNew => "extraction-target-new",
             Self::TargetExisting => "extraction-target-existing",
@@ -234,6 +267,7 @@ impl ExtractionText {
             Self::SummaryChanged => "extraction-summary-changed",
             Self::SummaryCounts => "extraction-summary-counts",
             Self::SummaryCountsConverted => "extraction-summary-counts-converted",
+            Self::SummaryExcludedParts => "extraction-summary-excluded-parts",
             Self::SummaryRecords => "extraction-summary-records",
             Self::SummaryTarget => "extraction-summary-target",
             Self::SummaryFailed => "extraction-summary-failed",

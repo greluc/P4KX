@@ -54,6 +54,7 @@ mod entity_status;
 mod entity_view;
 mod entry_status;
 mod extraction;
+mod extraction_exclude;
 mod extraction_outcome;
 mod field_rows;
 mod game_running;

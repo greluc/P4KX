@@ -73,6 +73,8 @@ mod extraction;
 mod extraction_audio;
 mod extraction_confirmation;
 mod extraction_conversion;
+mod extraction_exclude;
+mod extraction_exclude_render;
 mod extraction_run;
 mod extraction_summary_scrolling;
 mod extraction_textures;

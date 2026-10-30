@@ -87,7 +87,7 @@ fn results<'t, 'f>(contract: &'t StructValue<'f>) -> impl Iterator<Item = &'t St
         .filter_map(as_struct)
 }
 
-fn succeeds(result: &StructValue<'_>) -> bool {
+pub(crate) fn succeeds(result: &StructValue<'_>) -> bool {
     match items(Some(result), "missionResults").first() {
         Some(Value::Bool(set)) => *set,
         Some(Value::Struct(flag)) => boolean(Some(flag), "value").unwrap_or(false),

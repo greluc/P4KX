@@ -9,6 +9,7 @@ use rayon::prelude::*;
 use crate::blueprint::as_struct;
 use crate::contract_facts::ContractFacts;
 use crate::contract_missions::{ContractEntry, ContractFaction, PickupPlace, ReputationGain};
+use crate::contract_reward::{FixedReward, fixed_rewards};
 use crate::contract_starmap::StarmapObject;
 use crate::guid_text::CatalogGuid;
 use crate::mission_cooldown::Cooldown;
@@ -223,6 +224,7 @@ impl<'f> Parent<'_, 'f> {
             standing: Standing::read(self.handler, self.contract),
             cooldown: Cooldown::read(self.handler),
             facts: SharedFacts::read(self.handler, self.contract),
+            fixed_rewards: fixed_rewards(self.contract),
         };
         let make = |sub: Option<&StructValue<'f>>| {
             let sub_layer =
@@ -352,6 +354,7 @@ impl<'f> Parent<'_, 'f> {
             abandoned_cooldown_time: shared.cooldown.abandoned_time,
             abandoned_cooldown_time_variation: shared.cooldown.abandoned_time_variation,
             facts,
+            fixed_rewards: shared.fixed_rewards.clone(),
         }
     }
 
@@ -372,6 +375,7 @@ struct Shared<'f> {
     standing: Standing,
     cooldown: Cooldown,
     facts: SharedFacts,
+    fixed_rewards: Vec<FixedReward<'f>>,
 }
 
 fn identity(structure: &StructValue<'_>) -> Option<p4kx_extraction::Guid> {

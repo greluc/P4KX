@@ -8,6 +8,7 @@ use std::error::Error;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use egui_kittest::Harness;
 use p4kx_gui::{ExtractionScope, ExtractionStatus, ExtractionSummary, Language, Model, TargetKind};
 use p4kx_testkit::{ArchiveBuilder, TestEntry, write_build_manifest};
 use tempfile::TempDir;
@@ -42,6 +43,27 @@ fn opened(archive: &Path) -> Result<Model, Box<dyn Error>> {
         |model| format!("failure {:?}", model.failure()),
     )?;
     Ok(model)
+}
+
+/// Runs the window until a modal that sizes itself from its content has taken its place.
+pub(crate) fn settle(harness: &mut Harness<'_, Model>) {
+    harness.run_steps(8);
+}
+
+/// Opens an Archive of `entries` and creates an empty folder `out` next to it.
+pub(crate) fn setup_with(
+    entries: Vec<TestEntry>,
+) -> Result<(TempDir, Model, PathBuf), Box<dyn Error>> {
+    let dir = tempfile::tempdir()?;
+    let path = dir.path().join("Data.p4k");
+    entries
+        .into_iter()
+        .fold(ArchiveBuilder::new(), ArchiveBuilder::entry)
+        .write_to(&path)?;
+    let model = opened(&path)?;
+    let out = dir.path().join("out");
+    fs::create_dir(&out)?;
+    Ok((dir, model, out))
 }
 
 /// Opens the Archive of four Entries in a window and creates an empty folder `out` next to it.

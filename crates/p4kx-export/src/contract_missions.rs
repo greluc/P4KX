@@ -6,6 +6,7 @@ use serde::Serialize;
 
 use crate::contract::{LocalisedText, every_field_required};
 use crate::contract_facts::ContractFacts;
+use crate::contract_reward::FixedReward;
 use crate::guid_text::CatalogGuid;
 use crate::mission_cooldown::CooldownLayer;
 
@@ -100,6 +101,10 @@ pub(crate) struct ContractEntry<'a> {
     /// The time to complete, buy-in, sharing, legality and availability facts of the contract.
     #[serde(flatten)]
     pub(crate) facts: ContractFacts,
+    /// The payouts the contract states itself (`ContractResult_Reward`) for success, as stored;
+    /// empty for the contracts that pay through a calculated reward, whose amount the Archive
+    /// does not state.
+    pub(crate) fixed_rewards: Vec<FixedReward<'a>>,
 }
 
 /// The level at which a prerequisite is stated.

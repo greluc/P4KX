@@ -54,7 +54,8 @@ pub(super) fn contracts() -> serde_json::Value {
         "personalCooldownTime": 2880.0,
         "personalCooldownTimeVariation": 60.0,
         "abandonedCooldownTime": 30.0,
-        "abandonedCooldownTimeVariation": null
+        "abandonedCooldownTimeVariation": null,
+        "fixedRewards": [{"currency": "UEC", "amount": 40000, "max": 0, "plusBonuses": false}]
     });
     if let (Some(entry), Some(facts)) = (entry.as_object_mut(), facts().as_object()) {
         entry.extend(facts.clone());

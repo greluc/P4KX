@@ -1064,6 +1064,7 @@ that the rule on equal `guid` and `subContractGuid` above drops.
 | `templateGuid` | The `ContractTemplate` Record the contract names |
 | `notForRelease`, `workInProgress` | The flags as stored, `null` when absent; the catalog does not filter on them |
 | `title` | The resolved title (game text) |
+| `description` | The resolved description (game text; must not be passed on to third parties) |
 | `missionTypeGuid`, `missionType` | The `MissionType` Record and its localised name (game text) |
 | `contractor` | The `Contractor` string parameter (game text) |
 | `pickupPlaces` | Up to five starmap objects the contract is offered at, each `starmapObjectGuid`, `objectType`, `place` (game text) |
@@ -1110,6 +1111,12 @@ A replacement that itself holds a `~mission(…)` is expanded up to three levels
 and past 64 replacements or about 4 KiB in one title, a token becomes `[TOKEN]`. Leading and
 trailing blanks are removed from the result; the `key` is that of the title text. The tokens are free text of the game, not facts of the Archive;
 the placeholders are the catalog's own convention.
+
+**Description (ADR-0264).** The `Description` string parameter of the first layer (sub contract,
+contract, handler), else the `description` of the broker entry; the template states none, its
+`displayString` slots carry no label. `~mission(…)` tokens, limits and trimming are those of the
+title. It is a game text (`x-gameText`) like the title, and like every game text it must not be
+passed on to third parties: the Basetool keeps it for its logged-in members.
 
 **Broker entry.** A contract that names a `missionBrokerEntry` and has no template (on LIVE the 419
 `Covalex_HaulCargo_Career` contracts and their two sub contracts) takes what the layers and the
@@ -1177,7 +1184,7 @@ which holds only `missionResults`: no amount, no reference, no rule. The game co
 payout outside the data, so the catalog does not state it and `fixedRewards` is empty for such a
 contract.
 
-Not exported: a computed reward (see above) and descriptions.
+Not exported: a computed reward (see above).
 
 **Standing (ADR-0237).** `minStandingGuid` and `maxStandingGuid` are the `minStanding` and
 `maxStanding` References of the contract, entries of `reputationStandings`; a sub contract has none

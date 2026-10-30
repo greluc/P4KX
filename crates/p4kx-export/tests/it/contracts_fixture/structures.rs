@@ -198,6 +198,7 @@ fn record_structs() -> Vec<TestStruct> {
         TestStruct::new("FactionReputation").field("displayName", TestType::Locale),
         TestStruct::new("MissionBrokerEntry")
             .field("title", TestType::Locale)
+            .field("description", TestType::Locale)
             .field("type", TestType::Reference)
             .field("locationMissionAvailable", TestType::Reference),
         TestStruct::new("ReputationScope"),

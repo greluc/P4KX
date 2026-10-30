@@ -162,7 +162,7 @@ impl EntryWriter<'_> {
             return Ok(Converted::of(Outcome::Cancelled));
         }
         let disk_name = self.disk_name(entry);
-        let relative = relative_path(&disk_name).ok_or(ExtractionError::UnsafePath)?;
+        let relative = relative_path(&disk_name)?;
         let stem = sound_role(&disk_name)
             .and_then(|(_, stem)| stem.rsplit(['\\', '/']).next())
             .ok_or(ExtractionError::UnsafePath)?;

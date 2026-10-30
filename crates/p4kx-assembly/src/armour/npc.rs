@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 use super::{BodyVariant, Piece, Wearable};
+use crate::node_geometry::port_words;
 use crate::resolver::LoadoutResolver;
 use crate::{Attachment, EntityNode, PortNode};
 
@@ -56,16 +57,12 @@ fn folder_of(path: &str) -> Option<String> {
         .filter(|folder| !folder.is_empty())
 }
 
-fn flags_of(port: &PortNode) -> Vec<String> {
-    port.definition()
-        .map(|definition| {
-            definition
-                .flags()
-                .split_whitespace()
-                .map(str::to_owned)
-                .collect()
-        })
-        .unwrap_or_default()
+/// Returns the flags of `port` followed by the `shared` flags of its container.
+fn flags_of(port: &PortNode, shared: &[String]) -> Vec<String> {
+    let own = port.definition().map(crate::PortDefinition::flags);
+    port_words(own.unwrap_or_default(), shared)
+        .map(str::to_owned)
+        .collect()
 }
 
 impl LoadoutResolver<'_> {
@@ -154,12 +151,7 @@ impl LoadoutResolver<'_> {
         Some(
             Piece::wearable(wearable)
                 .named(port.name())
-                .selected_by(
-                    flags_of(port)
-                        .into_iter()
-                        .chain(shared.iter().cloned())
-                        .collect(),
-                )
+                .selected_by(flags_of(port, shared))
                 .with_material_tags(tags),
         )
     }

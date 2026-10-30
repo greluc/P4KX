@@ -11,6 +11,7 @@ use crate::cli::Conflict;
 use crate::dcb_export;
 use crate::failure_report::{FailureJson, MismatchJson, reason, write_mismatch};
 use crate::json;
+use crate::renamed_report::{RenamedJson, renamed_json, write_renamed};
 
 #[derive(Serialize)]
 pub(crate) struct ReportJson<'a> {
@@ -35,6 +36,8 @@ struct RecordsJson<'a> {
     exported: usize,
     skipped: &'a [String],
     failed: Vec<dcb_export::FailureJson<'a>>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    renamed: Vec<RenamedJson<'a>>,
     cancelled: usize,
     error_values: usize,
     records_with_errors: usize,
@@ -71,6 +74,7 @@ pub(crate) fn report_json<'a>(
                 .iter()
                 .map(dcb_export::failure_json)
                 .collect(),
+            renamed: records.renamed().iter().map(renamed_json).collect(),
             cancelled: records.cancelled(),
             error_values: records.error_values(),
             records_with_errors: records.records_with_errors(),
@@ -99,6 +103,9 @@ pub(crate) fn print_report(
         } else {
             writeln!(err, "failed {}: {}", failure.path(), reason(failure))?;
         }
+    }
+    if let Some(records) = report.records() {
+        write_renamed(&mut err, records.renamed())?;
     }
     for unconverted in report.unconverted() {
         writeln!(

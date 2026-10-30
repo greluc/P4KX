@@ -14,6 +14,7 @@ use p4kx_archive::{Archive, ArchiveError, Checksum, ChecksumHasher, Entry, Entry
 use crate::buffers::Buffers;
 use crate::convert::{PEEK_LEN, is_cryxml};
 use crate::entry_path::{escaped_raw_path, relative_path};
+use crate::portable_name::check_path_length;
 use crate::tracker::Tracker;
 use crate::{AudioConversion, ConflictPolicy, ExtractionError, TextureConversion};
 
@@ -49,6 +50,7 @@ impl Destination {
     /// already there.
     pub(crate) fn new(folder: PathBuf, name: &OsStr) -> Result<Self, ExtractionError> {
         let file = folder.join(name);
+        check_path_length(&file)?;
         let existing = match fs::symlink_metadata(&file) {
             Ok(metadata) => Some(metadata),
             Err(error) if error.kind() == io::ErrorKind::NotFound => None,
@@ -175,16 +177,18 @@ impl EntryWriter<'_> {
         )
     }
 
-    /// Returns the path below the target `entry` is written to, or `None` when it is unsafe.
-    pub(crate) fn relative_path(&self, entry: &Entry) -> Option<PathBuf> {
+    /// Returns the path below the target `entry` is written to, or why it is not written.
+    pub(crate) fn relative_path(&self, entry: &Entry) -> Result<PathBuf, ExtractionError> {
         relative_path(&self.disk_name(entry))
     }
 
-    /// Creates the folder of `entry` below the target and returns where its file goes.
+    /// Creates the folder of `entry` below the target and returns where its file goes; fails when
+    /// the path is no valid name, too long for Windows or Linux, or collides ignoring case with a
+    /// file an earlier Entry of the run wrote.
     pub(crate) fn destination(&self, entry: &Entry) -> Result<Destination, ExtractionError> {
-        let relative = self
-            .relative_path(entry)
-            .ok_or(ExtractionError::UnsafePath)?;
+        let relative = self.relative_path(entry)?;
+        check_path_length(&self.target.join(&relative))?;
+        self.case_collision(&relative, entry)?;
         let name = relative.file_name().ok_or(ExtractionError::UnsafePath)?;
         let folder = self
             .tracker

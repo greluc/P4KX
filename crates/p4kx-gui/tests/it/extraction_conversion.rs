@@ -194,7 +194,7 @@ fn the_switch_writes_the_dataforge_as_records_and_the_summary_counts_them() -> T
 }
 
 #[test]
-fn the_summary_lists_the_records_that_were_not_written_with_guid_and_reason() -> TestResult {
+fn a_record_path_that_leaves_the_target_is_written_escaped_inside_it() -> TestResult {
     let (_dir, out, mut harness) = opened_with(
         false,
         vec![TestEntry::stored("Data\\Game2.dcb", escaping_database())],
@@ -203,15 +203,15 @@ fn the_summary_lists_the_records_that_were_not_written_with_guid_and_reason() ->
     extract_shown(&mut harness, true)?;
 
     harness.get_by_label(
-        "Records written 1, skipped 0, failed 1, cancelled 0; 0 error values in 0 Records",
-    );
-    harness.get_by_label("Records not written (1)");
-    harness.get_by_label(
-        "../evil (00000000-0000-0000-0000-000000000002): the path would leave the target folder",
+        "Records written 2, skipped 0, failed 0, cancelled 0; 0 error values in 0 Records",
     );
     assert!(
         read(&out, "Data/records/fine.xml").is_ok(),
         "the other is written"
+    );
+    assert!(
+        read(&out, "Data/.%2E/evil.xml").is_ok(),
+        "the escaped path stays inside the target"
     );
     assert!(!out.join("evil.xml").exists(), "nothing leaves the target");
     Ok(())

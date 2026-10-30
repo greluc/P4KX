@@ -6,6 +6,7 @@ use std::sync::Arc;
 
 use crate::entities::describe;
 use crate::merge::{merge_by_port, port_key};
+use crate::node_body::is_head_type;
 use crate::port::PortDefinition;
 use crate::resolver::LoadoutResolver;
 use crate::spec::{EntitySpec, EntrySpec, LoadoutOrigin, LoadoutSpec, TargetSpec};
@@ -16,6 +17,16 @@ use crate::{
     Attachment, EntityNode, LoadoutError, PortConstraints, PortNode, PortSource, PortVisibility,
     Target, Unresolved, VehicleImplementation,
 };
+
+/// Returns the flags `spec`'s port container gives all its ports when they choose a sub-geometry:
+/// those of a head, which name the character the face parts belong to; none for any other Entity.
+fn shared_port_flags(spec: &EntitySpec) -> &[String] {
+    if is_head_type(&spec.attach_type) {
+        &spec.port_flags
+    } else {
+        &[]
+    }
+}
 
 /// One port of an Entity before it is resolved.
 struct Pending<'s> {
@@ -45,6 +56,7 @@ impl LoadoutResolver<'_> {
         let vehicle = self.vehicle_with_issues(spec, &mut issues);
         let landing_gear = self.landing_gear_of(spec, &mut issues);
         let entries = self.merged_entries(spec, overrides, &mut issues);
+        let shared = shared_port_flags(spec);
         for pending in pending_ports(spec, &entries, vehicle.as_deref()) {
             if walk.cancellable && self.stopped() {
                 break;
@@ -54,7 +66,7 @@ impl LoadoutResolver<'_> {
                 break;
             }
             walk.enter(pending.name);
-            let mut port = self.port_node(pending, walk, &mut issues, vehicle.as_deref());
+            let mut port = self.port_node(pending, walk, &mut issues, vehicle.as_deref(), shared);
             walk.leave();
             port.visibility = visibility_of(&port, vehicle.as_deref());
             ports.push(port);
@@ -93,6 +105,7 @@ impl LoadoutResolver<'_> {
         walk: &mut Walk,
         issues: &mut Vec<LoadoutError>,
         vehicle: Option<&VehicleImplementation>,
+        shared: &[String],
     ) -> PortNode {
         let constraints = pending
             .definition
@@ -120,7 +133,7 @@ impl LoadoutResolver<'_> {
                 node.nested = self.nested_ports(pending.loadout, walk, issues);
             }
         }
-        self.choose_sub_geometry(&mut node, vehicle);
+        self.choose_sub_geometry(&mut node, vehicle, shared);
         node
     }
 

@@ -82,7 +82,7 @@ impl Assembly {
         let mut palettes = Palettes::new(palettes);
         let cut = BodyCut::of(tree, &drafts, &chosen, &mut issues);
         let mut parts: Vec<Part> = Vec::with_capacity(drafts.len());
-        for (draft, model) in drafts.iter().zip(&chosen) {
+        for (index, (draft, model)) in drafts.iter().zip(&chosen).enumerate() {
             let materials = materials_of(
                 draft,
                 *model,
@@ -112,7 +112,7 @@ impl Assembly {
                 model: model.map(|loaded| {
                     cut.as_ref().map_or_else(
                         || Arc::clone(&loaded.model),
-                        |cut| cut.model_of(draft, loaded, &mut issues),
+                        |cut| cut.model_of(index, draft, loaded, &mut issues),
                     )
                 }),
                 materials,

@@ -231,3 +231,56 @@ fn a_cut_that_finds_no_body_part_is_reported() -> TestResult {
     )));
     Ok(())
 }
+
+fn unknown_reasons(assembly: &Assembly) -> Vec<&str> {
+    assembly
+        .issues()
+        .iter()
+        .filter_map(|issue| match issue.kind() {
+            IssueKind::BodyZonesUnknown(reason) => Some(reason.as_str()),
+            _ => None,
+        })
+        .collect()
+}
+
+#[test]
+fn a_body_skin_of_another_variant_is_kept_whole_and_reported() -> TestResult {
+    let chunks = [TestZoneChunk::new("torso01_zone", 1)];
+    let options = NpcZoneOptions {
+        body_skin: Some("Objects/Characters/Human/other_v1/body/m_body.skin"),
+        ..NpcZoneOptions::default()
+    };
+
+    let assembly = wear_on(&BodyVariant::ALL.map(places), &chunks, options)?;
+
+    assert_eq!(
+        drawn_nodes(&assembly)?.len(),
+        BodyVariant::Male.zone_names().len()
+    );
+    assert_eq!(hidden_zones(&assembly), Vec::<Vec<String>>::new());
+    let reasons = unknown_reasons(&assembly);
+    assert_eq!(reasons.len(), 1);
+    assert!(reasons[0].contains("variant"), "{reasons:?}");
+    Ok(())
+}
+
+#[test]
+fn several_body_parts_are_not_cut_and_reported() -> TestResult {
+    let chunks = [TestZoneChunk::new("torso01_zone", 1)];
+    let options = NpcZoneOptions {
+        second_body: true,
+        ..NpcZoneOptions::default()
+    };
+
+    let assembly = wear_on(&BodyVariant::ALL.map(places), &chunks, options)?;
+
+    assert_eq!(
+        drawn_nodes(&assembly)?.len(),
+        BodyVariant::Male.zone_names().len()
+    );
+    assert_eq!(hidden_zones(&assembly), Vec::<Vec<String>>::new());
+    let reasons = unknown_reasons(&assembly);
+    assert_eq!(reasons.len(), 1);
+    assert!(reasons[0].contains("several"), "{reasons:?}");
+    Ok(())
+}

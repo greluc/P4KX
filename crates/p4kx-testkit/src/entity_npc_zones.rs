@@ -25,6 +25,8 @@ pub struct NpcZoneOptions {
     pub body_skin: Option<&'static str>,
     /// Gives the body Entity another attach type than `Char_Body`.
     pub body_type: Option<&'static str>,
+    /// Adds a second `Char_Body` Entity with the default skin on `Spare_ItemPort`.
+    pub second_body: bool,
 }
 
 /// Returns the Entries of [`zone_entries`] with a character whose body Entity names the zoned
@@ -68,13 +70,26 @@ pub fn npc_zone_entries(
             TestLoadoutEntry::class("Head_ItemPort", "TEST_ZoneNpcHead"),
         );
     }
-    let npc = TestEntity::new(0x33, NPC_ZONE_CLASS, "entities/scitem/test_zone_npc.xml").loadout(
-        TestLoadout::Manual(vec![
-            TestLoadoutEntry::class("Body_ItemPort", "TEST_ZoneNpcBody")
-                .loadout(TestLoadout::Manual(worn)),
-        ]),
-    );
-    let npc = [head, body, npc];
+    let spare = TestEntity::new(
+        0x34,
+        "TEST_ZoneNpcSpareBody",
+        "entities/scitem/test_zone_spare_body.xml",
+    )
+    .attach_type("Char_Body")
+    .geometry(default_skin, None::<&str>);
+    let mut ports = vec![
+        TestLoadoutEntry::class("Body_ItemPort", "TEST_ZoneNpcBody")
+            .loadout(TestLoadout::Manual(worn)),
+    ];
+    if options.second_body {
+        ports.push(TestLoadoutEntry::class(
+            "Spare_ItemPort",
+            "TEST_ZoneNpcSpareBody",
+        ));
+    }
+    let npc = TestEntity::new(0x33, NPC_ZONE_CLASS, "entities/scitem/test_zone_npc.xml")
+        .loadout(TestLoadout::Manual(ports));
+    let npc = [head, body, spare, npc];
     let mut entries = zone_entries_with(bodies, &shirt, &npc);
     if let Some(skin) = options.body_skin {
         entries.extend(copies_of(&entries, default_skin, skin));

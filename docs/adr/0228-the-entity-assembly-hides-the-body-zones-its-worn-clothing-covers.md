@@ -16,12 +16,14 @@ the same rule (ADR-0140: covered zones, the zone table, the fit check, the cut).
 - A zone is covered when an Entity of the tree whose model was read, clothing or not, has an
   unconditional chunk for it on a layer above 0 that lets no body through. Hidden parts and parts
   without a model cover nothing.
-- The part whose attach type is `Char_Body` gets the cut copy of its model, whatever skin file it
-  names; every other part keeps its model. The fit check against the zone table guards a skin
+- Exactly one part is cut: the part with a model whose attach type is `Char_Body` and whose skin
+  lies in the folder of the variant's default body skin (`BodyVariant::skin`), whatever its file
+  name; every other part keeps its model. The fit check against the zone table guards a skin
   that is not a human body.
 - The zones are reported as `body_zones_hidden`. A body that does not fit the zone table is kept
   whole and reported as `body_zones_unknown`, as for the armour; so is a tree whose Entities cover
-  zones but that has no `Char_Body` part with a model.
+  zones but that has no `Char_Body` part with a model, one with several, or one whose skin is
+  not in the folder of the variant's body skin.
 
 `EntityNode` keeps the chunks of its Record so that the Assembly needs no second read of the
 Records.

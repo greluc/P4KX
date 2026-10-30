@@ -40,8 +40,9 @@ pub use hirc::{HircKind, HircObject, HircValue, MediaStorage, SoundSource};
 pub use hirc_action::{ActionTarget, PlayBank};
 pub use hirc_layout::HircLayout;
 pub use hirc_music::{
-    MusicClip, MusicMarker, MusicMeter, MusicNode, MusicPlaylist, MusicPlaylistItem, MusicSegment,
-    MusicStinger, MusicSwitch, MusicTrack, MusicTrackKind, MusicTrackSwitch,
+    MusicClip, MusicGroupKind, MusicMarker, MusicMeter, MusicNode, MusicPlayMode, MusicPlaylist,
+    MusicPlaylistItem, MusicSegment, MusicStinger, MusicSwitch, MusicTrack, MusicTrackKind,
+    MusicTrackSwitch,
 };
 pub use hirc_node::{Container, ContainerKind};
 pub use loops::Loop;

@@ -5,13 +5,13 @@ expression: "serde_json::to_string_pretty(&report)?"
 {
   "bank_id": 3512036681,
   "layouts": {
-    "decoded": 8,
+    "decoded": 9,
     "malformed": 1,
     "undecoded": 1,
     "unsupported": 0
   },
   "limit": 100,
-  "matched": 10,
+  "matched": 11,
   "next_offset": null,
   "objects": [
     {
@@ -31,7 +31,7 @@ expression: "serde_json::to_string_pretty(&report)?"
           {
             "id": 257,
             "name": "Exit",
-            "position_ms": 1.5
+            "position_ms": 251.5
           }
         ],
         "stingers": [
@@ -91,7 +91,7 @@ expression: "serde_json::to_string_pretty(&report)?"
         "items": [
           {
             "avoid_repeat_count": 1,
-            "children": 2,
+            "children": 3,
             "depth": 0,
             "item_id": 1,
             "loop_max": 5,
@@ -110,8 +110,8 @@ expression: "serde_json::to_string_pretty(&report)?"
             "item_id": 2,
             "loop_max": 5,
             "loop_min": 2,
-            "loops": -1,
-            "play_mode": 1,
+            "loops": 0,
+            "play_mode": 0,
             "segment_id": 10,
             "shuffle": false,
             "uses_weight": true,
@@ -124,8 +124,22 @@ expression: "serde_json::to_string_pretty(&report)?"
             "item_id": 3,
             "loop_max": 5,
             "loop_min": 2,
+            "loops": 3,
+            "play_mode": 2,
+            "segment_id": 10,
+            "shuffle": false,
+            "uses_weight": true,
+            "weight": 50000
+          },
+          {
+            "avoid_repeat_count": 1,
+            "children": 0,
+            "depth": 1,
+            "item_id": 4,
+            "loop_max": 5,
+            "loop_min": 2,
             "loops": -1,
-            "play_mode": 1,
+            "play_mode": 3,
             "segment_id": 10,
             "shuffle": false,
             "uses_weight": true,
@@ -196,6 +210,38 @@ expression: "serde_json::to_string_pretty(&report)?"
     },
     {
       "children": [
+        103
+      ],
+      "detail": {
+        "clips": [
+          {
+            "begin_trim_ms": 0.5,
+            "end_trim_ms": 0.25,
+            "event_id": 0,
+            "play_at_ms": 0.0,
+            "source_duration_ms": 12.0,
+            "source_id": 103
+          }
+        ],
+        "switch": {
+          "default_switch": 0,
+          "group_id": 153,
+          "group_type": 1,
+          "switches": [
+            7
+          ]
+        },
+        "track_kind": "switch"
+      },
+      "error": null,
+      "id": 20,
+      "index": 5,
+      "parent": 740367150,
+      "status": "decoded",
+      "type": "music-track"
+    },
+    {
+      "children": [
         15
       ],
       "detail": {
@@ -203,7 +249,7 @@ expression: "serde_json::to_string_pretty(&report)?"
       },
       "error": null,
       "id": 14,
-      "index": 5,
+      "index": 6,
       "parent": 740367150,
       "status": "decoded",
       "type": "switch-container"
@@ -220,7 +266,7 @@ expression: "serde_json::to_string_pretty(&report)?"
       },
       "error": null,
       "id": 15,
-      "index": 6,
+      "index": 7,
       "parent": 740367150,
       "status": "decoded",
       "type": "sound"
@@ -232,7 +278,7 @@ expression: "serde_json::to_string_pretty(&report)?"
       "detail": null,
       "error": null,
       "id": 19,
-      "index": 7,
+      "index": 8,
       "parent": null,
       "status": "decoded",
       "type": "event"
@@ -242,7 +288,7 @@ expression: "serde_json::to_string_pretty(&report)?"
       "detail": null,
       "error": null,
       "id": 16,
-      "index": 8,
+      "index": 9,
       "parent": null,
       "status": "undecoded",
       "type": "actor-mixer"
@@ -252,7 +298,7 @@ expression: "serde_json::to_string_pretty(&report)?"
       "detail": null,
       "error": "the soundbank section HIRC is truncated: 7 bytes, 8 needed",
       "id": 17,
-      "index": 9,
+      "index": 10,
       "parent": null,
       "status": "malformed",
       "type": "sound"
@@ -260,6 +306,6 @@ expression: "serde_json::to_string_pretty(&report)?"
   ],
   "offset": 0,
   "soundbank": "[FILE]",
-  "total": 10,
+  "total": 11,
   "version": 154
 }

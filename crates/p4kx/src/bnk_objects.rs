@@ -9,8 +9,8 @@ use p4kx_extraction::{Bank, HircKind, HircLayout, HircObject};
 use serde::Serialize;
 
 use crate::bnk::open;
-use crate::bnk_objects_json::ObjectJson;
 use crate::bnk_objects_text::write_object;
+use crate::bnk_objects_view::ObjectView;
 use crate::cli::BnkObjectsArgs;
 use crate::cli_bnk_objects::ObjectType;
 use crate::{exit, json};
@@ -26,7 +26,7 @@ struct ObjectsJson<'a> {
     offset: usize,
     limit: usize,
     next_offset: Option<usize>,
-    objects: Vec<ObjectJson<'a>>,
+    objects: Vec<ObjectView<'a>>,
 }
 
 /// How many objects of the whole bank the reader decodes, does not decode, does not support in
@@ -59,7 +59,7 @@ impl LayoutCounts {
 struct Page<'a> {
     matched: usize,
     offset: usize,
-    shown: Vec<ObjectJson<'a>>,
+    shown: Vec<ObjectView<'a>>,
 }
 
 impl Page<'_> {
@@ -118,7 +118,7 @@ fn select(
     });
     for (index, object) in chosen {
         if matched >= offset && shown.len() < limit {
-            shown.push(ObjectJson::new(index, object));
+            shown.push(ObjectView::new(index, object));
         }
         matched = matched.saturating_add(1);
     }

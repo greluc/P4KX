@@ -4,18 +4,22 @@
 use std::fmt::{self, Display};
 use std::io::{self, Write};
 
+use p4kx_extraction::HircLayout;
 use p4kx_extraction::text_line::one_line;
 
-use crate::bnk_objects_json::{
-    ClipJson, Detail, ItemJson, ObjectJson, SegmentDetail, SoundDetail, TrackDetail,
+use crate::bnk_objects_view::{
+    ClipView, Detail, ItemView, ObjectView, SegmentDetail, SoundDetail, TrackDetail,
 };
 
 const INDENT: &str = "    ";
-const DEFAULT_STATUS: &str = "decoded";
 const NO_PARENT: &str = "-";
 
+/// The deepest playlist nesting drawn as indentation; deeper items keep this indent and say how
+/// many levels further they sit, so a hostile bank cannot make the output quadratic.
+const MAX_DRAWN_DEPTH: usize = 8;
+
 /// Writes an object as a line of its own followed by indented lines for its error and details.
-pub(crate) fn write_object(out: &mut impl Write, object: &ObjectJson<'_>) -> io::Result<()> {
+pub(crate) fn write_object(out: &mut impl Write, object: &ObjectView<'_>) -> io::Result<()> {
     let parent = object
         .parent
         .map_or_else(|| NO_PARENT.to_owned(), |parent| parent.to_string());
@@ -30,8 +34,11 @@ pub(crate) fn write_object(out: &mut impl Write, object: &ObjectJson<'_>) -> io:
     if !object.children.is_empty() {
         write!(out, " [{}]", Ids(&object.children))?;
     }
-    if object.status != DEFAULT_STATUS {
-        write!(out, "  {}", object.status)?;
+    match object.layout {
+        HircLayout::Decoded => {}
+        HircLayout::Undecoded => write!(out, "  undecoded")?,
+        HircLayout::Unsupported => write!(out, "  unsupported")?,
+        HircLayout::Malformed => write!(out, "  malformed")?,
     }
     writeln!(out)?;
     if let Some(error) = &object.error {
@@ -118,14 +125,10 @@ fn segment_lines(out: &mut impl Write, segment: &SegmentDetail<'_>) -> io::Resul
 fn track_lines(out: &mut impl Write, track: &TrackDetail<'_>) -> io::Result<()> {
     writeln!(out, "{INDENT}{} track", track.track_kind)?;
     if let Some(switch) = &track.switch {
-        let group = if switch.group_type == 0 {
-            "switch"
-        } else {
-            "state"
-        };
         writeln!(
             out,
-            "{INDENT}follows {group} group {}, default {}, switches [{}]",
+            "{INDENT}follows {} {}, default {}, switches [{}]",
+            switch.group_kind,
             switch.group_id,
             switch.default_switch,
             Ids(switch.switches)
@@ -134,7 +137,7 @@ fn track_lines(out: &mut impl Write, track: &TrackDetail<'_>) -> io::Result<()> 
     track.clips.iter().try_for_each(|clip| clip_line(out, clip))
 }
 
-fn clip_line(out: &mut impl Write, clip: &ClipJson) -> io::Result<()> {
+fn clip_line(out: &mut impl Write, clip: &ClipView) -> io::Result<()> {
     write!(
         out,
         "{INDENT}clip source {} at {:.3} ms, trim {:.3}..{:.3} ms of {:.3} ms",
@@ -150,15 +153,22 @@ fn clip_line(out: &mut impl Write, clip: &ClipJson) -> io::Result<()> {
     writeln!(out)
 }
 
-fn item_line(out: &mut impl Write, item: &ItemJson) -> io::Result<()> {
-    let nested = INDENT.repeat(item.depth.saturating_add(1));
-    write!(out, "{INDENT}{nested}item {} ", item.item_id)?;
+fn item_line(out: &mut impl Write, item: &ItemView) -> io::Result<()> {
+    let drawn = item.depth.min(MAX_DRAWN_DEPTH);
+    write!(out, "{INDENT}")?;
+    for _ in 0..=drawn {
+        write!(out, "{INDENT}")?;
+    }
+    if item.depth > drawn {
+        write!(out, "+{} ", item.depth - drawn)?;
+    }
+    write!(out, "item {} ", item.item_id)?;
     if item.segment_id == 0 {
         write!(out, "group of {}", item.children)?;
     } else {
         write!(out, "segment {}", item.segment_id)?;
     }
-    write!(out, ", {}, {}", play_mode(item.play_mode), loops(item))?;
+    write!(out, ", {}, {}", item.mode, loops(item))?;
     if item.uses_weight {
         write!(out, ", weight {}", item.weight)?;
     }
@@ -171,17 +181,7 @@ fn item_line(out: &mut impl Write, item: &ItemJson) -> io::Result<()> {
     writeln!(out)
 }
 
-fn play_mode(mode: u32) -> String {
-    match mode {
-        0 => "random".to_owned(),
-        1 => "sequence continuous".to_owned(),
-        2 => "random step".to_owned(),
-        3 => "sequence step".to_owned(),
-        other => format!("play mode {other}"),
-    }
-}
-
-fn loops(item: &ItemJson) -> String {
+fn loops(item: &ItemView) -> String {
     let count = match item.loops {
         0 => "loops endless".to_owned(),
         count => format!("loops {count}"),

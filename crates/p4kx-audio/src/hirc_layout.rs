@@ -8,7 +8,8 @@ use crate::{BankError, HircKind, HircObject, HircValue, SoundSource};
 /// How far this reader decodes a `HIRC` object.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum HircLayout {
-    /// The body is decoded to the last byte.
+    /// The fields of the type were read; containers and music objects must also use the whole
+    /// body, a Sound, Action or Event is not checked for bytes after its fields.
     Decoded,
     /// The reader has no decoder for the type, so the body is kept raw.
     Undecoded,

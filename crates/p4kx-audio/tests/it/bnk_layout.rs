@@ -5,8 +5,11 @@
 
 use std::collections::HashSet;
 
-use p4kx_audio::{HircKind, HircLayout, HircObject, Soundbank};
-use p4kx_testkit::{TestBank, TestContainerKind, TestHircObject, TestNodeBase};
+use p4kx_audio::{
+    HircKind, HircLayout, HircObject, HircValue, MusicGroupKind, MusicPlayMode, MusicPlaylistItem,
+    Soundbank,
+};
+use p4kx_testkit::{TestBank, TestContainerKind, TestHircObject, TestNodeBase, TestPlaylistItem};
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 
@@ -86,13 +89,139 @@ fn playlist_items_report_their_nesting_depth() -> TestResult {
         .bytes();
     let bank = Soundbank::parse(bytes.as_slice())?;
 
-    let Some(p4kx_audio::HircValue::MusicPlaylist(playlist)) =
-        bank.object(6).map(|object| &object.value)
+    let Some(HircValue::MusicPlaylist(playlist)) = bank.object(6).map(|object| &object.value)
     else {
         return Err("a decoded playlist".into());
     };
 
     assert_eq!(playlist.item_depths().collect::<Vec<_>>(), [0, 1, 1, 2, 0]);
+    Ok(())
+}
+
+#[test]
+fn a_declared_child_count_beyond_the_items_does_not_grow_the_depth_stack() -> TestResult {
+    let bytes = TestBank::new(1)
+        .object(TestHircObject::music_playlist_tree(
+            6,
+            &[],
+            &[(0, u32::MAX), (0, u32::MAX), (4, 0)],
+        ))
+        .bytes();
+    let bank = Soundbank::parse(bytes.as_slice())?;
+
+    let Some(HircValue::MusicPlaylist(playlist)) = bank.object(6).map(|object| &object.value)
+    else {
+        return Err("a decoded playlist".into());
+    };
+
+    assert_eq!(playlist.item_depths().collect::<Vec<_>>(), [0, 1, 2]);
+    Ok(())
+}
+
+#[test]
+fn play_modes_and_group_kinds_are_named() -> TestResult {
+    let bytes = TestBank::new(1)
+        .object(TestHircObject::music_playlist_items(
+            6,
+            &[],
+            &[0, 1, 2, 3, 9].map(|mode| TestPlaylistItem::new(4, 0).play_mode(mode)),
+        ))
+        .object(TestHircObject::music_switch_track(7, &[1], 5, &[1]))
+        .object(TestHircObject::music_state_track(8, &[1], 5, &[1]))
+        .bytes();
+    let bank = Soundbank::parse(bytes.as_slice())?;
+
+    let Some(HircValue::MusicPlaylist(playlist)) = bank.object(6).map(|object| &object.value)
+    else {
+        return Err("a decoded playlist".into());
+    };
+    let modes: Vec<_> = playlist.items.iter().map(MusicPlaylistItem::mode).collect();
+    assert_eq!(
+        modes,
+        [
+            MusicPlayMode::Random,
+            MusicPlayMode::SequenceContinuous,
+            MusicPlayMode::RandomStep,
+            MusicPlayMode::SequenceStep,
+            MusicPlayMode::Other(9)
+        ]
+    );
+    let names: Vec<_> = modes.iter().map(ToString::to_string).collect();
+    assert_eq!(
+        names,
+        [
+            "random",
+            "sequence continuous",
+            "random step",
+            "sequence step",
+            "play mode 9"
+        ]
+    );
+    let kind = |id| -> Result<_, Box<dyn std::error::Error>> {
+        match bank.object(id).map(|object| &object.value) {
+            Some(HircValue::MusicTrack(track)) => {
+                Ok(track.switch.as_ref().ok_or("a switch track")?.group_kind())
+            }
+            other => Err(format!("{other:?}").into()),
+        }
+    };
+    assert_eq!(kind(7)?, MusicGroupKind::Switch);
+    assert_eq!(kind(8)?, MusicGroupKind::State);
+    assert_eq!(MusicGroupKind::Other(7).to_string(), "group type 7");
+    Ok(())
+}
+
+#[test]
+fn a_decoder_exists_for_exactly_the_kinds_the_reader_decodes() -> TestResult {
+    let decoded = [
+        TestHircObject::sound(1, 2, 0, 3),
+        TestHircObject::action(2, 0x0403, 1),
+        TestHircObject::event(3, &[2]),
+        TestHircObject::container(TestContainerKind::Random, 4, &[1], TestNodeBase::Plain),
+        TestHircObject::container(TestContainerKind::Switch, 5, &[1], TestNodeBase::Plain),
+        TestHircObject::container(TestContainerKind::Blend, 6, &[1], TestNodeBase::Plain),
+        TestHircObject::music_segment(7, &[8], &[]),
+        TestHircObject::music_track(8, &[1]),
+        TestHircObject::music_switch(9, &[7], 1, &[7]),
+        TestHircObject::music_playlist(10, &[7]),
+    ];
+    let undecoded: Vec<TestHircObject> = (1_u8..=22)
+        .filter(|byte| ![2, 3, 4, 5, 6, 9, 10, 11, 12, 13].contains(byte))
+        .zip(100_u32..)
+        .map(|(byte, id)| TestHircObject::raw(byte, id, [0; 8]))
+        .collect();
+    assert_eq!(undecoded.len(), 12, "the kinds without a decoder");
+    let bank = |version: u32| {
+        decoded
+            .iter()
+            .chain(&undecoded)
+            .cloned()
+            .fold(TestBank::new(1).version(version), TestBank::object)
+    };
+
+    let current = layouts(&bank(154))?;
+    let newer = layouts(&bank(160))?;
+
+    assert!(
+        current[..10]
+            .iter()
+            .all(|layout| *layout == HircLayout::Decoded)
+    );
+    assert!(
+        newer[..10]
+            .iter()
+            .all(|layout| *layout == HircLayout::Unsupported)
+    );
+    assert!(
+        current[10..]
+            .iter()
+            .all(|layout| *layout == HircLayout::Undecoded)
+    );
+    assert!(
+        newer[10..]
+            .iter()
+            .all(|layout| *layout == HircLayout::Undecoded)
+    );
     Ok(())
 }
 

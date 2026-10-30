@@ -90,11 +90,16 @@ impl ObjectType {
 
 const HEX_PREFIX: &str = "0x";
 
+/// Parses decimal digits or `0x` and hexadecimal digits, without a sign.
 fn parse_id(text: &str) -> Result<u32, String> {
-    let parsed = text
+    let (digits, radix) = text
         .strip_prefix(HEX_PREFIX)
-        .map_or_else(|| text.parse(), |digits| u32::from_str_radix(digits, 16));
-    parsed.map_err(|error| format!("{text:?} is not an object ID: {error}"))
+        .map_or((text, 10), |hex| (hex, 16));
+    if digits.is_empty() || !digits.chars().all(|digit| digit.is_digit(radix)) {
+        return Err(format!("{text:?} is not an object ID"));
+    }
+    u32::from_str_radix(digits, radix)
+        .map_err(|error| format!("{text:?} is not an object ID: {error}"))
 }
 
 #[cfg(test)]
@@ -117,6 +122,10 @@ mod tests {
         assert_eq!(parse_id("0xFF"), Ok(255));
         assert!(parse_id("0x").is_err());
         assert!(parse_id("-1").is_err());
+        assert!(parse_id("+5").is_err());
+        assert!(parse_id("0x+ff").is_err());
+        assert!(parse_id("0x-1").is_err());
+        assert!(parse_id("").is_err());
         assert!(parse_id("4294967296").is_err());
     }
 }

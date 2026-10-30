@@ -1413,6 +1413,8 @@ prints no JSON; it fails with exit code 1 and an error naming the section.
 Also `p4kx bnk objects <file> --json` for a soundbank file on disk. It has no JSON Schema file:
 the shape is documented here and fixed by a snapshot test.
 
+An illustrative example, shortened and with values that do not come from one bank:
+
 ```json
 {"soundbank": "Data\\Sounds\\wwise\\MUS_Music_Stanton.bnk", "version": 154, "bank_id": 528808344,
  "total": 15, "layouts": {"decoded": 10, "undecoded": 5, "unsupported": 0, "malformed": 0},
@@ -1432,7 +1434,8 @@ the shape is documented here and fixed by a snapshot test.
 ```
 
 `total` is the number of objects in the `HIRC` section and `layouts` counts all of them by how far
-the reader decodes them: `decoded` (the body is read to its last byte), `undecoded` (a type the
+the reader decodes them: `decoded` (the fields of the type were read; containers and music objects must use their whole
+body, a sound, action or event is not checked for bytes after its fields), `undecoded` (a type the
 reader has no decoder for, e.g. actor-mixers, buses and states; the body is skipped),
 `unsupported` (a decoded type in a bank version whose layout is not known: Sound below version 150,
 containers and music objects below 154, any decoded type above 154) and `malformed` (the body does
@@ -1455,7 +1458,8 @@ children) and for undecoded, unsupported and malformed objects:
 - `sound`: `plugin_id`, `storage` (`embedded`, `prefetch-streamed`, `streamed` or `other`),
   `source_id` (the WEM ID), `in_memory_size`, `language_specific`, `source_plugin` (a plug-in
   generates the sound, no WEM holds it).
-- `action`: `action_type`, `target` and, for a play action, `soundbank_id` (0 or `null` for none).
+- `action`: `action_type`, `target` and `soundbank_id`, the soundbank a play action of a version
+  154 bank names (0 for none); it is `null` for every other action.
 - `random-sequence-container`, `switch-container`, `layer-container`: `container_kind` (`random`,
   `sequence`, `switch` or `blend`).
 - `music-segment`: `duration_ms`, `tempo`, `beats_per_bar`, `beat_value`, `markers` (`id`,
@@ -1467,8 +1471,9 @@ children) and for undecoded, unsupported and malformed objects:
 - `music-switch`: `rule_count`, `group_ids` (the groups the decision tree tests, outermost first)
   and `targets` (the nodes its leaves play, in tree order).
 - `music-playlist`: `rule_count` and `items` in bank order. An item with `children` of N is
-  followed by its N child items, and `depth` is the nesting that gives. `segment_id` is 0 for a
-  group. `play_mode` is 0 random, 1 sequence continuous, 2 random step, 3 sequence step. `loops`
+  followed by its N child items, and `depth` is the nesting that gives; the bank does not
+  validate the counts, so `depth` may be any value (the text output draws at most 8 levels of
+  indentation and marks deeper items with `+N`). `segment_id` is 0 for a group. `play_mode` is 0 random, 1 sequence continuous, 2 random step, 3 sequence step. `loops`
   is how often the item repeats, 0 for endlessly; `loop_min` and `loop_max` are the range of a
   random repeat count; `weight` counts when `uses_weight`.
 

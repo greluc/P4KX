@@ -35,6 +35,7 @@ mod entity_assembly;
 mod entity_cargo;
 mod entity_clothing;
 mod entity_dressed;
+mod entity_fit_sample;
 mod entity_gear;
 mod entity_head;
 mod entity_interior_sample;
@@ -142,6 +143,9 @@ pub use entity_dressed::{
     DRESSED_BROWS, DRESSED_EYES, DRESSED_EYES_MATERIAL, DRESSED_GONE_HAIR, DRESSED_HAIR,
     DRESSED_HAIR_MATERIAL, DRESSED_HAIR_OPACITY, DRESSED_HEAD_DIFFUSE, DRESSED_HEAD_MATERIAL,
     DRESSED_HEAD_MATERIAL_FILE, DRESSED_UNKNOWN_MATERIAL, dressed_entries,
+};
+pub use entity_fit_sample::{
+    ENTITY_FIT_CLASS, ENTITY_FIT_MERGED_CLASS, ENTITY_FIT_MOVED_CLASS, entity_fit_entries,
 };
 pub use entity_gear::{LANDING_GEAR_SHIP, landing_gear_entries};
 pub use entity_head::{

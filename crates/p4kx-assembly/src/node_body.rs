@@ -107,11 +107,16 @@ fn is_character_item(item_type: &str) -> bool {
         .is_some_and(|start| start.eq_ignore_ascii_case(CHARACTER_PREFIX))
 }
 
+/// Returns whether `item_type` is the item type of a head, `Char_Head`.
+pub(crate) const fn is_head_type(item_type: &str) -> bool {
+    item_type.eq_ignore_ascii_case(HEAD_TYPE)
+}
+
 /// Returns the first Entity of the item type `Char_Head` below `ports`, depth first.
 pub(crate) fn find_head(ports: &[PortNode]) -> Option<&EntityNode> {
     ports.iter().find_map(|port| {
         if let Attachment::Entity(node) = port.attachment() {
-            if node.attach_type().eq_ignore_ascii_case(HEAD_TYPE) {
+            if is_head_type(node.attach_type()) {
                 return Some(&**node);
             }
             if let Some(found) = find_head(node.ports()) {

@@ -1,24 +1,28 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
+use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 
 use p4kx_dataforge::{DataForge, Record};
 use rayon::slice::ParallelSliceMut;
 
-use crate::entry_path::relative_path;
+use crate::RenameCause;
+use crate::part_escape::{OVERLONG_FOLDER, escape_record_path};
+use crate::portable_name::{check_part, fold};
 
 /// The file below the target folder that each Record of a DataForge is written to (ADR-0008).
 ///
 /// A Record alone at its record path goes to `<record path><extension>`. Records that share a
 /// record path go into the folder `<record path>/`, each to `<name><extension>`; when such a file
-/// collides with
-/// another one ignoring case, or a name is no plain file name, the GUID is used as well. The plan
-/// depends on the whole DataForge only, so a Record always gets the same file whatever is
-/// selected.
+/// collides with another one ignoring case, or a name is no valid file name on Linux and Windows
+/// (ADR-0248), the GUID is used as well. A part of the record path that is no such name is
+/// escaped. The plan depends on the whole DataForge only, so a Record always gets the same file
+/// whatever is selected.
 pub(crate) struct RecordFiles {
     files: Box<[Option<String>]>,
+    renames: Box<[(u32, RenameCause)]>,
 }
 
 struct Planned {
@@ -26,16 +30,50 @@ struct Planned {
     shared: bool,
 }
 
+/// What the plan reads of one Record: its escaped record path and its name.
+struct Key<'a> {
+    path: Option<Cow<'a, str>>,
+    name: Option<&'a str>,
+}
+
+impl<'a> Key<'a> {
+    /// Reads the key of `record`; a record path that cannot be escaped is replaced by the folder
+    /// `%long`, and every change a rule forced is added to `renames`.
+    fn of(record: &Record<'a>, renames: &mut Vec<(u32, RenameCause)>) -> Self {
+        let path = record
+            .record_path()
+            .ok()
+            .map(|raw| match escape_record_path(raw) {
+                Ok((path, broken)) => {
+                    renames.extend(broken.map(|rule| (record.index(), RenameCause::Path(rule))));
+                    path
+                }
+                Err(rule) => {
+                    renames.push((record.index(), RenameCause::Path(rule)));
+                    Cow::Owned(format!("{OVERLONG_FOLDER}/{}", record.guid()))
+                }
+            });
+        Self {
+            path,
+            name: record.name().ok(),
+        }
+    }
+}
+
 impl RecordFiles {
     /// Plans the file of every Record of `forge`, ending in `extension`, e.g. `.xml`.
     pub(crate) fn plan(forge: &DataForge<'_>, extension: &str) -> Self {
         let records: Vec<Record<'_>> = forge.records().collect();
-        let keys: Vec<(Option<&str>, Option<&str>)> = records
+        let mut renames = Vec::new();
+        let keys: Vec<Key<'_>> = records
             .iter()
-            .map(|record| (record.record_path().ok(), record.name().ok()))
+            .map(|record| Key::of(record, &mut renames))
             .collect();
-        let path = |index: &u32| keys.get(*index as usize).and_then(|key| key.0);
-        let name = |index: &u32| keys.get(*index as usize).and_then(|key| key.1);
+        let path = |index: &u32| {
+            keys.get(*index as usize)
+                .and_then(|key| key.path.as_deref())
+        };
+        let name = |index: &u32| keys.get(*index as usize).and_then(|key| key.name);
         let mut order: Vec<u32> = records.iter().map(Record::index).collect();
         order.par_sort_unstable_by(|left, right| {
             compare(path(left), path(right))
@@ -59,6 +97,9 @@ impl RecordFiles {
                         shared: false,
                     }
                 } else {
+                    if let Some(rule) = name(index).and_then(|name| check_part(name).err()) {
+                        renames.push((*index, RenameCause::Name(rule)));
+                    }
                     let collides = |other: Option<&u32>| {
                         other.is_some_and(|other| compare(name(index), name(other)).is_eq())
                     };
@@ -72,16 +113,29 @@ impl RecordFiles {
             }
         }
         separate_shared(&mut planned, &records, &keys, extension);
-        let mut folders = Folders::default();
-        for planned in planned.iter_mut().flatten() {
-            folders.canonicalise(&mut planned.file);
-        }
+        finish(&mut planned, &records, extension, &mut renames);
+        renames.sort_by_key(|(index, _)| *index);
         Self {
             files: planned
                 .into_iter()
                 .map(|planned| planned.map(|planned| planned.file))
                 .collect(),
+            renames: renames.into(),
         }
+    }
+
+    /// Returns why the file of `record` does not follow its name or record path, if it does not.
+    ///
+    /// `record` must come from the DataForge the plan was made for.
+    pub(crate) fn renames(&self, record: &Record<'_>) -> impl Iterator<Item = RenameCause> {
+        let index = record.index();
+        let start = self.renames.partition_point(|(at, _)| *at < index);
+        self.renames
+            .get(start..)
+            .unwrap_or_default()
+            .iter()
+            .take_while(move |(at, _)| *at == index)
+            .map(|(_, cause)| *cause)
     }
 
     /// Returns the planned file of `record`, relative to the target with `/` as separator.
@@ -94,12 +148,33 @@ impl RecordFiles {
     }
 }
 
+/// Moves every Record whose file name is still too long into `%long/<GUID>`, and spells the
+/// folders of all files alike.
+fn finish(
+    planned: &mut [Option<Planned>],
+    records: &[Record<'_>],
+    extension: &str,
+    renames: &mut Vec<(u32, RenameCause)>,
+) {
+    let mut folders = Folders::default();
+    for (index, planned) in planned.iter_mut().enumerate() {
+        let (Some(planned), Some(record)) = (planned, records.get(index)) else {
+            continue;
+        };
+        if let Some(rule) = last_part(&planned.file).and_then(|part| check_part(part).err()) {
+            planned.file = format!("{OVERLONG_FOLDER}/{}{extension}", record.guid());
+            renames.push((record.index(), RenameCause::Path(rule)));
+        }
+        folders.canonicalise(&mut planned.file);
+    }
+}
+
 /// Gives every shared Record whose file collides with another planned file ignoring case its
 /// GUID, so a Record alone at its record path keeps `<record path><extension>`.
 fn separate_shared(
     planned: &mut [Option<Planned>],
     records: &[Record<'_>],
-    keys: &[(Option<&str>, Option<&str>)],
+    keys: &[Key<'_>],
     extension: &str,
 ) {
     let mut order: Vec<usize> = (0..planned.len()).collect();
@@ -115,13 +190,15 @@ fn separate_shared(
         }
     }
     for index in renamed {
-        let (Some(Some(slot)), Some(record), Some((Some(record_path), name))) =
+        let (Some(Some(slot)), Some(record), Some(key)) =
             (planned.get_mut(index), records.get(index), keys.get(index))
         else {
             continue;
         };
-        if slot.shared {
-            slot.file = shared_file(record_path, *name, record, false, extension);
+        if slot.shared
+            && let Some(record_path) = key.path.as_deref()
+        {
+            slot.file = shared_file(record_path, key.name, record, false, extension);
         }
     }
 }
@@ -174,22 +251,18 @@ fn shared_file(
 ) -> String {
     let guid = record.guid();
     match name {
-        Some(name) if is_file_name(name) && unique => format!("{record_path}/{name}{extension}"),
-        Some(name) if is_file_name(name) => format!("{record_path}/{name}.{guid}{extension}"),
+        Some(name) if check_part(name).is_ok() && unique => {
+            format!("{record_path}/{name}{extension}")
+        }
+        Some(name) if check_part(name).is_ok() => {
+            format!("{record_path}/{name}.{guid}{extension}")
+        }
         _ => format!("{record_path}/{guid}{extension}"),
     }
 }
 
-fn is_file_name(name: &str) -> bool {
-    !name.contains(['/', '\\']) && relative_path(name).is_some()
-}
-
-/// Returns `path` folded the way the file system of the target compares names: lower case,
-/// with `/` for `\`.
-pub(crate) fn fold(path: &str) -> impl Iterator<Item = char> + '_ {
-    path.chars()
-        .flat_map(char::to_lowercase)
-        .map(|c| if c == '\\' { '/' } else { c })
+fn last_part(file: &str) -> Option<&str> {
+    file.rsplit('/').next()
 }
 
 fn compare(left: Option<&str>, right: Option<&str>) -> Ordering {

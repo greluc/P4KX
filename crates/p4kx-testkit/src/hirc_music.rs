@@ -87,12 +87,20 @@ impl TestHircObject {
     /// second with a transition object.
     #[must_use]
     pub fn music_playlist(id: u32, children: &[u32]) -> Self {
+        let items: Vec<(u32, u32)> = children.iter().map(|child| (*child, 0)).collect();
+        Self::music_playlist_tree(id, children, &items)
+    }
+
+    /// A music playlist container like [`music_playlist`](Self::music_playlist) whose `items` are
+    /// given as pairs of segment ID (0 for a group) and number of child items that follow.
+    #[must_use]
+    pub fn music_playlist_tree(id: u32, children: &[u32], items: &[(u32, u32)]) -> Self {
         let mut body = transition_node(children);
-        put_u32(&mut body, len_u32(children));
-        for (item, child) in (1_u32..).zip(children) {
-            put_u32(&mut body, *child);
+        put_u32(&mut body, len_u32(items));
+        for (item, (segment, child_items)) in (1_u32..).zip(items) {
+            put_u32(&mut body, *segment);
             put_u32(&mut body, item);
-            put_u32(&mut body, 0);
+            put_u32(&mut body, *child_items);
             put_u32(&mut body, 1);
             body.extend_from_slice(&(-1_i16).to_le_bytes());
             body.extend_from_slice(&2_i16.to_le_bytes());

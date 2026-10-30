@@ -1408,6 +1408,74 @@ streamed WEM, whose whole file is the loose WEM of the same ID; its codec is the
 `impulse`, prefetched and unreadable items. A corrupt soundbank
 prints no JSON; it fails with exit code 1 and an error naming the section.
 
+## `p4kx bnk objects <archive> <entry> [--type <type>] [--id <id>] [--limit <n>] [--offset <n>] --json`
+
+Also `p4kx bnk objects <file> --json` for a soundbank file on disk. It has no JSON Schema file:
+the shape is documented here and fixed by a snapshot test.
+
+```json
+{"soundbank": "Data\\Sounds\\wwise\\MUS_Music_Stanton.bnk", "version": 154, "bank_id": 528808344,
+ "total": 15, "layouts": {"decoded": 10, "undecoded": 5, "unsupported": 0, "malformed": 0},
+ "matched": 2, "offset": 0, "limit": 100, "next_offset": null,
+ "objects": [
+  {"index": 6, "id": 327692280, "type": "music-segment", "status": "decoded", "error": null,
+   "parent": 828139056, "children": [119759791],
+   "detail": {"duration_ms": 11527.659, "tempo": 120.0, "beats_per_bar": 4, "beat_value": 4,
+              "markers": [{"id": 43573010, "position_ms": 576.162, "name": ""}],
+              "stingers": [{"trigger_id": 1358954497, "segment_id": 1358954498}]}},
+  {"index": 9, "id": 744, "type": "music-playlist", "status": "decoded", "error": null,
+   "parent": null, "children": [10],
+   "detail": {"rule_count": 2,
+              "items": [{"depth": 0, "item_id": 1, "segment_id": 0, "children": 1, "play_mode": 1,
+                         "loops": 0, "loop_min": 0, "loop_max": 0, "weight": 50000,
+                         "avoid_repeat_count": 0, "uses_weight": false, "shuffle": false}]}}]}
+```
+
+`total` is the number of objects in the `HIRC` section and `layouts` counts all of them by how far
+the reader decodes them: `decoded` (the body is read to its last byte), `undecoded` (a type the
+reader has no decoder for, e.g. actor-mixers, buses and states; the body is skipped),
+`unsupported` (a decoded type in a bank version whose layout is not known: Sound below version 150,
+containers and music objects below 154, any decoded type above 154) and `malformed` (the body does
+not hold the fields of its type). `matched` counts the objects that pass `--type` and `--id`;
+`objects` holds `limit` of them from `offset` on, in bank order, and `next_offset` is where the
+next page starts, `null` on the last. A bank without a `HIRC` section has `total` 0.
+
+Each object has `index` (its position in the section), `id`, `type` (`state`, `sound`, `action`,
+`event`, `random-sequence-container`, `switch-container`, `actor-mixer`, `audio-bus`,
+`layer-container`, `music-segment`, `music-track`, `music-switch`, `music-playlist`,
+`attenuation`, `dialogue-event`, `fx-share-set`, `fx-custom`, `auxiliary-bus`, `lfo`, `envelope`,
+`audio-device`, `time-modulator`, or `other` with `type_byte` giving the byte), `status` (as in
+`layouts`) and `error` (the reason for `unsupported` and `malformed`, else `null`). `parent` is the
+ID of the parent node, `null` for a node at the top and for an object without a parent field;
+`children` lists the IDs the object holds in bank order: the actions of an event, the children of
+a container, the tracks of a segment, the segments of a playlist and, for a music track, the media
+IDs of its sources. `detail` depends on the type and is `null` for an event (its actions are the
+children) and for undecoded, unsupported and malformed objects:
+
+- `sound`: `plugin_id`, `storage` (`embedded`, `prefetch-streamed`, `streamed` or `other`),
+  `source_id` (the WEM ID), `in_memory_size`, `language_specific`, `source_plugin` (a plug-in
+  generates the sound, no WEM holds it).
+- `action`: `action_type`, `target` and, for a play action, `soundbank_id` (0 or `null` for none).
+- `random-sequence-container`, `switch-container`, `layer-container`: `container_kind` (`random`,
+  `sequence`, `switch` or `blend`).
+- `music-segment`: `duration_ms`, `tempo`, `beats_per_bar`, `beat_value`, `markers` (`id`,
+  `position_ms`, `name`) and `stingers` (the segment `segment_id` a `trigger_id` plays).
+- `music-track`: `track_kind` (`normal`, `random`, `sequence`, `switch` or `other`), `clips`
+  (`source_id`, `event_id` (0 for none), `play_at_ms`, `begin_trim_ms`, `end_trim_ms`,
+  `source_duration_ms`) and, for a switch track, `switch` (`group_type` 0 for a switch group and
+  1 for a state group, `group_id`, `default_switch`, `switches` in clip order).
+- `music-switch`: `rule_count`, `group_ids` (the groups the decision tree tests, outermost first)
+  and `targets` (the nodes its leaves play, in tree order).
+- `music-playlist`: `rule_count` and `items` in bank order. An item with `children` of N is
+  followed by its N child items, and `depth` is the nesting that gives. `segment_id` is 0 for a
+  group. `play_mode` is 0 random, 1 sequence continuous, 2 random step, 3 sequence step. `loops`
+  is how often the item repeats, 0 for endlessly; `loop_min` and `loop_max` are the range of a
+  random repeat count; `weight` counts when `uses_weight`.
+
+Durations and positions are in milliseconds. A corrupt soundbank prints no JSON; it fails with
+exit code 1 and an error naming the section. Malformed or unsupported objects do not fail the
+command.
+
 ## `p4kx bnk extract <archive> <entry> --out <folder> [--format wem|wav|ogg] --json`
 
 Also `p4kx bnk extract <file> --out <folder> --json` for a soundbank file on disk.

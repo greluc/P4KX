@@ -1,0 +1,265 @@
+---
+source: crates/p4kx/tests/it/bnk_objects.rs
+expression: "serde_json::to_string_pretty(&report)?"
+---
+{
+  "bank_id": 3512036681,
+  "layouts": {
+    "decoded": 8,
+    "malformed": 1,
+    "undecoded": 1,
+    "unsupported": 0
+  },
+  "limit": 100,
+  "matched": 10,
+  "next_offset": null,
+  "objects": [
+    {
+      "children": [
+        11
+      ],
+      "detail": {
+        "beat_value": 4,
+        "beats_per_bar": 4,
+        "duration_ms": 4000.5,
+        "markers": [
+          {
+            "id": 256,
+            "name": "Entry",
+            "position_ms": 1.5
+          },
+          {
+            "id": 257,
+            "name": "Exit",
+            "position_ms": 1.5
+          }
+        ],
+        "stingers": [
+          {
+            "segment_id": 1358954498,
+            "trigger_id": 1358954497
+          }
+        ],
+        "tempo": 120.0
+      },
+      "error": null,
+      "id": 10,
+      "index": 0,
+      "parent": 740367150,
+      "status": "decoded",
+      "type": "music-segment"
+    },
+    {
+      "children": [
+        100,
+        101
+      ],
+      "detail": {
+        "clips": [
+          {
+            "begin_trim_ms": 0.5,
+            "end_trim_ms": 0.25,
+            "event_id": 0,
+            "play_at_ms": 0.0,
+            "source_duration_ms": 12.0,
+            "source_id": 100
+          },
+          {
+            "begin_trim_ms": 0.5,
+            "end_trim_ms": 0.25,
+            "event_id": 0,
+            "play_at_ms": 0.0,
+            "source_duration_ms": 12.0,
+            "source_id": 101
+          }
+        ],
+        "switch": null,
+        "track_kind": "normal"
+      },
+      "error": null,
+      "id": 11,
+      "index": 1,
+      "parent": 740367150,
+      "status": "decoded",
+      "type": "music-track"
+    },
+    {
+      "children": [
+        10
+      ],
+      "detail": {
+        "items": [
+          {
+            "avoid_repeat_count": 1,
+            "children": 2,
+            "depth": 0,
+            "item_id": 1,
+            "loop_max": 5,
+            "loop_min": 2,
+            "loops": -1,
+            "play_mode": 1,
+            "segment_id": 0,
+            "shuffle": false,
+            "uses_weight": true,
+            "weight": 50000
+          },
+          {
+            "avoid_repeat_count": 1,
+            "children": 0,
+            "depth": 1,
+            "item_id": 2,
+            "loop_max": 5,
+            "loop_min": 2,
+            "loops": -1,
+            "play_mode": 1,
+            "segment_id": 10,
+            "shuffle": false,
+            "uses_weight": true,
+            "weight": 50000
+          },
+          {
+            "avoid_repeat_count": 1,
+            "children": 0,
+            "depth": 1,
+            "item_id": 3,
+            "loop_max": 5,
+            "loop_min": 2,
+            "loops": -1,
+            "play_mode": 1,
+            "segment_id": 10,
+            "shuffle": false,
+            "uses_weight": true,
+            "weight": 50000
+          }
+        ],
+        "rule_count": 2
+      },
+      "error": null,
+      "id": 12,
+      "index": 2,
+      "parent": 740367150,
+      "status": "decoded",
+      "type": "music-playlist"
+    },
+    {
+      "children": [
+        12
+      ],
+      "detail": {
+        "group_ids": [
+          119
+        ],
+        "rule_count": 2,
+        "targets": [
+          12
+        ]
+      },
+      "error": null,
+      "id": 13,
+      "index": 3,
+      "parent": 740367150,
+      "status": "decoded",
+      "type": "music-switch"
+    },
+    {
+      "children": [
+        102
+      ],
+      "detail": {
+        "clips": [
+          {
+            "begin_trim_ms": 0.5,
+            "end_trim_ms": 0.25,
+            "event_id": 0,
+            "play_at_ms": 0.0,
+            "source_duration_ms": 12.0,
+            "source_id": 102
+          }
+        ],
+        "switch": {
+          "default_switch": 0,
+          "group_id": 136,
+          "group_type": 0,
+          "switches": [
+            5,
+            6
+          ]
+        },
+        "track_kind": "switch"
+      },
+      "error": null,
+      "id": 18,
+      "index": 4,
+      "parent": 740367150,
+      "status": "decoded",
+      "type": "music-track"
+    },
+    {
+      "children": [
+        15
+      ],
+      "detail": {
+        "container_kind": "switch"
+      },
+      "error": null,
+      "id": 14,
+      "index": 5,
+      "parent": 740367150,
+      "status": "decoded",
+      "type": "switch-container"
+    },
+    {
+      "children": [],
+      "detail": {
+        "in_memory_size": 4096,
+        "language_specific": false,
+        "plugin_id": 262145,
+        "source_id": 100,
+        "source_plugin": false,
+        "storage": "streamed"
+      },
+      "error": null,
+      "id": 15,
+      "index": 6,
+      "parent": 740367150,
+      "status": "decoded",
+      "type": "sound"
+    },
+    {
+      "children": [
+        20
+      ],
+      "detail": null,
+      "error": null,
+      "id": 19,
+      "index": 7,
+      "parent": null,
+      "status": "decoded",
+      "type": "event"
+    },
+    {
+      "children": [],
+      "detail": null,
+      "error": null,
+      "id": 16,
+      "index": 8,
+      "parent": null,
+      "status": "undecoded",
+      "type": "actor-mixer"
+    },
+    {
+      "children": [],
+      "detail": null,
+      "error": "the soundbank section HIRC is truncated: 7 bytes, 8 needed",
+      "id": 17,
+      "index": 9,
+      "parent": null,
+      "status": "malformed",
+      "type": "sound"
+    }
+  ],
+  "offset": 0,
+  "soundbank": "[FILE]",
+  "total": 10,
+  "version": 154
+}

@@ -17,6 +17,7 @@ mod audio_opus;
 mod audio_vorbis_wav;
 mod bnk;
 mod bnk_classes;
+mod bnk_objects;
 mod catalog;
 mod catalog_failures;
 mod catalog_support;

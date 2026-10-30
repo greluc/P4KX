@@ -15,6 +15,7 @@ mod codec;
 mod error;
 mod hirc;
 mod hirc_action;
+mod hirc_layout;
 mod hirc_music;
 mod hirc_music_parse;
 mod hirc_node;
@@ -37,6 +38,7 @@ pub use codec::Codec;
 pub use error::AudioError;
 pub use hirc::{HircKind, HircObject, HircValue, MediaStorage, SoundSource};
 pub use hirc_action::{ActionTarget, PlayBank};
+pub use hirc_layout::HircLayout;
 pub use hirc_music::{
     MusicClip, MusicMarker, MusicMeter, MusicNode, MusicPlaylist, MusicPlaylistItem, MusicSegment,
     MusicStinger, MusicSwitch, MusicTrack, MusicTrackKind, MusicTrackSwitch,

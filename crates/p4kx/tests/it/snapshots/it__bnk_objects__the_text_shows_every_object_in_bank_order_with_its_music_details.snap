@@ -1,0 +1,37 @@
+---
+source: crates/p4kx/tests/it/bnk_objects.rs
+expression: "text(&[], &file)?"
+---
+Soundbank:   [FILE]
+Version:     154
+Bank ID:     3512036681
+
+#0  music-segment  10  parent 740367150  children 1 [11]
+    duration 4000.500 ms, 120 bpm, 4/4
+    marker 256 at 1.500 ms "Entry"
+    marker 257 at 1.500 ms "Exit"
+    stinger trigger 1358954497 plays segment 1358954498
+#1  music-track  11  parent 740367150  children 2 [100 101]
+    normal track
+    clip source 100 at 0.000 ms, trim 0.500..0.250 ms of 12.000 ms
+    clip source 101 at 0.000 ms, trim 0.500..0.250 ms of 12.000 ms
+#2  music-playlist  12  parent 740367150  children 1 [10]
+    2 transition rules
+        item 1 group of 2, sequence continuous, loops -1 (range 2..5), weight 50000, avoids 1 repeats
+            item 2 segment 10, sequence continuous, loops -1 (range 2..5), weight 50000, avoids 1 repeats
+            item 3 segment 10, sequence continuous, loops -1 (range 2..5), weight 50000, avoids 1 repeats
+#3  music-switch  13  parent 740367150  children 1 [12]
+    2 transition rules, groups [119], targets [12]
+#4  music-track  18  parent 740367150  children 1 [102]
+    switch track
+    follows switch group 136, default 0, switches [5 6]
+    clip source 102 at 0.000 ms, trim 0.500..0.250 ms of 12.000 ms
+#5  switch-container  14  parent 740367150  children 1 [15]
+    kind switch
+#6  sound  15  parent 740367150  children 0
+    source 100 streamed, plugin 0x40001, 4096 bytes in memory
+#7  event  19  parent -  children 1 [20]
+#8  actor-mixer  16  parent -  children 0  undecoded
+#9  sound  17  parent -  children 0  malformed
+    the soundbank section HIRC is truncated: 7 bytes, 8 needed
+10 objects (8 decoded, 1 undecoded, 0 unsupported, 1 malformed); 10 match: showing 1-10 of 10

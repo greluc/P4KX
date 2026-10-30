@@ -11,6 +11,7 @@ pub(crate) use crate::cli_actionmap::ActionMapArgs;
 pub(crate) use crate::cli_armour::ArmourArgs;
 pub(crate) use crate::cli_audio::{AudioAction, AudioArgs, AudioSource};
 pub(crate) use crate::cli_bnk::{BnkAction, BnkArgs, BnkFormat, BnkSource};
+pub(crate) use crate::cli_bnk_objects::BnkObjectsArgs;
 pub(crate) use crate::cli_catalog::{CatalogArgs, CatalogCommand};
 pub(crate) use crate::cli_channels::{ChannelsAction, ChannelsArgs};
 use crate::cli_character::CharacterArgs;
@@ -161,7 +162,7 @@ pub(crate) enum Command {
     /// Shows a Wwise WEM sound or converts it to WAV.
     #[command(after_help = EXIT_CODES_HELP)]
     Audio(AudioArgs),
-    /// Lists or extracts the WEMs a Wwise BNK soundbank embeds.
+    /// Lists or extracts the WEMs a Wwise BNK soundbank embeds, or prints its object hierarchy.
     #[command(after_help = EXIT_CODES_HELP)]
     Bnk(BnkArgs),
     /// Lists or extracts the bitmaps, shapes, fonts and sprites of a GFx or SWF UI movie.

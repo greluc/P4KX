@@ -6,6 +6,7 @@ use std::ops::Range;
 
 use crate::bank_reader::SectionReader;
 use crate::hirc_action::{self, ActionTarget};
+use crate::hirc_layout::has_decoder;
 use crate::hirc_music::{MusicPlaylist, MusicSegment, MusicSwitch, MusicTrack};
 use crate::hirc_music_parse;
 use crate::hirc_node::{self, Container};
@@ -293,20 +294,7 @@ pub(crate) const fn has_cache_id(version: u32) -> bool {
 /// Returns whether an object of `kind` is one this reader decodes but whose layout in a bank of
 /// `version` is not known, because the version is newer than 154.
 const fn has_unknown_layout(kind: HircKind, version: u32) -> bool {
-    version > LAST_KNOWN_VERSION
-        && matches!(
-            kind,
-            HircKind::Sound
-                | HircKind::Action
-                | HircKind::Event
-                | HircKind::RandomSequenceContainer
-                | HircKind::SwitchContainer
-                | HircKind::LayerContainer
-                | HircKind::MusicSegment
-                | HircKind::MusicTrack
-                | HircKind::MusicSwitch
-                | HircKind::MusicPlaylist
-        )
+    version > LAST_KNOWN_VERSION && has_decoder(kind)
 }
 
 /// Decodes the fields of an object after its ID.

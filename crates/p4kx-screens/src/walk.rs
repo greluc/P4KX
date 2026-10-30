@@ -21,6 +21,7 @@ use crate::rest::{AtRest, RestParams};
 use crate::style::{CanvasStyles, Modifiers, StyleCache, Subject, TagPaths, Uses, resolve};
 use crate::text::Shaped;
 use crate::transform::Placement;
+use crate::variables::Variable;
 use crate::walk_instance::Override;
 use crate::walk_measure::{MeasureKey, Probe};
 use crate::widget::Widget;
@@ -48,6 +49,8 @@ pub(crate) struct Walk<'s, 'a, 'f, 't> {
     pub(crate) resolved: HashMap<(Guid, usize, u64, u64, usize), Rc<Modifiers>>,
     pub(crate) shape: Uses,
     pub(crate) rests: Vec<Rc<AtRest>>,
+    pub(crate) variables: &'s [Variable],
+    pub(crate) known_variables: HashSet<String>,
     pub(crate) typed: Vec<RestParams>,
     pub(crate) at_rest: HashMap<(Guid, u64), Rc<AtRest>>,
     pub(crate) measured: HashMap<MeasureKey, [Option<f32>; 2]>,
@@ -92,6 +95,8 @@ impl<'s, 'a, 'f, 't> Walk<'s, 'a, 'f, 't> {
             resolved: HashMap::new(),
             shape: Uses::default(),
             rests: Vec::new(),
+            variables: &[],
+            known_variables: HashSet::new(),
             typed: Vec::new(),
             at_rest: HashMap::new(),
             measured: HashMap::new(),
@@ -103,6 +108,12 @@ impl<'s, 'a, 'f, 't> Walk<'s, 'a, 'f, 't> {
             pixel: 1.0,
             turned: 0,
         }
+    }
+
+    /// Evaluates the bindings with the game variables `variables` instead of zero.
+    pub(crate) const fn with_variables(mut self, variables: &'s [Variable]) -> Self {
+        self.variables = variables;
+        self
     }
 
     pub(crate) fn push_chain(&mut self, key: &impl Hash) {

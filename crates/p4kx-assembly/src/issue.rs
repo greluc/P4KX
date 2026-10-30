@@ -107,6 +107,22 @@ pub enum IssueKind {
         /// The files of the attachments that are not drawn.
         files: Vec<String>,
     },
+    /// The skeleton file of a character definition (`.cdf`) does not exist; the skin is drawn as
+    /// it is.
+    #[error("the skeleton {path} the character definition names does not exist")]
+    SkeletonMissing {
+        /// The path the definition names, with `/` as separator.
+        path: String,
+    },
+    /// The skeleton file of a character definition (`.cdf`) is too large or cannot be read as a
+    /// model; the skin is drawn as it is.
+    #[error("the skeleton {path} the character definition names cannot be read: {reason}")]
+    SkeletonUnreadable {
+        /// The path the definition names, with `/` as separator.
+        path: String,
+        /// What is wrong.
+        reason: String,
+    },
     /// The landing gear could not be posed at the end of its deploy clip, so it keeps the pose of
     /// its model.
     #[error("the landing gear keeps the pose of its model: {reason}")]

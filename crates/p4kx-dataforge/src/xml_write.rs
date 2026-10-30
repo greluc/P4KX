@@ -4,8 +4,8 @@
 use std::io::{self, Write};
 
 use crate::texts::annotation;
-use crate::xml_text::{write_escaped, write_float};
-use crate::{Annotations, Field, Reference, Resolution, Value};
+use crate::xml_text::{write_display, write_escaped, write_float};
+use crate::{Annotations, Field, Reference, Resolution, Value, ValueError};
 
 const INDENT: &[u8; 64] = b"                                                                ";
 
@@ -42,6 +42,18 @@ pub(crate) fn write_reference(
     }
     if let Some(path) = annotations.tag_path(reference) {
         attribute(out, "tag", path)?;
+    }
+    out.write_all(b"/>\n")
+}
+
+/// Writes the `reason` attribute of an error value and, for a dangling Reference, the `guid` of
+/// the missing Record, then closes the element.
+pub(crate) fn write_error_end(out: &mut impl Write, error: &ValueError) -> io::Result<()> {
+    out.write_all(b" reason=\"")?;
+    write_display(out, error)?;
+    out.write_all(b"\"")?;
+    if let Some(guid) = error.dangling_guid() {
+        write!(out, " guid=\"{guid}\"")?;
     }
     out.write_all(b"/>\n")
 }

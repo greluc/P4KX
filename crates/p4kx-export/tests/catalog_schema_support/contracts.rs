@@ -29,6 +29,7 @@ pub(super) fn contracts() -> serde_json::Value {
         "notForRelease": false,
         "workInProgress": null,
         "title": {"key": "@title_a", "en": "Deliver Scrap to [LOCATION]", "de": null},
+        "description": {"key": "@desc_handler", "en": "Wanted", "de": null},
         "missionTypeGuid": "50000000-0000-4000-8000-000000000001",
         "missionType": {"key": "@type_delivery", "en": "Delivery", "de": null},
         "contractor": {"key": null, "en": null, "de": null},
@@ -54,6 +55,7 @@ pub(super) fn contracts() -> serde_json::Value {
         "personalCooldownTime": 2880.0,
         "personalCooldownTimeVariation": 60.0,
         "abandonedCooldownTime": 30.0,
-        "abandonedCooldownTimeVariation": null
+        "abandonedCooldownTimeVariation": null,
+        "fixedRewards": [{"currency": "UEC", "amount": 40000, "max": 0, "plusBonuses": false}]
     }])
 }

@@ -3,6 +3,7 @@
 
 //! The Extraction windows driven headless through `egui_kittest`.
 
+use crate::common::settle;
 use crate::waiting::wait_for_model;
 use std::error::Error;
 use std::fs;
@@ -51,10 +52,6 @@ fn wait_until(harness: &mut Harness<'_, Model>, done: impl Fn(&Model) -> bool) -
     wait_for_model(harness, "the window to settle", done)?;
     settle(harness);
     Ok(())
-}
-
-fn settle(harness: &mut Harness<'_, Model>) {
-    harness.run_steps(2);
 }
 
 fn ended(model: &Model) -> bool {

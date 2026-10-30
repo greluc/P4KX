@@ -4,9 +4,9 @@
 use p4kx_testkit::{DataForgeBuilder, TestInstance, TestRecord, TestValue};
 
 use super::{
-    AFFINITY, BROKER, DELIVERY, FACTION, FACTION_SCOPE, LOC_A, LOC_B, LOSS, OBJ_PLANET, OBJ_STAR,
-    OBJ_STATION, OBJ_SYSTEM, RANK_FIFTY, RANK_TWO_HUNDRED, TYPE_PLANET, TYPE_STAR, TYPE_STATION,
-    TYPE_SYSTEM,
+    AFFINITY, BOUNTY, BROKER, DELIVERY, FACTION, FACTION_SCOPE, LOC_A, LOC_B, LOSS, OBJ_PLANET,
+    OBJ_STAR, OBJ_STATION, OBJ_SYSTEM, RANK_FIFTY, RANK_TWO_HUNDRED, TYPE_PLANET, TYPE_STAR,
+    TYPE_STATION, TYPE_SYSTEM,
 };
 
 fn flags(set: [bool; 5]) -> TestValue {
@@ -19,11 +19,69 @@ fn flags(set: [bool; 5]) -> TestValue {
     )
 }
 
+/// The overrides of the bounty handler: a title, a description and the bounty mission type.
+pub(super) fn bounty_params() -> TestValue {
+    let string = |name: &str, key: &str| {
+        TestValue::Struct(
+            TestInstance::new("ContractStringParam")
+                .value("param", TestValue::text(name))
+                .value("value", TestValue::text(key)),
+        )
+    };
+    TestValue::Struct(
+        TestInstance::new("ContractParamOverrides")
+            .value("missionTypeOverride", TestValue::Reference(BOUNTY))
+            .value(
+                "stringParamOverrides",
+                TestValue::Array(vec![
+                    string("Title", "@title_handler"),
+                    string("Description", "@desc_handler"),
+                ]),
+            )
+            .value("propertyOverrides", TestValue::Array(Vec::new())),
+    )
+}
+
+pub(super) fn amount(scope: u128, reward: u128) -> TestValue {
+    TestValue::Struct(
+        TestInstance::new("ReputationAmount")
+            .value("factionReputation", TestValue::Reference(FACTION))
+            .value("reputationScope", TestValue::Reference(scope))
+            .value("reward", TestValue::Reference(reward)),
+    )
+}
+
 pub(super) fn legacy(set: [bool; 5], amounts: Vec<TestValue>) -> TestValue {
     TestValue::Struct(
         TestInstance::new("ContractResult_LegacyReputation")
             .value("missionResults", flags(set))
             .value("contractResultReputationAmounts", TestValue::Array(amounts)),
+    )
+}
+
+pub(super) fn payout(set: [bool; 5], amount: i32) -> TestValue {
+    let reward = TestInstance::new("MissionRewardWithCurrency")
+        .value("reward", TestValue::Int32(amount))
+        .value("max", TestValue::Int32(0))
+        .value("plusBonuses", TestValue::Bool(false))
+        .value("currencyType", TestValue::text("UEC"));
+    TestValue::Struct(
+        TestInstance::new("ContractResult_Reward")
+            .value("missionResults", flags(set))
+            .value("contractReward", TestValue::Struct(reward)),
+    )
+}
+
+pub(super) fn empty_payout(set: [bool; 5]) -> TestValue {
+    TestValue::Struct(
+        TestInstance::new("ContractResult_Reward")
+            .value("missionResults", flags(set))
+            .value(
+                "contractReward",
+                TestValue::Struct(
+                    TestInstance::new("MissionReward").value("reward", TestValue::Int32(7)),
+                ),
+            ),
     )
 }
 
@@ -121,6 +179,7 @@ pub(super) fn reputation(builder: DataForgeBuilder) -> DataForgeBuilder {
         .value("displayName", TestValue::text("@faction_acme")),
         plain_record(BROKER, "MissionBrokerEntry", "missionbroker/haul")
             .value("title", TestValue::text("@title_broker"))
+            .value("description", TestValue::text("@desc_broker"))
             .value("type", TestValue::Reference(DELIVERY))
             .value("locationMissionAvailable", TestValue::Reference(OBJ_PLANET)),
         plain_record(

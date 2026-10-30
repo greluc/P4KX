@@ -74,10 +74,12 @@ impl From<UiRenderSettings> for UiSettings {
             size: settings.size.into(),
             background: settings.background.into(),
             format: settings.format.into(),
+            ..Self::default()
         }
     }
 }
 
+/// The settings that persist; the game state is chosen again for each session.
 impl From<UiSettings> for UiRenderSettings {
     fn from(settings: UiSettings) -> Self {
         Self {
@@ -216,6 +218,39 @@ impl UiFormat {
     }
 }
 
+/// The game state a screen is drawn in: a preset of the game variables its bindings read.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
+pub enum UiPower {
+    /// Every game variable at zero, which is a cold ship.
+    #[default]
+    AtRest,
+    /// The ship is powered on: `powerstate` is 1.
+    PoweredOn,
+}
+
+impl UiPower {
+    /// Every state, in the order the tab offers them.
+    pub const ALL: [Self; 2] = [Self::AtRest, Self::PoweredOn];
+
+    /// Returns the settings `p4kx ui render --var` would be given for the state.
+    #[must_use]
+    pub const fn settings(self) -> &'static [&'static str] {
+        match self {
+            Self::AtRest => &[],
+            Self::PoweredOn => &["powerstate=1"],
+        }
+    }
+
+    /// Returns the label of the state.
+    #[must_use]
+    pub const fn text(self) -> UiText {
+        match self {
+            Self::AtRest => UiText::PowerAtRest,
+            Self::PoweredOn => UiText::PowerOn,
+        }
+    }
+}
+
 /// The choices of how the tab draws and exports.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
 pub struct UiSettings {
@@ -225,6 +260,8 @@ pub struct UiSettings {
     pub background: UiBackground,
     /// The format an export writes.
     pub format: UiFormat,
+    /// The game state a screen is drawn in; a movie ignores it.
+    pub power: UiPower,
 }
 
 impl UiSettings {

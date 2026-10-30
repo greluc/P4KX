@@ -6,7 +6,7 @@ use std::sync::Arc;
 use egui::ColorImage;
 use p4kx_extraction::gfx::RasterOptions;
 use p4kx_extraction::{CancelToken, LocalizationEntry, ScreenTexts, UiMovie};
-use p4kx_screens::{StillFormat, StillRequest};
+use p4kx_screens::{StillFormat, StillRequest, Variable};
 
 use super::contents::UiContents;
 use super::report::UiReport;
@@ -37,6 +37,7 @@ pub(super) struct RenderKey {
     pub(super) size: UiSize,
     pub(super) background: UiBackground,
     pub(super) language: Option<TextLanguage>,
+    pub(super) variables: Vec<Variable>,
 }
 
 impl RenderKey {
@@ -227,6 +228,7 @@ fn screen(
     let request = StillRequest {
         screen: canvas,
         brand,
+        variables: &key.variables,
         raster: key.raster(),
         format: StillFormat::Png,
     };

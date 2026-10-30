@@ -60,6 +60,7 @@ expression: tree(&out)?
     "error": "offset 4294967295 in the text table is not a valid string"
   },
   "lost": {
-    "error": "the Reference refers to the Record 00000000-0000-0000-0000-000000000077, which does not exist"
+    "error": "the Reference refers to the Record 00000000-0000-0000-0000-000000000077, which does not exist",
+    "guid": "00000000-0000-0000-0000-000000000077"
   }
 }

@@ -165,8 +165,8 @@ pub use texts::{
 pub use ui_tab::{
     ContentRow, Fact, FileList, MAX_CONTENT_ROWS, Note, ReportLine, RowDetail, ShipList, ShipPick,
     UiBackground, UiContents, UiDetail, UiExport, UiExportStatus, UiExportSummary, UiFilesStatus,
-    UiFormat, UiMode, UiRenderFailure, UiRendered, UiReport, UiScreensStatus, UiSettings, UiSize,
-    UiSource, UiTab,
+    UiFormat, UiMode, UiPower, UiRenderFailure, UiRendered, UiReport, UiScreensStatus, UiSettings,
+    UiSize, UiSource, UiTab,
 };
 pub use viewer::{
     AssemblyScene, BuildError, BuildOptions, DrawList, GroupDraw, Hooks, Instance, Left,

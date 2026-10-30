@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 use std::io;
+use std::path::Path;
 use std::sync::mpsc::{self, Receiver, SyncSender};
 use std::thread;
 
@@ -43,6 +44,21 @@ impl LoadedDataForge {
         let watch = ArchiveWatch::new(archive);
         let entry = DataForgeEntry::read(archive)?;
         watch.check().map_err(DataForgeLoadError::ArchiveChanged)?;
+        Self::start(entry)
+    }
+
+    /// Reads the DataForge file at `file` as [`DataForgeEntry::read_file`] does and opens it.
+    ///
+    /// # Errors
+    ///
+    /// Returns the [`DataForgeLoadError`] of reading the file, [`DataForgeLoadError::Corrupt`]
+    /// when the DataForge cannot be opened and [`DataForgeLoadError::Thread`] when no thread can
+    /// be started.
+    pub fn load_file(file: &Path) -> Result<Self, DataForgeLoadError> {
+        Self::start(DataForgeEntry::read_file(file)?)
+    }
+
+    fn start(entry: DataForgeEntry) -> Result<Self, DataForgeLoadError> {
         let path = entry.path().to_owned();
         let (ready, opened) = mpsc::sync_channel(1);
         let (jobs, receiver) = mpsc::channel();

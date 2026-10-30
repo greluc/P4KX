@@ -188,6 +188,7 @@ fn archive_menu(ui: &mut Ui, model: &Model, requests: &mut Requests) -> Option<P
         dropdown(ui);
         for (text, dialog) in [
             (Text::ActionOpen, Dialog::OpenArchive),
+            (Text::ActionOpenDataForge, Dialog::OpenDataForge),
             (Text::ActionAddFolder, Dialog::AddFolder),
             (Text::ActionAddArchive, Dialog::AddArchive),
         ] {

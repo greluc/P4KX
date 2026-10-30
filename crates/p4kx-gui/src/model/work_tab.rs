@@ -32,7 +32,27 @@ pub enum WorkTab {
     Ui,
 }
 
+impl WorkTab {
+    /// Returns whether the tab reads Entries of the open Archive, which a DataForge file has
+    /// none of.
+    #[must_use]
+    pub const fn needs_entries(self) -> bool {
+        matches!(
+            self,
+            Self::Localization | Self::Entities | Self::Sounds | Self::Characters | Self::Ui
+        )
+    }
+}
+
 impl Model {
+    /// Returns whether what is open is a DataForge file instead of an Archive.
+    #[must_use]
+    pub fn is_dataforge_file(&self) -> bool {
+        self.browser
+            .as_ref()
+            .is_some_and(|browser| browser.archive_index().is_dataforge_file())
+    }
+
     /// Returns the tab the work surface shows.
     #[must_use]
     pub const fn work_tab(&self) -> WorkTab {

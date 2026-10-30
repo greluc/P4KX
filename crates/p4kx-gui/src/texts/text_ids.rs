@@ -13,10 +13,11 @@ use crate::Language;
 
 impl Text {
     /// Every text outside the Extraction windows.
-    const BASE: [Self; 71] = [
+    const BASE: [Self; 73] = [
         Self::AppTitle,
         Self::MenuArchive,
         Self::ActionOpen,
+        Self::ActionOpenDataForge,
         Self::ActionAddFolder,
         Self::ActionAddArchive,
         Self::MenuRecent,
@@ -33,6 +34,7 @@ impl Text {
         Self::UpdateCheck,
         Self::UpdateAvailable,
         Self::DialogArchiveFilter,
+        Self::DialogDataForgeFilter,
         Self::ColumnName,
         Self::ColumnCompression,
         Self::ColumnEncryption,
@@ -133,6 +135,7 @@ impl Text {
             Self::AppTitle => "app-title",
             Self::MenuArchive => "menu-archive",
             Self::ActionOpen => "action-open",
+            Self::ActionOpenDataForge => "action-open-dataforge",
             Self::ActionAddFolder => "action-add-folder",
             Self::ActionAddArchive => "action-add-archive",
             Self::MenuRecent => "menu-recent",
@@ -149,6 +152,7 @@ impl Text {
             Self::UpdateCheck => "update-check",
             Self::UpdateAvailable => "update-available",
             Self::DialogArchiveFilter => "dialog-archive-filter",
+            Self::DialogDataForgeFilter => "dialog-dataforge-filter",
             Self::ColumnName => "column-name",
             Self::ColumnCompression => "column-compression",
             Self::ColumnEncryption => "column-encryption",

@@ -24,14 +24,22 @@ pub(crate) enum ToolError {
         /// The detected Channel names, comma separated.
         detected: String,
     },
-    /// The text is no absolute local path of a `.p4k` file.
-    #[error("`{0}` is neither a Channel name nor the absolute local path of a `.p4k` file")]
+    /// The text is no absolute local path of a `.p4k` file, or of a `.dcb` file for the DataForge
+    /// tools.
+    #[error(
+        "`{0}` is neither a Channel name nor the absolute local path of a `.p4k` file (the \
+         DataForge tools also take a `.dcb` file)"
+    )]
     NotAnArchivePath(String),
     /// The path names no existing file.
     #[error("{} does not exist or is not a file", .0.display())]
     Missing(PathBuf),
-    /// The path resolves to a network drive, a device or a file that is no `.p4k`.
-    #[error("{} does not resolve to a `.p4k` file on a local drive", .0.display())]
+    /// The path resolves to a network drive, a device or a file of another kind.
+    #[error(
+        "{} does not resolve to a `.p4k` file on a local drive (the DataForge tools also take \
+         a `.dcb` file)",
+        .0.display()
+    )]
     NotLocal(PathBuf),
     /// An argument exceeds its size cap.
     #[error("`{name}` is longer than {max} bytes")]

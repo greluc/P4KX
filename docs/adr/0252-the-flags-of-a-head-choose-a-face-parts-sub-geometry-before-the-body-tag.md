@@ -17,15 +17,16 @@ rank between the two sources; the in-game order was not observed, so this rule i
 armour path has used since ADR-0109: the specific source, the head's flags, comes first, and the
 body tag is the default.
 
-The entity path read only the flags of the port itself, so a port without its own flags, whose head
-flag sits in the container's `PortFlags`, chose nothing and fell to the body tag: Eckhart's
-eyelashes were the generic male ones, while `armour glb` drew his own.
+A face port usually has no `Flags` of its own; its head flag sits only in the container's
+`PortFlags`. The flags of the port alone would therefore choose nothing and leave the body tag to
+decide, so the shared flags are needed.
 
 ## Decision
 
 The Assembly of an Entity of the item type `Char_Head` passes the flags of its port container to
 the choice of each port's sub-geometry, beside the flags of the port (`choose_sub_geometry`). The
-order for an Entity on a face port is:
+head's flags apply to every direct port of the head, hair and the other items included, as in
+ADR-0109, not only to the face parts. The order for an Entity on such a port is:
 
 1. the sub-geometry whose tags all are among the port's flags and the head's shared flags
    (ADR-0208's choice: of several, the one with most tags, the first on a tie);

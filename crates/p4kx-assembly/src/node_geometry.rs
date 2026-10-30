@@ -101,10 +101,19 @@ pub(crate) fn flag_words<'a>(
     } else {
         defined
     };
-    flags
-        .split_whitespace()
-        .chain(shared.iter().map(String::as_str))
+    port_words(flags, shared)
         .map(|word| word.trim_start_matches('$'))
         .filter(|word| !word.is_empty())
         .collect()
+}
+
+/// Returns the words of the port's own `flags`, then the `shared` flags of the port container:
+/// the flags that choose a sub-geometry.
+pub(crate) fn port_words<'a>(
+    flags: &'a str,
+    shared: &'a [String],
+) -> impl Iterator<Item = &'a str> {
+    flags
+        .split_whitespace()
+        .chain(shared.iter().map(String::as_str))
 }

@@ -9,6 +9,7 @@ mod archives;
 mod audio;
 mod audio_followups;
 mod audio_limits;
+mod audio_objects;
 mod audio_wem;
 mod channel_notice;
 mod containers;

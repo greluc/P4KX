@@ -1,7 +1,11 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use clap::{Args, ValueEnum};
+use std::ffi::OsStr;
+
+use clap::builder::{PossibleValue, TypedValueParser};
+use clap::error::{ContextKind, ContextValue, ErrorKind};
+use clap::{Arg, Args, Command};
 use p4kx_extraction::HircKind;
 
 use crate::cli_bnk::BnkSource;
@@ -13,8 +17,8 @@ pub(crate) struct BnkObjectsArgs {
     #[command(flatten)]
     pub(crate) source: BnkSource,
     /// Lists only objects of this type.
-    #[arg(long = "type", value_enum, value_name = "TYPE")]
-    pub(crate) kind: Option<ObjectType>,
+    #[arg(long = "type", value_name = "TYPE", value_parser = KindParser)]
+    pub(crate) kind: Option<HircKind>,
     /// Lists only the object with this ID, in decimal or as 0x followed by hexadecimal.
     #[arg(long, value_name = "ID", value_parser = parse_id)]
     pub(crate) id: Option<u32>,
@@ -31,60 +35,47 @@ pub(crate) struct BnkObjectsArgs {
     pub(crate) offset: u32,
 }
 
-/// The values of `p4kx bnk objects --type`: the `HIRC` object types.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
-pub(crate) enum ObjectType {
-    State,
-    Sound,
-    Action,
-    Event,
-    RandomSequenceContainer,
-    SwitchContainer,
-    ActorMixer,
-    AudioBus,
-    LayerContainer,
-    MusicSegment,
-    MusicTrack,
-    MusicSwitch,
-    MusicPlaylist,
-    Attenuation,
-    DialogueEvent,
-    FxShareSet,
-    FxCustom,
-    AuxiliaryBus,
-    Lfo,
-    Envelope,
-    AudioDevice,
-    TimeModulator,
-}
+/// Parses the values of `--type`: the slugs of [`HircKind::known`].
+#[derive(Clone, Copy)]
+struct KindParser;
 
-impl ObjectType {
-    /// Returns the object type this value selects.
-    pub(crate) const fn kind(self) -> HircKind {
-        match self {
-            Self::State => HircKind::State,
-            Self::Sound => HircKind::Sound,
-            Self::Action => HircKind::Action,
-            Self::Event => HircKind::Event,
-            Self::RandomSequenceContainer => HircKind::RandomSequenceContainer,
-            Self::SwitchContainer => HircKind::SwitchContainer,
-            Self::ActorMixer => HircKind::ActorMixer,
-            Self::AudioBus => HircKind::AudioBus,
-            Self::LayerContainer => HircKind::LayerContainer,
-            Self::MusicSegment => HircKind::MusicSegment,
-            Self::MusicTrack => HircKind::MusicTrack,
-            Self::MusicSwitch => HircKind::MusicSwitch,
-            Self::MusicPlaylist => HircKind::MusicPlaylist,
-            Self::Attenuation => HircKind::Attenuation,
-            Self::DialogueEvent => HircKind::DialogueEvent,
-            Self::FxShareSet => HircKind::FxShareSet,
-            Self::FxCustom => HircKind::FxCustom,
-            Self::AuxiliaryBus => HircKind::AuxiliaryBus,
-            Self::Lfo => HircKind::Lfo,
-            Self::Envelope => HircKind::Envelope,
-            Self::AudioDevice => HircKind::AudioDevice,
-            Self::TimeModulator => HircKind::TimeModulator,
-        }
+impl TypedValueParser for KindParser {
+    type Value = HircKind;
+
+    fn parse_ref(
+        &self,
+        command: &Command,
+        argument: Option<&Arg>,
+        value: &OsStr,
+    ) -> Result<HircKind, clap::Error> {
+        value.to_str().and_then(HircKind::from_slug).ok_or_else(|| {
+            let mut error = clap::Error::new(ErrorKind::InvalidValue).with_cmd(command);
+            if let Some(argument) = argument {
+                error.insert(
+                    ContextKind::InvalidArg,
+                    ContextValue::String(argument.to_string()),
+                );
+            }
+            error.insert(
+                ContextKind::InvalidValue,
+                ContextValue::String(value.to_string_lossy().into_owned()),
+            );
+            error.insert(
+                ContextKind::ValidValue,
+                ContextValue::Strings(
+                    HircKind::known()
+                        .map(|kind| kind.slug().to_owned())
+                        .collect(),
+                ),
+            );
+            error
+        })
+    }
+
+    fn possible_values(&self) -> Option<Box<dyn Iterator<Item = PossibleValue> + '_>> {
+        Some(Box::new(
+            HircKind::known().map(|kind| PossibleValue::new(kind.slug())),
+        ))
     }
 }
 
@@ -107,12 +98,16 @@ mod tests {
     use super::*;
 
     #[test]
-    fn every_type_value_is_the_slug_of_its_kind() {
-        for value in ObjectType::value_variants() {
-            let name = value
-                .to_possible_value()
-                .map(|possible| possible.get_name().to_owned());
-            assert_eq!(name.as_deref(), Some(value.kind().slug()));
+    fn a_type_is_the_slug_of_a_known_kind() {
+        let parser = KindParser;
+        let command = Command::new("test");
+        for kind in HircKind::known() {
+            let parsed = parser.parse_ref(&command, None, OsStr::new(kind.slug()));
+            assert_eq!(parsed.ok(), Some(kind), "{kind}");
+        }
+        for text in ["other", "Sound", ""] {
+            let parsed = parser.parse_ref(&command, None, OsStr::new(text));
+            assert!(parsed.is_err(), "{text:?} is no type");
         }
     }
 

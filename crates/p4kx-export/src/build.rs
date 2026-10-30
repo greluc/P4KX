@@ -269,7 +269,6 @@ fn assemble<R>(
         mission_types: collected.mission_kinds.types,
         mission_localities: collected.mission_kinds.localities,
         contract_scenarios: collected.mission_kinds.scenarios,
-        cargo_manifests: collected.mission_kinds.manifests,
         loot_tables: collected.loot_kinds.tables,
         loot_archetypes: collected.loot_kinds.archetypes,
         loot_pool_filters: collected.loot_kinds.filters,
@@ -277,6 +276,7 @@ fn assemble<R>(
         legacy_loot_archetypes: collected.loot_kinds.legacy_archetypes,
         mineable_entities: collected.mineable_entities,
         crafters: collected.crafters,
+        cargo_manifests: collected.mission_kinds.manifests,
         ship_store_slugs: resolved.exported,
         item_recovery: rules,
     };

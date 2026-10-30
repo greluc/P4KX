@@ -4,8 +4,8 @@
 //! Hauling orders of contracts and cargo manifests in the Basetool catalog.
 
 use crate::hauling_fixture::{
-    BROKERED, CRATE, CRATES, FAR, GOLD, MANIFEST_CUSTOM, MANIFEST_EVEN, NEAR, NOTHING, PLAIN,
-    SCRAP, SUB, guid, write_archive,
+    BROKERED, CRATE, CRATES, FAR, GOLD, MANIFEST_CUSTOM, MANIFEST_EVEN, NAMELESS, NEAR, NOTHING,
+    PLAIN, SCRAP, SUB, guid, write_archive,
 };
 
 use std::error::Error;
@@ -169,6 +169,32 @@ fn a_broker_entry_states_the_objective_orders_of_a_contract_without_template() -
     );
     let plain = orders(&catalog, PLAIN, None)?;
     assert!(plain.iter().all(|order| order["source"] == "handler"));
+    Ok(())
+}
+
+#[test]
+fn properties_without_a_variable_name_shadow_nothing() -> TestResult {
+    let (_, catalog) = build()?;
+    let unnamed = orders(&catalog, NAMELESS, None)?;
+    let found: Vec<_> = unnamed
+        .iter()
+        .map(|order| (order["source"].as_str(), order["variableName"].clone()))
+        .collect();
+    assert_eq!(
+        found,
+        [
+            (Some("contract"), Value::Null),
+            (Some("handler"), Value::Null)
+        ]
+    );
+    assert_eq!(
+        unnamed[0]["requirements"],
+        json!([single(resource(GOLD, 4, 4, -1))])
+    );
+    assert_eq!(
+        unnamed[1]["requirements"],
+        json!([single(resource(SCRAP, 3, 3, -1))])
+    );
     Ok(())
 }
 

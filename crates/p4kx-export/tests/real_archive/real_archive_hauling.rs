@@ -47,7 +47,14 @@ fn contracts_of_a_real_archive_list_their_hauling_orders() -> TestResult {
         .collect();
     let mut sources: BTreeMap<&str, usize> = BTreeMap::new();
     let mut kinds: BTreeMap<&str, usize> = BTreeMap::new();
+    let entities: HashSet<&str> = ["items", "ships", "commodities"]
+        .into_iter()
+        .filter_map(|kind| catalog[kind].as_array())
+        .flatten()
+        .filter_map(|entry| entry["guid"].as_str())
+        .collect();
     let mut unknown: HashSet<&str> = HashSet::new();
+    let mut unlisted = 0_usize;
     let (mut hauling, mut resources) = (0_usize, 0_usize);
     for contract in contracts {
         let orders = contract["haulingOrders"]
@@ -62,6 +69,9 @@ fn contracts_of_a_real_archive_list_their_hauling_orders() -> TestResult {
                 *kinds
                     .entry(item["kind"].as_str().ok_or("kind")?)
                     .or_default() += 1;
+                if let Some(class) = item["entityClassGuid"].as_str() {
+                    unlisted += usize::from(!entities.contains(class));
+                }
                 if let Some(resource) = item["resourceGuid"].as_str() {
                     resources += 1;
                     if !subtypes.contains(resource) {
@@ -78,11 +88,8 @@ fn contracts_of_a_real_archive_list_their_hauling_orders() -> TestResult {
         unknown.len()
     ));
     assert!(hauling > 400, "contracts that haul: {hauling}");
-    assert!(
-        unknown.len() < 40,
-        "resources without a commodity: {}",
-        unknown.len()
-    );
+    assert_eq!(unknown.len(), 11, "resources without a commodity");
+    assert_eq!(unlisted, 5, "entity classes in no kind");
     Ok(())
 }
 
@@ -125,10 +132,6 @@ fn the_cargo_manifests_of_a_real_archive_name_commodities() -> TestResult {
         unknown.len()
     ));
     assert!(manifests.len() > 60, "manifests: {}", manifests.len());
-    assert!(
-        unknown.len() < 10,
-        "resources without a commodity: {}",
-        unknown.len()
-    );
+    assert_eq!(unknown.len(), 4, "resources without a commodity");
     Ok(())
 }

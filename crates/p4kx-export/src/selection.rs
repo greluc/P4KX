@@ -105,8 +105,6 @@ pub enum Kind {
     MissionLocalities,
     /// Contract scenarios: `ScenarioProgress` Records under `contracts/contractscenarios`.
     ContractScenarios,
-    /// Cargo manifests: `CargoManifest` Records under `cargomanifest`.
-    CargoManifests,
     /// Loot tables: `LootTableV3Record` Records under `lootgeneration/loottables`.
     LootTables,
     /// Loot archetypes: `LootArchetypeV3Record` Records under `lootgeneration/lootarchetypes`.
@@ -130,6 +128,8 @@ pub enum Kind {
     /// comes last; an item, ship or commodity that is a crafter is read from its own Record.
     /// [`Kind::rule`] alone does not select a crafter: the Record must also hold the component.
     Crafters,
+    /// Cargo manifests: `CargoManifest` Records under `cargomanifest`.
+    CargoManifests,
 }
 
 impl Kind {
@@ -166,7 +166,6 @@ impl Kind {
         Self::MissionTypes,
         Self::MissionLocalities,
         Self::ContractScenarios,
-        Self::CargoManifests,
         Self::LootTables,
         Self::LootArchetypes,
         Self::LootPoolFilters,
@@ -175,6 +174,7 @@ impl Kind {
         Self::LegacyLootTables,
         Self::LegacyLootArchetypes,
         Self::Crafters,
+        Self::CargoManifests,
     ];
 
     /// Returns the name of the kind's array in the catalog, e.g. `manufacturers`.
@@ -212,7 +212,6 @@ impl Kind {
             Self::MissionTypes => "missionTypes",
             Self::MissionLocalities => "missionLocalities",
             Self::ContractScenarios => "contractScenarios",
-            Self::CargoManifests => "cargoManifests",
             Self::LootTables => "lootTables",
             Self::LootArchetypes => "lootArchetypes",
             Self::LootPoolFilters => "lootPoolFilters",
@@ -221,6 +220,7 @@ impl Kind {
             Self::LegacyLootTables => "legacyLootTables",
             Self::LegacyLootArchetypes => "legacyLootArchetypes",
             Self::Crafters => "crafters",
+            Self::CargoManifests => "cargoManifests",
         }
     }
 

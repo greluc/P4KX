@@ -60,12 +60,13 @@ pub(crate) struct HaulingItem {
     /// What kind of thing the item is.
     pub(crate) kind: HaulingItemKind,
     /// The GUID of the `ResourceType` Record of a `resource` item, the `subtypeGuid` of a
-    /// commodity; `null` for another kind or a dangling Reference.
+    /// commodity; `null` for another kind or when the item names none. A GUID of a `ResourceType`
+    /// that no commodity of the catalog carries is kept.
     pub(crate) resource_guid: Option<CatalogGuid>,
     /// The GUID of the `EntityClassDefinition` Record of an `entityClass` item.
     pub(crate) entity_class_guid: Option<CatalogGuid>,
     /// The GUID of the `Hauling_EntityClasses` Record of an `entityClasses` item: a list of
-    /// entity classes of which any one counts.
+    /// entity classes of which any one counts. No kind lists these Records.
     pub(crate) entity_classes_guid: Option<CatalogGuid>,
     /// The `minSCU` of a `resource` item, as stored.
     pub(crate) min_scu: Option<i64>,

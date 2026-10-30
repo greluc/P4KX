@@ -23,6 +23,7 @@ pub(crate) const NEAR: u128 = 0xf100_0000_0000_4000_8000_0000_0000_0001;
 pub(crate) const FAR: u128 = 0xf100_0000_0000_4000_8000_0000_0000_0002;
 pub(crate) const PLAIN: u128 = 0xf100_0000_0000_4000_8000_0000_0000_0003;
 pub(crate) const BROKERED: u128 = 0xf100_0000_0000_4000_8000_0000_0000_0004;
+pub(crate) const NAMELESS: u128 = 0xf100_0000_0000_4000_8000_0000_0000_0006;
 pub(crate) const NOTHING: u128 = 0xf100_0000_0000_4000_8000_0000_0000_0005;
 pub(crate) const SUB: u128 = 0xf200_0000_0000_4000_8000_0000_0000_0001;
 pub(crate) const TEMPLATE: u128 = 0xf300_0000_0000_4000_8000_0000_0000_0001;
@@ -201,6 +202,44 @@ fn near_contract() -> TestValue {
     )
 }
 
+fn empty_handler() -> TestInstance {
+    TestInstance::new("ContractGeneratorHandler_Career")
+        .value("debugName", TestValue::text("Empty_Career"))
+        .value(
+            "contracts",
+            array(vec![structure(contract(
+                NOTHING,
+                "No_Haul",
+                None,
+                overrides(vec![]),
+            ))]),
+        )
+}
+
+fn unnamed_handler() -> TestInstance {
+    TestInstance::new("ContractGeneratorHandler_Career")
+        .value("debugName", TestValue::text("Unnamed_Career"))
+        .value(
+            "contractParams",
+            overrides(vec![orders_property(
+                "",
+                vec![resource_content(SCRAP, 3, 3, -1)],
+            )]),
+        )
+        .value(
+            "contracts",
+            array(vec![structure(contract(
+                NAMELESS,
+                "Unnamed_Haul",
+                None,
+                overrides(vec![orders_property(
+                    "",
+                    vec![resource_content(GOLD, 4, 4, -1)],
+                )]),
+            ))]),
+        )
+}
+
 fn generator() -> TestRecord {
     let contracts = vec![
         near_contract(),
@@ -221,17 +260,6 @@ fn generator() -> TestRecord {
                 .value("missionBrokerEntry", reference(BROKER)),
         ),
     ];
-    let bare = TestInstance::new("ContractGeneratorHandler_Career")
-        .value("debugName", TestValue::text("Bare_Career"))
-        .value(
-            "contracts",
-            array(vec![structure(contract(
-                NOTHING,
-                "No_Haul",
-                None,
-                overrides(vec![]),
-            ))]),
-        );
     let handler = TestInstance::new("ContractGeneratorHandler_Career")
         .value("debugName", TestValue::text("Haul_Career"))
         .value(
@@ -250,7 +278,11 @@ fn generator() -> TestRecord {
     )
     .value(
         "generators",
-        array(vec![structure(handler), structure(bare)]),
+        array(vec![
+            structure(handler),
+            structure(empty_handler()),
+            structure(unnamed_handler()),
+        ]),
     )
 }
 

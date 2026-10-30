@@ -52,8 +52,8 @@ pub(crate) enum CargoFillType {
 #[serde(rename_all = "camelCase")]
 #[schemars(transform = every_field_required)]
 pub(crate) struct CargoManifestResource {
-    /// The GUID of the `ResourceType` Record, the `subtypeGuid` of a commodity; `null` for a
-    /// null or dangling Reference.
+    /// The GUID of the `ResourceType` Record, the `subtypeGuid` of a commodity; `null` when the
+    /// resource is absent. A GUID that no commodity of the catalog carries is kept.
     pub(crate) resource_guid: Option<CatalogGuid>,
     /// The `probability` that the resource is picked, as stored.
     pub(crate) probability: Option<f32>,

@@ -3,7 +3,6 @@
 
 use p4kx_extraction::{
     CancelToken, DataForge, DataForgeError, Filter, Record, RecordTree, StructValue, TreeBuilder,
-    Value,
 };
 use rayon::prelude::*;
 
@@ -13,7 +12,8 @@ use crate::contract_missions::{ContractEntry, ContractFaction, PickupPlace, Repu
 use crate::contract_starmap::StarmapObject;
 use crate::guid_text::CatalogGuid;
 use crate::mission_cooldown::Cooldown;
-use crate::mission_hauling::HaulingLevels;
+use crate::mission_gains::{gains, link};
+use crate::mission_hauling_levels::HaulingLevels;
 use crate::mission_index::{Broker, MissionIndex, Template};
 use crate::mission_layers::{Layer, Prop, Property, items, one};
 use crate::mission_places::{Places, Where};
@@ -30,7 +30,6 @@ const CONTAINERS: [&str; 4] = [
     "legacyContracts",
     "PVPBountyContract",
 ];
-const LEGACY_REPUTATION: &str = "ContractResult_LegacyReputation";
 
 /// The contracts of a DataForge and what was left out.
 pub(crate) struct Missions<'f> {
@@ -209,11 +208,7 @@ impl<'f> Parent<'_, 'f> {
         let broker = reference(Some(self.contract), "missionBrokerEntry")
             .and_then(|guid| index.broker(guid.0));
         let broker_location = broker.and_then(|broker| broker.location);
-        let shared = Shared {
-            gains: gains(self.contract, index),
-            standing: Standing::read(self.handler, self.contract),
-            cooldown: Cooldown::read(self.handler),
-        };
+        let shared = Shared::read(self.handler, self.contract, index);
         let make = |sub: Option<&StructValue<'f>>| {
             let sub_layer =
                 sub.map(|sub| Layer::read(one(Some(sub), "paramOverrides").or(Some(sub))));
@@ -230,19 +225,22 @@ impl<'f> Parent<'_, 'f> {
             let pickup = context
                 .places
                 .pickup_or_broker(index, &wheres, broker_location);
-            let hauling = HaulingLevels::of(
-                sub_layer.as_ref(),
-                &contract_layer,
-                self.handler_layer,
-                template_data,
-                broker,
-            );
             self.entry(
                 sub,
                 &levels,
                 template,
                 (template_data, broker),
-                (&shared, pickup, hauling.orders()),
+                (
+                    &shared,
+                    Own {
+                        pickup,
+                        hauling_orders: self.hauling(
+                            sub_layer.as_ref(),
+                            &contract_layer,
+                            (template_data, broker),
+                        ),
+                    },
+                ),
                 context,
             )
         };
@@ -268,11 +266,7 @@ impl<'f> Parent<'_, 'f> {
         levels: &[&Layer<'f>],
         template: Option<p4kx_extraction::Guid>,
         (template_data, broker): (Option<&Template<'f>>, Option<&Broker<'f>>),
-        (shared, pickup, hauling_orders): (
-            &Shared<'f>,
-            Vec<PickupPlace<'f>>,
-            Vec<HaulingOrder<'f>>,
-        ),
+        (shared, own): (&Shared<'f>, Own<'f>),
         context: &Context<'_, 'f>,
     ) -> ContractEntry<'f> {
         let (index, texts) = (context.index, context.texts);
@@ -320,7 +314,7 @@ impl<'f> Parent<'_, 'f> {
             ),
             contractor: texts.localised(levels.iter().find_map(|level| level.contractor)),
             faction: self.faction(context),
-            pickup_places: pickup,
+            pickup_places: own.pickup,
             reputation_gains: shared.gains.clone(),
             min_standing_guid: shared.standing.min,
             max_standing_guid: shared.standing.max,
@@ -331,8 +325,19 @@ impl<'f> Parent<'_, 'f> {
             personal_cooldown_time_variation: shared.cooldown.personal_time_variation,
             abandoned_cooldown_time: shared.cooldown.abandoned_time,
             abandoned_cooldown_time_variation: shared.cooldown.abandoned_time_variation,
-            hauling_orders,
+            hauling_orders: own.hauling_orders,
         }
+    }
+
+    /// Returns what the entry hauls, from the layers (`sub`, `contract`, the handler's) and the
+    /// template and broker entry in `found`.
+    fn hauling(
+        &self,
+        sub: Option<&Layer<'f>>,
+        contract: &Layer<'f>,
+        (template, broker): (Option<&Template<'f>>, Option<&Broker<'f>>),
+    ) -> Vec<HaulingOrder<'f>> {
+        HaulingLevels::of(sub, contract, self.handler_layer, template, broker).orders()
     }
 
     /// Returns the `factionReputation` of the handler with its display name.
@@ -353,49 +358,26 @@ struct Shared<'f> {
     cooldown: Cooldown,
 }
 
+impl<'f> Shared<'f> {
+    fn read(
+        handler: &StructValue<'f>,
+        contract: &StructValue<'f>,
+        index: &MissionIndex<'f>,
+    ) -> Self {
+        Self {
+            gains: gains(contract, index),
+            standing: Standing::read(handler, contract),
+            cooldown: Cooldown::read(handler),
+        }
+    }
+}
+
+/// What an entry states for itself: the places it is offered at and what it hauls.
+struct Own<'f> {
+    pickup: Vec<PickupPlace<'f>>,
+    hauling_orders: Vec<HaulingOrder<'f>>,
+}
+
 fn identity(structure: &StructValue<'_>) -> Option<p4kx_extraction::Guid> {
     guid_value(Some(structure), "id").filter(|id| *id != p4kx_extraction::Guid::default())
-}
-
-fn gains<'f>(contract: &StructValue<'f>, index: &MissionIndex<'f>) -> Vec<ReputationGain<'f>> {
-    let block = one(Some(contract), "contractResults");
-    items(block, "contractResults")
-        .iter()
-        .filter_map(as_struct)
-        .filter(|result| result.type_name() == LEGACY_REPUTATION && succeeds(result))
-        .flat_map(|result| items(Some(result), "contractResultReputationAmounts"))
-        .filter_map(as_struct)
-        .map(|amount| {
-            let faction = link(amount, "factionReputation");
-            let scope = link(amount, "reputationScope");
-            ReputationGain {
-                faction_reputation_guid: faction.map(|(guid, _)| guid),
-                faction_reputation_name: faction.map(|(_, name)| name),
-                scope_guid: scope.map(|(guid, _)| guid),
-                scope_name: scope.map(|(_, name)| name),
-                amount: reference(Some(amount), "reward").and_then(|reward| index.reward(reward.0)),
-            }
-        })
-        .collect()
-}
-
-fn link<'f>(parent: &StructValue<'f>, name: &str) -> Option<(CatalogGuid, &'f str)> {
-    match parent.field(name)? {
-        Value::Reference(target) if target.location().is_none() => {
-            let path = target.record_path();
-            Some((
-                CatalogGuid(target.guid()),
-                path.rsplit('/').next().unwrap_or(path),
-            ))
-        }
-        _ => None,
-    }
-}
-
-fn succeeds(result: &StructValue<'_>) -> bool {
-    match items(Some(result), "missionResults").first() {
-        Some(Value::Bool(set)) => *set,
-        Some(Value::Struct(flag)) => boolean(Some(flag), "value").unwrap_or(false),
-        _ => false,
-    }
 }

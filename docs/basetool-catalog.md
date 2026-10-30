@@ -1210,7 +1210,7 @@ the hauling objectives (`ObjectiveHandler_Hauling`) of the template; and the sam
 | `variableName` | The `missionVariableName` of the property; `null` for an objective order |
 | `requirements` | What is hauled: per requirement `options`, the alternatives of which one is hauled, each a list of items that are all hauled. A plain order is one option with one item; an `or` has one option per alternative |
 
-Of the property levels the nearest wins per `variableName` (the layer rule above); the objective
+Of the property levels the nearest wins per `variableName` (the layer rule above; a property without a name shadows nothing); the objective
 orders are those of the template, else those of the broker entry. An item has a `kind` and the
 fields of that kind, the others `null`:
 
@@ -1218,7 +1218,7 @@ fields of that kind, the others `null`:
 |--------|--------|
 | `resource` | `resourceGuid` (the `subtypeGuid` of a commodity), `minScu`, `maxScu`, `maxContainerSize` |
 | `entityClass` | `entityClassGuid` (the `EntityClassDefinition` Record), `minAmount`, `maxAmount` |
-| `entityClasses` | `entityClassesGuid` (a `Hauling_EntityClasses` Record, a list of entity classes of which any counts), `minAmount`, `maxAmount` |
+| `entityClasses` | `entityClassesGuid` (a `Hauling_EntityClasses` Record, a list of entity classes of which any counts; no kind lists these Records), `minAmount`, `maxAmount` |
 | `missionItem` | `minAmount`, `maxAmount`; the item itself is a mission property the game fills in |
 
 The numbers are as stored: `maxSCU` and `maxAmount` of 0 and a `maxContainerSize` of -1 mean no
@@ -1228,7 +1228,7 @@ stays in `pickupPlaces`. Objective orders that only name a drop-off, point at a 
 mission item are left out. On LIVE 4.10 (2026-10-30) 1,966 of the 5,175 entries haul: the
 orders come from the contract (1,440), the template objective (369), the broker objective (419),
 the template (53) and the sub contract (18); the items are 2,587 resources, 647 entity classes,
-109 entity class lists and 988 mission items. 11 of the resources are no commodity of the catalog
+109 entity class lists and 988 mission items; 5 of the `entityClassGuid`s name an entity class that no kind of the catalog lists (items, ships, commodities). 11 of the resources are no commodity of the catalog
 (a `ResourceType` that no commodity Record carries).
 
 ### Factions, reputation and missions

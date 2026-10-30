@@ -19,7 +19,10 @@ field statistics of the hauling types.
 - **`contracts[].haulingOrders`.** One new field on every contract entry: a list of orders, each
   with a `source`, the `variableName` of its property and its `requirements`. A property level is
   chosen like every other contract value (ADR-0237): per `missionVariableName` the nearest of sub
-  contract, contract, handler and template wins. The objective orders of the template follow, else
+  contract, contract, handler and template wins. The resolution lives in `HaulingLevels::orders`
+  and is keyed by the variable name, not by the token a title refers to (these properties have an
+  empty `extendedTextToken`). A property without a name fills no variable, shadows nothing and is
+  listed at every level. The objective orders of the template follow, else
   those of the broker entry. The field is a list, empty for a contract that hauls nothing; no
   existing field changes.
 - **Requirements.** A requirement has `options`, each a list of items that are all hauled; a plain

@@ -18,8 +18,12 @@ pub(crate) fn minimal_catalog() -> serde_json::Value {
     json!({
         "schemaVersion": 2,
         "source": {
-            "channel": null, "build": null, "archiveSize": 0, "archiveModified": null,
-            "toolVersion": "0.1.0", "exportedAt": "2026-10-18T00:00:00Z"
+            "channel": null,
+            "build": null,
+            "archiveSize": 0,
+            "archiveModified": null,
+            "toolVersion": "0.1.0",
+            "exportedAt": "2026-10-18T00:00:00Z"
         },
         "completeness": {
             "manufacturers": {"status": "complete"},
@@ -53,7 +57,6 @@ pub(crate) fn minimal_catalog() -> serde_json::Value {
             "missionTypes": {"status": "complete"},
             "missionLocalities": {"status": "complete"},
             "contractScenarios": {"status": "complete"},
-            "cargoManifests": {"status": "complete"},
             "lootTables": {"status": "complete"},
             "lootArchetypes": {"status": "complete"},
             "lootPoolFilters": {"status": "complete"},
@@ -62,6 +65,7 @@ pub(crate) fn minimal_catalog() -> serde_json::Value {
             "lootContainers": {"status": "complete"},
             "mineableEntities": {"status": "complete"},
             "crafters": {"status": "complete"},
+            "cargoManifests": {"status": "complete"},
             "shipStoreSlugs": {"status": "complete"}
         },
         "manufacturers": [{
@@ -271,23 +275,7 @@ pub(crate) fn minimal_catalog() -> serde_json::Value {
         "harvestableProviderPresets": harvest::presets(),
         "subHarvestableMultiConfigs": harvest::multi_configs(),
         "harvestableLocations": harvest::locations(),
-        "shops": [{
-            "key": "4a269932-183e-362d-aacc-188e7debbea9,4ce1f681-b479-5269-0536-3d7f02fdccaf,41000000-0000-4000-8000-000000000001,42eef9e5-ecd4-6e5b-6254-e332a5dd44b9",
-            "entityGuid": "42eef9e5-ecd4-6e5b-6254-e332a5dd44b9",
-            "system": "stanton",
-            "entityName": "SCShop_CommEx_TDD_NewBabbage",
-            "registryName": "L_TDD_NewBabbage",
-            "defaultValue": "d0000000-0000-4000-8000-000000000001",
-            "containers": ["OOC_Stanton", "OOC_Stanton_4_Microtech", "NewBabbage_LOC"],
-            "body": "OOC_Stanton_4_Microtech",
-            "location": "NewBabbage_LOC",
-            "starmapObjectGuid": "a2000000-0000-4000-8000-000000000001",
-            "kind": "commex",
-            "brand": "tdd",
-            "commodityExchange": true,
-            "inventory": "inv_commex_newbabbage",
-            "itemGuids": ["d195eb47-24b8-45c0-a4d0-1771d60dc1a8"]
-        }],
+        "shops": harvest::shops(),
         "factionReputations": reputation::factions(),
         "reputationScopes": reputation::scopes(),
         "reputationStandings": reputation::standings(),
@@ -295,7 +283,6 @@ pub(crate) fn minimal_catalog() -> serde_json::Value {
         "missionTypes": reputation::mission_types(),
         "missionLocalities": reputation::localities(),
         "contractScenarios": reputation::scenarios(),
-        "cargoManifests": contracts::manifests(),
         "lootTables": loot::tables(),
         "lootArchetypes": loot::archetypes(),
         "lootPoolFilters": loot::filters(),
@@ -304,6 +291,7 @@ pub(crate) fn minimal_catalog() -> serde_json::Value {
         "lootContainers": loot::containers(),
         "mineableEntities": harvest::mineable_entities(),
         "crafters": crafters::crafters(),
+        "cargoManifests": contracts::manifests(),
         "shipStoreSlugs": [{
             "slug": "Aurora-Mk-I-ES",
             "rsiId": 1,

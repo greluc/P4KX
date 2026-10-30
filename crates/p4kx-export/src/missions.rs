@@ -17,11 +17,11 @@ use crate::mission_facts::{Levels, SharedFacts};
 use crate::mission_hauling_levels::HaulingLevels;
 use crate::mission_index::{Broker, MissionIndex, Template};
 use crate::mission_intros::{Grants, record_grants, resolve};
-use crate::mission_layers::{Layer, Prop, Property, description_key, items, one};
+use crate::mission_layers::{Layer, items, one};
 use crate::mission_places::{Places, Where};
 use crate::mission_results::{gains, granted_tags, link};
 use crate::mission_standing::Standing;
-use crate::mission_title::{Token, expand_text};
+use crate::mission_titles::titles;
 use crate::record_fields::{boolean, guid_value, reference, text};
 use crate::selection::{Kind, is_leftover};
 use crate::texts::Texts;
@@ -289,10 +289,6 @@ impl<'f> Parent<'_, 'f> {
         pickup
     }
 
-    #[expect(
-        clippy::too_many_lines,
-        reason = "one struct literal that fills every field of the entry"
-    )]
     fn entry(
         &self,
         sub: Option<&StructValue<'f>>,
@@ -303,26 +299,7 @@ impl<'f> Parent<'_, 'f> {
         context: &Context<'_, 'f>,
     ) -> ContractEntry<'f> {
         let (index, texts) = (context.index, context.texts);
-        let property = |token: &str| -> Option<&Property<'f>> {
-            levels
-                .iter()
-                .flat_map(|level| level.properties.iter())
-                .chain(template_data.into_iter().flat_map(|data| &data.properties))
-                .find(|property| property.token.eq_ignore_ascii_case(token))
-        };
-        let resolve = |token: &str, variant: Option<&str>| -> Option<Token<'f>> {
-            match &property(token)?.value {
-                Prop::Key(key) => Some(Token::Key(key)),
-                Prop::Organization(guid) => index.variant(*guid, variant).map(Token::Key),
-                Prop::Placeholder(label) => Some(Token::Placeholder(label)),
-                Prop::Unknown => None,
-            }
-        };
-        let title_key = levels
-            .iter()
-            .find_map(|level| level.title)
-            .or_else(|| template_data.and_then(|data| data.title))
-            .or_else(|| broker.and_then(|broker| broker.title));
+        let (title, description) = titles(levels, (template_data, broker), (index, texts));
         let mission_type = levels
             .iter()
             .find_map(|level| level.mission_type)
@@ -338,8 +315,8 @@ impl<'f> Parent<'_, 'f> {
             template_guid: template.map(CatalogGuid),
             not_for_release: boolean(Some(self.contract), "notForRelease"),
             work_in_progress: boolean(Some(self.contract), "workInProgress"),
-            title: expand_text(title_key, texts, &resolve),
-            description: expand_text(description_key(levels.iter(), broker), texts, &resolve),
+            title,
+            description,
             mission_type_guid: mission_type.map(CatalogGuid),
             mission_type: texts.localised(
                 mission_type

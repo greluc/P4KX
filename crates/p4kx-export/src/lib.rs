@@ -167,6 +167,7 @@ mod mission_places;
 mod mission_results;
 mod mission_standing;
 mod mission_title;
+mod mission_titles;
 mod missions;
 mod ndjson;
 mod options;

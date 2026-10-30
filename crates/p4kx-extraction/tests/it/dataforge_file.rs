@@ -8,7 +8,8 @@ use std::fs::{self, File};
 use std::io::Write;
 
 use p4kx_extraction::{
-    DataForgeEntry, DataForgeLoadError, LoadedDataForge, MAX_DATAFORGE_SIZE, is_dataforge_file,
+    DataForge, DataForgeEntry, DataForgeLoadError, LoadedDataForge, MAX_DATAFORGE_SIZE,
+    is_dataforge_file,
 };
 use p4kx_testkit::{ArchiveBuilder, DataForgeBuilder, TestEntry, TestRecord, TestStruct};
 
@@ -42,7 +43,8 @@ fn a_file_is_read_by_content_whatever_its_name() -> TestResult {
     assert_eq!(entry.path(), "kept-from-last-patch.bin", "the file name");
     assert_eq!(entry.open()?.record_count(), 3, "its Records are read");
     let loaded = LoadedDataForge::load_file(&file)?;
-    assert_eq!(loaded.with(|forge| forge.record_count())?, 3);
+    let count = loaded.with(|forge: &DataForge<'_>| forge.record_count())?;
+    assert_eq!(count, 3);
     Ok(())
 }
 
@@ -60,7 +62,10 @@ fn an_archive_and_other_files_are_not_dataforge_files() -> TestResult {
 
     assert!(!is_dataforge_file(&archive)?, "an Archive");
     assert!(!is_dataforge_file(&text)?, "a text");
-    assert!(!is_dataforge_file(&short)?, "a file shorter than the header word pair");
+    assert!(
+        !is_dataforge_file(&short)?,
+        "a file shorter than the header word pair"
+    );
     assert!(
         is_dataforge_file(&dir.path().join("missing.dcb")).is_err(),
         "a missing file cannot be looked at"
@@ -74,7 +79,10 @@ fn an_unsupported_version_is_still_recognised() -> TestResult {
     let file = dir.path().join("old.dcb");
     fs::write(&file, DataForgeBuilder::new().version(5).build())?;
 
-    assert!(is_dataforge_file(&file)?, "version 5 has a DataForge header");
+    assert!(
+        is_dataforge_file(&file)?,
+        "version 5 has a DataForge header"
+    );
     let entry = DataForgeEntry::read_file(&file)?;
     assert!(entry.open().is_err(), "but it cannot be opened");
     Ok(())

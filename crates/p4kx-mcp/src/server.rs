@@ -192,10 +192,10 @@ impl State {
     }
 
     fn path(&self, archive: Option<&str>) -> Result<PathBuf, ToolError> {
-        match archive {
-            Some(text) => self.locations.resolve(text),
-            None => self.default_archive.clone().ok_or(ToolError::NoArchive),
-        }
+        archive.map_or_else(
+            || self.default_archive.clone().ok_or(ToolError::NoArchive),
+            |text| self.locations.resolve(text),
+        )
     }
 }
 

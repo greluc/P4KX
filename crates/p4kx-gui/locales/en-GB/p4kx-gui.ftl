@@ -1,6 +1,7 @@
 app-title = P4KX
 menu-archive = Archive
 action-open = Open Archive…
+action-open-dataforge = Open DataForge file…
 action-add-folder = Add folder…
 action-add-archive = Add Archive…
 menu-recent = Recent Archives
@@ -17,6 +18,7 @@ font-licence = Font licence
 update-check = Check for a new version at start
 update-available = Version { $version } is available
 dialog-archive-filter = Star Citizen Archive
+dialog-dataforge-filter = DataForge database
 column-name = Name
 column-compression = Compression
 column-encryption = Encryption

@@ -72,9 +72,7 @@ impl Browser {
     pub fn new(index: EntryIndex) -> Self {
         let root = index.root();
         let checks = Checks::new(index.len());
-        let records = index
-            .dataforge_entry()
-            .map(|entry| RecordTree::new(entry.path().to_owned()));
+        let records = index.dataforge_name().map(RecordTree::new);
         let mut browser = Self {
             index: Arc::new(index),
             containers: Containers::default(),

@@ -146,6 +146,8 @@ use crate::{
 pub enum Dialog {
     /// Picks an Archive to open.
     OpenArchive,
+    /// Picks a DataForge file such as `Game2.dcb` to open.
+    OpenDataForge,
     /// Picks a folder to add as a manual entry.
     AddFolder,
     /// Picks an Archive to add as a manual entry.

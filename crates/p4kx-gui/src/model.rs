@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use std::sync::mpsc::{self, Receiver, TryRecvError};
 use std::thread;
 
-use p4kx_extraction::{Archive, ArchiveError};
+use p4kx_extraction::{Archive, ArchiveError, is_dataforge_file};
 use p4kx_settings::{ExtractionAudio, ExtractionTextures, RecentArchives};
 
 mod archive_change;
@@ -236,8 +236,9 @@ impl Model {
         self.recent = recent;
     }
 
-    /// Starts opening the Archive at `path` on a background thread, replacing an opening that
-    /// is still running; `wake` is called from that thread once the result is ready.
+    /// Starts opening the Archive at `path`, or the DataForge file whose content it is, on a
+    /// background thread, replacing an opening that is still running; `wake` is called from that
+    /// thread once the result is ready.
     pub fn open(&mut self, path: PathBuf, wake: impl Fn() + Send + 'static) {
         let (sender, result) = mpsc::channel();
         let thread_path = path.clone();
@@ -246,7 +247,11 @@ impl Model {
             .name("open-archive".to_owned())
             .spawn(move || {
                 p4kx_extraction::protect_archive_folder(&thread_path);
-                let index = Archive::open_with_key(&thread_path, key).map(EntryIndex::build);
+                let index = if is_dataforge_file(&thread_path).unwrap_or(false) {
+                    Archive::stand_in(&thread_path).map(EntryIndex::build_dataforge_file)
+                } else {
+                    Archive::open_with_key(&thread_path, key).map(EntryIndex::build)
+                };
                 if sender.send(index).is_ok() {
                     wake();
                 }

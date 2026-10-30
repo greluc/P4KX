@@ -47,6 +47,7 @@ mod comparison_window;
 mod containers;
 mod content_search_hits;
 mod content_search_window;
+mod dataforge_file;
 mod dataforge_summary_scrolling;
 mod diffing;
 mod entity_export_window;

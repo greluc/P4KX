@@ -60,6 +60,7 @@ impl App {
         let texts = self.model.texts();
         let filters = Filters {
             archive: texts.get(Text::DialogArchiveFilter),
+            dataforge: texts.get(Text::DialogDataForgeFilter),
             report: texts.get(ComparisonText::ReportFilter),
             export: texts.get(match dialog {
                 Dialog::QueryExport(QueryExportFormat::Json) => QueryText::FilterJson,
@@ -122,7 +123,9 @@ impl App {
     fn apply_dialog_result(&mut self, ui: &egui::Ui) -> bool {
         let mut settings_changed = false;
         match self.take_dialog_result() {
-            Some((Dialog::OpenArchive, path)) => ui::open(ui, &mut self.model, path),
+            Some((Dialog::OpenArchive | Dialog::OpenDataForge, path)) => {
+                ui::open(ui, &mut self.model, path);
+            }
             Some((Dialog::AddFolder | Dialog::AddArchive, path)) => {
                 settings_changed = self.model.add_manual(path);
             }
@@ -239,6 +242,7 @@ impl App {
 /// The names of the file types the dialogs show, in the current language.
 struct Filters {
     archive: String,
+    dataforge: String,
     report: String,
     export: String,
     catalog: String,
@@ -260,6 +264,7 @@ fn pick(
         Dialog::OpenArchive | Dialog::AddArchive | Dialog::ComparisonArchive(_) => {
             picker.add_filter(filters.archive, &["p4k"]).pick_file()
         }
+        Dialog::OpenDataForge => picker.add_filter(filters.dataforge, &["dcb"]).pick_file(),
         Dialog::ComparisonReport => picker
             .add_filter(filters.report, &["json"])
             .set_file_name("comparison.json")

@@ -41,9 +41,26 @@ pub struct EntryIndex {
     text_languages: Vec<TextLanguage>,
     texts: TextCache,
     channel: ChannelKind,
+    dataforge_file: bool,
 }
 
 impl EntryIndex {
+    /// Builds the index of the stand-in Archive of a DataForge file, [`Archive::stand_in`]: no
+    /// Entries, and the DataForge is read from the file itself.
+    #[must_use]
+    pub fn build_dataforge_file(archive: Archive) -> Self {
+        Self {
+            dataforge_file: true,
+            ..Self::build(archive)
+        }
+    }
+
+    /// Returns whether this index stands for a DataForge file instead of an Archive.
+    #[must_use]
+    pub const fn is_dataforge_file(&self) -> bool {
+        self.dataforge_file
+    }
+
     /// Builds the index of `archive`; this sorts every Entry several times and belongs on a
     /// background thread for large Archives.
     #[must_use]
@@ -91,6 +108,7 @@ impl EntryIndex {
             paths: OnceLock::new(),
             text_languages,
             texts: TextCache::default(),
+            dataforge_file: false,
         }
     }
 
@@ -121,6 +139,30 @@ impl EntryIndex {
         (self.len() as u64)
             .saturating_mul(per_entry as u64)
             .saturating_add(self.path_bytes)
+    }
+
+    /// Returns the name DataForge is shown under: the path of its Entry in the Archive, or the
+    /// file name of a DataForge file; `None` when there is no DataForge.
+    #[must_use]
+    pub fn dataforge_name(&self) -> Option<String> {
+        if self.dataforge_file {
+            return self
+                .archive
+                .path()
+                .file_name()
+                .map(|name| name.to_string_lossy().into_owned());
+        }
+        self.dataforge_entry().map(|entry| entry.path().to_owned())
+    }
+
+    /// Returns the size of DataForge after decompression: that of its Entry, or of the file; `0`
+    /// when there is no DataForge.
+    #[must_use]
+    pub fn dataforge_size(&self) -> u64 {
+        if self.dataforge_file {
+            return self.archive.file_len();
+        }
+        self.dataforge_entry().map_or(0, Entry::uncompressed_size)
     }
 
     /// Returns the Entry DataForge is read from, `Data\Game2.dcb` or `Data\Game.dcb`, or `None`

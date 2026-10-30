@@ -295,7 +295,10 @@ fn archive_option_is_refused_when_the_input_is_an_archive() -> TestResult {
         2,
     )?;
 
-    assert!(message.contains("the input is an Archive already"), "{message}");
+    assert!(
+        message.contains("the input is an Archive already"),
+        "{message}"
+    );
     Ok(())
 }
 

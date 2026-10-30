@@ -618,7 +618,9 @@ reads an Entry of a container inside a container, and `outer.socpak::` lists a c
 The paths a listing returns carry their containers and work as they are in the other tools.
 
 Every tool except `list_channels` takes `archive`: a Channel name such as `LIVE` (ignoring case)
-or the absolute path of a `.p4k` file on a local drive. UNC, device, relative and `..` paths, a
+or the absolute path of a `.p4k` file on a local drive; the DataForge tools (`get_record`,
+`search_records`, `list_structs`, `list_enums`, `run_query`) also take a `.dcb` DataForge file
+such as `Game2.dcb` (ADR-0249). UNC, device, relative and `..` paths, a
 `:` after the drive (an alternate data stream) and a path that resolves to a network drive or
 device are refused. Without it the tools use the Archive given with `--archive` when the server
 was started. Opened Archives stay open between calls and are opened again when their file

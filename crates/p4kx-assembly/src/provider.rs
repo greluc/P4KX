@@ -3,6 +3,7 @@
 
 use std::error::Error;
 use std::io::Read;
+use std::sync::Arc;
 
 use p4kx_extraction::model::{LodSelection, MaterialStatus, Model, ModelError};
 use p4kx_extraction::{
@@ -11,8 +12,11 @@ use p4kx_extraction::{
 };
 use thiserror::Error;
 
-use crate::cdf::{self, MAX_CDF_BYTES, is_character_definition};
+use crate::MAX_ASSEMBLY_VERTICES;
+use crate::cdf::is_character_definition;
 use crate::skeleton::SkeletonProblem;
+
+mod character;
 
 /// A model a [`ModelProvider`] read and the Entry it was read from.
 #[derive(Debug, Clone)]
@@ -23,12 +27,33 @@ pub struct ProvidedModel {
     pub entry: String,
     /// The model, read without its material library, see [`Model::read_without_materials`].
     pub model: Model,
-    /// The files of the attachments of a character definition (`.cdf`) that are not part of
-    /// `model`; empty for every other file.
+    /// The files of the attachments of a character definition (`.cdf`) that are neither `model`
+    /// nor in `attachments`; empty for every other file.
     pub left_out: Vec<String>,
+    /// The bone attachments of a character definition (`.cdf`), each a model bound to a bone of
+    /// `model`'s skeleton; empty for every other file.
+    pub attachments: Vec<ProvidedAttachment>,
     /// What is wrong with the skeleton file a character definition (`.cdf`) names; `None` when
     /// the file is fine, the definition names none, or the file is no character definition.
     pub skeleton: Option<SkeletonProblem>,
+}
+
+/// A rigid model a character definition binds to a bone of its skeleton.
+#[derive(Debug, Clone)]
+#[non_exhaustive]
+pub struct ProvidedAttachment {
+    /// The attachment's name.
+    pub name: String,
+    /// The bone of the skeleton the model is bound to.
+    pub bone: String,
+    /// The offset from the bone in metres.
+    pub position: [f32; 3],
+    /// The rotation from the bone as a quaternion `[w, x, y, z]`.
+    pub rotation: [f32; 4],
+    /// The path of the model's file in the source.
+    pub entry: String,
+    /// The model, read without its material library.
+    pub model: Arc<Model>,
 }
 
 /// Why a [`ModelProvider`] cannot supply a model.
@@ -171,6 +196,7 @@ pub(crate) fn starts_with_path(path: &str, prefix: &str) -> bool {
 pub struct ArchiveModels<'a> {
     archive: &'a Archive,
     index: PathIndex<'a>,
+    max_attachment_vertices: usize,
 }
 
 impl<'a> ArchiveModels<'a> {
@@ -180,7 +206,18 @@ impl<'a> ArchiveModels<'a> {
         Self {
             archive,
             index: PathIndex::new(archive),
+            max_attachment_vertices: MAX_ASSEMBLY_VERTICES,
         }
+    }
+
+    /// Returns the provider with a limit of `max` vertices for the models of one character
+    /// definition together, its skin and its bone attachments, at most [`MAX_ASSEMBLY_VERTICES`].
+    /// Attachments that would pass it are not read further and are listed in
+    /// [`ProvidedModel::left_out`].
+    #[must_use]
+    pub fn with_max_attachment_vertices(mut self, max: usize) -> Self {
+        self.max_attachment_vertices = max.min(MAX_ASSEMBLY_VERTICES);
+        self
     }
 
     /// Returns whether the Archive holds a file at `path`, a path below `Data` as an Entity Record
@@ -286,26 +323,6 @@ impl ArchiveModels<'_> {
         AnimationSet::from_folders(&self.index, &[], choice, extra)
     }
 
-    fn character(&self, entry: &str, lod: u32) -> Result<ProvidedModel, ModelFailure> {
-        let bytes = self.file(entry, MAX_CDF_BYTES)?;
-        let unreadable = |reason: String| ModelFailure::Unreadable {
-            reason: format!("{entry}: {reason}"),
-        };
-        let character = cdf::read(&bytes).map_err(unreadable)?;
-        let model_entry = self
-            .entry_of(&character.model)
-            .ok_or_else(|| unreadable(format!("{} does not exist", character.model)))?;
-        let mut provided = self.read_model(model_entry, lod, character.left_out)?;
-        if let Some(material) = &character.material {
-            provided.model.material_library = Some(without_mtl(material).to_owned());
-        }
-        provided.skeleton = character
-            .skeleton
-            .as_deref()
-            .map_or(Ok(None), |path| self.skeleton_problem(path))?;
-        Ok(provided)
-    }
-
     fn read_model(
         &self,
         entry: String,
@@ -333,6 +350,7 @@ impl ArchiveModels<'_> {
             entry,
             model,
             left_out,
+            attachments: Vec::new(),
             skeleton: None,
         })
     }

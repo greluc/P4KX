@@ -7,6 +7,7 @@ use std::sync::Arc;
 use p4kx_model::{MaterialStatus, Model, Transform};
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
+use crate::build_attachments::attached;
 use crate::build_gear::load_models;
 use crate::build_models::{Loaded, choose_models};
 use crate::build_palettes::Palettes;
@@ -19,7 +20,7 @@ use crate::{
     SkeletonProblem,
 };
 
-type Libraries = HashMap<String, Arc<MaterialStatus>>;
+pub(crate) type Libraries = HashMap<String, Arc<MaterialStatus>>;
 
 impl Assembly {
     /// Builds the Assembly of the Loadout tree `tree`: the Entity's geometry and, for every
@@ -78,27 +79,20 @@ impl Assembly {
         let chosen = choose_models(&drafts, &loaded, options.max_vertices, &mut issues);
         let libraries = read_libraries(&drafts, &chosen, models);
         let unnamed = Arc::new(MaterialStatus::Unnamed);
+        let shared = (&libraries, &unnamed);
         let mut reported = HashSet::new();
         let mut characters = HashSet::new();
         let mut palettes = Palettes::new(palettes);
         let cut = BodyCut::of(tree, &drafts, &chosen, &mut issues);
         let mut parts: Vec<Part> = Vec::with_capacity(drafts.len());
         for (index, (draft, model)) in drafts.iter().zip(&chosen).enumerate() {
-            let materials = materials_of(
-                draft,
-                *model,
-                (&libraries, &unnamed),
-                &mut reported,
-                &mut issues,
-            );
+            let materials = materials_of(draft, *model, shared, &mut reported, &mut issues);
             note_character(draft, *model, &mut characters, &mut issues);
+            let attachments = attached(draft, *model, shared, &mut reported, &mut issues);
             let (palette, unresolved) = palettes.of_part(draft, *model, &materials);
             issues.extend(unresolved.into_iter().map(|kind| issue(draft, kind)));
             let (local, placement) = place(draft, &parts, *model, &mut issues);
-            let world = draft
-                .parent
-                .and_then(|parent| parts.get(parent))
-                .map_or(local, |parent| parent.world.then(&local));
+            let world = world_of(draft, &parts, &local);
             parts.push(Part {
                 name: draft.name.clone(),
                 path: draft.path.clone(),
@@ -118,6 +112,7 @@ impl Assembly {
                 }),
                 materials,
                 palette,
+                attachments,
                 hidden: draft.hidden,
             });
         }
@@ -131,15 +126,34 @@ impl Assembly {
     }
 }
 
+/// Returns the transform of a part to the Assembly's: its parent's world transform and its own.
+fn world_of(draft: &Draft<'_>, parts: &[Part], local: &Transform) -> Transform {
+    draft
+        .parent
+        .and_then(|parent| parts.get(parent))
+        .map_or(*local, |parent| parent.world.then(local))
+}
+
 /// Returns the materials a part draws with, noting a library that has a problem once.
 fn materials_of(
     draft: &Draft<'_>,
     model: Option<&Loaded>,
-    (libraries, unnamed): (&Libraries, &Arc<MaterialStatus>),
+    libraries: (&Libraries, &Arc<MaterialStatus>),
     reported: &mut HashSet<String>,
     issues: &mut Vec<Issue>,
 ) -> Arc<MaterialStatus> {
     let key = model.and_then(|loaded| library_key(draft, loaded));
+    materials_for(draft, key, libraries, reported, issues)
+}
+
+/// Returns the materials of the library cached under `key`, noting a problem of it once.
+pub(crate) fn materials_for(
+    draft: &Draft<'_>,
+    key: Option<String>,
+    (libraries, unnamed): (&Libraries, &Arc<MaterialStatus>),
+    reported: &mut HashSet<String>,
+    issues: &mut Vec<Issue>,
+) -> Arc<MaterialStatus> {
     let materials = key
         .as_ref()
         .and_then(|key| libraries.get(key))
@@ -259,13 +273,22 @@ fn read_libraries(
     let wanted: Vec<(String, &str, &str)> = drafts
         .iter()
         .zip(chosen)
-        .filter_map(|(draft, loaded)| {
-            let loaded = (*loaded)?;
-            let name = library_name(draft, loaded)?;
-            let key = library_key(draft, loaded)?;
-            seen.insert(key.clone())
-                .then_some((key, loaded.entry.as_str(), name))
+        .filter_map(|(draft, loaded)| Some((draft, (*loaded)?)))
+        .flat_map(|(draft, loaded)| {
+            let part = library_name(draft, loaded)
+                .zip(library_key(draft, loaded))
+                .map(|(name, key)| (key, loaded.entry.as_str(), name));
+            let attached = loaded.attachments.iter().filter_map(|attached| {
+                let name = attached.model.material_library.as_deref()?;
+                Some((
+                    library_key_of(name, &attached.entry),
+                    attached.entry.as_str(),
+                    name,
+                ))
+            });
+            part.into_iter().chain(attached)
         })
+        .filter(|(key, _, _)| seen.insert(key.clone()))
         .collect();
     wanted
         .par_iter()

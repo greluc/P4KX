@@ -354,8 +354,9 @@ body of the character is not in the Archive; the part has no model, the placehol
 is not drawn instead; `reason` names the body and the path), `gear_not_deployed` (a landing gear has no clip that
 deploys it, or the clip cannot be read or applied to its model; the gear keeps the pose of its
 model; a note, `skipped` is false), `attachments_left_out` (the geometry is
-a character definition, `.cdf`: its skin, else its first attachment, is the part's model and the
-files of the other attachments are not drawn; reported once per definition, `skipped` is false),
+a character definition, `.cdf`: its skin, else its first attachment, is the part's model, its bone
+attachments are drawn as nodes below the part, and the files of the other attachments, or of a bone
+attachment that cannot be read, are not drawn; reported once per definition, `skipped` is false),
 `skeleton_missing` and `skeleton_unreadable` (the skeleton file, `Model File`, of a character
 definition is not in the Archive, is larger than 16 MiB or cannot be read as a model; the skin
 is still the part's model; reported once per definition, `skipped` is false),
@@ -363,8 +364,9 @@ is still the part's model; reported once per definition, `skipped` is false),
 drawn with the default material; reported once per library, for the first part that draws with
 it), `palette` (a tint palette the Entity or its library names
 cannot be resolved; the part falls back to the palette of its nearest ancestor, else to the
-library's default palette, else to its plain colours), `helper_not_found` (the port's helper, or the bone of a
-landing gear, is no node of the Entity's model; the part sits at the parent's origin; not reported when the parent has no model,
+library's default palette, else to its plain colours), `helper_not_found` (the port's helper, the bone of a
+landing gear, or the bone of a bone attachment, is no node of the Entity's model; the part sits at the
+parent's origin, a bone attachment at the part's; not reported when the parent has no model,
 whose own Issue says why) and `too_many_parts`, `too_many_vertices`
 and `too_deep` (a limit of [ADR-0040](adr/0040-the-assembly-places-parts-at-port-helpers-and-owns-their-material-libraries.md)
 was reached). New kinds may be added in later versions.

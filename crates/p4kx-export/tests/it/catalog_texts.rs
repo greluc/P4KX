@@ -245,3 +245,38 @@ fn a_catalog_from_a_read_entry_equals_one_read_from_the_archive() -> TestResult 
     assert_eq!(from.summary(), read.summary(), "identical summary");
     Ok(())
 }
+
+#[test]
+fn texts_are_trimmed_in_the_catalog_and_stay_padded_in_the_raw_resolver() -> TestResult {
+    let padded = GlobalIniBuilder::new()
+        .text("manufacturer_NameACAS", " Ace Astrogation \\n")
+        .text("manufacturer_DescACAS", "\\n  \\n")
+        .text("manufacturer_NameDRAK", "Drake\\nInterplanetary ")
+        .build();
+    let entry = TestEntry::zstd(Language::English.global_ini_path(), padded.clone());
+    let (catalog, summary) = catalog(vec![entry])?;
+    assert_eq!(
+        texts(&catalog, 0),
+        (
+            json!({"key": "@manufacturer_NameACAS", "en": "Ace Astrogation", "de": null}),
+            json!({"key": "@manufacturer_DescACAS", "en": null, "de": null}),
+        ),
+        "padding removed, white space only is unresolved"
+    );
+    assert_eq!(
+        texts(&catalog, 1).0["en"],
+        json!("Drake\nInterplanetary"),
+        "inner line break kept"
+    );
+    assert_eq!(summary.first().map(|texts| texts.unresolved), Some(2));
+
+    let text = p4kx_extraction::IniText::decode(&padded)?;
+    let set = p4kx_extraction::TextSet::new([(Language::English, text.index()?)]);
+    let raw = p4kx_extraction::LanguageTexts::new(&set, Language::English);
+    assert_eq!(
+        p4kx_extraction::TextResolver::resolve(&raw, "@manufacturer_NameACAS"),
+        p4kx_extraction::Resolution::Text(" Ace Astrogation \n".into()),
+        "the raw resolver keeps the padding"
+    );
+    Ok(())
+}

@@ -294,3 +294,12 @@ fn line_breaks_are_decoded_only_when_there_are_any() {
         "borrowed"
     );
 }
+
+#[test]
+fn display_text_decodes_line_breaks_and_trims_the_ends() {
+    use p4kx_localization::display_text;
+    assert_eq!(display_text(" Moss Camo \\n"), "Moss Camo");
+    assert_eq!(display_text("A\\nB \\n"), "A\nB");
+    assert_eq!(display_text("\t \\n"), "");
+    assert_eq!(display_text("Plain"), "Plain");
+}

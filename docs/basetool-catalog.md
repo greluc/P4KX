@@ -49,7 +49,7 @@ The rule is ADR-0054 (amending ADR-0002):
   `personalCooldownTimeVariation`, `abandonedCooldownTime` and `abandonedCooldownTimeVariation`
   (#832, ADR-0244), the kind `crafters` (#831, ADR-0243) and the kinds `missionLocationTemplates`,
   `contractShipSpawns` and `contractLocationQueries` with the contract fields `shipSpawns`,
-  `locationQueries` and `locationPrerequisites` (#902, ADR-0269). Later additions keep version 2 as
+  `locationQueries` and `locationPrerequisites` (#902, ADR-0266). Later additions keep version 2 as
   long as they are additive.
 - **A production import takes catalogs of the Channel `LIVE` only.** `PTU`, `EPTU`, `TECH-PREVIEW`
   and `HOTFIX` are confidential test Channels (ADR-0038).
@@ -1251,7 +1251,7 @@ locations of contracts are described in "Ship spawns and location queries".
 
 ### Ship spawns and location queries
 
-Three kinds and three contract fields (#902, ADR-0269, additive, schema version 2, no bump) state
+Three kinds and three contract fields (#902, ADR-0266, additive, schema version 2, no bump) state
 what a contract spawns and where it can take place, as the Archive stores it. The catalog never
 resolves what the game picks when the mission starts.
 
@@ -1278,7 +1278,7 @@ at a lower level and is itself left out.
 **Identifiers.** The Archive gives these inline structures no GUID, so equal content shares one
 entry and its `guid` is the first 16 bytes of the SHA-256 of the canonical JSON of the content,
 written as a UUID. It is the catalog's own identifier, not a GUID of the Archive; it holds as long
-as the content does and must not be stored across a change of the description (ADR-0269). Both
+as the content does and must not be stored across a change of the description (ADR-0266). Both
 kinds are ordered by it. Every link resolves.
 
 **Ship spawn descriptions (`contractShipSpawns`).** The Archive has no ship pool Record: the game

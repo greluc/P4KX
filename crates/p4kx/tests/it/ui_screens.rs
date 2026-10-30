@@ -184,6 +184,95 @@ fn size_and_background_apply_to_screens_too() -> TestResult {
 }
 
 #[test]
+fn game_variables_are_listed_in_the_report_and_unknown_names_are_reported() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let archive = archive(dir.path())?;
+    let out = dir.path().join("vars.png");
+    let output = p4kx()?
+        .args(["--json", "ui", "render"])
+        .arg(&archive)
+        .args(["--screen", MFD, "--brand", "test"])
+        .args(["--var", "powerstate=1", "--var", "isradar=true", "--out"])
+        .arg(&out)
+        .output()?;
+    assert_eq!(output.status.code(), Some(1), "exit code: {output:?}");
+    let report: Value = serde_json::from_slice(&output.stdout)?;
+    assert_eq!(
+        report["variables"],
+        serde_json::json!([
+            {"name": "powerstate", "value": "1", "used": false},
+            {"name": "isradar", "value": "true", "used": false},
+        ])
+    );
+    p4kx()?
+        .args(["ui", "render"])
+        .arg(&archive)
+        .args(["--screen", MFD, "--brand", "test", "--var", "powerstate=1"])
+        .arg("--out")
+        .arg(&out)
+        .assert()
+        .code(1)
+        .stdout(predicate::str::contains(
+            "game variables in force: powerstate=1",
+        ))
+        .stderr(predicate::str::contains(
+            "unknown game variable: powerstate (no operation of the screen reads it)",
+        ));
+    Ok(())
+}
+
+#[test]
+fn without_a_variable_the_report_has_no_variables_field() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let archive = archive(dir.path())?;
+    let output = p4kx()?
+        .args(["--json", "ui", "render"])
+        .arg(&archive)
+        .args(["--screen", MFD, "--brand", "test", "--out"])
+        .arg(dir.path().join("rest.png"))
+        .output()?;
+    let report: Value = serde_json::from_slice(&output.stdout)?;
+    assert!(report.get("variables").is_none(), "{report}");
+    Ok(())
+}
+
+#[test]
+fn a_malformed_or_stray_variable_is_invalid_input() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let archive = archive(dir.path())?;
+    for setting in ["powerstate", "=1", "a=\u{7}"] {
+        p4kx()?
+            .args(["ui", "render"])
+            .arg(&archive)
+            .args(["--screen", MFD, "--var", setting, "--out"])
+            .arg(dir.path().join("bad.png"))
+            .assert()
+            .code(2);
+    }
+    let many: Vec<String> = (0..65)
+        .flat_map(|at| ["--var".to_owned(), format!("v{at}=1")])
+        .collect();
+    p4kx()?
+        .args(["ui", "render"])
+        .arg(dir.path().join("missing.p4k"))
+        .args(["--screen", MFD])
+        .args(&many)
+        .arg("--out")
+        .arg(dir.path().join("many.png"))
+        .assert()
+        .code(2)
+        .stderr(predicate::str::contains("65 game variables are set"));
+    p4kx()?
+        .args(["ui", "render"])
+        .arg(dir.path().join("panel.gfx"))
+        .args(["--var", "a=1", "--out"])
+        .arg(dir.path().join("movie.png"))
+        .assert()
+        .code(2);
+    Ok(())
+}
+
+#[test]
 fn a_screen_renders_as_svg_with_a_path_per_shape() -> TestResult {
     let dir = tempfile::tempdir()?;
     let archive = archive(dir.path())?;

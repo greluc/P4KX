@@ -8,3 +8,4 @@ mod real_images;
 mod real_radar;
 mod real_screens;
 mod real_text;
+mod real_variables;

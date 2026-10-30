@@ -5,14 +5,14 @@ use std::io::{self, BufWriter, Write};
 use std::process::ExitCode;
 
 use anyhow::Result;
-use p4kx_extraction::{Bank, HircKind, HircLayout, HircObject};
+use p4kx_extraction::Bank;
+use p4kx_extraction::hirc_select::{LayoutCounts, ObjectPage, select};
+use p4kx_extraction::hirc_view::ObjectView;
 use serde::Serialize;
 
 use crate::bnk::open;
 use crate::bnk_objects_text::write_object;
-use crate::bnk_objects_view::ObjectView;
 use crate::cli::BnkObjectsArgs;
-use crate::cli_bnk_objects::ObjectType;
 use crate::{exit, json};
 
 #[derive(Serialize)]
@@ -29,59 +29,13 @@ struct ObjectsJson<'a> {
     objects: Vec<ObjectView<'a>>,
 }
 
-/// How many objects of the whole bank the reader decodes, does not decode, does not support in
-/// the bank's version or finds malformed.
-#[derive(Default, Serialize)]
-struct LayoutCounts {
-    decoded: usize,
-    undecoded: usize,
-    unsupported: usize,
-    malformed: usize,
-}
-
-impl LayoutCounts {
-    fn of(objects: &[HircObject]) -> Self {
-        let mut counts = Self::default();
-        for object in objects {
-            let count = match object.layout() {
-                HircLayout::Decoded => &mut counts.decoded,
-                HircLayout::Undecoded => &mut counts.undecoded,
-                HircLayout::Unsupported => &mut counts.unsupported,
-                HircLayout::Malformed => &mut counts.malformed,
-            };
-            *count = count.saturating_add(1);
-        }
-        counts
-    }
-}
-
-/// One page of the objects that pass the filters.
-struct Page<'a> {
-    matched: usize,
-    offset: usize,
-    shown: Vec<ObjectView<'a>>,
-}
-
-impl Page<'_> {
-    fn next_offset(&self) -> Option<usize> {
-        let next = self.offset.saturating_add(self.shown.len());
-        (next < self.matched).then_some(next)
-    }
-}
-
 /// Runs `p4kx bnk objects`.
 pub(crate) fn run(args: &BnkObjectsArgs, as_json: bool) -> Result<ExitCode> {
     let bank = open(&args.source)?;
     let objects = bank.soundbank().objects();
     let offset = usize::try_from(args.offset)?;
     let limit = usize::try_from(args.limit)?;
-    let page = select(
-        objects,
-        args.kind.map(ObjectType::kind),
-        args.id,
-        offset,
-        limit,
-    );
+    let page = select(objects, args.kind, args.id, offset, limit);
     let counts = LayoutCounts::of(objects);
     if as_json {
         json::print(&ObjectsJson {
@@ -104,32 +58,7 @@ pub(crate) fn run(args: &BnkObjectsArgs, as_json: bool) -> Result<ExitCode> {
     }
 }
 
-fn select(
-    objects: &[HircObject],
-    kind: Option<HircKind>,
-    id: Option<u32>,
-    offset: usize,
-    limit: usize,
-) -> Page<'_> {
-    let mut matched = 0_usize;
-    let mut shown = Vec::new();
-    let chosen = objects.iter().enumerate().filter(|(_, object)| {
-        kind.is_none_or(|kind| object.kind == kind) && id.is_none_or(|id| object.id == id)
-    });
-    for (index, object) in chosen {
-        if matched >= offset && shown.len() < limit {
-            shown.push(ObjectView::new(index, object));
-        }
-        matched = matched.saturating_add(1);
-    }
-    Page {
-        matched,
-        offset,
-        shown,
-    }
-}
-
-fn print_text(bank: &Bank, counts: &LayoutCounts, page: &Page<'_>) -> io::Result<()> {
+fn print_text(bank: &Bank, counts: &LayoutCounts, page: &ObjectPage<'_>) -> io::Result<()> {
     let soundbank = bank.soundbank();
     let mut out = BufWriter::new(io::stdout().lock());
     writeln!(out, "Soundbank:   {}", bank.name())?;
@@ -145,7 +74,7 @@ fn print_text(bank: &Bank, counts: &LayoutCounts, page: &Page<'_>) -> io::Result
     out.flush()
 }
 
-fn summary(total: usize, counts: &LayoutCounts, page: &Page<'_>) -> String {
+fn summary(total: usize, counts: &LayoutCounts, page: &ObjectPage<'_>) -> String {
     let shown = if page.shown.is_empty() {
         format!("showing none of {}", page.matched)
     } else {

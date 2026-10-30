@@ -12,7 +12,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 
 const SAMPLE: u128 = 0xcbee_34fd_6441_4000_b99f_924f_7f26_e19f;
 const MAKER: u128 = 0x50e8_a9f6_f956_4000_8ace_7c0c_a9a9_1f5d;
-const MISSING: u128 = 0x0000_0001_0002_0003_0004_0000_0000_0005;
+const MISSING: u128 = 0x3cf6_753c_d69c_4980_a45e_7241_5140_7096;
 
 fn wheel(size: i32) -> TestValue {
     TestValue::Struct(TestInstance::new("Wheel").value("size", TestValue::Int32(size)))
@@ -156,7 +156,7 @@ fn owned_children_are_nested_objects_and_references_are_links() -> TestResult {
             "    null\n",
             "  ],\n",
             "  \"lost\": {\n",
-            "    \"error\": \"the Reference refers to the Record 00000001-0002-0003-0004-000000000005, which does not exist\"\n",
+            "    \"error\": \"the Reference refers to the Record 3cf6753c-d69c-4980-a45e-724151407096, which does not exist\",\n    \"guid\": \"3cf6753c-d69c-4980-a45e-724151407096\"\n",
             "  }\n",
             "}\n",
         ),

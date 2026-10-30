@@ -6,7 +6,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use p4kx_extraction::{
     Archive, Language, LocalizationLoadError, LocalizationNote, LocalizationSet, Lookup, TextSet,
-    decode_line_breaks, is_placeholder_key,
+    display_text, is_placeholder_key,
 };
 
 use crate::contract::LocalisedText;
@@ -72,8 +72,8 @@ impl<'e> Texts<'e> {
         })
     }
 
-    /// Returns the text with localisation `key` and its English and German texts, each with `\n`
-    /// decoded to a line feed; without a key every part is `None` and nothing is counted, and a
+    /// Returns the text with localisation `key` and its English and German texts, each
+    /// decoded (`\n` to a line feed) and trimmed; without a key every part is `None` and nothing is counted, and a
     /// [placeholder key](crate::PLACEHOLDER_KEYS) keeps the key, has no texts and is counted as a
     /// placeholder.
     pub(crate) fn localised<'a>(&self, key: Option<&'a str>) -> LocalisedText<'a>
@@ -123,11 +123,13 @@ impl<'e> Texts<'e> {
             .iter()
             .find(|count| count.language == language)?;
         if let Lookup::Found { text, .. } = self.set.lookup(key, language, None) {
-            count.resolved.fetch_add(1, Ordering::Relaxed);
-            Some(decode_line_breaks(text))
-        } else {
-            count.unresolved.fetch_add(1, Ordering::Relaxed);
-            None
+            let shown = display_text(text);
+            if !shown.is_empty() {
+                count.resolved.fetch_add(1, Ordering::Relaxed);
+                return Some(shown);
+            }
         }
+        count.unresolved.fetch_add(1, Ordering::Relaxed);
+        None
     }
 }

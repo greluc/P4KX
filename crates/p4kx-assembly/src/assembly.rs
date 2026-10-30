@@ -11,7 +11,7 @@ use p4kx_gltf::{
 };
 use p4kx_model::{MaterialStatus, Model, TintPalette, Transform};
 
-use crate::Issue;
+use crate::{AttachedModel, Issue};
 
 /// The most parts an Assembly holds; further parts of the Loadout are left out.
 pub const MAX_ASSEMBLY_PARTS: usize = 1 << 14;
@@ -114,6 +114,7 @@ pub struct Part {
     pub(crate) model: Option<Arc<Model>>,
     pub(crate) materials: Arc<MaterialStatus>,
     pub(crate) palette: Option<Arc<TintPalette>>,
+    pub(crate) attachments: Vec<AttachedModel>,
     pub(crate) hidden: bool,
 }
 
@@ -211,6 +212,13 @@ impl Part {
     pub fn palette(&self) -> Option<&TintPalette> {
         self.palette.as_deref()
     }
+
+    /// Returns the rigid models the part carries at bones of its skeleton, the bone attachments
+    /// of its character definition; empty for any other geometry.
+    #[must_use]
+    pub fn attachments(&self) -> &[AttachedModel] {
+        &self.attachments
+    }
 }
 
 /// An Entity with its Loadout as a scene graph of placed models: the root Entity's geometry and
@@ -261,6 +269,16 @@ impl Assembly {
         self.lod
     }
 
+    /// Returns the bone attachments of all parts, each with the index of its part, in the order
+    /// of the parts.
+    pub fn attached_models(&self) -> impl Iterator<Item = (usize, &AttachedModel)> {
+        self.parts.iter().enumerate().flat_map(|(index, part)| {
+            part.attachments
+                .iter()
+                .map(move |attached| (index, attached))
+        })
+    }
+
     /// Returns the number of parts that have a model.
     #[must_use]
     pub fn modelled_parts(&self) -> usize {
@@ -277,7 +295,8 @@ impl Assembly {
     }
 
     /// Writes the Assembly as a GLB file to `out`: a node per part named `<port>/<entity>` below
-    /// the node of its parent part, placed by its transform, with the nodes of its model below it;
+    /// the node of its parent part, placed by its transform, with the nodes of its model below it,
+    /// and a node per bone attachment of a part below the part's node;
     /// `out` should be buffered. `options.lod` should be the level the Assembly was built at.
     /// The materials are plain colours, drawn with the palette of each part; see
     /// [`Self::write_glb_with`] for textures.
@@ -326,6 +345,16 @@ impl Assembly {
                         .map_or(drawn, |palette| drawn.with_palette(palette)),
                 );
             }
+            scene.push(node)?;
+        }
+        for (index, attached) in self.attached_models() {
+            let drawn = ScenePart::new(&attached.model, &attached.materials);
+            let palette = self
+                .parts
+                .get(index)
+                .and_then(|part| part.palette.as_deref());
+            let node = SceneNode::new(attached.name.clone(), Some(index), attached.local)
+                .with_part(palette.map_or(drawn, |palette| drawn.with_palette(palette)));
             scene.push(node)?;
         }
         if let Some(interior) = &self.interior {

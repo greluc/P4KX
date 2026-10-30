@@ -9,7 +9,7 @@ use fluent_bundle::FluentValue;
 use p4kx_extraction::{ConflictPolicy, WriteRefused, default_target_name};
 use p4kx_settings::{ExtractionAudio, ExtractionTextures};
 
-use super::{Dialog, Requests, comparison_extraction, wrapped_actions};
+use super::{Dialog, Requests, comparison_extraction, extraction_exclude, wrapped_actions};
 use crate::extraction::target_naming;
 use crate::theme::desktop::{BUTTON_HEIGHT, MODAL_GROUP_GAP};
 use crate::theme::palette;
@@ -146,7 +146,31 @@ pub(super) fn group_label(ui: &mut Ui, text: &str) {
 
 fn choices(ui: &mut Ui, model: &Model, setup: &mut ExtractionSetup) -> Option<Action> {
     let texts = model.texts();
+    let (action, exclusion_accepted) = frames::scrolling_body(ui, "extraction-setup-body", |ui| {
+        choice_groups(ui, model, setup)
+    });
+    let ready = setup.folder().is_some()
+        && setup.refusal().is_none()
+        && model.scope_len(setup.scope()) > 0
+        && exclusion_accepted;
+    let pressed = foot(ui, texts, (T::Start, ready), T::Close);
+    action.or(match pressed {
+        Some(true) => Some(Action::Submit),
+        Some(false) => Some(Action::Close),
+        None => None,
+    })
+}
+
+/// Shows the scope, exclusion, target and Conversion choices; returns the action a control asked
+/// for, and whether the exclusion text is accepted.
+fn choice_groups(
+    ui: &mut Ui,
+    model: &Model,
+    setup: &mut ExtractionSetup,
+) -> (Option<Action>, bool) {
+    let texts = model.texts();
     let mut action = None;
+    let mut exclusion_accepted = true;
     group_label(ui, &texts.get(T::ScopeHeading));
     if let ExtractionScope::Changes(side) = setup.scope() {
         comparison_extraction::scope(ui, model, side);
@@ -158,6 +182,7 @@ fn choices(ui: &mut Ui, model: &Model, setup: &mut ExtractionSetup) -> Option<Ac
                 setup.set_scope(scope);
             }
         }
+        exclusion_accepted = extraction_exclude::show(ui, texts, setup);
     }
     ui.add_space(MODAL_GROUP_GAP);
     group_label(ui, &texts.get(T::TargetHeading));
@@ -182,14 +207,7 @@ fn choices(ui: &mut Ui, model: &Model, setup: &mut ExtractionSetup) -> Option<Ac
     });
     refusal_notice(ui, texts, setup.refusal());
     writing(ui, model, setup);
-    let ready =
-        setup.folder().is_some() && setup.refusal().is_none() && model.scope_len(setup.scope()) > 0;
-    let pressed = foot(ui, texts, (T::Start, ready), T::Close);
-    action.or(match pressed {
-        Some(true) => Some(Action::Submit),
-        Some(false) => Some(Action::Close),
-        None => None,
-    })
+    (action, exclusion_accepted)
 }
 
 /// Shows the name of a new folder or the Conflict policy for an existing one, then the

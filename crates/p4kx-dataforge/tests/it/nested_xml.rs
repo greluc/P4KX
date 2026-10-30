@@ -139,7 +139,7 @@ fn nested_values_are_child_elements_in_declaration_order() -> TestResult {
             "    <p4kx:reference guid=\"cbee34fd-6441-4000-b99f-924f7f26e19f\" path=\"libs/foundry/records/cars/one\" type=\"Wheel\" at=\"spare\"/>\n",
             "  </front>\n",
             "  <p4kx:field name=\"bad:name\"/>\n",
-            "  <p4kx:error field=\"lost\" reason=\"the Reference refers to the Record 00000001-0002-0003-0004-000000000005, which does not exist\"/>\n",
+            "  <p4kx:error field=\"lost\" reason=\"the Reference refers to the Record 00000001-0002-0003-0004-000000000005, which does not exist\" guid=\"00000001-0002-0003-0004-000000000005\"/>\n",
             "</Car>\n",
         ),
         "the full shape"

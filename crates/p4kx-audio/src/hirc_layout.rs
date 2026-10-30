@@ -67,7 +67,46 @@ impl HircKind {
             Self::Other(_) => "other",
         }
     }
+
+    /// Returns the kinds this reader names, in type byte order.
+    #[must_use = "the kinds are only listed by iterating"]
+    pub fn known() -> impl Iterator<Item = Self> {
+        KNOWN.into_iter()
+    }
+
+    /// Returns the kind whose [`slug`](Self::slug) is `slug`; `None` for `other` and for text
+    /// that names no kind.
+    #[must_use]
+    pub fn from_slug(slug: &str) -> Option<Self> {
+        Self::known().find(|kind| kind.slug() == slug)
+    }
 }
+
+/// Every kind but [`HircKind::Other`], in type byte order.
+const KNOWN: [HircKind; 22] = [
+    HircKind::State,
+    HircKind::Sound,
+    HircKind::Action,
+    HircKind::Event,
+    HircKind::RandomSequenceContainer,
+    HircKind::SwitchContainer,
+    HircKind::ActorMixer,
+    HircKind::AudioBus,
+    HircKind::LayerContainer,
+    HircKind::MusicSegment,
+    HircKind::MusicTrack,
+    HircKind::MusicSwitch,
+    HircKind::MusicPlaylist,
+    HircKind::Attenuation,
+    HircKind::DialogueEvent,
+    HircKind::FxShareSet,
+    HircKind::FxCustom,
+    HircKind::AuxiliaryBus,
+    HircKind::Lfo,
+    HircKind::Envelope,
+    HircKind::AudioDevice,
+    HircKind::TimeModulator,
+];
 
 impl HircObject {
     /// Returns how far the reader decodes the object.
@@ -115,5 +154,32 @@ impl HircObject {
         ids.iter()
             .copied()
             .chain(sources.iter().map(|source| source.source_id))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn every_known_kind_is_found_by_its_slug() {
+        for (byte, kind) in (1..).zip(HircKind::known()) {
+            assert_eq!(HircKind::from_byte(byte), kind, "type byte {byte}");
+        }
+        assert_eq!(
+            HircKind::from_byte(23),
+            HircKind::Other(23),
+            "no kind follows the table"
+        );
+        for kind in HircKind::known() {
+            assert_eq!(HircKind::from_slug(kind.slug()), Some(kind), "{kind}");
+        }
+    }
+
+    #[test]
+    fn other_and_unknown_text_name_no_kind() {
+        for text in ["other", "", "Sound", "music_track", "music-track "] {
+            assert_eq!(HircKind::from_slug(text), None, "{text:?}");
+        }
     }
 }

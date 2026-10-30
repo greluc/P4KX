@@ -137,6 +137,10 @@ impl UiReport {
                 entry.examples.join(", ")
             ),
         }));
+        lines.extend(report.unknown_variables().map(|name| ReportLine {
+            label: UiText::ReportUnknownVariable,
+            detail: name.to_owned(),
+        }));
         lines.extend(report.missing_canvases.iter().map(|canvas| ReportLine {
             label: UiText::ReportMissingCanvas,
             detail: canvas.clone(),

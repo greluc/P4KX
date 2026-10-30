@@ -305,6 +305,7 @@ impl<'f> Parent<'_, 'f> {
             not_for_release: boolean(Some(self.contract), "notForRelease"),
             work_in_progress: boolean(Some(self.contract), "workInProgress"),
             title: title(title_key, texts, &resolve),
+            description: title(description_key(levels, broker), texts, &resolve),
             mission_type_guid: mission_type.map(CatalogGuid),
             mission_type: texts.localised(
                 mission_type
@@ -335,6 +336,15 @@ impl<'f> Parent<'_, 'f> {
             display_name: context.texts.localised(context.index.faction_name(guid.0)),
         })
     }
+}
+
+/// Returns the localisation key of the description: the first level that states one, else the
+/// broker entry's.
+fn description_key<'f>(levels: &[&Layer<'f>], broker: Option<&Broker<'f>>) -> Option<&'f str> {
+    levels
+        .iter()
+        .find_map(|level| level.description)
+        .or_else(|| broker.and_then(|broker| broker.description))
 }
 
 /// What the entries of one contract share: the reputation it grants and requires and the cooldown

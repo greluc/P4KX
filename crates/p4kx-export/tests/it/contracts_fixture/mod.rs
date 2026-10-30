@@ -5,6 +5,7 @@
 //! organisation with tagged string variants and reputation rewards.
 
 mod lookups;
+mod params;
 mod prerequisites;
 mod records;
 mod referenced;
@@ -87,6 +88,8 @@ fn english() -> TestEntry {
             .text("wrap_text", "Wrapped ~mission(Location)")
             .text("contractor_acme", "Acme Agency")
             .text("title_broker", "Broker Haul")
+            .text("desc_a", "  Bring ~mission(Cargo) to ~mission(Location) ~mission(Missing)  ")
+            .text("desc_broker", "Haul it")
             .text("faction_acme", "Acme Emporium")
             .text("place_stanton", "Stanton")
             .text("place_hurston", "Hurston")

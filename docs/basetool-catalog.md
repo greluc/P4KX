@@ -57,7 +57,7 @@ The rule is ADR-0054 (amending ADR-0002):
 Identifiers, short names and fact values may reach third parties; descriptions and lore may not.
 The game texts of the catalog are every `description` and every `displayType`, the `name` of a
 starmap object (a place name that comes from localisation, by the owner's decision for #321), and
-the `title`, `missionType`, `contractor`, the `displayName` of a contract's faction and the `place`
+the `title`, `description`, `missionType`, `contractor`, the `displayName` of a contract's faction and the `place`
 of a pickup place of a contract, the `processName` of a refining process and the `depositName`
 of a mineable composition, the `displayName` of a faction, a reputation scope and a reputation
 standing and the `typeName` of a mission type, each with
@@ -1063,6 +1063,7 @@ that the rule on equal `guid` and `subContractGuid` above drops.
 | `templateGuid` | The `ContractTemplate` Record the contract names |
 | `notForRelease`, `workInProgress` | The flags as stored, `null` when absent; the catalog does not filter on them |
 | `title` | The resolved title (game text) |
+| `description` | The resolved description (game text; must not be passed on to third parties) |
 | `missionTypeGuid`, `missionType` | The `MissionType` Record and its localised name (game text) |
 | `contractor` | The `Contractor` string parameter (game text) |
 | `pickupPlaces` | Up to five starmap objects the contract is offered at, each `starmapObjectGuid`, `objectType`, `place` (game text) |
@@ -1108,6 +1109,17 @@ A replacement that itself holds a `~mission(…)` is expanded up to three levels
 and past 64 replacements or about 4 KiB in one title, a token becomes `[TOKEN]`. Leading and
 trailing blanks are removed from the result; the `key` is that of the title text. The tokens are free text of the game, not facts of the Archive;
 the placeholders are the catalog's own convention.
+
+**Description (ADR-0255).** The `Description` string parameter of the first layer (sub contract,
+contract, handler), else the `description` of the broker entry; the template states none, its
+`displayString` slots carry no label. `~mission(…)` tokens, limits and trimming are those of the
+title. It is a game text (`x-gameText`) like the title, and like every game text it must not be
+passed on to third parties: the Basetool keeps it for its logged-in members.
+On LIVE 4.10 (2026-10-30) 5,130 of the 5,175 entries have a description (5,108 with an English
+text). 1,718 keep a token the catalog cannot state (e.g. `[SCRIPAMOUNT]` 628, `[CONTRACTOR]` 442,
+`[FUELRATE]` 212: run-time values), besides the placeholders `[LOCATION]`, `[TARGET]` and `[SHIP]`.
+The descriptions add about 4.1 MB; the plain catalog of LIVE is 166.9 MB, the upload stays
+`.json.zst`.
 
 **Broker entry.** A contract that names a `missionBrokerEntry` and has no template (on LIVE the 419
 `Covalex_HaulCargo_Career` contracts and their two sub contracts) takes what the layers and the
@@ -1169,8 +1181,7 @@ elsewhere in the Archive:
   location, 85 only a `ContractPrerequisite_LocationProperty` (a variable the game fills in) and
   6 a locality that lists no object of the starmap.
 
-Not exported: a computed reward (`ContractResult_CalculatedReward` holds no value, ADR-0065) and
-descriptions.
+Not exported: a computed reward (`ContractResult_CalculatedReward` holds no value, ADR-0065).
 
 **Standing (ADR-0237).** `minStandingGuid` and `maxStandingGuid` are the `minStanding` and
 `maxStanding` References of the contract, entries of `reputationStandings`; a sub contract has none

@@ -121,6 +121,7 @@ pub(super) fn reputation(builder: DataForgeBuilder) -> DataForgeBuilder {
         .value("displayName", TestValue::text("@faction_acme")),
         plain_record(BROKER, "MissionBrokerEntry", "missionbroker/haul")
             .value("title", TestValue::text("@title_broker"))
+            .value("description", TestValue::text("@desc_broker"))
             .value("type", TestValue::Reference(DELIVERY))
             .value("locationMissionAvailable", TestValue::Reference(OBJ_PLANET)),
         plain_record(

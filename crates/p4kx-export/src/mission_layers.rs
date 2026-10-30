@@ -9,6 +9,7 @@ use crate::record_fields::{reference, text};
 const STRING_HASH: &str = "MissionPropertyValue_StringHash";
 const ORGANIZATION: &str = "MissionPropertyValue_Organization";
 const TITLE: &str = "Title";
+const DESCRIPTION: &str = "Description";
 const CONTRACTOR: &str = "Contractor";
 
 /// What a mission property says a `~mission(Token)` in a text stands for.
@@ -31,11 +32,12 @@ pub(crate) struct Property<'f> {
     pub(crate) value: Prop<'f>,
 }
 
-/// What one level of a contract overrides: the title, the mission type, the contractor and the
-/// properties.
+/// What one level of a contract overrides: the title, the description, the mission type, the
+/// contractor and the properties.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(crate) struct Layer<'f> {
     pub(crate) title: Option<&'f str>,
+    pub(crate) description: Option<&'f str>,
     pub(crate) mission_type: Option<Guid>,
     pub(crate) contractor: Option<&'f str>,
     pub(crate) properties: Vec<Property<'f>>,
@@ -54,6 +56,7 @@ impl<'f> Layer<'f> {
         };
         Self {
             title: string_param(TITLE),
+            description: string_param(DESCRIPTION),
             contractor: string_param(CONTRACTOR),
             mission_type: reference(params, "missionTypeOverride").map(|guid| guid.0),
             properties: properties(params, "propertyOverrides"),

@@ -4,6 +4,7 @@
 use p4kx_testkit::{DataForgeBuilder, TestInstance, TestRecord, TestValue};
 
 use super::lookups::legacy;
+use super::params::{described, overrides, param};
 use super::prerequisites::{locality, location, standing_prerequisite};
 use super::{
     AFFINITY, BOUNTY, BROKER, CONTRACT_A, CONTRACT_B, CONTRACT_C, CONTRACT_D, CONTRACT_DEV,
@@ -15,14 +16,6 @@ use super::{
 
 pub(super) const fn reference(guid: u128) -> TestValue {
     TestValue::Reference(guid)
-}
-
-fn param(name: &str, key: &str) -> TestValue {
-    TestValue::Struct(
-        TestInstance::new("ContractStringParam")
-            .value("param", TestValue::text(name))
-            .value("value", TestValue::text(key)),
-    )
 }
 
 pub(super) fn property(token: &str, value: TestValue) -> TestValue {
@@ -62,25 +55,6 @@ pub(super) fn organization(guid: u128) -> TestValue {
 
 pub(super) fn plain(kind: &str) -> TestValue {
     TestValue::Struct(TestInstance::new(kind))
-}
-
-fn overrides(
-    title: Option<&str>,
-    mission_type: Option<u128>,
-    properties: Vec<TestValue>,
-) -> TestValue {
-    let mut params = TestInstance::new("ContractParamOverrides");
-    if let Some(guid) = mission_type {
-        params = params.value("missionTypeOverride", reference(guid));
-    }
-    TestValue::Struct(
-        params
-            .value(
-                "stringParamOverrides",
-                TestValue::Array(title.map(|key| param("Title", key)).into_iter().collect()),
-            )
-            .value("propertyOverrides", TestValue::Array(properties)),
-    )
 }
 
 fn amount(scope: u128, reward: u128) -> TestValue {
@@ -166,8 +140,9 @@ fn delivery_contract() -> TestInstance {
         CONTRACT_A,
         "Deliver_A",
         TEMPLATE,
-        overrides(
+        described(
             Some("@title_a"),
+            Some("@desc_a"),
             None,
             vec![property("Cargo", string_hash("@cargo_scrap"))],
         ),

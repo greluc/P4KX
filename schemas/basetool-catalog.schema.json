@@ -892,6 +892,11 @@
             "null"
           ]
         },
+        "description": {
+          "$ref": "#/$defs/LocalisedText",
+          "description": "The description, resolved like the title: the `Description` of the sub contract, else of\nthe contract, else of the handler, else the `description` of the contract's\n`MissionBrokerEntry`. A game text that must not be passed on to third parties. The\ntemplate states none.",
+          "x-gameText": true
+        },
         "faction": {
           "anyOf": [
             {
@@ -1052,6 +1057,7 @@
         "contractor",
         "cooldownLayer",
         "debugName",
+        "description",
         "faction",
         "guid",
         "handler",

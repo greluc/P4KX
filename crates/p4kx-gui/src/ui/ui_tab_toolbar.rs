@@ -6,6 +6,7 @@ use fluent_bundle::FluentValue;
 
 use super::regions;
 use super::search::eyebrow;
+use super::ui_tab_variables;
 use super::{Dialog, Requests};
 use crate::theme::desktop::{SEGMENT_PADDING_X, SPINNER_INLINE, TOOLBAR_PADDING};
 use crate::theme::palette;
@@ -17,7 +18,7 @@ use crate::widgets::tab;
 use crate::widgets::text::{line, plain};
 use crate::{
     ExtractionText, Model, Texts, UiBackground, UiExport, UiExportStatus, UiExportSummary,
-    UiFormat, UiMode, UiSettings, UiSize, UiText, format,
+    UiFormat, UiMode, UiPower, UiSettings, UiSize, UiText, format,
 };
 
 /// A labelled group of segments.
@@ -70,8 +71,19 @@ struct Chosen {
     mode: Option<UiMode>,
     size: Option<UiSize>,
     background: Option<UiBackground>,
+    power: Option<UiPower>,
     format: Option<UiFormat>,
     export: bool,
+}
+
+/// What a position of the toolbar holds.
+#[derive(Clone, Copy)]
+enum Slot {
+    Mode,
+    Size,
+    Background,
+    Power,
+    Format,
 }
 
 /// Shows the choice of the source, of the size, background and format, and the export, then the
@@ -99,6 +111,9 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
         model.ui_mut().set_background(background);
         requests.settings_changed = true;
     }
+    if let Some(power) = chosen.power {
+        model.ui_mut().set_power(power);
+    }
     if let Some(format) = chosen.format {
         model.ui_mut().set_format(format);
         requests.settings_changed = true;
@@ -106,63 +121,101 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
     if chosen.export {
         requests.dialog = Some(Dialog::UiFile);
     }
+    if model.ui().mode() == UiMode::Ships {
+        ui_tab_variables::show(ui, model);
+    }
     outcome(ui, model);
 }
 
-fn choices(ui: &mut Ui, model: &Model, width: f32) -> Chosen {
-    let texts = model.texts();
+/// Returns the groups of segments the tab offers, in the order of the toolbar; the game state
+/// only for ships.
+fn slots(model: &Model) -> Vec<(Slot, Cluster)> {
     let tab = model.ui();
     let UiSettings {
         size,
         background,
         format,
+        power,
     } = *tab.settings();
-    let clusters = [
-        Cluster::of(
-            UiText::ModeLabel,
-            (&[UiMode::Files, UiMode::Ships], tab.mode()),
-            |mode| match mode {
-                UiMode::Files => UiText::ModeFiles,
-                UiMode::Ships => UiText::ModeShips,
-            },
+    let mut slots = vec![
+        (
+            Slot::Mode,
+            Cluster::of(
+                UiText::ModeLabel,
+                (&[UiMode::Files, UiMode::Ships], tab.mode()),
+                |mode| match mode {
+                    UiMode::Files => UiText::ModeFiles,
+                    UiMode::Ships => UiText::ModeShips,
+                },
+            ),
         ),
-        Cluster::of(UiText::SizeLabel, (&UiSize::ALL, size), UiSize::text),
-        Cluster::of(
-            UiText::BackgroundLabel,
-            (&UiBackground::ALL, background),
-            UiBackground::text,
+        (
+            Slot::Size,
+            Cluster::of(UiText::SizeLabel, (&UiSize::ALL, size), UiSize::text),
         ),
+        (
+            Slot::Background,
+            Cluster::of(
+                UiText::BackgroundLabel,
+                (&UiBackground::ALL, background),
+                UiBackground::text,
+            ),
+        ),
+    ];
+    if tab.mode() == UiMode::Ships {
+        slots.push((
+            Slot::Power,
+            Cluster::of(UiText::PowerLabel, (&UiPower::ALL, power), UiPower::text),
+        ));
+    }
+    slots.push((
+        Slot::Format,
         Cluster::of(
             UiText::FormatLabel,
             (&UiFormat::ALL, format),
             UiFormat::text,
         ),
-    ];
+    ));
+    slots
+}
+
+impl Chosen {
+    /// Notes that segment `picked` of the group `slot` was clicked.
+    fn take(&mut self, slot: Slot, picked: Option<usize>) {
+        match slot {
+            Slot::Mode => self.mode = picked.and_then(mode_at),
+            Slot::Size => self.size = picked.and_then(|at| UiSize::ALL.get(at).copied()),
+            Slot::Background => {
+                self.background = picked.and_then(|at| UiBackground::ALL.get(at).copied());
+            }
+            Slot::Power => self.power = picked.and_then(|at| UiPower::ALL.get(at).copied()),
+            Slot::Format => self.format = picked.and_then(|at| UiFormat::ALL.get(at).copied()),
+        }
+    }
+}
+
+fn choices(ui: &mut Ui, model: &Model, width: f32) -> Chosen {
+    let texts = model.texts();
+    let slots = slots(model);
     let export = texts.get(UiText::Export);
     let button_width = button::width(ui, Size::Normal, &export);
-    let mut widths: Vec<f32> = clusters.iter().map(|c| c.width(ui, texts)).collect();
+    let mut widths: Vec<f32> = slots
+        .iter()
+        .map(|(_, cluster)| cluster.width(ui, texts))
+        .collect();
     widths.push(button_width);
     let rows = pack(&widths, width, TOOLBAR_PADDING);
     let mut chosen = Chosen::default();
-    let available = tab.export_available();
+    let available = model.ui().export_available();
     for row in rows {
         ui.horizontal(|ui| {
             for position in row {
-                let Some(cluster) = clusters.get(position) else {
+                let Some((slot, cluster)) = slots.get(position) else {
                     chosen.export =
                         button::button(ui, Kind::Cta, Size::Normal, &export, available).clicked();
                     continue;
                 };
-                let picked = cluster.show(ui, texts);
-                match position {
-                    0 => chosen.mode = picked.and_then(mode_at),
-                    1 => chosen.size = picked.and_then(|at| UiSize::ALL.get(at).copied()),
-                    2 => {
-                        chosen.background =
-                            picked.and_then(|at| UiBackground::ALL.get(at).copied());
-                    }
-                    _ => chosen.format = picked.and_then(|at| UiFormat::ALL.get(at).copied()),
-                }
+                chosen.take(*slot, cluster.show(ui, texts));
             }
         });
     }

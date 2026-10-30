@@ -9,8 +9,8 @@ use p4kx_comparison::LineDiffError;
 use p4kx_export::{ActionMapError, CatalogError};
 use p4kx_extraction::cryxml::CryXmlError;
 use p4kx_extraction::{
-    ArchiveError, DataForgeError, DataForgeLoadError, FieldStatisticsError, LocalizationLoadError,
-    UnknownEntries,
+    ArchiveError, DataForgeError, DataForgeLoadError, FieldStatisticsError, FilterError,
+    LocalizationLoadError, UnknownEntries,
 };
 use p4kx_screens::ScreenError;
 
@@ -25,11 +25,13 @@ use crate::dcb_query::{InvalidQuery, JsonNeedsJsonFormat, OutputIsArchive, Unrea
 use crate::dcb_refs::{JsonWithTable, UnknownRecord};
 use crate::dcb_tags::UnknownTag;
 use crate::entity_glb::GlbOutputIsArchive;
-use crate::extract::NoMatch;
+use crate::entity_root::RootGeometryError;
+use crate::filter_pair::ExcludedAll;
 use crate::grep::EmptySearchText;
 use crate::interior_glb::InteriorOutputIsArchive;
 use crate::key::InvalidKey;
 use crate::loc::{LanguageNotInArchive, NoLanguages};
+use crate::no_match::NoMatch;
 use crate::wwise::{UnknownAudioLanguage, UnknownTrigger};
 use crate::{model, texture};
 use p4kx_render::OffscreenError;
@@ -47,8 +49,9 @@ pub(crate) const DIFFERENCES: u8 = 1;
 /// The command line is invalid, names an Entry the Archive does not contain (for a line diff:
 /// neither Archive contains), a file or geometry companion that does not exist, a mip level the
 /// texture, a chunk the chunk file or a LOD the model does not have, has a Filter that matches no
-/// Entry or Record, names an output that is one of its inputs or lies inside a Star Citizen
-/// installation, names a package output folder that exists and holds something else than an
+/// Entry or Record, has Filter text that is too long or has too many wildcards, an empty
+/// exclusion Filter, or exclusion Filters that leave out every Entry the Filter matches, names an
+/// output that is one of its inputs or lies inside a Star Citizen installation, names a package output folder that exists and holds something else than an
 /// earlier package, names an armour `--loadout` that is neither an Entity nor an XML Loadout that
 /// can be read, has an invalid Query or a Query or field-statistics output that does not fit
 /// --json, names a Loadout change (`--exclude`, `--replace`) that is malformed, names a port the
@@ -93,9 +96,11 @@ pub(crate) const EXIT_CODES_HELP: &str = "Exit codes:
      Entities cannot be looked up (the triggers are still listed); compare: the Archives or the
      --diff Entry differ; chf diff: the CHF files differ
   2  invalid input: bad arguments, an Entry path the Archive does not contain (for --diff:
-     neither Archive contains), a Filter that matches no Entry or Record, a Channel path that
-     does not exist or was never added, a texture, sound, soundbank, chunk file, UI movie
-     file, model or geometry companion that does not exist, a mip level the texture, a chunk
+     neither Archive contains), a Filter that matches no Entry or Record or whose --exclude
+     Filters leave nothing, Filter text that is too long or has too many wildcards, a Channel
+     path that does not exist or was never added, a texture, sound, soundbank, chunk file, UI movie
+     file, model or geometry companion that does not exist, the geometry of the Entity that
+     entity glb or entity package exports when it does not exist, a mip level the texture, a chunk
      the chunk file or a LOD the model does not have, an output that is one of its inputs or
      lies inside a Star Citizen installation (the tool never writes there), a package folder
      that exists and holds something else than an earlier package, --json without --out
@@ -116,7 +121,9 @@ pub(crate) const EXIT_CODES_HELP: &str = "Exit codes:
      Record of another type name, or whose side is below 1 or above 16384 pixels, or a prefab
      library or prefab the Archive lacks
   3  the Archive or the input file cannot be read: missing, not an Archive, not CryXml, not a
-     chunk or CHF file or UI movie, corrupt, a corrupt model or companion, with a CHF CRC-32C
+     chunk or CHF file or UI movie, corrupt, a corrupt model or companion (for entity glb and
+     entity package the geometry of the Entity itself, or its .chrm companion, that cannot be
+     read), with a CHF CRC-32C
      mismatch or unknown CHF version, a sound, soundbank, chunk file or UI movie too large to
      read into memory, or with unreadable Entry data, also a socpak container that cannot be
      opened, a --diff Entry that cannot be read or holds corrupt CryXml, a global.ini of the
@@ -145,6 +152,13 @@ pub(crate) fn for_compare_error(error: &anyhow::Error) -> ExitCode {
         PARTIAL_FAILURE => ExitCode::from(COMPARISON_FAILED),
         code => ExitCode::from(code),
     }
+}
+
+/// Returns whether `error` is Filter text that is invalid or a Filter pair that selects nothing.
+fn is_filter_refusal(error: &anyhow::Error) -> bool {
+    error.downcast_ref::<NoMatch>().is_some()
+        || error.downcast_ref::<ExcludedAll>().is_some()
+        || error.downcast_ref::<FilterError>().is_some()
 }
 
 fn code_for(error: &anyhow::Error) -> u8 {
@@ -186,7 +200,7 @@ fn code_for(error: &anyhow::Error) -> u8 {
         DATAFORGE_ERROR
     } else if error.downcast_ref::<UnknownEntries>().is_some()
         || error.downcast_ref::<InvalidPath>().is_some()
-        || error.downcast_ref::<NoMatch>().is_some()
+        || is_filter_refusal(error)
         || error.downcast_ref::<NoRecordMatch>().is_some()
         || is_export_conflict(error)
         || texture::is_invalid_input(error)
@@ -234,6 +248,9 @@ fn is_unreadable_skeleton_or_prefab_library(error: &anyhow::Error) -> bool {
     matches!(
         error.downcast_ref::<AssemblyError>(),
         Some(AssemblyError::Body { .. })
+    ) || matches!(
+        error.downcast_ref::<RootGeometryError>(),
+        Some(RootGeometryError::Unreadable { .. })
     ) || crate::prefab::is_archive_error(error)
 }
 
@@ -263,6 +280,10 @@ fn is_output_or_query_error(error: &anyhow::Error) -> bool {
         || error.downcast_ref::<UnknownTag>().is_some()
         || error.downcast_ref::<OutputIsArchive>().is_some()
         || error.downcast_ref::<GlbOutputIsArchive>().is_some()
+        || matches!(
+            error.downcast_ref::<RootGeometryError>(),
+            Some(RootGeometryError::Missing { .. })
+        )
         || matches!(
             error.downcast_ref::<OffscreenError>(),
             Some(OffscreenError::Empty | OffscreenError::TooLarge { .. })

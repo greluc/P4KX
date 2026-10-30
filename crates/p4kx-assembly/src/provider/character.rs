@@ -45,6 +45,10 @@ impl ArchiveModels<'_> {
             }
         }
         provided.left_out = character.left_out;
+        provided.skeleton = character
+            .skeleton
+            .as_deref()
+            .map_or(Ok(None), |path| self.skeleton_problem(path))?;
         if let Some(material) = &character.material {
             provided.model.material_library = Some(without_mtl(material).to_owned());
         }

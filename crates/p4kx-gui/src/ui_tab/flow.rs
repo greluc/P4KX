@@ -9,6 +9,7 @@ use super::files::{self, FileList};
 use super::job::{Job, Poll};
 use super::pick::ShipPick;
 use super::render::{self, Fail, RenderKey, UiRendered, UiSource};
+use super::variables;
 use super::view::{UiMode, UiRenderFailure};
 use super::{Files, Rendering, UiTab};
 use crate::installation::refusal_of;
@@ -16,14 +17,18 @@ use crate::{EntryIndex, TextLanguage};
 
 impl UiTab {
     pub(super) fn wanted(&self, language: Option<TextLanguage>) -> Option<RenderKey> {
-        let source = match self.mode {
-            UiMode::Files => UiSource::Movie(self.file.clone()?),
+        let (source, variables) = match self.mode {
+            UiMode::Files => (UiSource::Movie(self.file.clone()?), Vec::new()),
             UiMode::Ships => {
                 let ship = self.ship.as_ref()?;
-                UiSource::Screen {
+                let source = UiSource::Screen {
                     canvas: ship.screen()?.canvas.clone(),
                     brand: ship.brand().map(str::to_owned),
-                }
+                };
+                (
+                    source,
+                    variables::chosen(self.settings.power, &self.variables).variables,
+                )
             }
         };
         Some(RenderKey {
@@ -31,6 +36,7 @@ impl UiTab {
             size: self.settings.size,
             background: self.settings.background,
             language,
+            variables,
         })
     }
 

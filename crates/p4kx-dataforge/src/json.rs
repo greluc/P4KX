@@ -194,6 +194,10 @@ impl RecordJson {
                 out.out.write_all(b"{")?;
                 out.key(true, depth + 1, "error")?;
                 write_string(out.out, &error.to_string())?;
+                if let Some(guid) = error.dangling_guid() {
+                    out.key(false, depth + 1, "guid")?;
+                    write!(out.out, "\"{guid}\"")?;
+                }
                 out.close(depth, b"}")
             }
             Value::Locale(key) => write_locale(out, key, depth),

@@ -1,12 +1,15 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
+pub(crate) mod exclude;
 mod job;
 mod summary;
 
 use std::path::{Path, PathBuf};
 
-use p4kx_extraction::{AudioConversion, ConflictPolicy, TextureConversion, WriteRefused};
+use p4kx_extraction::{
+    AudioConversion, ConflictPolicy, Exclusion, FilterError, TextureConversion, WriteRefused,
+};
 use p4kx_settings::{ExtractionAudio, ExtractionTextures};
 
 use crate::ComparisonSide;
@@ -61,6 +64,8 @@ pub struct ExtractionSetup {
     textures: ExtractionTextures,
     audio: ExtractionAudio,
     confirmation: Option<Confirmation>,
+    exclude: String,
+    leaves_nothing: bool,
 }
 
 impl ExtractionSetup {
@@ -81,6 +86,8 @@ impl ExtractionSetup {
             textures,
             audio,
             confirmation: None,
+            exclude: String::new(),
+            leaves_nothing: false,
         }
     }
 
@@ -94,6 +101,39 @@ impl ExtractionSetup {
     pub const fn set_scope(&mut self, scope: ExtractionScope) {
         self.scope = scope;
         self.confirmation = None;
+        self.leaves_nothing = false;
+    }
+
+    /// Returns the text of the exclusion field: one Filter per line.
+    #[must_use]
+    pub fn exclude(&self) -> &str {
+        &self.exclude
+    }
+
+    /// Replaces the exclusion text, withdrawing a pending confirmation.
+    pub fn set_exclude(&mut self, text: String) {
+        self.exclude = text;
+        self.confirmation = None;
+        self.leaves_nothing = false;
+    }
+
+    /// Returns the exclusion the text of the field stands for.
+    ///
+    /// # Errors
+    ///
+    /// Returns the [`FilterError`] of the first Filter that is not accepted.
+    pub fn exclusion(&self) -> Result<Exclusion, FilterError> {
+        exclude::parse(&self.exclude)
+    }
+
+    /// Returns whether the last attempt to start found that the exclusion leaves no Entry.
+    #[must_use]
+    pub const fn leaves_nothing(&self) -> bool {
+        self.leaves_nothing
+    }
+
+    pub(crate) const fn set_leaves_nothing(&mut self) {
+        self.leaves_nothing = true;
     }
 
     /// Returns where the Extraction writes.
@@ -191,7 +231,7 @@ impl ExtractionSetup {
         self.confirmation = Some(confirmation);
     }
 
-    pub(crate) fn request(&self, source: Source) -> Option<Request> {
+    pub(crate) fn request(&self, source: Source, excluded_parts: usize) -> Option<Request> {
         if self.refusal.is_some() {
             return None;
         }
@@ -206,6 +246,7 @@ impl ExtractionSetup {
             convert: self.convert,
             textures: self.textures,
             audio: self.audio,
+            excluded_parts,
         })
     }
 }

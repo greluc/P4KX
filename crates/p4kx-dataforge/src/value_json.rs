@@ -8,7 +8,8 @@ use crate::Value;
 use crate::xml_text::{Float, FloatText};
 
 /// Writes `value` as a typed JSON value: a boolean, a number, a string, or `{"error": reason}`
-/// for a value that cannot be read.
+/// for a value that cannot be read, with the `guid` of the missing Record for a dangling
+/// Reference.
 ///
 /// Integers are exact decimal numbers; floats are numbers in their Record XML text, `NaN`,
 /// `INF` and `-INF` are strings; strings, localisation keys, GUIDs and enum options are strings.
@@ -46,6 +47,9 @@ pub(crate) fn write_json_value(out: &mut impl Write, value: &Value<'_>) -> io::R
         Value::Error(error) => {
             out.write_all(b"{\"error\":")?;
             write_json_string(out, &error.to_string())?;
+            if let Some(guid) = error.dangling_guid() {
+                write!(out, ",\"guid\":\"{guid}\"")?;
+            }
             out.write_all(b"}")
         }
     }

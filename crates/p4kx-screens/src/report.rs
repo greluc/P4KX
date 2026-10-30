@@ -18,6 +18,18 @@ pub struct Unsupported {
     pub examples: Vec<String>,
 }
 
+/// A game variable that was set for the render.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct VariableInForce {
+    /// The name of the variable.
+    pub name: String,
+    /// The value it was set to, as it was given.
+    pub value: String,
+    /// Whether an operation of a canvas of the screen reads a variable of that name; `false` for
+    /// a name that the screen does not know.
+    pub used: bool,
+}
+
 /// What a render drew and what it left out.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
 pub struct Report {
@@ -43,6 +55,9 @@ pub struct Report {
     pub missing_canvases: Vec<String>,
     /// Whether a limit stopped the composition before the whole screen was drawn.
     pub truncated: bool,
+    /// The game variables that were set, the last setting of each name; empty at rest.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub variables: Vec<VariableInForce>,
 }
 
 impl Report {
@@ -65,6 +80,14 @@ impl Report {
             count: 1,
             examples: vec![name.to_owned()],
         });
+    }
+
+    /// Returns the names of the variables that were set and that no canvas of the screen reads.
+    pub fn unknown_variables(&self) -> impl Iterator<Item = &str> {
+        self.variables
+            .iter()
+            .filter(|variable| !variable.used)
+            .map(|variable| variable.name.as_str())
     }
 
     /// Returns whether the whole screen was drawn with every effect.

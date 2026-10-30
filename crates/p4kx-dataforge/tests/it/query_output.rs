@@ -240,6 +240,35 @@ fn json_types_every_value_kind() -> TestResult {
 }
 
 #[test]
+fn json_gives_a_dangling_reference_the_guid_of_the_missing_record() -> TestResult {
+    let guid: Guid = "3cf6753c-d69c-4980-a45e-724151407096".parse()?;
+    let json = written(
+        ResultFormat::Json,
+        &["entityClass", "list"],
+        &[(
+            "libs/r",
+            vec![
+                Some(Value::Error(ValueError::DanglingReference { guid })),
+                Some(Value::Array(Box::new([Value::Error(
+                    ValueError::DanglingReference { guid },
+                )]))),
+            ],
+        )],
+    )?;
+
+    let value: serde_json::Value = serde_json::from_str(&json)?;
+    let row = value.get(0).ok_or("one row")?;
+    for cell in [&row["entityClass"], &row["list"][0]] {
+        assert_eq!(
+            cell["guid"], "3cf6753c-d69c-4980-a45e-724151407096",
+            "the GUID next to the reason: {json}"
+        );
+        assert!(cell["error"].is_string(), "the reason stays: {json}");
+    }
+    Ok(())
+}
+
+#[test]
 fn json_escapes_quotes_backslashes_and_control_characters() -> TestResult {
     let json = written(
         ResultFormat::Json,

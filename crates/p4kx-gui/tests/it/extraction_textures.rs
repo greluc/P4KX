@@ -3,6 +3,7 @@
 
 //! The texture outputs of the Extraction setup, driven headless through `egui_kittest`.
 
+use crate::common::settle;
 use crate::waiting::wait_for_model;
 use std::error::Error;
 use std::fs;
@@ -53,7 +54,7 @@ fn opened(
     model.set_extraction_textures(textures);
     let mut harness = Harness::builder()
         .with_context_setup(p4kx_gui::theme::apply)
-        .with_size([1400.0, 1000.0])
+        .with_size([1400.0, 1200.0])
         .build_ui_state(
             |ui, model: &mut Model| {
                 ui::show(ui, model);
@@ -69,10 +70,6 @@ fn wait_until(harness: &mut Harness<'_, Model>, done: impl Fn(&Model) -> bool) -
     wait_for_model(harness, "the window to settle", done)?;
     settle(harness);
     Ok(())
-}
-
-fn settle(harness: &mut Harness<'_, Model>) {
-    harness.run_steps(2);
 }
 
 fn extract_shown(harness: &mut Harness<'_, Model>, clicks: &[&str]) -> TestResult {

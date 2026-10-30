@@ -12,7 +12,7 @@ use crate::flatten::Draft;
 use crate::tree::GeometryChoice;
 use crate::{
     AssemblyError, AssemblyOptions, Issue, IssueKind, ModelFailure, ModelProvider,
-    ProvidedAttachment,
+    ProvidedAttachment, SkeletonProblem,
 };
 
 /// The most distinct model files read at once before the vertex budget is checked again; a wave
@@ -25,6 +25,7 @@ pub(crate) struct Loaded {
     pub(crate) model: Arc<Model>,
     pub(crate) left_out: Vec<String>,
     pub(crate) attachments: Vec<ProvidedAttachment>,
+    pub(crate) skeleton: Option<SkeletonProblem>,
 }
 
 impl Loaded {
@@ -138,6 +139,7 @@ fn read_files(
                     model: Arc::new(provided.model),
                     left_out: provided.left_out,
                     attachments: provided.attachments,
+                    skeleton: provided.skeleton,
                 });
                 (key.clone(), result)
             })

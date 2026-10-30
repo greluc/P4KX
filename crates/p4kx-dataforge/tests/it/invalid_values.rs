@@ -349,3 +349,30 @@ fn error_values_of_nested_data_carry_a_reason() -> TestResult {
     }
     Ok(())
 }
+
+#[test]
+fn only_a_dangling_reference_gives_the_guid_of_a_missing_record() -> TestResult {
+    let guid = "00000001-0002-0003-0004-000000000005".parse()?;
+
+    assert_eq!(
+        ValueError::DanglingReference { guid }.dangling_guid(),
+        Some(guid),
+        "the missing Record"
+    );
+    assert_eq!(
+        ValueError::UnexpectedReferenceType {
+            guid,
+            struct_index: 1,
+            declared: 2,
+        }
+        .dangling_guid(),
+        None,
+        "a Record of another type exists"
+    );
+    assert_eq!(
+        ValueError::TooDeep { limit: 64 }.dangling_guid(),
+        None,
+        "no Reference"
+    );
+    Ok(())
+}

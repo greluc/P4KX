@@ -3,9 +3,10 @@
 
 use std::io::{self, Write};
 
-use crate::xml_text::{is_plain_name, write_display, write_escaped};
+use crate::xml_text::{is_plain_name, write_escaped};
 use crate::xml_write::{
-    attribute, indent, write_annotation, write_attribute_field, write_reference, write_scalar,
+    attribute, indent, write_annotation, write_attribute_field, write_error_end, write_reference,
+    write_scalar,
 };
 use crate::{Annotations, Field, RecordTree, Value};
 
@@ -209,9 +210,8 @@ impl RecordXml {
         if let Value::Error(error) = value {
             out.write_all(b"<p4kx:error field=\"")?;
             write_escaped(out, field.name())?;
-            out.write_all(b"\" reason=\"")?;
-            write_display(out, error)?;
-            return out.write_all(b"\"/>\n");
+            out.write_all(b"\"")?;
+            return write_error_end(out, error);
         }
         if value.is_scalar() {
             out.write_all(b"<p4kx:field name=\"")?;
@@ -281,9 +281,8 @@ impl RecordXml {
             Value::Reference(reference) => write_reference(out, reference, annotations),
             Value::Null => out.write_all(b"<p4kx:null/>\n"),
             Value::Error(error) => {
-                out.write_all(b"<p4kx:error reason=\"")?;
-                write_display(out, error)?;
-                out.write_all(b"\"/>\n")
+                out.write_all(b"<p4kx:error")?;
+                write_error_end(out, error)
             }
             scalar => {
                 out.write_all(b"<p4kx:value value=\"")?;

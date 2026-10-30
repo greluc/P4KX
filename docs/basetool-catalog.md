@@ -228,7 +228,7 @@ An item takes its fields from the components of its `EntityClassDefinition`:
 | `itemClass` | `Civilian`, `Competition`, `Industrial`, `Military` or `Stealth`, or `null` |
 | `playability` | `player`, `mission` or `special`, or `null`; see "Playability" below |
 | `variantOf` | The `guid` of the base of the item's variant group, `null` for a base and an ungrouped item; see "Variant groups" below |
-| `stats` | The typed stat blocks of a weapon, shield, quantum drive, power plant, cooler, missile, suit armour, clothing, radar, tractor beam or attachment modifier, `null` for any other item; see "Item stats" below |
+| `stats` | The typed stat blocks of a weapon, shield, quantum drive, power plant, cooler, missile, suit armour, clothing, radar, tractor beam, attachment modifier, mining laser or mining module and gadget, `null` for any other item; see "Item stats" below |
 
 `itemClass` takes the options of the DataForge enum `EItemClass` (without `UNDEFINED`). No
 DataForge field carries it: it is read from the first line of the English `description` that
@@ -288,16 +288,17 @@ those parts too. No value is below 1 or above 7.
 `stats` holds raw facts of the Archive and no derived value (ADR-0065): every number is the stored
 field in the stored unit, `p4kx` computes no damage per second, no cycle time, no acceleration and
 no fuel rate. The Basetool owns those formulas. `stats` is `null` unless the item has at least one
-of the eleven blocks; every block is `null` when the item does not have it, and a field inside a
+of the thirteen blocks; every block is `null` when the item does not have it, and a field inside a
 present block is `null` when the Archive does not state it, never 0. None of the fields is a game
-text. The additions are additive in version 1 (ADR-0054); `kind` of a fire mode and
+text. The additions are additive (ADR-0054); `kind` of a fire mode and
 `trackingSignalType` are closed sets that the schema keeps as strings. The blocks `armor`,
 `clothing`, `radar`, `tractorBeam` and `weaponModifier` and the fire-mode field `damagePerSecond`
-follow ADR-0072.
+follow ADR-0072; the blocks `miningLaser` and `miningModifier` and the fire-mode fields `hitType`,
+`fullDamageRange` and `zeroDamageRange` follow ADR-0262.
 
 | Block | Present when | Fields and sources |
 |-------|--------------|--------------------|
-| `weapon` | the item has `Components[SCItemWeaponComponentParams]` (ship weapons and FPS weapons) | `fireActions`: per element of `fireActions`, in stored order, with a sequence (`sequenceEntries`) flattened to its entries: `kind` (the struct, e.g. `SWeaponActionFireRapidParams`), `name`, `fireRate` (rounds per minute), `pelletCount` (as `pellets`; `pellets` where a Record states that instead) and `ammoCost` of `launchParams`, `heatPerShot`, `chargeTime`, `overchargeTime`, `cooldownTime` (each of the fire mode, when stated), and `damagePerSecond` (the damage types of the beam's `damagePerSecond`, the power of a mining laser; `null` for a mode without one), and `spread` (see below); a parallel mode (`weaponActions`) is listed as its entries; a charged or wrapped mode reads `fireRate`, `launchParams` and `name` from its `weaponAction` when it has none of its own. `ammoCapacity`: `maxAmmoCount` of the ammo container, the magazine's capacity (see below). `ammo`: the `AmmoParams` Record that the container's `ammoParamsRecord` links to, `null` without a readable one: `speed`, `lifetime`, `damage` (the damage types of `projectileParams.damage`), `detonationDamage`, `detonationMinRadius` and `detonationMaxRadius` (from `explosionParams`) |
+| `weapon` | the item has `Components[SCItemWeaponComponentParams]` (ship weapons and FPS weapons) | `fireActions`: per element of `fireActions`, in stored order, with a sequence (`sequenceEntries`) flattened to its entries: `kind` (the struct, e.g. `SWeaponActionFireRapidParams`), `name`, `fireRate` (rounds per minute), `pelletCount` (as `pellets`; `pellets` where a Record states that instead) and `ammoCost` of `launchParams`, `heatPerShot`, `chargeTime`, `overchargeTime`, `cooldownTime` (each of the fire mode, when stated), and `damagePerSecond` (the damage types of the beam's `damagePerSecond`, the power of a mining laser; `null` for a mode without one), and `spread` (see below); a beam also has `hitType`, `fullDamageRange` and `zeroDamageRange` (the two ranges in metres); a parallel mode (`weaponActions`) is listed as its entries; a charged or wrapped mode reads `fireRate`, `launchParams` and `name` from its `weaponAction` when it has none of its own. `ammoCapacity`: `maxAmmoCount` of the ammo container, the magazine's capacity (see below). `ammo`: the `AmmoParams` Record that the container's `ammoParamsRecord` links to, `null` without a readable one: `speed`, `lifetime`, `damage` (the damage types of `projectileParams.damage`), `detonationDamage`, `detonationMinRadius` and `detonationMaxRadius` (from `explosionParams`) |
 | `shield` | `Components[SCItemShieldGeneratorParams]` | `maxHealth` (`MaxShieldHealth`), `maxRegen` (`MaxShieldRegen`), `decayRatio` (`DecayRatio`), `downedRegenDelay` (`DownedRegenDelay`), `damagedRegenDelay` (`DamagedRegenDelay`) |
 | `quantumDrive` | `Components[SCItemQuantumDriveParams]` | `fuelRequirement` (`quantumFuelRequirement`, as stored), `jumpRange`, `disconnectRange`, and of `params`: `driveSpeed`, `cooldownTime`, `spoolUpTime`, `stageOneAccelRate`, `stageTwoAccelRate`, `engageSpeed` |
 | `powerPlant` | `AttachDef.Type` is `PowerPlant`, ignoring case | `powerOutput`: the `amount` of the first `generation` flow of `resourceStates` whose resource is `Power`, and `unit`: the `unit` of that flow |
@@ -308,6 +309,8 @@ follow ADR-0072.
 | `radar` | `Components[SCItemRadarComponentParams]` | `aimAssistDistanceMin`, `aimAssistDistanceMax`, `aimAssistOutsideRangeBuffer` (`aimAssist.distanceMinAssignment`, `.distanceMaxAssignment`, `.outsideRangeBufferDistance`), `pingCooldownTime` (`pingProperties.cooldownTime`) |
 | `tractorBeam` | the weapon component holds an `SWeaponActionFireTractorBeamParams` (ship tractor beams and salvage heads) | of the first such struct below `Components[SCItemWeaponComponentParams]`: `minForce`, `maxForce`, `minDistance`, `maxDistance`, `fullStrengthDistance`, `maxVolume`, `maxAngle` |
 | `weaponModifier` | `Components[EntityComponentAttachableModifierParams]` holds an `SSalvageModifier` or an `STractorModifier` | `salvage`: `radiusMultiplier`, `salvageSpeedMultiplier`, `extractionEfficiency` of the first `SSalvageModifier`; `tractor`: `forceMultiplier`, `fullStrengthDistMultiplier`, `maxDistMultiplier`, `maxVolumeMultiplier` of the first `STractorModifier`; each `null` without that struct. Salvage modifiers and tractor attachments carry them in `modifiers[].weaponModifier.weaponStats` |
+| `miningLaser` | `Components[SEntityComponentMiningLaserParams]` (ship mining lasers and the FPS mining multi-tool) | `isOptimalRateGood` (`miningLaserModifiers.isOptimalRateGood`), `throttleLerpSpeed`, `throttleMinimum` (a fraction of 1), `usesPowerThrottle`, `globalParamsGuid` (the `MiningLaserGlobalParams` Record `globalParams` links to), `filterModifier` (`filterParams.filterModifier.value`) and `modifiers` (the rest of `miningLaserModifiers`): each the `value` of a `FloatModifierMultiplicative` in percent as stored and `null` when unset, `instability` (`laserInstability`), `optimalChargeWindowSize`, `resistance`, `shatterDamage`, `clusterFactor`, `optimalChargeWindowRate`, `catastrophicChargeWindowRate`. The beams are fire modes of `weapon.fireActions`: the mining beam has `hitType` `ElectricArc`, the extraction beam `Extraction`; their ranges are in metres |
+| `miningModifier` | `Components[EntityComponentAttachableModifierParams]` holds an `ItemMiningModifierParams`, an `ItemMineableRockModifierParams` or a `MiningFilterItemModifierParams` (mining modules and gadgets) | `activationMethod` (`ActivateOnAttach` for a passive module, `ActivateOnDemand` for an active module or a gadget), `charges` (-1 for a gadget that is not used up), `canInterrupt`, `isInterruptible`; `laser`: the first `ItemMiningModifierParams` as `lifetime` (`modifierLifetime.lifetime`, seconds, `null` for a modifier that lasts) and `isOptimalRateGood` and `modifiers` (the values of `MiningLaserModifier`, as for the laser); `rock`: the same for the first `ItemMineableRockModifierParams` (gadgets); `filter`: `lifetime` and `filterModifier` of the first `MiningFilterItemModifierParams`; `fireActionModifiers`: per `ItemWeaponModifiersParams` in stored order, `fireActionIndex`, `lifetime` and `damageMultiplier` (`weaponModifier.weaponStats.damageMultiplier`); each of `laser`, `rock` and `filter` is `null` without that struct |
 
 ##### From a gameplay property to a stat field
 
@@ -419,6 +422,8 @@ game moves turns into `null` rather than into a wrong number; the real-Archive t
 Size: an item without stats adds `"stats":null` (14 bytes, about 0.3 MB for the 23,280 items of
 LIVE); an item with a block adds a few hundred bytes, two to three thousand items about 1 MB,
 which compresses well because the keys repeat.
+The mining blocks and the three beam fields of every fire mode added 0.35 MB (349,210 bytes) to the
+plain catalog of LIVE 4.10.2.
 
 A ship takes its fields from `VehicleComponentParams`:
 
@@ -873,7 +878,8 @@ ungrouped, because equality cannot be shown.
 **Items** share a group when all of these are equal:
 
 - `type`, `subType`, `size`, `grade` and `manufacturerGuid` of the `AttachDef`;
-- the stat blocks (`stats`, ADR-0065), including `resourceStates`;
+- the stat blocks (`stats`, ADR-0065), including `resourceStates`; a laser whose beam range, or a
+  module whose modifier, differs from another is therefore no variant of it;
 - the components: every component of the Record is compared with all its fields, including
   `SAttachableComponentParams` (without its `Tags`), the physics, the default loadout of an item
   that has ports (`SEntityComponentDefaultLoadoutParams`, unlike ships) and the geometry, whose

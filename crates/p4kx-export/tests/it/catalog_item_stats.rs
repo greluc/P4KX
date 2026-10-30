@@ -63,6 +63,9 @@ fn a_weapon_carries_its_fire_modes_and_ammunition_as_stored() -> TestResult {
                 "chargeTime": null,
                 "overchargeTime": null,
                 "cooldownTime": null,
+                "hitType": null,
+                "fullDamageRange": null,
+                "zeroDamageRange": null,
                 "damagePerSecond": null,
                 "spread": {"min": 0.18, "max": 5.0, "firstAttack": 1.35, "attack": 1.25, "decay": 6.5}
             },
@@ -76,6 +79,9 @@ fn a_weapon_carries_its_fire_modes_and_ammunition_as_stored() -> TestResult {
                 "chargeTime": 1.5,
                 "overchargeTime": 3.0,
                 "cooldownTime": 0.25,
+                "hitType": null,
+                "fullDamageRange": null,
+                "zeroDamageRange": null,
                 "damagePerSecond": null,
                 "spread": {"min": 0.18, "max": 5.0, "firstAttack": 1.35, "attack": 1.25, "decay": 6.5}
             }

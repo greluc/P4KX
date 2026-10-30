@@ -7,6 +7,7 @@ use crate::contract_stats::ItemStats;
 use crate::record_fields::{component, structure, text};
 
 mod gear;
+mod mining;
 mod parts;
 mod resources;
 mod walk;
@@ -18,9 +19,9 @@ const COOLER: &str = "Cooler";
 /// Returns the stat blocks of the item `tree`, `None` when it has none of the blocks.
 ///
 /// A block follows from the components of the item: the weapon, shield, quantum drive, missile,
-/// suit armour, clothing, radar and attachable modifier components, the tractor beam action of
-/// the weapon, and the type `PowerPlant` or `Cooler` of its `AttachDef`. The ammunition of a
-/// weapon is read from the Records the item links to, with `trees`; one that cannot be read
+/// suit armour, clothing, radar, mining laser and attachable modifier components, the tractor beam
+/// action of the weapon, and the type `PowerPlant` or `Cooler` of its `AttachDef`. The ammunition
+/// of a weapon is read from the Records the item links to, with `trees`; one that cannot be read
 /// leaves the ammunition `null` and never fails the item.
 pub(crate) fn read<'f>(
     tree: &RecordTree<'f>,
@@ -42,6 +43,8 @@ pub(crate) fn read<'f>(
     let radar = gear::radar(tree);
     let tractor_beam = gear::tractor_beam(tree);
     let weapon_modifier = gear::weapon_modifier(tree);
+    let mining_laser = mining::laser(tree);
+    let mining_modifier = mining::modifier_block(tree);
     if weapon.is_none()
         && shield.is_none()
         && quantum_drive.is_none()
@@ -53,6 +56,8 @@ pub(crate) fn read<'f>(
         && radar.is_none()
         && tractor_beam.is_none()
         && weapon_modifier.is_none()
+        && mining_laser.is_none()
+        && mining_modifier.is_none()
     {
         return None;
     }
@@ -68,6 +73,8 @@ pub(crate) fn read<'f>(
         radar,
         tractor_beam,
         weapon_modifier,
+        mining_laser,
+        mining_modifier,
         health: parts::health(tree),
         resource_states,
     })

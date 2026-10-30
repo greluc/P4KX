@@ -105,6 +105,7 @@ mod contract_shops;
 mod contract_starmap;
 mod contract_stats;
 mod contract_stats_gear;
+mod contract_stats_mining;
 mod contract_store_slugs;
 mod crafter;
 mod crafter_attach;

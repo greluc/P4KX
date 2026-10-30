@@ -35,6 +35,7 @@ mod audio_txtp;
 mod audio_txtp_edges;
 mod audio_txtp_support;
 mod body_zones;
+mod character_bone_attachments;
 mod character_definitions;
 mod character_item_ports;
 mod docked_vehicles;

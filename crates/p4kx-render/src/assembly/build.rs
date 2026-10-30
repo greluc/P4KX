@@ -255,7 +255,7 @@ impl AssemblyScene {
                 .and_then(|(id, mesh)| mesh.as_ref().map(|mesh| (id, mesh)));
             let mut info = PartInfo {
                 name: part.name.clone(),
-                path: part.path.to_owned(),
+                path: part.path.clone().into_owned(),
                 parent: part.parent,
                 triangles: 0,
                 interior: part.interior,

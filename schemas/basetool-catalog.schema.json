@@ -410,6 +410,229 @@
       ],
       "type": "object"
     },
+    "CargoFillType": {
+      "description": "How a cargo manifest shares the capacity among its resources.",
+      "oneOf": [
+        {
+          "const": "even",
+          "description": "`CargoFillCapacityValue_Even`: the capacity is split evenly.",
+          "type": "string"
+        },
+        {
+          "const": "random",
+          "description": "`CargoFillCapacityValue_Random`: the split is random.",
+          "type": "string"
+        },
+        {
+          "const": "custom",
+          "description": "`CargoFillCapacityValue_Custom`: every resource states its own share.",
+          "type": "string"
+        }
+      ]
+    },
+    "CargoManifest": {
+      "description": "A cargo manifest: a `CargoManifest` Record under `cargomanifest`, which tells the game how to\nfill the cargo grid of a ship it spawns.",
+      "properties": {
+        "className": {
+          "description": "The Record name without its type, e.g. `LegalCargo_TSG`.",
+          "type": "string"
+        },
+        "fillType": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CargoFillType"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "How the capacity is shared among `resources`: the type of `cargoFillCapacity`."
+        },
+        "guid": {
+          "$ref": "#/$defs/Guid",
+          "description": "The GUID of the Record."
+        },
+        "lockCargoGridsOnSpawn": {
+          "description": "The `lockCargoGridsOnSpawn` flag, `null` when absent.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "maxCapacityRange": {
+          "description": "The highest share of the cargo capacity that is filled (`maxCapacityRange`, 0 to 1);\n`null` for a `custom` fill.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "minCapacityRange": {
+          "description": "The lowest share of the cargo capacity that is filled (`minCapacityRange`, 0 to 1);\n`null` for a `custom` fill, which states shares per resource.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "recordPath": {
+          "description": "The record path, without `.xml`.",
+          "type": "string"
+        },
+        "resources": {
+          "description": "The resources of `cargoFillCapacity`, in stored order.",
+          "items": {
+            "$ref": "#/$defs/CargoManifestResource"
+          },
+          "type": "array"
+        },
+        "spawnRules": {
+          "description": "The `cargoSpawnRules`, in stored order.",
+          "items": {
+            "$ref": "#/$defs/CargoSpawnRule"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "className",
+        "fillType",
+        "guid",
+        "lockCargoGridsOnSpawn",
+        "maxCapacityRange",
+        "minCapacityRange",
+        "recordPath",
+        "resources",
+        "spawnRules"
+      ],
+      "type": "object"
+    },
+    "CargoManifestResource": {
+      "description": "One resource of a cargo manifest.",
+      "properties": {
+        "maxAllocation": {
+          "description": "The highest share of the capacity of a `custom` fill\n(`maxResourceAllocationPercentage`, as stored); `null` for the other fills.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "minAllocation": {
+          "description": "The lowest share of the capacity of a `custom` fill\n(`minResourceAllocationPercentage`, as stored); `null` for the other fills.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "probability": {
+          "description": "The `probability` that the resource is picked, as stored.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "resourceGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The GUID of the `ResourceType` Record, the `subtypeGuid` of a commodity; `null` when the\nresource is absent. A GUID that no commodity of the catalog carries is kept."
+        }
+      },
+      "required": [
+        "maxAllocation",
+        "minAllocation",
+        "probability",
+        "resourceGuid"
+      ],
+      "type": "object"
+    },
+    "CargoSpawnKind": {
+      "description": "What a spawn rule of a cargo manifest lists.",
+      "oneOf": [
+        {
+          "const": "entities",
+          "description": "`CargoSpawnEntityDef`: entities.",
+          "type": "string"
+        },
+        {
+          "const": "resources",
+          "description": "`CargoSpawnResourceDef`: resources.",
+          "type": "string"
+        }
+      ]
+    },
+    "CargoSpawnRule": {
+      "description": "A spawn rule of a cargo manifest: a set of entities or resources the game adds to the cargo.",
+      "properties": {
+        "entityGuids": {
+          "description": "The `EntityClassDefinition` Records of an `entities` rule, in stored order.",
+          "items": {
+            "$ref": "#/$defs/Guid"
+          },
+          "type": "array"
+        },
+        "kind": {
+          "$ref": "#/$defs/CargoSpawnKind",
+          "description": "Whether the rule lists entities or resources."
+        },
+        "probability": {
+          "description": "The `probability` of the rule, as stored.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "proportion": {
+          "description": "The `proportion` of a proportion quantity; `null` for another algorithm.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "quantity": {
+          "description": "The `quantity` of a fixed quantity; `null` for another algorithm.",
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "quantityAlgorithm": {
+          "description": "The struct type of `quantityAlgorithmType`, e.g. `CargoManifestFixedQuantityDef`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "resourceGuids": {
+          "description": "The `ResourceType` Records of a `resources` rule, in stored order.",
+          "items": {
+            "$ref": "#/$defs/Guid"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "entityGuids",
+        "kind",
+        "probability",
+        "proportion",
+        "quantity",
+        "quantityAlgorithm",
+        "resourceGuids"
+      ],
+      "type": "object"
+    },
     "CategoryRule": {
       "description": "A polymorphic struct that names blueprint categories: the condition of a modifier or the\navailability of a queue.",
       "properties": {
@@ -592,6 +815,10 @@
           "$ref": "#/$defs/KindCompleteness",
           "description": "The completeness of `blueprints`."
         },
+        "cargoManifests": {
+          "$ref": "#/$defs/KindCompleteness",
+          "description": "The completeness of `cargoManifests`."
+        },
         "commodities": {
           "$ref": "#/$defs/KindCompleteness",
           "description": "The completeness of `commodities`."
@@ -757,6 +984,7 @@
         "blueprintCategories",
         "blueprintPools",
         "blueprints",
+        "cargoManifests",
         "commodities",
         "contractLocationQueries",
         "contractScenarios",
@@ -884,6 +1112,58 @@
             "null"
           ]
         },
+        "availableInPrison": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Stated_boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Parameter `AvailableInPrison`; base: `availableInPrison` of the handler's\n`defaultAvailability`."
+        },
+        "buyInAmount": {
+          "description": "The `contractBuyInAmount` of the contract's `contractResults`, as stored; `null` when\nabsent. A sub contract shares the contract's value.",
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "canBeShared": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Stated_boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Parameter `CanBeShared`; base: `canBeShared` of the template's contract class."
+        },
+        "canReacceptAfterAbandoning": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Stated_boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Parameter `CanReacceptAfterAbandoning`; base: `canReacceptAfterAbandoning` of the handler's\n`defaultAvailability`."
+        },
+        "canReacceptAfterFailing": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Stated_boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Parameter `CanReacceptAfterFailing`; base: `canReacceptAfterFailing` of the handler's\n`defaultAvailability`."
+        },
         "contractor": {
           "$ref": "#/$defs/LocalisedText",
           "description": "The `Contractor` string parameter of the first level that states one (sub contract,\ncontract, handler): the text the game shows as the giver of the contract, e.g. the\nagency, when the contract has no faction reputation.",
@@ -948,6 +1228,35 @@
             "null"
           ]
         },
+        "haulingOrders": {
+          "description": "What the contract has to haul: per `missionVariableName` the hauling orders property of the\nnearest level (sub contract, contract, handler, template), then the orders of the hauling\nobjectives of the template, else of the `MissionBrokerEntry`. Empty for a contract that\nhauls nothing. Where to pick up and drop off is not stated here: the game fills those\nproperties in when the mission starts.",
+          "items": {
+            "$ref": "#/$defs/HaulingOrder"
+          },
+          "type": "array"
+        },
+        "hideInMobiGlas": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Stated_boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Parameter `HideInMobiGlas`; base: `hideInMobiGlas` of the handler's `defaultAvailability`."
+        },
+        "illegal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Stated_boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Parameter `Illegal`; base: `illegal` of the template's display info."
+        },
         "locationPrerequisites": {
           "description": "The `ContractPrerequisite_LocationProperty` prerequisites of handler, contract and sub\ncontract, in that order and as stored: the contract is offered at the location the named\nvariable of `locationQueries` resolves to. On LIVE four contracts (the North Rock PVP\nbounties) name a variable no query states.",
           "items": {
@@ -961,6 +1270,17 @@
             "$ref": "#/$defs/LocationQueryLink"
           },
           "type": "array"
+        },
+        "maxPlayersPerInstance": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Stated_int64"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Parameter `MaxPlayersPerInstance`; base: `maxPlayersPerInstance` of the handler's\n`defaultAvailability`. A negative value is as stored."
         },
         "maxStandingGuid": {
           "anyOf": [
@@ -1007,6 +1327,17 @@
             "null"
           ]
         },
+        "onceOnly": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Stated_boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Parameter `OnceOnly`; base: `onceOnly` of the handler's `defaultAvailability`."
+        },
         "personalCooldownTime": {
           "description": "The `personalCooldownTime`, as stored; `null` when absent. The Archive does not state the\nunit; the value range (up to 2880) fits minutes.",
           "format": "float",
@@ -1042,6 +1373,13 @@
           "description": "The reputation the contract grants on success, one entry per amount: the results whose\nfirst mission result (success) is set. A result that fires on failure only is left out; an\namount may be negative (a success that costs standing with a rival, as stored).",
           "items": {
             "$ref": "#/$defs/ReputationGain"
+          },
+          "type": "array"
+        },
+        "requiredIntros": {
+          "description": "The `ContractPrerequisite_CompletedContractTags` tags of the handler, the contract and the\nsub contract, in that order and as stored, each with the intro contracts that grant the tag.\nThe catalog does not decide how the levels combine.",
+          "items": {
+            "$ref": "#/$defs/RequiredIntro"
           },
           "type": "array"
         },
@@ -1081,6 +1419,14 @@
           ],
           "description": "The GUID of the `ContractTemplate` Record the contract names, `null` when it names none."
         },
+        "timeToComplete": {
+          "description": "The `timeToComplete` of the contract's `contractResults`, as stored, in floating point;\n`null` when absent. A sub contract shares the contract's value. The Archive states no unit.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
         "title": {
           "$ref": "#/$defs/LocalisedText",
           "description": "The title: the `Title` of the sub contract, else of the contract, else of the handler, else\nthe first display string of the template, else the title of the contract's\n`MissionBrokerEntry`. A `~mission(Token)` in it is replaced by the text the first of sub\ncontract, contract, handler and template states for the token, or by a placeholder such as\n`[LOCATION]`, `[TARGET]` or `[SHIP]` for what the game picks when the mission starts, or\n`[TOKEN]` when nothing states it. Trailing and leading blanks are removed.",
@@ -1097,6 +1443,11 @@
       "required": [
         "abandonedCooldownTime",
         "abandonedCooldownTimeVariation",
+        "availableInPrison",
+        "buyInAmount",
+        "canBeShared",
+        "canReacceptAfterAbandoning",
+        "canReacceptAfterFailing",
         "contractor",
         "cooldownLayer",
         "debugName",
@@ -1106,23 +1457,30 @@
         "guid",
         "handler",
         "hasPersonalCooldown",
+        "haulingOrders",
+        "hideInMobiGlas",
+        "illegal",
         "locationPrerequisites",
         "locationQueries",
+        "maxPlayersPerInstance",
         "maxStandingGuid",
         "minStandingGuid",
         "missionType",
         "missionTypeGuid",
         "notForRelease",
+        "onceOnly",
         "personalCooldownTime",
         "personalCooldownTimeVariation",
         "pickupPlaces",
         "recordGuid",
         "recordPath",
         "reputationGains",
+        "requiredIntros",
         "shipSpawns",
         "standingRequirements",
         "subContractGuid",
         "templateGuid",
+        "timeToComplete",
         "title",
         "workInProgress"
       ],
@@ -1805,6 +2163,31 @@
       ],
       "type": "object"
     },
+    "FactLayer": {
+      "description": "The level that states a value of a contract.",
+      "oneOf": [
+        {
+          "const": "subContract",
+          "description": "The parameter overrides of the sub contract.",
+          "type": "string"
+        },
+        {
+          "const": "contract",
+          "description": "The parameter overrides of the contract.",
+          "type": "string"
+        },
+        {
+          "const": "handler",
+          "description": "The parameter overrides or the `defaultAvailability` of the handler.",
+          "type": "string"
+        },
+        {
+          "const": "template",
+          "description": "The `ContractTemplate` Record.",
+          "type": "string"
+        }
+      ]
+    },
     "FactionReputation": {
       "description": "A faction: a `FactionReputation` Record under `factions/factionreputation`.",
       "properties": {
@@ -1902,6 +2285,32 @@
       ],
       "type": "object"
     },
+    "FilterEffect": {
+      "description": "The filter change of a `MiningFilterItemModifierParams`.",
+      "properties": {
+        "filterModifier": {
+          "description": "`filterParams.filterModifier.value`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "lifetime": {
+          "description": "`modifierLifetime.lifetime`, in seconds; `null` for a modifier that lasts.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "filterModifier",
+        "lifetime"
+      ],
+      "type": "object"
+    },
     "FireAction": {
       "description": "One fire mode of a weapon.",
       "properties": {
@@ -1948,11 +2357,26 @@
             "null"
           ]
         },
+        "fullDamageRange": {
+          "description": "`fullDamageRange` of a beam, in metres: the distance up to which it does full damage.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
         "heatPerShot": {
           "description": "`heatPerShot`.",
           "format": "float",
           "type": [
             "number",
+            "null"
+          ]
+        },
+        "hitType": {
+          "description": "`hitType` of a beam, e.g. `ElectricArc` for a mining beam and `Extraction` for an\nextraction beam. A closed set the game may extend; the schema keeps a string.",
+          "type": [
+            "string",
             "null"
           ]
         },
@@ -1976,7 +2400,7 @@
           ]
         },
         "pellets": {
-          "description": "`launchParams.pelletCount` (`pellets` where a Record states that instead), the projectiles of\none shot.",
+          "description": "`launchParams.pelletCount` (`pellets` where a Record states that instead), the projectiles\nof one shot.",
           "format": "int64",
           "type": [
             "integer",
@@ -1993,6 +2417,14 @@
             }
           ],
           "description": "`launchParams.spreadParams`; `null` for a mode without one."
+        },
+        "zeroDamageRange": {
+          "description": "`zeroDamageRange` of a beam, in metres: the distance from which it does no damage.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
         }
       },
       "required": [
@@ -2001,12 +2433,50 @@
         "cooldownTime",
         "damagePerSecond",
         "fireRate",
+        "fullDamageRange",
         "heatPerShot",
+        "hitType",
         "kind",
         "name",
         "overchargeTime",
         "pellets",
-        "spread"
+        "spread",
+        "zeroDamageRange"
+      ],
+      "type": "object"
+    },
+    "FireActionModifier": {
+      "description": "The damage multiplier an `ItemWeaponModifiersParams` applies to one fire action of the laser.",
+      "properties": {
+        "damageMultiplier": {
+          "description": "`weaponModifier.weaponStats.damageMultiplier`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "fireActionIndex": {
+          "description": "`fireActionIndex`, the index into the laser's `fireActions` as stored.",
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "lifetime": {
+          "description": "`modifierLifetime.lifetime`, in seconds; `null` for a modifier that lasts.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "damageMultiplier",
+        "fireActionIndex",
+        "lifetime"
       ],
       "type": "object"
     },
@@ -2358,6 +2828,208 @@
         "recordPath"
       ],
       "type": "object"
+    },
+    "HaulingItem": {
+      "description": "One thing to haul.",
+      "properties": {
+        "entityClassGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The GUID of the `EntityClassDefinition` Record of an `entityClass` item."
+        },
+        "entityClassesGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The GUID of the `Hauling_EntityClasses` Record of an `entityClasses` item: a list of\nentity classes of which any one counts. No kind lists these Records."
+        },
+        "kind": {
+          "$ref": "#/$defs/HaulingItemKind",
+          "description": "What kind of thing the item is."
+        },
+        "maxAmount": {
+          "description": "The `maxAmount` of an item that counts pieces, as stored; 0 when it states no upper bound.",
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "maxContainerSize": {
+          "description": "The `maxContainerSize` of a `resource` item, as stored; -1 when it states no limit.",
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "maxScu": {
+          "description": "The `maxSCU` of a `resource` item, as stored; 0 when the order states no upper bound.",
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "minAmount": {
+          "description": "The `minAmount` of an item that counts pieces, as stored.",
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "minScu": {
+          "description": "The `minSCU` of a `resource` item, as stored.",
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "resourceGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The GUID of the `ResourceType` Record of a `resource` item, the `subtypeGuid` of a\ncommodity; `null` for another kind or when the item names none. A GUID of a `ResourceType`\nthat no commodity of the catalog carries is kept."
+        }
+      },
+      "required": [
+        "entityClassGuid",
+        "entityClassesGuid",
+        "kind",
+        "maxAmount",
+        "maxContainerSize",
+        "maxScu",
+        "minAmount",
+        "minScu",
+        "resourceGuid"
+      ],
+      "type": "object"
+    },
+    "HaulingItemKind": {
+      "description": "What a hauling item stands for.",
+      "oneOf": [
+        {
+          "const": "resource",
+          "description": "A commodity in SCU (`…_Resource`, `…_ResourceUnlimitedDropOff`).",
+          "type": "string"
+        },
+        {
+          "const": "entityClass",
+          "description": "A number of one entity class (`…_EntityClass`).",
+          "type": "string"
+        },
+        {
+          "const": "entityClasses",
+          "description": "A number of entities out of a list (`…_EntityClasses`).",
+          "type": "string"
+        },
+        {
+          "const": "missionItem",
+          "description": "A mission item the game creates for the mission (`HaulingOrderContent_MissionItem`).",
+          "type": "string"
+        }
+      ]
+    },
+    "HaulingOrder": {
+      "description": "What a contract has to haul, as one level of the contract states it.",
+      "properties": {
+        "requirements": {
+          "description": "What has to be hauled, all of it. A requirement with several `options` is satisfied by any\none of them.",
+          "items": {
+            "$ref": "#/$defs/HaulingRequirement"
+          },
+          "type": "array"
+        },
+        "source": {
+          "$ref": "#/$defs/HaulingSource",
+          "description": "Where the order is stated."
+        },
+        "variableName": {
+          "description": "The `missionVariableName` of the `MissionPropertyValue_HaulingOrders` property of a\n`property` order; `null` for an `objective` order.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "requirements",
+        "source",
+        "variableName"
+      ],
+      "type": "object"
+    },
+    "HaulingRequirement": {
+      "description": "One requirement of a hauling order: the alternatives of which one is hauled. Most\nrequirements have exactly one option.",
+      "properties": {
+        "options": {
+          "description": "The alternatives; each is a list of items that are all hauled.",
+          "items": {
+            "items": {
+              "$ref": "#/$defs/HaulingItem"
+            },
+            "type": "array"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "options"
+      ],
+      "type": "object"
+    },
+    "HaulingSource": {
+      "description": "The level of the contract that states a hauling order. Of the property levels the nearest one\nwins per `variableName`; the objective orders are those of the template, else of the broker\nentry.",
+      "oneOf": [
+        {
+          "const": "subContract",
+          "description": "A hauling orders property in the overrides of the sub contract.",
+          "type": "string"
+        },
+        {
+          "const": "contract",
+          "description": "A hauling orders property in the overrides of the contract.",
+          "type": "string"
+        },
+        {
+          "const": "handler",
+          "description": "A hauling orders property in the parameters of the handler.",
+          "type": "string"
+        },
+        {
+          "const": "template",
+          "description": "A hauling orders property in the `contractProperties` of the template.",
+          "type": "string"
+        },
+        {
+          "const": "templateObjective",
+          "description": "An order of a hauling objective of the template.",
+          "type": "string"
+        },
+        {
+          "const": "brokerObjective",
+          "description": "An order of a hauling objective of the `MissionBrokerEntry`.",
+          "type": "string"
+        }
+      ]
     },
     "HitConsistency": {
       "description": "`hitConsistencyParams` of a [`MiningGlobalParams`].",
@@ -2862,7 +3534,7 @@
       "type": "object"
     },
     "ItemStats": {
-      "description": "The typed stat blocks of an item, raw facts of the Archive (ADR-0065, ADR-0072).\n\nEvery block is `null` for an item that does not have it; the item has `stats` only when it\nhas at least one block: `weapon`, `shield`, `quantumDrive`, `powerPlant`, `cooler`, `missile`,\n`armor`, `clothing`, `radar`, `tractorBeam` or `weaponModifier`. No value is derived: a number\nis what the Archive states, in the unit the game stores it; a value that is not a finite\nnumber is `null`.",
+      "description": "The typed stat blocks of an item, raw facts of the Archive (ADR-0065, ADR-0072).\n\nEvery block is `null` for an item that does not have it; the item has `stats` only when it\nhas at least one block: `weapon`, `shield`, `quantumDrive`, `powerPlant`, `cooler`, `missile`,\n`armor`, `clothing`, `radar`, `tractorBeam`, `weaponModifier`, `miningLaser` or\n`miningModifier`. No value is derived: a number is what the Archive states, in the unit the\ngame stores it; a value that is not a finite number is `null`.",
       "properties": {
         "armor": {
           "anyOf": [
@@ -2904,6 +3576,28 @@
             "number",
             "null"
           ]
+        },
+        "miningLaser": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MiningLaserStats"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The mining laser block, from `SEntityComponentMiningLaserParams`: ship lasers and the FPS\nmining tool."
+        },
+        "miningModifier": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MiningModifierStats"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The mining module or gadget block, from the `EntityComponentAttachableModifierParams` that\nholds a mining modifier."
         },
         "missile": {
           "anyOf": [
@@ -3006,6 +3700,8 @@
         "clothing",
         "cooler",
         "health",
+        "miningLaser",
+        "miningModifier",
         "missile",
         "powerPlant",
         "quantumDrive",
@@ -4645,6 +5341,43 @@
       ],
       "type": "object"
     },
+    "MiningEffect": {
+      "description": "The mining modifiers one `ItemMiningModifierParams` or `ItemMineableRockModifierParams`\napplies.",
+      "properties": {
+        "isOptimalRateGood": {
+          "description": "`MiningLaserModifier.isOptimalRateGood`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "lifetime": {
+          "description": "`modifierLifetime.lifetime`, in seconds; `null` for a modifier that lasts.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "modifiers": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MiningModifierValues"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "`MiningLaserModifier`; `null` without it."
+        }
+      },
+      "required": [
+        "isOptimalRateGood",
+        "lifetime",
+        "modifiers"
+      ],
+      "type": "object"
+    },
     "MiningGlobalParams": {
       "description": "The mining parameters of one kind of miner: a `MiningGlobalParams` Record under `mining`. Each\nnumber is that of the Record, unchanged, and `null` when the Record states none. The effects,\nsounds and the default explosion of the Record are not exported.",
       "properties": {
@@ -4917,6 +5650,237 @@
         "resistanceCurveFactor",
         "terrainFactorStaticThreshold",
         "wasteResourceTypeGuid"
+      ],
+      "type": "object"
+    },
+    "MiningLaserStats": {
+      "description": "A mining laser, raw facts of `SEntityComponentMiningLaserParams` (ADR-0262).\n\nThe beams are fire modes of `weapon.fireActions`: their `hitType`, `fullDamageRange`,\n`zeroDamageRange` and `damagePerSecond`.",
+      "properties": {
+        "filterModifier": {
+          "description": "`filterParams.filterModifier.value`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "globalParamsGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The `MiningLaserGlobalParams` Record `globalParams` links to."
+        },
+        "isOptimalRateGood": {
+          "description": "`miningLaserModifiers.isOptimalRateGood`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "modifiers": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MiningModifierValues"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "`miningLaserModifiers`; `null` without them."
+        },
+        "throttleLerpSpeed": {
+          "description": "`throttleLerpSpeed`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "throttleMinimum": {
+          "description": "`throttleMinimum`, the lowest throttle as a fraction of 1.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "usesPowerThrottle": {
+          "description": "`usesPowerThrottle`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "filterModifier",
+        "globalParamsGuid",
+        "isOptimalRateGood",
+        "modifiers",
+        "throttleLerpSpeed",
+        "throttleMinimum",
+        "usesPowerThrottle"
+      ],
+      "type": "object"
+    },
+    "MiningModifierStats": {
+      "description": "A mining module or gadget, raw facts of the `EntityComponentAttachableModifierParams` that\nholds a mining modifier (ADR-0262).",
+      "properties": {
+        "activationMethod": {
+          "description": "`activationMethod`, e.g. `ActivateOnAttach` for a passive module and `ActivateOnDemand`\nfor an active module or a gadget. A closed set the game may extend; the schema keeps a\nstring.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "canInterrupt": {
+          "description": "`canInterrupt`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "charges": {
+          "description": "`charges`; -1 for a gadget that is not used up.",
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "filter": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FilterEffect"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The first `MiningFilterItemModifierParams`; `null` without one."
+        },
+        "fireActionModifiers": {
+          "description": "The `ItemWeaponModifiersParams` in stored order: the multiplier per fire action.",
+          "items": {
+            "$ref": "#/$defs/FireActionModifier"
+          },
+          "type": "array"
+        },
+        "isInterruptible": {
+          "description": "`isInterruptible`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "laser": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MiningEffect"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The first `ItemMiningModifierParams`: the change to the laser; `null` without one."
+        },
+        "rock": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MiningEffect"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The first `ItemMineableRockModifierParams`: the change to the rock; `null` without one."
+        }
+      },
+      "required": [
+        "activationMethod",
+        "canInterrupt",
+        "charges",
+        "filter",
+        "fireActionModifiers",
+        "isInterruptible",
+        "laser",
+        "rock"
+      ],
+      "type": "object"
+    },
+    "MiningModifierValues": {
+      "description": "The modifiers of a `MiningLaserModifiers` struct, each the `value` of a\n`FloatModifierMultiplicative` as stored, in percent; `null` for a modifier the struct leaves\nunset.",
+      "properties": {
+        "catastrophicChargeWindowRate": {
+          "description": "`catastrophicChargeWindowRateModifier`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "clusterFactor": {
+          "description": "`clusterFactorModifier`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "instability": {
+          "description": "`laserInstability`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "optimalChargeWindowRate": {
+          "description": "`optimalChargeWindowRateModifier`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "optimalChargeWindowSize": {
+          "description": "`optimalChargeWindowSizeModifier`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "resistance": {
+          "description": "`resistanceModifier`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "shatterDamage": {
+          "description": "`shatterdamageModifier`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "catastrophicChargeWindowRate",
+        "clusterFactor",
+        "instability",
+        "optimalChargeWindowRate",
+        "optimalChargeWindowSize",
+        "resistance",
+        "shatterDamage"
       ],
       "type": "object"
     },
@@ -6106,6 +7070,32 @@
         "guid",
         "minReputation",
         "recordPath"
+      ],
+      "type": "object"
+    },
+    "RequiredIntro": {
+      "description": "A completion tag a contract requires and the intro contracts that grant it.",
+      "properties": {
+        "introContracts": {
+          "description": "The `id` of every intro contract (an element of `introContracts` of a handler) whose success\nresult grants the tag, ordered by `id`; empty when none does.",
+          "items": {
+            "$ref": "#/$defs/Guid"
+          },
+          "type": "array"
+        },
+        "level": {
+          "$ref": "#/$defs/StandingLevel",
+          "description": "Where the prerequisite is stated."
+        },
+        "tagGuid": {
+          "$ref": "#/$defs/Guid",
+          "description": "The `Tag` Record the prerequisite requires among the completed contracts."
+        }
+      },
+      "required": [
+        "introContracts",
+        "level",
+        "tagGuid"
       ],
       "type": "object"
     },
@@ -7341,7 +8331,7 @@
       "type": "object"
     },
     "StandingLevel": {
-      "description": "The level at which a reputation prerequisite is stated.",
+      "description": "The level at which a prerequisite is stated.",
       "oneOf": [
         {
           "const": "handler",
@@ -7537,6 +8527,43 @@
         "system",
         "type",
         "typeGuid"
+      ],
+      "type": "object"
+    },
+    "Stated_boolean": {
+      "description": "A value as stored, with the level that states it.",
+      "properties": {
+        "layer": {
+          "$ref": "#/$defs/FactLayer",
+          "description": "The first level of sub contract, contract, handler and template that states the value."
+        },
+        "value": {
+          "description": "The value.",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "layer",
+        "value"
+      ],
+      "type": "object"
+    },
+    "Stated_int64": {
+      "description": "A value as stored, with the level that states it.",
+      "properties": {
+        "layer": {
+          "$ref": "#/$defs/FactLayer",
+          "description": "The first level of sub contract, contract, handler and template that states the value."
+        },
+        "value": {
+          "description": "The value.",
+          "format": "int64",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "layer",
+        "value"
       ],
       "type": "object"
     },
@@ -8034,6 +9061,13 @@
       },
       "type": "array"
     },
+    "cargoManifests": {
+      "description": "The cargo manifests, how the game fills the cargo grid of a spawned ship, ordered by GUID.",
+      "items": {
+        "$ref": "#/$defs/CargoManifest"
+      },
+      "type": "array"
+    },
     "commodities": {
       "description": "The commodities, ordered by GUID.",
       "items": {
@@ -8349,6 +9383,7 @@
     "blueprintCategories",
     "blueprintPools",
     "blueprints",
+    "cargoManifests",
     "commodities",
     "completeness",
     "contractLocationQueries",

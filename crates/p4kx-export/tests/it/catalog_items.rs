@@ -168,6 +168,8 @@ fn an_item_carries_its_definition_mass_display_type_and_class() -> TestResult {
                 "radar": null,
                 "tractorBeam": null,
                 "weaponModifier": null,
+                "miningLaser": null,
+                "miningModifier": null,
                 "health": null,
                 "resourceStates": []
             },
@@ -335,6 +337,7 @@ fn every_kind_states_its_completeness() -> TestResult {
             "missionTypes": {"status": "complete"},
             "missionLocalities": {"status": "complete"},
             "contractScenarios": {"status": "complete"},
+            "cargoManifests": {"status": "complete"},
             "missionLocationTemplates": {"status": "complete"},
             "contractShipSpawns": {"status": "complete"},
             "contractLocationQueries": {"status": "complete"},

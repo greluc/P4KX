@@ -5,7 +5,11 @@
 //! real Archive.
 
 use std::collections::HashSet;
+use std::time::SystemTime;
 
+use p4kx_export::{CatalogOptions, build_catalog};
+use p4kx_extraction::Archive;
+use p4kx_testkit::{real_archive_key, real_archive_path};
 use serde_json::Value;
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
@@ -55,5 +59,51 @@ pub(crate) fn check_spawn_links(catalog: &Value) -> TestResult {
             );
         }
     }
+    Ok(())
+}
+
+#[expect(
+    clippy::print_stdout,
+    reason = "the figures are the result of the verification"
+)]
+fn print_line(line: &str) {
+    println!("{line}");
+}
+
+#[test]
+#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
+fn the_spawn_links_of_a_real_archive_resolve() -> TestResult {
+    let archive = Archive::open_with_key(real_archive_path()?, Some(real_archive_key()?))?;
+    let built = build_catalog(&archive, &CatalogOptions::new(SystemTime::now()))?;
+    let catalog: Value = serde_json::from_slice(built.json())?;
+    check_spawn_links(&catalog)?;
+    let count = |kind: &str| catalog[kind].as_array().map_or(0, Vec::len);
+    let links = |field: &str| -> usize {
+        catalog["contracts"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .map(|contract| contract[field].as_array().map_or(0, Vec::len))
+            .sum()
+    };
+    print_line(&format!(
+        "{} ship spawns, {} location queries, {} location templates; links: {} ship, {} query, {} prerequisites",
+        count("contractShipSpawns"),
+        count("contractLocationQueries"),
+        count("missionLocationTemplates"),
+        links("shipSpawns"),
+        links("locationQueries"),
+        links("locationPrerequisites"),
+    ));
+    assert!(count("contractShipSpawns") > 100, "ship spawns");
+    assert!(count("contractLocationQueries") > 500, "location queries");
+    assert!(
+        count("missionLocationTemplates") > 1_000,
+        "location templates"
+    );
+    assert!(
+        links("shipSpawns") > 0 && links("locationQueries") > 0,
+        "links"
+    );
     Ok(())
 }

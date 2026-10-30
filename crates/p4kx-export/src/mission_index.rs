@@ -10,8 +10,10 @@ use p4kx_extraction::{
 use rayon::prelude::*;
 
 use crate::blueprint::as_struct;
+use crate::contract_hauling::HaulingRequirement;
+use crate::mission_hauling::{HaulingProperty, objective_orders, property_orders};
 use crate::mission_layers::{Property, items, key, one, properties};
-use crate::record_fields::{integer, reference};
+use crate::record_fields::{boolean, integer, reference};
 use crate::spawn_layers::{Level, SpawnPools};
 use crate::spawn_model::SpawnLevel;
 use crate::spawn_read::Reader;
@@ -33,15 +35,21 @@ pub(crate) struct Broker<'f> {
     pub(crate) description: Option<&'f str>,
     pub(crate) mission_type: Option<Guid>,
     pub(crate) location: Option<Guid>,
+    pub(crate) objective_orders: Vec<HaulingRequirement>,
 }
 
-/// What a `ContractTemplate` Record contributes to a contract: the title and the mission type of
-/// its display info and its properties.
+/// What a `ContractTemplate` Record contributes to a contract: the title, the mission type and the
+/// `illegal` flag of its display info, its properties and the `canBeShared` flag of its contract
+/// class.
 #[derive(Debug, Default)]
 pub(crate) struct Template<'f> {
     pub(crate) title: Option<&'f str>,
     pub(crate) mission_type: Option<Guid>,
     pub(crate) properties: Vec<Property<'f>>,
+    pub(crate) hauling: Vec<HaulingProperty<'f>>,
+    pub(crate) objective_orders: Vec<HaulingRequirement>,
+    pub(crate) illegal: Option<bool>,
+    pub(crate) can_be_shared: Option<bool>,
     /// The ship spawns and location queries of the template.
     pub(crate) spawns: Option<Level>,
 }
@@ -258,6 +266,7 @@ fn piece<'f>(
                 description: key(root, "description"),
                 mission_type: reference(root, "type").map(|guid| guid.0),
                 location: reference(root, "locationMissionAvailable").map(|guid| guid.0),
+                objective_orders: objective_orders(root),
             },
         )
     } else if starts(FACTIONS) {
@@ -289,6 +298,13 @@ fn template_of<'f>(
         title: title_key(display),
         mission_type: reference(display, "type").map(|guid| guid.0),
         properties: properties(root, "contractProperties"),
+        hauling: property_orders(root, "contractProperties"),
+        objective_orders: objective_orders(root),
+        illegal: boolean(display, "illegal"),
+        can_be_shared: items(one(root, "contractClass"), "additionalParams")
+            .iter()
+            .filter_map(as_struct)
+            .find_map(|settings| boolean(Some(settings), "canBeShared")),
         spawns: Some(spawns),
     })
 }

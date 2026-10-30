@@ -115,7 +115,8 @@ impl<'f> Picked<'f> {
             | Kind::ReputationContexts
             | Kind::MissionTypes
             | Kind::MissionLocalities
-            | Kind::ContractScenarios => {
+            | Kind::ContractScenarios
+            | Kind::CargoManifests => {
                 return MissionPick::entity(kind, tree, texts).map(Self::Mission);
             }
             Kind::LootTables

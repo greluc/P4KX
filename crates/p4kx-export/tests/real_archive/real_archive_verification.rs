@@ -24,7 +24,7 @@ use crate::real_archive_spawns::check_spawn_links;
 
 type TestResult = Result<(), Box<dyn Error>>;
 
-const MINIMUM: [(Kind, usize); 40] = [
+const MINIMUM: [(Kind, usize); 41] = [
     (Kind::Manufacturers, 500),
     (Kind::Items, 10_000),
     (Kind::Ships, 200),
@@ -54,6 +54,7 @@ const MINIMUM: [(Kind, usize); 40] = [
     (Kind::MissionTypes, 30),
     (Kind::MissionLocalities, 15),
     (Kind::ContractScenarios, 2),
+    (Kind::CargoManifests, 80),
     (Kind::LootTables, 50),
     (Kind::LootArchetypes, 30),
     (Kind::LootPoolFilters, 10),

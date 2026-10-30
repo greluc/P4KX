@@ -94,19 +94,34 @@ fn weapons() -> Vec<TestStruct> {
             .array("weaponActions", pointer("SWeaponActionParams")),
         TestStruct::new("SWeaponActionFireBeamParams")
             .parent("SWeaponActionParams")
+            .field("hitType", TestType::String)
+            .field("fullDamageRange", TestType::Single)
+            .field("zeroDamageRange", TestType::Single)
             .field("damagePerSecond", class("DamageInfo")),
         singles("DamageInfo", &["DamagePhysical", "DamageEnergy"]),
         component("EntityComponentAttachableModifierParams")
+            .field("activationMethod", TestType::String)
+            .field("charges", TestType::Int32)
+            .field("canInterrupt", TestType::Bool)
+            .field("isInterruptible", TestType::Bool)
             .array("modifiers", pointer("ItemModifiersParams")),
         TestStruct::new("ItemModifiersParams"),
         TestStruct::new("ItemWeaponModifiersParams")
             .parent("ItemModifiersParams")
+            .field("fireActionIndex", TestType::Int32)
+            .field("modifierLifetime", pointer("ItemModifierTimedLife"))
             .field("weaponModifier", pointer("SWeaponModifierParams")),
         TestStruct::new("SWeaponModifierParams").field("weaponStats", class("SWeaponStats")),
         TestStruct::new("SWeaponStats")
             .field("fireRateMultiplier", TestType::Single)
+            .field("damageMultiplier", TestType::Single)
             .field("salvageModifier", pointer("SSalvageModifier"))
             .field("tractorModifier", pointer("STractorModifier")),
+    ]
+}
+
+fn multipliers() -> Vec<TestStruct> {
+    vec![
         singles(
             "SSalvageModifier",
             &[
@@ -127,19 +142,78 @@ fn weapons() -> Vec<TestStruct> {
     ]
 }
 
+fn mining() -> Vec<TestStruct> {
+    let modifier = |name: &str, field: &str| {
+        TestStruct::new(name)
+            .parent("ItemModifiersParams")
+            .field("modifierLifetime", pointer("ItemModifierTimedLife"))
+            .field(field, class("MiningLaserModifiers"))
+    };
+    vec![
+        component("SEntityComponentMiningLaserParams")
+            .field("throttleLerpSpeed", TestType::Single)
+            .field("throttleMinimum", TestType::Single)
+            .field("usesPowerThrottle", TestType::Bool)
+            .field("globalParams", TestType::Reference)
+            .field("miningLaserModifiers", class("MiningLaserModifiers"))
+            .field("filterParams", class("MiningFilterParams")),
+        TestStruct::new("MiningLaserModifiers")
+            .field("isOptimalRateGood", TestType::Bool)
+            .field("laserInstability", pointer("FloatModifierMultiplicative"))
+            .field(
+                "optimalChargeWindowSizeModifier",
+                pointer("FloatModifierMultiplicative"),
+            )
+            .field("resistanceModifier", pointer("FloatModifierMultiplicative"))
+            .field(
+                "shatterdamageModifier",
+                pointer("FloatModifierMultiplicative"),
+            )
+            .field(
+                "clusterFactorModifier",
+                pointer("FloatModifierMultiplicative"),
+            )
+            .field(
+                "optimalChargeWindowRateModifier",
+                pointer("FloatModifierMultiplicative"),
+            )
+            .field(
+                "catastrophicChargeWindowRateModifier",
+                pointer("FloatModifierMultiplicative"),
+            ),
+        singles("FloatModifierMultiplicative", &["value"]),
+        TestStruct::new("MiningFilterParams")
+            .field("filterModifier", pointer("FloatModifierMultiplicative")),
+        singles("ItemModifierTimedLife", &["lifetime"]),
+        modifier("ItemMiningModifierParams", "MiningLaserModifier"),
+        modifier("ItemMineableRockModifierParams", "MiningLaserModifier"),
+        TestStruct::new("MiningFilterItemModifierParams")
+            .parent("ItemModifiersParams")
+            .field("modifierLifetime", pointer("ItemModifierTimedLife"))
+            .field("filterParams", class("MiningFilterParams")),
+    ]
+}
+
 pub(super) fn database() -> DataForgeBuilder {
-    worn().into_iter().chain(weapons()).fold(
-        DataForgeBuilder::new().version(8).enumeration(
-            "EItemType",
-            [
-                "Char_Armor_Torso",
-                "Char_Clothing_Hat",
-                "Radar",
-                "TractorBeam",
-                "SalvageModifier",
-                "WeaponGun",
-            ],
-        ),
-        DataForgeBuilder::structure,
-    )
+    worn()
+        .into_iter()
+        .chain(weapons())
+        .chain(multipliers())
+        .chain(mining())
+        .fold(
+            DataForgeBuilder::new().version(8).enumeration(
+                "EItemType",
+                [
+                    "Char_Armor_Torso",
+                    "Char_Clothing_Hat",
+                    "Radar",
+                    "TractorBeam",
+                    "SalvageModifier",
+                    "WeaponGun",
+                    "WeaponMining",
+                    "MiningModifier",
+                ],
+            ),
+            DataForgeBuilder::structure,
+        )
 }

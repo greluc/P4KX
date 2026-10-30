@@ -1,16 +1,12 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-//! One contract with a pickup place and a reputation gain.
+//! One contract with a pickup place, a reputation gain, the contract facts and a hauling order,
+//! and a cargo manifest.
 
 use serde_json::json;
 
 pub(super) fn contracts() -> serde_json::Value {
-    let places = json!([{
-        "starmapObjectGuid": "a2000000-0000-4000-8000-000000000001",
-        "objectType": "Planet",
-        "place": {"key": "@Stanton1_Name", "en": "Hurston", "de": null}
-    }]);
     let gains = json!([{
         "factionReputationGuid": "60000000-0000-4000-8000-000000000001",
         "factionReputationName": "acme",
@@ -38,7 +34,7 @@ pub(super) fn contracts() -> serde_json::Value {
             "name": "acme",
             "displayName": {"key": "@faction_acme", "en": "Acme Emporium", "de": null}
         },
-        "pickupPlaces": places,
+        "pickupPlaces": places(),
         "reputationGains": gains,
         "minStandingGuid": "62000000-0000-4000-8000-000000000001",
         "maxStandingGuid": null,
@@ -56,13 +52,25 @@ pub(super) fn contracts() -> serde_json::Value {
         "personalCooldownTimeVariation": 60.0,
         "abandonedCooldownTime": 30.0,
         "abandonedCooldownTimeVariation": null,
-        "fixedRewards": [{"currency": "UEC", "amount": 40000, "max": 0, "plusBonuses": false}]
+        "fixedRewards": [{"currency": "UEC", "amount": 40000, "max": 0, "plusBonuses": false}],
+        "haulingOrders": orders()
     });
+    if let (Some(entry), Some(facts)) = (entry.as_object_mut(), facts().as_object()) {
+        entry.extend(facts.clone());
+    }
     if let (Some(target), serde_json::Value::Object(links)) = (entry.as_object_mut(), spawn_links())
     {
         target.extend(links);
     }
     json!([entry])
+}
+
+fn places() -> serde_json::Value {
+    json!([{
+        "starmapObjectGuid": "a2000000-0000-4000-8000-000000000001",
+        "objectType": "Planet",
+        "place": {"key": "@Stanton1_Name", "en": "Hurston", "de": null}
+    }])
 }
 
 fn spawn_links() -> serde_json::Value {
@@ -86,4 +94,69 @@ fn spawn_links() -> serde_json::Value {
             "locationLevelType": "Planet"
         }]
     })
+}
+
+fn facts() -> serde_json::Value {
+    json!({
+        "timeToComplete": 20.0,
+        "buyInAmount": 0,
+        "canBeShared": {"value": true, "layer": "template"},
+        "illegal": {"value": false, "layer": "contract"},
+        "onceOnly": {"value": true, "layer": "subContract"},
+        "maxPlayersPerInstance": {"value": 1, "layer": "handler"},
+        "availableInPrison": null,
+        "canReacceptAfterAbandoning": {"value": true, "layer": "handler"},
+        "canReacceptAfterFailing": null,
+        "hideInMobiGlas": null,
+        "requiredIntros": [{
+            "level": "handler",
+            "tagGuid": "90000000-0000-4000-8000-000000000002",
+            "introContracts": ["20000000-0000-4000-8000-000000000001"]
+        }]
+    })
+}
+
+fn orders() -> serde_json::Value {
+    json!([{
+        "source": "contract",
+        "variableName": "HaulingOverride",
+        "requirements": [{"options": [[{
+            "kind": "resource",
+            "resourceGuid": "f5000000-0000-4000-8000-000000000001",
+            "entityClassGuid": null,
+            "entityClassesGuid": null,
+            "minScu": 4,
+            "maxScu": 8,
+            "maxContainerSize": 16,
+            "minAmount": null,
+            "maxAmount": null
+        }]]}]
+    }])
+}
+
+pub(super) fn manifests() -> serde_json::Value {
+    json!([{
+        "guid": "f7000000-0000-4000-8000-000000000001",
+        "className": "LegalCargo_Even",
+        "recordPath": "libs/foundry/records/cargomanifest/civilian/legalcargo_even",
+        "fillType": "even",
+        "minCapacityRange": 0.45,
+        "maxCapacityRange": 0.5,
+        "lockCargoGridsOnSpawn": false,
+        "resources": [{
+            "resourceGuid": "f5000000-0000-4000-8000-000000000001",
+            "probability": 1.0,
+            "minAllocation": null,
+            "maxAllocation": null
+        }],
+        "spawnRules": [{
+            "kind": "entities",
+            "probability": 1.0,
+            "entityGuids": ["f6000000-0000-4000-8000-000000000001"],
+            "resourceGuids": [],
+            "quantityAlgorithm": "CargoManifestFixedQuantityDef",
+            "quantity": 30,
+            "proportion": null
+        }]
+    }])
 }

@@ -185,7 +185,8 @@ fn the_stat_blocks_accept_additions_and_new_closed_values_but_stay_required() ->
             "fireActions": [{
                 "kind": "SWeaponActionFireNewParams", "name": null, "fireRate": 600.0,
                 "pellets": 1, "ammoCost": 1, "heatPerShot": null, "chargeTime": null,
-                "overchargeTime": null, "cooldownTime": null, "damagePerSecond": null, "spread": null,
+                "overchargeTime": null, "cooldownTime": null, "hitType": "NewHit", "fullDamageRange": null,
+                "zeroDamageRange": null, "damagePerSecond": null, "spread": null,
                 "extra": true
             }],
             "ammoCapacity": null,
@@ -194,7 +195,7 @@ fn the_stat_blocks_accept_additions_and_new_closed_values_but_stay_required() ->
         },
         "shield": null, "quantumDrive": null, "powerPlant": null, "cooler": null,
         "armor": null, "clothing": null, "radar": null, "tractorBeam": null,
-        "weaponModifier": null,
+        "weaponModifier": null, "miningLaser": null, "miningModifier": null,
         "missile": {
             "damage": null, "explosionMinRadius": null, "explosionMaxRadius": null,
             "trackingSignalType": "NewSignal", "lockTime": null, "lockingAngle": null,

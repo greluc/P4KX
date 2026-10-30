@@ -47,10 +47,14 @@ The rule is ADR-0054 (amending ADR-0002):
   (#830, ADR-0242), the kinds `legacyLootTables` and `legacyLootArchetypes` (#818, ADR-0238), the
   contract fields `cooldownLayer`, `hasPersonalCooldown`, `personalCooldownTime`,
   `personalCooldownTimeVariation`, `abandonedCooldownTime` and `abandonedCooldownTimeVariation`
-  (#832, ADR-0244), the kind `crafters` (#831, ADR-0243) and the kinds `missionLocationTemplates`,
-  `contractShipSpawns` and `contractLocationQueries` with the contract fields `shipSpawns`,
-  `locationQueries` and `locationPrerequisites` (#902, ADR-0266). Later additions keep version 2 as
-  long as they are additive. The contract field `fixedRewards` (#888, ADR-0268) is one.
+  (#832, ADR-0244), the kind `crafters` (#831, ADR-0243), the contract fields `timeToComplete`,
+  `buyInAmount`, `canBeShared`, `illegal`, `onceOnly`, `maxPlayersPerInstance`, `availableInPrison`,
+  `canReacceptAfterAbandoning`, `canReacceptAfterFailing`, `hideInMobiGlas` and `requiredIntros`
+  (#898, ADR-0263), the kind `cargoManifests` with the contract field `haulingOrders` (#814,
+  ADR-0265), and the kinds `missionLocationTemplates`, `contractShipSpawns` and
+  `contractLocationQueries` with the contract fields `shipSpawns`, `locationQueries` and
+  `locationPrerequisites` (#902, ADR-0266). Later additions keep version 2 as long as they are
+  additive. The contract field `fixedRewards` (#888, ADR-0268) is one.
 - **A production import takes catalogs of the Channel `LIVE` only.** `PTU`, `EPTU`, `TECH-PREVIEW`
   and `HOTFIX` are confidential test Channels (ADR-0038).
 
@@ -151,6 +155,7 @@ same in every kind. Every field is always present; one that has no value is `nul
 | `missionTypes` | The mission types, the targets of `contracts[].missionTypeGuid`, ordered by GUID |
 | `missionLocalities` | The mission localities, named sets of starmap objects, ordered by GUID |
 | `contractScenarios` | The contract scenarios with the reward tiers of each faction, ordered by GUID |
+| `cargoManifests` | The cargo manifests (`CargoManifest`) with their fill and spawn rules, ordered by GUID |
 | `missionLocationTemplates` | The mission location templates with the tags a location query matches, ordered by GUID |
 | `contractShipSpawns` | The distinct ship spawn descriptions of the contracts, ordered by identifier |
 | `contractLocationQueries` | The distinct location queries of the contracts, ordered by identifier |
@@ -230,7 +235,7 @@ An item takes its fields from the components of its `EntityClassDefinition`:
 | `itemClass` | `Civilian`, `Competition`, `Industrial`, `Military` or `Stealth`, or `null` |
 | `playability` | `player`, `mission` or `special`, or `null`; see "Playability" below |
 | `variantOf` | The `guid` of the base of the item's variant group, `null` for a base and an ungrouped item; see "Variant groups" below |
-| `stats` | The typed stat blocks of a weapon, shield, quantum drive, power plant, cooler, missile, suit armour, clothing, radar, tractor beam or attachment modifier, `null` for any other item; see "Item stats" below |
+| `stats` | The typed stat blocks of a weapon, shield, quantum drive, power plant, cooler, missile, suit armour, clothing, radar, tractor beam, attachment modifier, mining laser or mining module and gadget, `null` for any other item; see "Item stats" below |
 
 `itemClass` takes the options of the DataForge enum `EItemClass` (without `UNDEFINED`). No
 DataForge field carries it: it is read from the first line of the English `description` that
@@ -290,16 +295,17 @@ those parts too. No value is below 1 or above 7.
 `stats` holds raw facts of the Archive and no derived value (ADR-0065): every number is the stored
 field in the stored unit, `p4kx` computes no damage per second, no cycle time, no acceleration and
 no fuel rate. The Basetool owns those formulas. `stats` is `null` unless the item has at least one
-of the eleven blocks; every block is `null` when the item does not have it, and a field inside a
+of the thirteen blocks; every block is `null` when the item does not have it, and a field inside a
 present block is `null` when the Archive does not state it, never 0. None of the fields is a game
-text. The additions are additive in version 1 (ADR-0054); `kind` of a fire mode and
+text. The additions are additive (ADR-0054); `kind` of a fire mode and
 `trackingSignalType` are closed sets that the schema keeps as strings. The blocks `armor`,
 `clothing`, `radar`, `tractorBeam` and `weaponModifier` and the fire-mode field `damagePerSecond`
-follow ADR-0072.
+follow ADR-0072; the blocks `miningLaser` and `miningModifier` and the fire-mode fields `hitType`,
+`fullDamageRange` and `zeroDamageRange` follow ADR-0262.
 
 | Block | Present when | Fields and sources |
 |-------|--------------|--------------------|
-| `weapon` | the item has `Components[SCItemWeaponComponentParams]` (ship weapons and FPS weapons) | `fireActions`: per element of `fireActions`, in stored order, with a sequence (`sequenceEntries`) flattened to its entries: `kind` (the struct, e.g. `SWeaponActionFireRapidParams`), `name`, `fireRate` (rounds per minute), `pelletCount` (as `pellets`; `pellets` where a Record states that instead) and `ammoCost` of `launchParams`, `heatPerShot`, `chargeTime`, `overchargeTime`, `cooldownTime` (each of the fire mode, when stated), and `damagePerSecond` (the damage types of the beam's `damagePerSecond`, the power of a mining laser; `null` for a mode without one), and `spread` (see below); a parallel mode (`weaponActions`) is listed as its entries; a charged or wrapped mode reads `fireRate`, `launchParams` and `name` from its `weaponAction` when it has none of its own. `ammoCapacity`: `maxAmmoCount` of the ammo container, the magazine's capacity (see below). `ammo`: the `AmmoParams` Record that the container's `ammoParamsRecord` links to, `null` without a readable one: `speed`, `lifetime`, `damage` (the damage types of `projectileParams.damage`), `detonationDamage`, `detonationMinRadius` and `detonationMaxRadius` (from `explosionParams`) |
+| `weapon` | the item has `Components[SCItemWeaponComponentParams]` (ship weapons and FPS weapons) | `fireActions`: per element of `fireActions`, in stored order, with a sequence (`sequenceEntries`) flattened to its entries: `kind` (the struct, e.g. `SWeaponActionFireRapidParams`), `name`, `fireRate` (rounds per minute), `pelletCount` (as `pellets`; `pellets` where a Record states that instead) and `ammoCost` of `launchParams`, `heatPerShot`, `chargeTime`, `overchargeTime`, `cooldownTime` (each of the fire mode, when stated), and `damagePerSecond` (the damage types of the beam's `damagePerSecond`, the power of a mining laser; `null` for a mode without one), and `spread` (see below); a beam also has `hitType`, `fullDamageRange` and `zeroDamageRange` (the two ranges in metres); a parallel mode (`weaponActions`) is listed as its entries; a charged or wrapped mode reads `fireRate`, `launchParams` and `name` from its `weaponAction` when it has none of its own. `ammoCapacity`: `maxAmmoCount` of the ammo container, the magazine's capacity (see below). `ammo`: the `AmmoParams` Record that the container's `ammoParamsRecord` links to, `null` without a readable one: `speed`, `lifetime`, `damage` (the damage types of `projectileParams.damage`), `detonationDamage`, `detonationMinRadius` and `detonationMaxRadius` (from `explosionParams`) |
 | `shield` | `Components[SCItemShieldGeneratorParams]` | `maxHealth` (`MaxShieldHealth`), `maxRegen` (`MaxShieldRegen`), `decayRatio` (`DecayRatio`), `downedRegenDelay` (`DownedRegenDelay`), `damagedRegenDelay` (`DamagedRegenDelay`) |
 | `quantumDrive` | `Components[SCItemQuantumDriveParams]` | `fuelRequirement` (`quantumFuelRequirement`, as stored), `jumpRange`, `disconnectRange`, and of `params`: `driveSpeed`, `cooldownTime`, `spoolUpTime`, `stageOneAccelRate`, `stageTwoAccelRate`, `engageSpeed` |
 | `powerPlant` | `AttachDef.Type` is `PowerPlant`, ignoring case | `powerOutput`: the `amount` of the first `generation` flow of `resourceStates` whose resource is `Power`, and `unit`: the `unit` of that flow |
@@ -310,6 +316,8 @@ follow ADR-0072.
 | `radar` | `Components[SCItemRadarComponentParams]` | `aimAssistDistanceMin`, `aimAssistDistanceMax`, `aimAssistOutsideRangeBuffer` (`aimAssist.distanceMinAssignment`, `.distanceMaxAssignment`, `.outsideRangeBufferDistance`), `pingCooldownTime` (`pingProperties.cooldownTime`) |
 | `tractorBeam` | the weapon component holds an `SWeaponActionFireTractorBeamParams` (ship tractor beams and salvage heads) | of the first such struct below `Components[SCItemWeaponComponentParams]`: `minForce`, `maxForce`, `minDistance`, `maxDistance`, `fullStrengthDistance`, `maxVolume`, `maxAngle` |
 | `weaponModifier` | `Components[EntityComponentAttachableModifierParams]` holds an `SSalvageModifier` or an `STractorModifier` | `salvage`: `radiusMultiplier`, `salvageSpeedMultiplier`, `extractionEfficiency` of the first `SSalvageModifier`; `tractor`: `forceMultiplier`, `fullStrengthDistMultiplier`, `maxDistMultiplier`, `maxVolumeMultiplier` of the first `STractorModifier`; each `null` without that struct. Salvage modifiers and tractor attachments carry them in `modifiers[].weaponModifier.weaponStats` |
+| `miningLaser` | `Components[SEntityComponentMiningLaserParams]` (ship mining lasers and the FPS mining multi-tool) | `isOptimalRateGood` (`miningLaserModifiers.isOptimalRateGood`), `throttleLerpSpeed`, `throttleMinimum` (a fraction of 1), `usesPowerThrottle`, `globalParamsGuid` (the `MiningLaserGlobalParams` Record `globalParams` links to), `filterModifier` (`filterParams.filterModifier.value`) and `modifiers` (the rest of `miningLaserModifiers`): each the `value` of a `FloatModifierMultiplicative` in percent as stored and `null` when unset, `instability` (`laserInstability`), `optimalChargeWindowSize`, `resistance`, `shatterDamage`, `clusterFactor`, `optimalChargeWindowRate`, `catastrophicChargeWindowRate`. The beams are fire modes of `weapon.fireActions`: the mining beam has `hitType` `ElectricArc`, the extraction beam `Extraction`; their ranges are in metres |
+| `miningModifier` | `Components[EntityComponentAttachableModifierParams]` holds an `ItemMiningModifierParams`, an `ItemMineableRockModifierParams` or a `MiningFilterItemModifierParams` (mining modules and gadgets) | `activationMethod` (`ActivateOnAttach` for a passive module, `ActivateOnDemand` for an active module or a gadget), `charges` (-1 for a gadget that is not used up), `canInterrupt`, `isInterruptible`; `laser`: the first `ItemMiningModifierParams` as `lifetime` (`modifierLifetime.lifetime`, seconds, `null` for a modifier that lasts) and `isOptimalRateGood` and `modifiers` (the values of `MiningLaserModifier`, as for the laser); `rock`: the same for the first `ItemMineableRockModifierParams` (gadgets); `filter`: `lifetime` and `filterModifier` of the first `MiningFilterItemModifierParams`; `fireActionModifiers`: per `ItemWeaponModifiersParams` in stored order, `fireActionIndex`, `lifetime` and `damageMultiplier` (`weaponModifier.weaponStats.damageMultiplier`); each of `laser`, `rock` and `filter` is `null` without that struct |
 
 ##### From a gameplay property to a stat field
 
@@ -421,6 +429,8 @@ game moves turns into `null` rather than into a wrong number; the real-Archive t
 Size: an item without stats adds `"stats":null` (14 bytes, about 0.3 MB for the 23,280 items of
 LIVE); an item with a block adds a few hundred bytes, two to three thousand items about 1 MB,
 which compresses well because the keys repeat.
+The mining blocks and the three beam fields of every fire mode added 0.35 MB (349,210 bytes) to the
+plain catalog of LIVE 4.10.2.
 
 A ship takes its fields from `VehicleComponentParams`:
 
@@ -875,7 +885,8 @@ ungrouped, because equality cannot be shown.
 **Items** share a group when all of these are equal:
 
 - `type`, `subType`, `size`, `grade` and `manufacturerGuid` of the `AttachDef`;
-- the stat blocks (`stats`, ADR-0065), including `resourceStates`;
+- the stat blocks (`stats`, ADR-0065), including `resourceStates`; a laser whose beam range, or a
+  module whose modifier, differs from another is therefore no variant of it;
 - the components: every component of the Record is compared with all its fields, including
   `SAttachableComponentParams` (without its `Tags`), the physics, the default loadout of an item
   that has ports (`SEntityComponentDefaultLoadoutParams`, unlike ships) and the geometry, whose
@@ -1081,7 +1092,11 @@ that the rule on equal `guid` and `subContractGuid` above drops.
 | `hasPersonalCooldown` | The `hasPersonalCooldown` flag, `null` when absent |
 | `personalCooldownTime`, `personalCooldownTimeVariation` | The personal cooldown and its variation, as stored (unit: see "Cooldowns"); `null` when absent |
 | `abandonedCooldownTime`, `abandonedCooldownTimeVariation` | The cooldown after the contract was abandoned and its variation, as stored; `null` when absent |
+| `timeToComplete`, `buyInAmount` | The `timeToComplete` (floating point) and the `contractBuyInAmount` of the contract's `contractResults`, as stored; a sub contract shares the contract's. The Archive states no unit |
+| `canBeShared`, `illegal`, `onceOnly`, `maxPlayersPerInstance`, `availableInPrison`, `canReacceptAfterAbandoning`, `canReacceptAfterFailing`, `hideInMobiGlas` | Each `{value, layer}` with `layer` `subContract`, `contract`, `handler` or `template` (see "Contract facts"), `null` when no level states it |
+| `requiredIntros` | The completion tags the contract requires with the intro contracts that grant each (see "Contract facts") |
 | `fixedRewards` | The payouts the contract states itself on success (`ContractResult_Reward`), each `currency` (`currencyType`, e.g. `UEC`), `amount` (`reward`), `max` and `plusBonuses` as stored; empty for a contract that pays through a calculated reward (see "Reward") |
+| `haulingOrders` | What the contract has to haul (see "Hauling orders"); empty for a contract that hauls nothing |
 
 **Layers.** Sub contract, contract and handler each override the template: the first of them that
 states a value wins, the template last. A level states its overrides in `paramOverrides` (sub
@@ -1214,6 +1229,63 @@ type, attribute or game text shows it. The range (`personalCooldownTime` up to 2
 `abandonedCooldownTime` up to 60 on the `Career` handlers) fits minutes, 2880 being 48 hours, but
 that is a reading, not a fact of the Archive. On LIVE 4.10 all 5,175 entries state a cooldown.
 
+**Contract facts (ADR-0263).** `timeToComplete` and `buyInAmount` are numbers as stored. Each of
+the other eight values is `{value, layer}`: the first level that states it, nearest first. A
+level states it through a boolean or integer parameter (`CanBeShared`, `Illegal`, `OnceOnly`,
+`MaxPlayersPerInstance`, `AvailableInPrison`, `CanReacceptAfterAbandoning`,
+`CanReacceptAfterFailing`, `HideInMobiGlas`, matched without regard to case) of the sub contract,
+the contract (`paramOverrides`) or the handler (`contractParams`); when none does, the base value
+is the one of the Record that owns the default: the `defaultAvailability` of the handler (layer
+`handler`) for `onceOnly`, `maxPlayersPerInstance`, `availableInPrison`, the two re-accept flags
+and `hideInMobiGlas`; the template (layer `template`) for `illegal` (`contractDisplayInfo`) and
+`canBeShared` (`ActiveContractSettings` of the contract class). A contract without a template
+(the legacy `Covalex_HaulCargo_Career` contracts) has `null` for `illegal` and `canBeShared`
+unless a parameter states them. A negative `maxPlayersPerInstance` is as stored (-1 on 41 LIVE
+entries).
+
+`requiredIntros` lists the `ContractPrerequisite_CompletedContractTags` required tags of the handler
+(`defaultAvailability`), the contract and the sub contract (`additionalPrerequisites`), in that order
+and as stored: `level`, `tagGuid` and `introContracts`, the `id` of every contract in an
+`introContracts` array whose success result grants the tag (`ContractResult_CompletionTags`), ordered
+by `id`; empty when no intro contract grants it. The excluded tags are not exported, and the
+catalog does not decide how the levels combine. On LIVE 4.10 (2026-10-30) 2,464 of the 5,175 entries
+have a required tag and 598 have one an intro contract grants; the facts are stated by the handler
+for most values (`onceOnly` 5,049 of 5,175), by the contract for 96 `onceOnly` and 365 `illegal`
+values, and by the template for 4,501 `canBeShared` values.
+
+**Hauling orders (ADR-0265).** `haulingOrders` lists what a contract has to haul. The Archive
+states it in three places: a `MissionPropertyValue_HaulingOrders` property in the overrides of a sub
+contract or contract, the parameters of the handler or the `contractProperties` of the template;
+the hauling objectives (`ObjectiveHandler_Hauling`) of the template; and the same objectives of the
+`MissionBrokerEntry` the contracts without a template use. An order has
+
+| Field | Meaning |
+|-------|---------|
+| `source` | `subContract`, `contract`, `handler` or `template` for a property of that level, `templateObjective` or `brokerObjective` for the orders of an objective |
+| `variableName` | The `missionVariableName` of the property; `null` for an objective order |
+| `requirements` | What is hauled: per requirement `options`, the alternatives of which one is hauled, each a list of items that are all hauled. A plain order is one option with one item; an `or` has one option per alternative |
+
+Of the property levels the nearest wins per `variableName` (the layer rule above; a property without a name shadows nothing); the objective
+orders are those of the template, else those of the broker entry. An item has a `kind` and the
+fields of that kind, the others `null`:
+
+| `kind` | Fields |
+|--------|--------|
+| `resource` | `resourceGuid` (the `subtypeGuid` of a commodity), `minScu`, `maxScu`, `maxContainerSize` |
+| `entityClass` | `entityClassGuid` (the `EntityClassDefinition` Record), `minAmount`, `maxAmount` |
+| `entityClasses` | `entityClassesGuid` (a `Hauling_EntityClasses` Record, a list of entity classes of which any counts; no kind lists these Records), `minAmount`, `maxAmount` |
+| `missionItem` | `minAmount`, `maxAmount`; the item itself is a mission property the game fills in |
+
+The numbers are as stored: `maxSCU` and `maxAmount` of 0 and a `maxContainerSize` of -1 mean no
+limit. The pickup and drop-off of an objective order are references to template properties that
+the game fills in when the mission starts, so they are not exported; where a contract is offered
+stays in `pickupPlaces`. Objective orders that only name a drop-off, point at a property or name a
+mission item are left out. On LIVE 4.10 (2026-10-30) 1,966 of the 5,175 entries haul: the
+orders come from the contract (1,440), the template objective (369), the broker objective (419),
+the template (53) and the sub contract (18); the items are 2,587 resources, 647 entity classes,
+109 entity class lists and 988 mission items; 5 of the `entityClassGuid`s name an entity class that no kind of the catalog lists (items, ships, commodities). 11 of the resources are no commodity of the catalog
+(a `ResourceType` that no commodity Record carries).
+
 ### Factions, reputation and missions
 
 Seven kinds (ADR-0237, schema version 2, no bump) hold what the contracts refer to. Each is the
@@ -1259,8 +1331,8 @@ the struct, `periodScenarioGuid`), each with `tiers`: `minPoints`, `badgeToAward
 `blueprintPoolGuids`, entries of `blueprintPools`. The progression texts and the multiplier rewards
 (empty on LIVE) are not exported.
 
-Not exported, for want of a consumer: contract templates, mission broker entries, hauling orders,
-NPC spawns and the sandbox triggers and perks of the reputation Records. Ship spawns and the
+Not exported, for want of a consumer: contract templates, mission broker entries, NPC spawns and
+the sandbox triggers and perks of the reputation Records. Ship spawns and the
 locations of contracts are described in "Ship spawns and location queries".
 
 ### Ship spawns and location queries
@@ -1333,6 +1405,25 @@ modules and limits and the security network manifest.
 Not exported: NPC spawn descriptions (`MissionPropertyValue_NPCSpawnDescriptions`), the
 `ObjectiveToken` structure of the templates, and SCMDB's own pools, waves and region lists, which
 are derived and not stated by the Archive.
+
+### Cargo manifests
+
+`cargoManifests` lists the `CargoManifest` Records under `cargomanifest` (ADR-0265), ordered by GUID,
+with `guid`, `className` and `recordPath`. A manifest tells the game how to fill the cargo grid of a
+ship it spawns. Facts only; the tags and the description tags are not exported.
+
+| Field | Meaning |
+|-------|---------|
+| `fillType` | `even`, `random` or `custom`: the type of `cargoFillCapacity` (4 `custom`, 34 `even`, 43 `random` on LIVE); `null` for another type |
+| `minCapacityRange`, `maxCapacityRange` | The share of the cargo capacity that is filled, 0 to 1; `null` for `custom`, which states shares per resource |
+| `lockCargoGridsOnSpawn` | The flag as stored, `null` when absent |
+| `resources` | The resources of the fill in stored order: `resourceGuid` (the `subtypeGuid` of a commodity), `probability`, and for `custom` `minAllocation` and `maxAllocation` (the allocation percentages as stored, else `null`) |
+| `spawnRules` | The `cargoSpawnRules` in stored order: `kind` (`entities` or `resources`), `probability`, `entityGuids`, `resourceGuids`, the struct type of the quantity algorithm in `quantityAlgorithm` and its `quantity` (fixed) or `proportion` |
+
+The Archive refers to a manifest only from the members of an `AIWaveCollection` (the ship
+encounters), never from a contract, so the kind has no link from `contracts`. On LIVE 4.10
+(2026-10-30) the kind holds 81 manifests with 515 resources, 4 of which (4 distinct `ResourceType`
+Records) have no commodity in the catalog, and 2 spawn rules, both of one manifest.
 
 ### Starmap objects
 
@@ -2083,6 +2174,7 @@ stores it. It does not change the catalog's determinism: the same Archive gives 
 | `missionTypes` | `libs/foundry/records/missiontype/` | `MissionType` |
 | `missionLocalities` | `libs/foundry/records/missiondata/pu_missionlocality/` | `MissionLocality` |
 | `contractScenarios` | `libs/foundry/records/contracts/contractscenarios/` | `ScenarioProgress` |
+| `cargoManifests` | `libs/foundry/records/cargomanifest/` | `CargoManifest` |
 | `missionLocationTemplates` | `libs/foundry/records/missiondata/pu_locations/` | `MissionLocationTemplate` |
 | `contractShipSpawns` | None: derived from the properties of the contracts and their templates, no Records | |
 | `contractLocationQueries` | None: derived from the properties of the contracts and their templates, no Records | |

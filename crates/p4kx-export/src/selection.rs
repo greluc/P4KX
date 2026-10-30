@@ -128,6 +128,8 @@ pub enum Kind {
     /// comes last; an item, ship or commodity that is a crafter is read from its own Record.
     /// [`Kind::rule`] alone does not select a crafter: the Record must also hold the component.
     Crafters,
+    /// Cargo manifests: `CargoManifest` Records under `cargomanifest`.
+    CargoManifests,
     /// Mission location templates: `MissionLocationTemplate` Records under
     /// `missiondata/pu_locations`, what a location query of a contract matches by tags.
     MissionLocationTemplates,
@@ -141,7 +143,7 @@ pub enum Kind {
 
 impl Kind {
     /// Every kind, in the order of the catalog.
-    pub const ALL: [Self; 42] = [
+    pub const ALL: [Self; 43] = [
         Self::Manufacturers,
         Self::Items,
         Self::Ships,
@@ -181,6 +183,7 @@ impl Kind {
         Self::LegacyLootTables,
         Self::LegacyLootArchetypes,
         Self::Crafters,
+        Self::CargoManifests,
         Self::MissionLocationTemplates,
         Self::ContractShipSpawns,
         Self::ContractLocationQueries,
@@ -229,6 +232,7 @@ impl Kind {
             Self::LegacyLootTables => "legacyLootTables",
             Self::LegacyLootArchetypes => "legacyLootArchetypes",
             Self::Crafters => "crafters",
+            Self::CargoManifests => "cargoManifests",
             Self::MissionLocationTemplates => "missionLocationTemplates",
             Self::ContractShipSpawns => "contractShipSpawns",
             Self::ContractLocationQueries => "contractLocationQueries",

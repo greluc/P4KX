@@ -8,6 +8,7 @@ use serde::Serialize;
 
 use crate::guid_text::CatalogGuid;
 
+pub(crate) use crate::contract_cargo::CargoManifest;
 pub(crate) use crate::contract_crafter::Crafter;
 pub(crate) use crate::contract_crafting::{
     Blueprint, BlueprintCategory, Commodity, Ingredient, ResourceGroup,
@@ -143,6 +144,8 @@ pub(crate) struct Catalog<'a> {
     pub(crate) mineable_entities: Vec<MineableEntity<'a>>,
     /// The crafting stations with the limits of their job queues, ordered by GUID.
     pub(crate) crafters: Vec<Crafter<'a>>,
+    /// The cargo manifests, how the game fills the cargo grid of a spawned ship, ordered by GUID.
+    pub(crate) cargo_manifests: Vec<CargoManifest<'a>>,
     /// The mission location templates, the places a location query matches by tags, ordered by
     /// GUID.
     pub(crate) mission_location_templates: Vec<MissionLocationTemplate<'a>>,
@@ -241,6 +244,8 @@ pub(crate) struct Completeness<'a> {
     pub(crate) mineable_entities: KindCompleteness<'a>,
     /// The completeness of `crafters`.
     pub(crate) crafters: KindCompleteness<'a>,
+    /// The completeness of `cargoManifests`.
+    pub(crate) cargo_manifests: KindCompleteness<'a>,
     /// The completeness of `missionLocationTemplates`.
     pub(crate) mission_location_templates: KindCompleteness<'a>,
     /// The completeness of `contractShipSpawns`.
@@ -294,6 +299,7 @@ impl<'a> Completeness<'a> {
             legacy_loot_archetypes: completeness,
             mineable_entities: completeness,
             crafters: completeness,
+            cargo_manifests: completeness,
             mission_location_templates: completeness,
             contract_ship_spawns: completeness,
             contract_location_queries: completeness,

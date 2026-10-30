@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
+use std::cell::RefCell;
 use std::collections::BTreeMap;
 
-use p4kx_extraction::StructValue;
+use p4kx_extraction::{StructValue, TagTree};
 
 use crate::blueprint::as_struct;
 use crate::guid_text::CatalogGuid;
@@ -146,41 +147,101 @@ fn location_prerequisites(
         .collect()
 }
 
-/// The levels of one contract that its entries resolve their ships and locations from.
-pub(crate) struct ContractSpawns<'x, 'f> {
-    reader: &'x Reader<'x, 'f>,
-    handler: &'x Level,
-    contract: Level,
-    template: Option<&'x Level>,
+/// The ship spawns and location queries of the levels of one Record, read through its tags and
+/// weak pointers; what they state is collected in [`pools`](Self::into_pools).
+pub(crate) struct RecordSpawns<'x, 'f> {
+    reader: Reader<'x, 'f>,
+    pools: RefCell<SpawnPools>,
 }
 
-impl<'x, 'f> ContractSpawns<'x, 'f> {
-    /// Reads the level of `contract`, registering what it states in `pools`.
+impl<'x, 'f> RecordSpawns<'x, 'f> {
+    /// Creates the reader of the Record whose root struct is `root`.
+    pub(crate) fn new(tags: &'x TagTree, root: &'x StructValue<'f>) -> Self {
+        Self {
+            reader: Reader::new(tags, root),
+            pools: RefCell::new(SpawnPools::default()),
+        }
+    }
+
+    /// Returns the distinct descriptions and queries the levels stated.
+    pub(crate) fn into_pools(self) -> SpawnPools {
+        self.pools.into_inner()
+    }
+
+    fn level(
+        &self,
+        level: SpawnLevel,
+        params: (Option<&StructValue<'f>>, &str),
+        owner: (Option<&StructValue<'f>>, &str),
+    ) -> Result<Level, serde_json::Error> {
+        Level::read(
+            level,
+            &self.reader,
+            params,
+            owner,
+            &mut self.pools.borrow_mut(),
+        )
+    }
+
+    /// Reads the level of `handler`.
     ///
     /// # Errors
     ///
     /// Returns the error of the serialisation that makes the identifier of a description.
-    pub(crate) fn new(
-        (reader, handler): (&'x Reader<'x, 'f>, &'x Level),
+    pub(crate) fn handler(
+        &self,
+        handler: &StructValue<'f>,
+    ) -> Result<HandlerSpawns<'_, 'x, 'f>, serde_json::Error> {
+        let level = self.level(
+            SpawnLevel::Handler,
+            (one(Some(handler), "contractParams"), "propertyOverrides"),
+            (one(Some(handler), "defaultAvailability"), "prerequisites"),
+        )?;
+        Ok(HandlerSpawns {
+            record: self,
+            level,
+        })
+    }
+}
+
+/// The level of a handler, the base of the contracts it holds.
+pub(crate) struct HandlerSpawns<'r, 'x, 'f> {
+    record: &'r RecordSpawns<'x, 'f>,
+    level: Level,
+}
+
+impl<'r, 'x, 'f> HandlerSpawns<'r, 'x, 'f> {
+    /// Reads the level of `contract`; `template` is the level of its template.
+    ///
+    /// # Errors
+    ///
+    /// Returns the error of the serialisation that makes the identifier of a description.
+    pub(crate) fn contract<'h>(
+        &'h self,
         contract: &StructValue<'f>,
-        template: Option<&'x Level>,
-        pools: &mut SpawnPools,
-    ) -> Result<Self, serde_json::Error> {
-        let level = Level::read(
+        template: Option<&'h Level>,
+    ) -> Result<ContractSpawns<'h, 'r, 'x, 'f>, serde_json::Error> {
+        let level = self.record.level(
             SpawnLevel::Contract,
-            reader,
             (one(Some(contract), "paramOverrides"), "propertyOverrides"),
             (Some(contract), "additionalPrerequisites"),
-            pools,
         )?;
-        Ok(Self {
-            reader,
-            handler,
+        Ok(ContractSpawns {
+            handler: self,
             contract: level,
             template,
         })
     }
+}
 
+/// The levels of one contract that its entries resolve their ships and locations from.
+pub(crate) struct ContractSpawns<'h, 'r, 'x, 'f> {
+    handler: &'h HandlerSpawns<'r, 'x, 'f>,
+    contract: Level,
+    template: Option<&'h Level>,
+}
+
+impl<'f> ContractSpawns<'_, '_, '_, 'f> {
     /// Returns what the contract, or its sub contract `sub`, states.
     ///
     /// # Errors
@@ -189,25 +250,22 @@ impl<'x, 'f> ContractSpawns<'x, 'f> {
     pub(crate) fn resolve(
         &self,
         sub: Option<&StructValue<'f>>,
-        pools: &mut SpawnPools,
     ) -> Result<Resolved, serde_json::Error> {
         let sub_level = sub
             .map(|sub| {
-                Level::read(
+                self.handler.record.level(
                     SpawnLevel::SubContract,
-                    self.reader,
                     (
                         one(Some(sub), "paramOverrides").or(Some(sub)),
                         "propertyOverrides",
                     ),
                     (Some(sub), "additionalPrerequisites"),
-                    pools,
                 )
             })
             .transpose()?;
         let levels: Vec<&Level> = sub_level
             .iter()
-            .chain([&self.contract, self.handler])
+            .chain([&self.contract, &self.handler.level])
             .chain(self.template)
             .collect();
         Ok(resolve(&levels))

@@ -90,7 +90,8 @@ After the attributes, one child element per field that is no attribute, in decla
 
 - `<p4kx:field name="…" value="…"/>` for a scalar field whose name cannot be an attribute (see
   [Names](#names)).
-- `<p4kx:error field="…" reason="…"/>` for a value that cannot be read (see [Errors](#errors)).
+- `<p4kx:error field="…" reason="…"/>` for a value that cannot be read, with `guid="…"` after
+  `reason` for a dangling Reference (see [Errors](#errors)).
 - A field element for a nested struct, an array, a Reference or a null: named after the field,
   or `<p4kx:field name="…">` when the name cannot be an element name. It holds the field's value
   element; for an array, one value element per element in stored order, and an empty array is a
@@ -113,7 +114,7 @@ Value elements:
   the game data every weak pointer points inside its own Record.
 - **Null**: `<p4kx:null/>` for a null strong or weak pointer and a null Reference.
 - **Scalar** in an array: `<p4kx:value value="…"/>`.
-- **Error** in an array: `<p4kx:error reason="…"/>`.
+- **Error** in an array: `<p4kx:error reason="…"/>`, with `guid="…"` for a dangling Reference.
 
 ## Resolved texts
 
@@ -160,6 +161,14 @@ array outside the values stored for its type, a Reference to a Record that does 
 pointer outside the Record, an array with more elements than a Record may hold, an instance owned
 twice in one Record (which also cuts a cycle of strong pointers) and structs nested deeper than 64
 levels. The reason is English text for people, not a stable code.
+
+A Reference to a Record that does not exist (a dangling Reference) also carries the GUID of the
+missing Record, in lower case, in the attribute `guid` after `reason`, in a field and in an array
+alike (ADR-0258); no other error has it:
+
+```xml
+<p4kx:error field="entityClass" reason="the Reference refers to the Record 3cf6753c-d69c-4980-a45e-724151407096, which does not exist" guid="3cf6753c-d69c-4980-a45e-724151407096"/>
+```
 
 A Record whose struct layouts cannot be read, or whose tree would hold more than 1,048,576 values,
 is not written at all. The largest Record of the game data holds fewer than 80,000.

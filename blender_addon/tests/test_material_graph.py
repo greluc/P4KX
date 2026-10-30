@@ -327,7 +327,45 @@ def test_a_white_palette_glass_colour_with_the_flag_links_the_vertex_colours_alo
     assert graph.node(colours.key).kind == "ShaderNodeVertexColor"
 
 
-NODRAW_KINDS = {"ShaderNodeBsdfTransparent", "ShaderNodeOutputMaterial"}
+def test_clear_glass_lets_the_scene_through() -> None:
+    graph = single([description("x0001", "GlassPBR")])
+    assert graph.node("bsdf").inputs["Alpha"] == pytest.approx(0.15)
+    assert graph.node("bsdf").inputs["Transmission Weight"] == 1.0
+
+
+def test_tinted_glass_is_more_opaque_the_darker_its_colour() -> None:
+    dark = single([description("x0001", "GlassPBR", diffuse=[0.0, 0.0, 0.0])])
+    grey = single([description("x0001", "GlassPBR", diffuse=[0.5, 0.5, 0.5])])
+    assert dark.node("bsdf").inputs["Alpha"] == pytest.approx(1.0)
+    assert grey.node("bsdf").inputs["Alpha"] == pytest.approx(0.575)
+
+
+def test_palette_glass_colour_sets_the_alpha() -> None:
+    graph = single([description("x0001", "GlassPBR", palette="glass")], palette=load().palettes["p0001"])
+    expected = 1.0 - 0.85 * (0.2126 * 0.2 + 0.7152 * 0.3 + 0.0722 * 0.4)
+    assert graph.node("bsdf").inputs["Alpha"] == pytest.approx(expected)
+
+
+def test_per_vertex_tint_glass_derives_its_alpha_from_the_tinted_colour() -> None:
+    graph = single([description("x0001", "GlassPBR", gen_mask=["PER_VERTEX_TINT"])])
+    colours = graph.linked("bsdf", "Base Color")
+    alpha = graph.linked("bsdf", "Alpha")
+    assert colours is not None and alpha is not None
+    assert graph.node(alpha.key).props["operation"] == "SUBTRACT"
+    scaled = graph.linked(alpha.key, 1)
+    assert scaled is not None
+    assert graph.node(scaled.key).inputs[1] == pytest.approx(0.85)
+    grey = graph.linked(scaled.key, 0)
+    assert grey is not None and graph.node(grey.key).kind == "ShaderNodeRGBToBW"
+    assert graph.linked(grey.key, "Color") == colours
+
+
+def test_glass_opacity_scales_the_alpha() -> None:
+    graph = single([description("x0001", "GlassPBR", opacity=0.5)])
+    assert graph.node("bsdf").inputs["Alpha"] == pytest.approx(0.075)
+
+
+NODRAW_KINDS ={"ShaderNodeBsdfTransparent", "ShaderNodeOutputMaterial"}
 
 
 def test_a_decal_without_any_texture_draws_nothing() -> None:

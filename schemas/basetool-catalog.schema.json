@@ -4485,12 +4485,10 @@
     "LocationName": {
       "description": "A string variant of a location template.",
       "properties": {
-        "nameKey": {
-          "description": "The localisation key of the text, `null` when it names none. The text itself is not\nexported.",
-          "type": [
-            "string",
-            "null"
-          ]
+        "displayName": {
+          "$ref": "#/$defs/LocalisedText",
+          "description": "The text of the variant.",
+          "x-gameText": true
         },
         "tag": {
           "description": "The tag path of the variant, e.g. `Missions.Text.Name`; `null` when it names none.",
@@ -4501,7 +4499,7 @@
         }
       },
       "required": [
-        "nameKey",
+        "displayName",
         "tag"
       ],
       "type": "object"

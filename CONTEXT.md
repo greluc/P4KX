@@ -330,6 +330,13 @@ with `DATA` (the embedded WEMs, each named by its ID); a streamed WEM may be emb
 prefetched start.
 _Avoid_: sound package, audio archive
 
+**HIRC object**:
+One entry of a Soundbank's `HIRC` section: a Sound, Action, Event, container, music segment, track,
+switch or playlist and so on, with a short ID and, for a node, a parent and children. Listed by
+`p4kx bnk objects`, which marks an object the reader does not decode (undecoded), decodes only in
+other bank versions (unsupported) or finds malformed.
+_Avoid_: bank node, wwise object
+
 **Audio trigger**:
 A named sound action an Entity's Record refers to, e.g. `Play_QDrive_Spool`; its ATL definition
 maps it to Wwise events.

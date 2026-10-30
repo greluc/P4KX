@@ -10,7 +10,7 @@ use p4kx_extraction::{Bank, BankExtraction, EmbeddedWem, MediaClass, WemFormat};
 use serde::Serialize;
 
 use crate::cli::{BnkAction, BnkArgs, BnkFormat, BnkSource};
-use crate::{exit, json};
+use crate::{bnk_objects, exit, json};
 
 const UNKNOWN: &str = "unknown";
 
@@ -67,6 +67,7 @@ pub(crate) fn run(args: &BnkArgs, as_json: bool) -> Result<ExitCode> {
             list(&open(source)?, as_json)?;
             Ok(ExitCode::from(exit::SUCCESS))
         }
+        BnkAction::Objects(objects) => bnk_objects::run(objects, as_json),
         BnkAction::Extract {
             source,
             out,
@@ -75,7 +76,7 @@ pub(crate) fn run(args: &BnkArgs, as_json: bool) -> Result<ExitCode> {
     }
 }
 
-fn open(source: &BnkSource) -> Result<Bank> {
+pub(crate) fn open(source: &BnkSource) -> Result<Bank> {
     Ok(match &source.entry {
         Some(entry) => Bank::from_archive(&crate::key::open(&source.path)?, entry)?,
         None => Bank::from_file(&source.path)?,

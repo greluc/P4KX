@@ -5,6 +5,7 @@ use std::path::PathBuf;
 
 use clap::{Args, Subcommand, ValueEnum};
 
+use crate::cli_bnk_objects::BnkObjectsArgs;
 use crate::exit::EXIT_CODES_HELP;
 
 /// Arguments of `p4kx bnk`.
@@ -21,6 +22,13 @@ pub(crate) enum BnkAction {
     /// Prints the ID, codec and duration of every WEM a soundbank embeds.
     #[command(after_help = EXIT_CODES_HELP)]
     List(BnkSource),
+    /// Prints the objects of the HIRC section in bank order: type, ID, parent and children, and
+    /// for music objects the duration and markers of a segment, the clips of a track and the
+    /// items of a playlist with their loop counts. An object of a type or bank version this tool
+    /// does not decode, or whose body is malformed, is listed as such and counted in the
+    /// summary. Prints the structure only; it does not resolve triggers or render playback.
+    #[command(after_help = EXIT_CODES_HELP)]
+    Objects(BnkObjectsArgs),
     /// Writes every WEM a soundbank embeds into a folder as <ID>.wem, or converted as <ID>.wav or <ID>.ogg.
     #[command(after_help = EXIT_CODES_HELP)]
     Extract {

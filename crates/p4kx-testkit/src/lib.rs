@@ -199,6 +199,7 @@ pub use glb::{CheckedGlb, check_glb};
 pub use glb_images::DecodedImage;
 pub use global_ini::GlobalIniBuilder;
 pub use gltf;
+pub use hirc_music::TestPlaylistItem;
 pub use hirc_node::{TestContainerKind, TestNodeBase};
 pub use interior_classes::{
     CLASS_CABINET_GUID, CLASS_DEFAULT_TINTS, CLASS_DOOR_GUID, CLASS_DOOR_TINTS, CLASS_OWN_TINTS,

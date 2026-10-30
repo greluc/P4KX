@@ -20,9 +20,11 @@ use p4kx_extraction::Archive;
 use p4kx_testkit::{real_archive_b_path, real_archive_path};
 use serde_json::Value;
 
+use crate::real_archive_spawns::check_spawn_links;
+
 type TestResult = Result<(), Box<dyn Error>>;
 
-const MINIMUM: [(Kind, usize); 38] = [
+const MINIMUM: [(Kind, usize); 41] = [
     (Kind::Manufacturers, 500),
     (Kind::Items, 10_000),
     (Kind::Ships, 200),
@@ -61,6 +63,9 @@ const MINIMUM: [(Kind, usize); 38] = [
     (Kind::LegacyLootTables, 150),
     (Kind::LegacyLootArchetypes, 200),
     (Kind::Crafters, 2),
+    (Kind::MissionLocationTemplates, 2_000),
+    (Kind::ContractShipSpawns, 400),
+    (Kind::ContractLocationQueries, 1_500),
 ];
 const MIN_ENGLISH_SHARE: f64 = 0.95;
 const MIN_GERMAN_SHARE: f64 = 0.5;
@@ -294,6 +299,7 @@ fn check_texts(summary: &CatalogSummary, catalog: &Value) -> TestResult {
 }
 
 fn check_links(catalog: &Value) -> TestResult {
+    check_spawn_links(catalog)?;
     let guids = |kind: Kind| -> Result<HashSet<&str>, String> {
         Ok(list(catalog, kind)?
             .iter()

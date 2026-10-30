@@ -16,11 +16,14 @@ use crate::contract::{
 };
 use crate::crafting_warning::CraftingWarning;
 use crate::guid_text::{CatalogGuid, sort_by_guid};
+use crate::location_template::{LocationTemplates, MissionLocationTemplate};
 use crate::loot_kinds::LootKinds;
 use crate::mission_kinds::MissionKinds;
 use crate::paint_port::VehicleFacts;
 use crate::picked::Picked;
 use crate::playability::PlayabilitySummary;
+use crate::spawn_layers::SpawnPools;
+use crate::spawn_model::{LocationQuery, ShipSpawnPool};
 use crate::{CatalogFailure, ItemClassSummary, Kind, KindSummary, QuantizationSummary};
 
 /// The entities of every kind, ordered by GUID, with the counts of the summary.
@@ -42,6 +45,9 @@ pub(crate) struct Collected<'f> {
     pub(crate) paints: Vec<Paint>,
     pub(crate) loadouts: Vec<Loadout>,
     pub(crate) contracts: Vec<ContractEntry<'f>>,
+    pub(crate) mission_location_templates: Vec<MissionLocationTemplate<'f>>,
+    pub(crate) contract_ship_spawns: Vec<ShipSpawnPool>,
+    pub(crate) contract_location_queries: Vec<LocationQuery>,
     pub(crate) port_items: Vec<CatalogGuid>,
     pub(crate) starmap_objects: Vec<StarmapObject<'f>>,
     pub(crate) mineable_elements: Vec<MineableElement<'f>>,
@@ -88,6 +94,9 @@ impl<'f> Collected<'f> {
             paints: Vec::new(),
             loadouts: Vec::new(),
             contracts: Vec::new(),
+            mission_location_templates: Vec::new(),
+            contract_ship_spawns: Vec::new(),
+            contract_location_queries: Vec::new(),
             port_items: Vec::new(),
             starmap_objects: Vec::new(),
             mineable_elements: Vec::new(),
@@ -201,6 +210,18 @@ impl<'f> Collected<'f> {
         self.add_failures(failures);
     }
 
+    /// Stores the location templates and the distinct ship spawn descriptions and location queries
+    /// of the contracts, counts the templates left out as `skipped` and adds the failures.
+    pub(crate) fn add_spawns(&mut self, templates: LocationTemplates<'f>, pools: SpawnPools) {
+        self.mission_location_templates = templates.templates;
+        if let Some(slot) = self.skipped.get_mut(Kind::MissionLocationTemplates.index()) {
+            *slot = templates.skipped;
+        }
+        self.contract_ship_spawns = pools.ships.into_values().collect();
+        self.contract_location_queries = pools.locations.into_values().collect();
+        self.add_failures(templates.failures);
+    }
+
     /// Adds `failures` and orders all of them by the text of the GUID, one per Record.
     pub(crate) fn add_failures(&mut self, failures: Vec<CatalogFailure>) {
         self.failures.extend(failures);
@@ -261,6 +282,9 @@ impl<'f> Collected<'f> {
                     Kind::Loadouts => self.loadouts.len(),
                     Kind::StarmapObjects => self.starmap_objects.len(),
                     Kind::Contracts => self.contracts.len(),
+                    Kind::MissionLocationTemplates => self.mission_location_templates.len(),
+                    Kind::ContractShipSpawns => self.contract_ship_spawns.len(),
+                    Kind::ContractLocationQueries => self.contract_location_queries.len(),
                     Kind::MineableElements => self.mineable_elements.len(),
                     Kind::RefiningProcesses => self.refining_processes.len(),
                     Kind::MineableCompositions => self.mineable_compositions.len(),

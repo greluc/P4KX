@@ -4,17 +4,20 @@
 use std::collections::HashMap;
 
 use p4kx_extraction::{
-    CancelToken, DataForge, Guid, Record, StructValue, TagTree, TreeBuilder, Value,
+    CancelToken, DataForge, Guid, Record, RecordTree, StructValue, TagTree, TreeBuilder, Value,
     is_placeholder_key,
 };
 use rayon::prelude::*;
 
-use crate::CatalogError;
 use crate::blueprint::as_struct;
 use crate::contract_hauling::HaulingRequirement;
 use crate::mission_hauling::{HaulingProperty, objective_orders, property_orders};
 use crate::mission_layers::{Property, items, key, one, properties};
 use crate::record_fields::{boolean, integer, reference};
+use crate::spawn_layers::{Level, SpawnPools};
+use crate::spawn_model::SpawnLevel;
+use crate::spawn_read::Reader;
+use crate::{CatalogError, CatalogFailure};
 
 const TEMPLATES: &str = "libs/foundry/records/contracts/contracttemplates/";
 const TEMPLATE_TYPE: &str = "ContractTemplate";
@@ -47,6 +50,8 @@ pub(crate) struct Template<'f> {
     pub(crate) objective_orders: Vec<HaulingRequirement>,
     pub(crate) illegal: Option<bool>,
     pub(crate) can_be_shared: Option<bool>,
+    /// The ship spawns and location queries of the template.
+    pub(crate) spawns: Option<Level>,
 }
 
 /// A `MissionType` Record: the key of its localised name.
@@ -59,7 +64,8 @@ pub(crate) struct MissionTypeName<'f> {
 pub(crate) type Variants<'f> = Vec<(Guid, &'f str)>;
 
 enum Piece<'f> {
-    Template(Guid, Template<'f>),
+    Template(Guid, Template<'f>, SpawnPools),
+    Failed(CatalogFailure),
     Type(Guid, MissionTypeName<'f>),
     Organization(Guid, Variants<'f>),
     Reward(Guid, i64),
@@ -80,6 +86,8 @@ pub(crate) struct MissionIndex<'f> {
     brokers: HashMap<Guid, Broker<'f>>,
     factions: HashMap<Guid, Option<&'f str>>,
     tags: TagTree,
+    pools: SpawnPools,
+    failures: Vec<CatalogFailure>,
 }
 
 impl<'f> MissionIndex<'f> {
@@ -94,13 +102,14 @@ impl<'f> MissionIndex<'f> {
         cancel: Option<&CancelToken>,
     ) -> Result<Self, CatalogError> {
         let records: Vec<Record<'f>> = forge.records().collect();
+        let tags = TagTree::build(forge);
         let pieces: Vec<Piece<'f>> = records
             .par_iter()
             .map_init(TreeBuilder::new, |trees, record| {
                 if cancel.is_some_and(CancelToken::is_cancelled) {
                     return Err(CatalogError::Cancelled);
                 }
-                Ok(piece(trees, record).ok().flatten())
+                Ok(piece(trees, record, &tags).ok().flatten())
             })
             .filter_map(Result::transpose)
             .collect::<Result<_, _>>()?;
@@ -112,13 +121,17 @@ impl<'f> MissionIndex<'f> {
             localities: HashMap::new(),
             brokers: HashMap::new(),
             factions: HashMap::new(),
-            tags: TagTree::build(forge),
+            tags,
+            pools: SpawnPools::default(),
+            failures: Vec::new(),
         };
         for piece in pieces {
             match piece {
-                Piece::Template(guid, template) => {
+                Piece::Template(guid, template, found) => {
                     index.templates.insert(guid, template);
+                    index.pools.merge(found);
                 }
+                Piece::Failed(failure) => index.failures.push(failure),
                 Piece::Type(guid, kind) => {
                     index.types.insert(guid, kind);
                 }
@@ -140,6 +153,20 @@ impl<'f> MissionIndex<'f> {
             }
         }
         Ok(index)
+    }
+
+    /// Takes the ship spawns and location queries of the templates and the templates that could
+    /// not be read.
+    pub(crate) fn take_template_results(&mut self) -> (SpawnPools, Vec<CatalogFailure>) {
+        (
+            std::mem::take(&mut self.pools),
+            std::mem::take(&mut self.failures),
+        )
+    }
+
+    /// Returns the tag tree of the DataForge.
+    pub(crate) const fn tags(&self) -> &TagTree {
+        &self.tags
     }
 
     pub(crate) fn template(&self, guid: Guid) -> Option<&Template<'f>> {
@@ -190,6 +217,7 @@ impl<'f> MissionIndex<'f> {
 fn piece<'f>(
     trees: &mut TreeBuilder<'f>,
     record: &Record<'f>,
+    tags: &TagTree,
 ) -> Result<Option<Piece<'f>>, p4kx_extraction::DataForgeError> {
     let path = record.record_path()?;
     let starts = |prefix: &str| {
@@ -214,7 +242,11 @@ fn piece<'f>(
     let root = Some(tree.root());
     let guid = tree.guid();
     Ok(Some(if starts(TEMPLATES) || !wanted {
-        Piece::Template(guid, template_of(root))
+        let mut pools = SpawnPools::default();
+        match template_of(&tree, tags, &mut pools) {
+            Ok(template) => Piece::Template(guid, template, pools),
+            Err(source) => Piece::Failed(CatalogFailure::of(record, &source)),
+        }
     } else if starts(TYPES) {
         Piece::Type(
             guid,
@@ -247,9 +279,22 @@ fn piece<'f>(
     }))
 }
 
-fn template_of<'f>(root: Option<&StructValue<'f>>) -> Template<'f> {
+fn template_of<'f>(
+    tree: &RecordTree<'f>,
+    tags: &TagTree,
+    pools: &mut SpawnPools,
+) -> Result<Template<'f>, serde_json::Error> {
+    let root = Some(tree.root());
     let display = one(root, "contractDisplayInfo");
-    Template {
+    let reader = Reader::new(tags, tree.root());
+    let spawns = Level::read(
+        SpawnLevel::Template,
+        &reader,
+        (root, "contractProperties"),
+        (None, ""),
+        pools,
+    )?;
+    Ok(Template {
         title: title_key(display),
         mission_type: reference(display, "type").map(|guid| guid.0),
         properties: properties(root, "contractProperties"),
@@ -260,7 +305,8 @@ fn template_of<'f>(root: Option<&StructValue<'f>>) -> Template<'f> {
             .iter()
             .filter_map(as_struct)
             .find_map(|settings| boolean(Some(settings), "canBeShared")),
-    }
+        spawns: Some(spawns),
+    })
 }
 
 fn available_locations(locality: Option<&StructValue<'_>>) -> Vec<Guid> {

@@ -47,6 +47,9 @@ impl Kind {
             Self::LegacyLootArchetypes => 37,
             Self::Crafters => 38,
             Self::CargoManifests => 39,
+            Self::MissionLocationTemplates => 40,
+            Self::ContractShipSpawns => 41,
+            Self::ContractLocationQueries => 42,
         }
     }
 }

@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 use p4kx_extraction::{
-    CancelToken, DataForge, DataForgeError, Filter, Record, RecordTree, StructValue, TreeBuilder,
+    CancelToken, DataForge, Filter, Record, RecordTree, StructValue, TreeBuilder,
 };
 use rayon::prelude::*;
 
@@ -12,6 +12,7 @@ use crate::contract_missions::{ContractEntry, ContractFaction, PickupPlace, Repu
 use crate::contract_reward::{FixedReward, fixed_rewards};
 use crate::contract_starmap::StarmapObject;
 use crate::guid_text::CatalogGuid;
+use crate::location_template::{self, LocationTemplates};
 use crate::mission_cooldown::Cooldown;
 use crate::mission_facts::{Levels, SharedFacts};
 use crate::mission_hauling_levels::HaulingLevels;
@@ -24,6 +25,7 @@ use crate::mission_standing::Standing;
 use crate::mission_titles::titles;
 use crate::record_fields::{boolean, guid_value, reference, text};
 use crate::selection::{Kind, is_leftover};
+use crate::spawn_layers::{HandlerSpawns, RecordSpawns, Resolved, SpawnPools};
 use crate::texts::Texts;
 use crate::{CatalogError, CatalogFailure};
 
@@ -40,10 +42,15 @@ pub(crate) struct Missions<'f> {
     pub(crate) contracts: Vec<ContractEntry<'f>>,
     pub(crate) skipped: usize,
     pub(crate) failures: Vec<CatalogFailure>,
+    pub(crate) pools: SpawnPools,
+    pub(crate) templates: LocationTemplates<'f>,
 }
 
+/// A Record that cannot be read: the error of the DataForge or of an identifier of a description.
+type PieceError = Box<dyn std::error::Error + Send + Sync>;
+
 enum Piece<'f> {
-    Contracts(Vec<ContractEntry<'f>>, usize, Grants),
+    Contracts(Vec<ContractEntry<'f>>, usize, Grants, SpawnPools),
     Failed(CatalogFailure),
 }
 
@@ -80,14 +87,18 @@ pub(crate) fn read<'f>(
                 .is_ok_and(|path| rule.matches_path(path) && filter.is_none_or(|f| f.matches(path)))
         })
         .collect();
+    let mut index = MissionIndex::read(forge, cancel)?;
+    let (pools, failures) = index.take_template_results();
+    let mut missions = Missions {
+        contracts: Vec::new(),
+        skipped: 0,
+        failures,
+        pools,
+        templates: location_template::read(forge, index.tags(), filter, cancel)?,
+    };
     if records.is_empty() {
-        return Ok(Missions {
-            contracts: Vec::new(),
-            skipped: 0,
-            failures: Vec::new(),
-        });
+        return Ok(missions);
     }
-    let index = MissionIndex::read(forge, cancel)?;
     let places = Places::new(starmap);
     let context = Context {
         index: &index,
@@ -100,20 +111,17 @@ pub(crate) fn read<'f>(
             if cancel.is_some_and(CancelToken::is_cancelled) {
                 return Err(CatalogError::Cancelled);
             }
-            Ok(piece(trees, record, &context)
-                .unwrap_or_else(|source| Some(Piece::Failed(CatalogFailure::of(record, &source)))))
+            Ok(piece(trees, record, &context).unwrap_or_else(|source| {
+                Some(Piece::Failed(CatalogFailure::of(record, source.as_ref())))
+            }))
         })
         .filter_map(Result::transpose)
         .collect::<Result<_, _>>()?;
-    let mut missions = Missions {
-        contracts: Vec::new(),
-        skipped: 0,
-        failures: Vec::new(),
-    };
     let mut grants = Grants::new();
     for piece in pieces {
         match piece {
-            Piece::Contracts(contracts, skipped, granted) => {
+            Piece::Contracts(contracts, skipped, granted, found) => {
+                missions.pools.merge(found);
                 missions.contracts.extend(contracts);
                 missions.skipped = missions.skipped.saturating_add(skipped);
                 for (tag, intros) in granted {
@@ -153,7 +161,7 @@ fn piece<'f>(
     trees: &mut TreeBuilder<'f>,
     record: &Record<'f>,
     context: &Context<'_, 'f>,
-) -> Result<Option<Piece<'f>>, DataForgeError> {
+) -> Result<Option<Piece<'f>>, PieceError> {
     let rule = Kind::Contracts.records();
     let path = record.record_path()?;
     if record.type_name()? != rule.type_name {
@@ -163,12 +171,14 @@ fn piece<'f>(
     let mut contracts = Vec::new();
     let mut skipped = 0_usize;
     let mut grants = Grants::new();
+    let spawns = RecordSpawns::new(context.index.tags(), tree.root());
     for handler in items(Some(tree.root()), "generators")
         .iter()
         .filter_map(as_struct)
     {
         let handler_layer = Layer::read(one(Some(handler), "contractParams"));
         let handler_where = Where::read(one(Some(handler), "defaultAvailability"), "prerequisites");
+        let handler_spawns = spawns.handler(handler)?;
         for container in CONTAINERS {
             for contract in items(Some(handler), container).iter().filter_map(as_struct) {
                 let name = text(Some(contract), "debugName");
@@ -188,15 +198,21 @@ fn piece<'f>(
                     handler,
                     handler_layer: &handler_layer,
                     handler_where: &handler_where,
+                    spawns: &handler_spawns,
                     contract,
                     id: CatalogGuid(id),
                     name,
                 };
-                skipped = skipped.saturating_add(parent.entries(context, &mut contracts));
+                skipped = skipped.saturating_add(parent.entries(context, &mut contracts)?);
             }
         }
     }
-    Ok(Some(Piece::Contracts(contracts, skipped, grants)))
+    Ok(Some(Piece::Contracts(
+        contracts,
+        skipped,
+        grants,
+        spawns.into_pools(),
+    )))
 }
 
 struct Parent<'t, 'f> {
@@ -204,6 +220,7 @@ struct Parent<'t, 'f> {
     handler: &'t StructValue<'f>,
     handler_layer: &'t Layer<'f>,
     handler_where: &'t Where,
+    spawns: &'t HandlerSpawns<'t, 't, 'f>,
     contract: &'t StructValue<'f>,
     id: CatalogGuid,
     name: Option<&'f str>,
@@ -212,7 +229,11 @@ struct Parent<'t, 'f> {
 impl<'f> Parent<'_, 'f> {
     /// Appends the entries of the contract and its sub contracts and returns how many sub
     /// contracts were left out.
-    fn entries(&self, context: &Context<'_, 'f>, out: &mut Vec<ContractEntry<'f>>) -> usize {
+    fn entries(
+        &self,
+        context: &Context<'_, 'f>,
+        out: &mut Vec<ContractEntry<'f>>,
+    ) -> Result<usize, serde_json::Error> {
         let index = context.index;
         let contract_where = Where::read(Some(self.contract), "additionalPrerequisites");
         let template = reference(Some(self.contract), "template").map(|guid| guid.0);
@@ -227,7 +248,12 @@ impl<'f> Parent<'_, 'f> {
             facts: SharedFacts::read(self.handler, self.contract),
             fixed_rewards: fixed_rewards(self.contract),
         };
-        let make = |sub: Option<&StructValue<'f>>| {
+        let spawn_levels = self.spawns.contract(
+            self.contract,
+            template_data.and_then(|data| data.spawns.as_ref()),
+        )?;
+        let make = |sub: Option<&StructValue<'f>>| -> Result<ContractEntry<'f>, serde_json::Error> {
+            let spawns = spawn_levels.resolve(sub)?;
             let sub_layer =
                 sub.map(|sub| Layer::read(one(Some(sub), "paramOverrides").or(Some(sub))));
             let levels = Levels {
@@ -237,16 +263,16 @@ impl<'f> Parent<'_, 'f> {
             };
             let facts = shared.facts.facts(sub, &levels, template_data);
             let pickup = self.pickup(sub, &contract_where, broker, context);
-            self.entry(
+            Ok(self.entry(
                 sub,
                 &levels,
                 template,
                 (template_data, broker),
-                (&shared, pickup, facts),
+                (&shared, pickup, facts, spawns),
                 context,
-            )
+            ))
         };
-        out.push(make(None));
+        out.push(make(None)?);
         let mut skipped = 0_usize;
         for sub in items(Some(self.contract), "subContracts")
             .iter()
@@ -256,10 +282,10 @@ impl<'f> Parent<'_, 'f> {
             if identity(sub).is_none() || is_leftover(self.tree.record_path(), name) {
                 skipped = skipped.saturating_add(1);
             } else {
-                out.push(make(Some(sub)));
+                out.push(make(Some(sub))?);
             }
         }
-        skipped
+        Ok(skipped)
     }
 
     /// Returns the pickup places of the contract or of its sub contract `sub`.
@@ -295,7 +321,12 @@ impl<'f> Parent<'_, 'f> {
         levels: &Levels<'_, 'f>,
         template: Option<p4kx_extraction::Guid>,
         (template_data, broker): (Option<&Template<'f>>, Option<&Broker<'f>>),
-        (shared, pickup, facts): (&Shared<'f>, Vec<PickupPlace<'f>>, ContractFacts),
+        (shared, pickup, facts, spawns): (
+            &Shared<'f>,
+            Vec<PickupPlace<'f>>,
+            ContractFacts,
+            Resolved,
+        ),
         context: &Context<'_, 'f>,
     ) -> ContractEntry<'f> {
         let (index, texts) = (context.index, context.texts);
@@ -337,6 +368,9 @@ impl<'f> Parent<'_, 'f> {
             abandoned_cooldown_time: shared.cooldown.abandoned_time,
             abandoned_cooldown_time_variation: shared.cooldown.abandoned_time_variation,
             facts,
+            ship_spawns: spawns.ship_spawns,
+            location_queries: spawns.location_queries,
+            location_prerequisites: spawns.location_prerequisites,
             hauling_orders: HaulingLevels::of(levels, template_data, broker).orders(),
             fixed_rewards: shared.fixed_rewards.clone(),
         }

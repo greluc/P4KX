@@ -11,6 +11,8 @@ mod harvest;
 mod loot;
 mod recovery;
 mod reputation;
+mod slugs;
+mod spawns;
 
 use recovery::item_recovery;
 
@@ -57,6 +59,9 @@ pub(crate) fn minimal_catalog() -> serde_json::Value {
             "missionTypes": {"status": "complete"},
             "missionLocalities": {"status": "complete"},
             "contractScenarios": {"status": "complete"},
+            "missionLocationTemplates": {"status": "complete"},
+            "contractShipSpawns": {"status": "complete"},
+            "contractLocationQueries": {"status": "complete"},
             "lootTables": {"status": "complete"},
             "lootArchetypes": {"status": "complete"},
             "lootPoolFilters": {"status": "complete"},
@@ -283,6 +288,9 @@ pub(crate) fn minimal_catalog() -> serde_json::Value {
         "missionTypes": reputation::mission_types(),
         "missionLocalities": reputation::localities(),
         "contractScenarios": reputation::scenarios(),
+        "missionLocationTemplates": spawns::location_templates(),
+        "contractShipSpawns": spawns::ship_spawns(),
+        "contractLocationQueries": spawns::location_queries(),
         "lootTables": loot::tables(),
         "lootArchetypes": loot::archetypes(),
         "lootPoolFilters": loot::filters(),
@@ -292,21 +300,7 @@ pub(crate) fn minimal_catalog() -> serde_json::Value {
         "mineableEntities": harvest::mineable_entities(),
         "crafters": crafters::crafters(),
         "cargoManifests": contracts::manifests(),
-        "shipStoreSlugs": [{
-            "slug": "Aurora-Mk-I-ES",
-            "rsiId": 1,
-            "storeName": "Aurora Mk I ES",
-            "className": "RSI_Aurora_GS_ES",
-            "shipGuid": "cfc0122d-5275-415a-a656-3dcb3346feb5",
-            "retired": false
-        }, {
-            "slug": "Retired-Ship",
-            "rsiId": 2,
-            "storeName": "Retired Ship",
-            "className": null,
-            "shipGuid": null,
-            "retired": true
-        }],
+        "shipStoreSlugs": slugs::ship_store_slugs(),
         "itemRecovery": item_recovery()
     })
 }

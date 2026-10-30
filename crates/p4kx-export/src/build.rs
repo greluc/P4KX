@@ -277,6 +277,9 @@ fn assemble<R>(
         mineable_entities: collected.mineable_entities,
         crafters: collected.crafters,
         cargo_manifests: collected.mission_kinds.manifests,
+        mission_location_templates: collected.mission_location_templates,
+        contract_ship_spawns: collected.contract_ship_spawns,
+        contract_location_queries: collected.contract_location_queries,
         ship_store_slugs: resolved.exported,
         item_recovery: rules,
     };

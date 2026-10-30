@@ -823,9 +823,17 @@
           "$ref": "#/$defs/KindCompleteness",
           "description": "The completeness of `commodities`."
         },
+        "contractLocationQueries": {
+          "$ref": "#/$defs/KindCompleteness",
+          "description": "The completeness of `contractLocationQueries`."
+        },
         "contractScenarios": {
           "$ref": "#/$defs/KindCompleteness",
           "description": "The completeness of `contractScenarios`."
+        },
+        "contractShipSpawns": {
+          "$ref": "#/$defs/KindCompleteness",
+          "description": "The completeness of `contractShipSpawns`."
         },
         "contracts": {
           "$ref": "#/$defs/KindCompleteness",
@@ -911,6 +919,10 @@
           "$ref": "#/$defs/KindCompleteness",
           "description": "The completeness of `missionLocalities`."
         },
+        "missionLocationTemplates": {
+          "$ref": "#/$defs/KindCompleteness",
+          "description": "The completeness of `missionLocationTemplates`."
+        },
         "missionTypes": {
           "$ref": "#/$defs/KindCompleteness",
           "description": "The completeness of `missionTypes`."
@@ -974,7 +986,9 @@
         "blueprints",
         "cargoManifests",
         "commodities",
+        "contractLocationQueries",
         "contractScenarios",
+        "contractShipSpawns",
         "contracts",
         "crafters",
         "dismantleProcesses",
@@ -996,6 +1010,7 @@
         "mineableEntities",
         "miningGlobalParams",
         "missionLocalities",
+        "missionLocationTemplates",
         "missionTypes",
         "paints",
         "qualityDistributions",
@@ -1242,6 +1257,20 @@
           ],
           "description": "Parameter `Illegal`; base: `illegal` of the template's display info."
         },
+        "locationPrerequisites": {
+          "description": "The `ContractPrerequisite_LocationProperty` prerequisites of handler, contract and sub\ncontract, in that order and as stored: the contract is offered at the location the named\nvariable of `locationQueries` resolves to. On LIVE four contracts (the North Rock PVP\nbounties) name a variable no query states.",
+          "items": {
+            "$ref": "#/$defs/LocationPrerequisite"
+          },
+          "type": "array"
+        },
+        "locationQueries": {
+          "description": "The location queries the contract states, resolved like `shipSpawns`. The game runs a\nquery when the mission starts; the catalog does not.",
+          "items": {
+            "$ref": "#/$defs/LocationQueryLink"
+          },
+          "type": "array"
+        },
         "maxPlayersPerInstance": {
           "anyOf": [
             {
@@ -1354,6 +1383,13 @@
           },
           "type": "array"
         },
+        "shipSpawns": {
+          "description": "The ship spawn descriptions the contract states, one per `missionVariableName`, ordered by\nvariable: the first of sub contract, contract, handler and template that states the\nvariable wins; a description without a group is left out.",
+          "items": {
+            "$ref": "#/$defs/ShipSpawnLink"
+          },
+          "type": "array"
+        },
         "standingRequirements": {
           "description": "The `ContractPrerequisite_Reputation` prerequisites of the handler, the contract and the\nsub contract, in that order and as stored. The catalog does not decide how they combine.",
           "items": {
@@ -1424,6 +1460,8 @@
         "haulingOrders",
         "hideInMobiGlas",
         "illegal",
+        "locationPrerequisites",
+        "locationQueries",
         "maxPlayersPerInstance",
         "maxStandingGuid",
         "minStandingGuid",
@@ -1438,6 +1476,7 @@
         "recordPath",
         "reputationGains",
         "requiredIntros",
+        "shipSpawns",
         "standingRequirements",
         "subContractGuid",
         "templateGuid",
@@ -4210,6 +4249,263 @@
       ],
       "type": "object"
     },
+    "LocationCondition": {
+      "description": "One match condition of a location query (`DataSetMatchCondition_*`), as stored.",
+      "oneOf": [
+        {
+          "description": "`DataSetMatchCondition_TagSearch`: the location must satisfy one of the terms.",
+          "properties": {
+            "condition": {
+              "const": "tagSearch",
+              "type": "string"
+            },
+            "tagType": {
+              "description": "The `tagType` (`General`, `Produces`, `Consumes`), `null` when absent.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "terms": {
+              "description": "The `tagSearch` terms.",
+              "items": {
+                "$ref": "#/$defs/TagTerm"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "condition",
+            "terms"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "`DataSetMatchCondition_ExcludeNearbyLocationsDef`.",
+          "properties": {
+            "condition": {
+              "const": "excludeNearbyLocations",
+              "type": "string"
+            },
+            "locationProperty": {
+              "description": "The `missionVariableName` of the `locationProperty`, `null` when absent.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "rangeKm": {
+              "description": "The `exclusionRangeKm`, `null` when absent.",
+              "format": "int64",
+              "type": [
+                "integer",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "condition"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "`DataSetMatchCondition_ExcludeDistantLocationsDef`.",
+          "properties": {
+            "condition": {
+              "const": "excludeDistantLocations",
+              "type": "string"
+            },
+            "locationProperty": {
+              "description": "The `missionVariableName` of the `locationProperty`, `null` when absent.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "rangeKm": {
+              "description": "The `exclusionRangeKm`, `null` when absent.",
+              "format": "int64",
+              "type": [
+                "integer",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "condition"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "`DataSetMatchCondition_ExcludeProperty`: the location differs from another property's.",
+          "properties": {
+            "condition": {
+              "const": "excludeProperty",
+              "type": "string"
+            },
+            "excludedProperty": {
+              "description": "The `missionVariableName` of the `excludedProperty`, `null` when absent.",
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "condition"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "`DataSetMatchCondition_PropertyTags`: the tags of another property's location.",
+          "properties": {
+            "condition": {
+              "const": "propertyTags",
+              "type": "string"
+            },
+            "propertyTagType": {
+              "description": "The `propertyTagType`, `null` when absent.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "searchForAnyTag": {
+              "description": "The `searchForAnyTag` flag, `null` when absent.",
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "searchProperty": {
+              "description": "The `missionVariableName` of the `searchProperty`, `null` when absent.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "tagFilters": {
+              "description": "The `tagFilters`.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "targetTagType": {
+              "description": "The `targetTagType`, `null` when absent.",
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "condition",
+            "tagFilters"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "`DataSetMatchCondition_SpecificOrganizationsDef`.",
+          "properties": {
+            "condition": {
+              "const": "specificOrganizations",
+              "type": "string"
+            },
+            "organizationGuids": {
+              "description": "The `MissionOrganization` Records.",
+              "items": {
+                "$ref": "#/$defs/Guid"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "condition",
+            "organizationGuids"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "`DataSetMatchCondition_SpecificItemsDef`.",
+          "properties": {
+            "condition": {
+              "const": "specificItems",
+              "type": "string"
+            },
+            "itemGuids": {
+              "description": "The `MissionItem` Records.",
+              "items": {
+                "$ref": "#/$defs/Guid"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "condition",
+            "itemGuids"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "A condition of another struct, which the catalog does not read.",
+          "properties": {
+            "condition": {
+              "const": "other",
+              "type": "string"
+            },
+            "structName": {
+              "description": "The struct name.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "condition",
+            "structName"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "LocationCount": {
+      "description": "Whether a location property holds one location or several.",
+      "oneOf": [
+        {
+          "const": "one",
+          "description": "`MissionPropertyValue_Location`.",
+          "type": "string"
+        },
+        {
+          "const": "many",
+          "description": "`MissionPropertyValue_Locations`.",
+          "type": "string"
+        }
+      ]
+    },
+    "LocationName": {
+      "description": "A string variant of a location template.",
+      "properties": {
+        "nameKey": {
+          "description": "The localisation key of the text, `null` when it names none. The text itself is not\nexported.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "tag": {
+          "description": "The tag path of the variant, e.g. `Missions.Text.Name`; `null` when it names none.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "nameKey",
+        "tag"
+      ],
+      "type": "object"
+    },
     "LocationOverride": {
       "description": "A distribution that replaces the default one at a location.",
       "properties": {
@@ -4239,6 +4535,139 @@
       "required": [
         "distribution",
         "locationGuid"
+      ],
+      "type": "object"
+    },
+    "LocationPrerequisite": {
+      "description": "A `ContractPrerequisite_LocationProperty`: the contract is offered at the location another\nproperty resolves to.",
+      "properties": {
+        "level": {
+          "$ref": "#/$defs/SpawnLevel",
+          "description": "The level that states the prerequisite: `handler`, `contract` or `subContract`."
+        },
+        "locationLevelType": {
+          "description": "The `locationLevelType` as stored (an enum name), `null` when absent.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "token": {
+          "description": "The `propertyExtendedTextToken`, `null` when empty.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "variable": {
+          "description": "The `propertyVariableName`, the `variable` of an entry of `locationQueries`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "level",
+        "locationLevelType",
+        "token",
+        "variable"
+      ],
+      "type": "object"
+    },
+    "LocationQuery": {
+      "description": "A location query of a contract: the tag search the game runs against the\n`MissionLocationTemplate` Records when the mission starts. Shared by every contract that\nstates the same.",
+      "properties": {
+        "conditions": {
+          "description": "The `matchConditions` in stored order; a location satisfies all of them.",
+          "items": {
+            "$ref": "#/$defs/LocationCondition"
+          },
+          "type": "array"
+        },
+        "count": {
+          "$ref": "#/$defs/LocationCount",
+          "description": "One location or several."
+        },
+        "failIfMinNotFound": {
+          "description": "The `failIfMinAmountNotFound` flag of a multiple query, `null` for a single one.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "guid": {
+          "$ref": "#/$defs/Guid",
+          "description": "The identifier of the content (see the catalog documentation); not a GUID of the Archive."
+        },
+        "logErrorOnSearchFail": {
+          "description": "The `logErrorOnSearchFail` flag, `null` when absent.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "maxLocations": {
+          "description": "The `maxLocationsToFind` of a multiple query, `null` for a single one.",
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "minLocations": {
+          "description": "The `minLocationsToFind` of a multiple query, `null` for a single one.",
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "resourceTags": {
+          "description": "The `resourceTags`: the mission type tags the search is made for.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "conditions",
+        "count",
+        "failIfMinNotFound",
+        "guid",
+        "logErrorOnSearchFail",
+        "maxLocations",
+        "minLocations",
+        "resourceTags"
+      ],
+      "type": "object"
+    },
+    "LocationQueryLink": {
+      "description": "The location query a contract states for a variable.",
+      "properties": {
+        "level": {
+          "$ref": "#/$defs/SpawnLevel",
+          "description": "The level that states the property: the first of sub contract, contract, handler and\ntemplate."
+        },
+        "queryGuid": {
+          "$ref": "#/$defs/Guid",
+          "description": "The `guid` of the entry of `contractLocationQueries`."
+        },
+        "token": {
+          "description": "The `extendedTextToken` of the property, `null` when empty.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "variable": {
+          "description": "The `missionVariableName` of the property.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "level",
+        "queryGuid",
+        "token",
+        "variable"
       ],
       "type": "object"
     },
@@ -5574,6 +6003,91 @@
         "guid",
         "recordPath",
         "starmapObjectGuids"
+      ],
+      "type": "object"
+    },
+    "MissionLocationTemplate": {
+      "description": "A mission location template: a `MissionLocationTemplate` Record under\n`missiondata/pu_locations`, a place a location query can match by its tags.",
+      "properties": {
+        "aiSpawnTags": {
+          "description": "The `aiSpawnTags`.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "className": {
+          "description": "The Record name without its type, e.g. `AEGS_Reclaimer_Space_Stanton2c`.",
+          "type": "string"
+        },
+        "consumesTags": {
+          "$ref": "#/$defs/TagTerm",
+          "description": "The `consumesTags`."
+        },
+        "disabled": {
+          "description": "The `disabled` flag of the location data, `null` when absent.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "entityClusterMemberGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The `entityClusterMember` Record, `null` when absent."
+        },
+        "guid": {
+          "$ref": "#/$defs/Guid",
+          "description": "The GUID of the Record."
+        },
+        "isSecurityNetworkHost": {
+          "description": "The `isSecurityNetworkHost` flag, `null` when absent.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "names": {
+          "description": "The `stringVariants`: the texts the location offers a mission, each under the tag that\nnames its use.",
+          "items": {
+            "$ref": "#/$defs/LocationName"
+          },
+          "type": "array"
+        },
+        "producesTags": {
+          "$ref": "#/$defs/TagTerm",
+          "description": "The `producesTags`."
+        },
+        "recordPath": {
+          "description": "The record path, without `.xml`.",
+          "type": "string"
+        },
+        "tags": {
+          "description": "The `generalTags`: what the queries of `contractLocationQueries` match.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "aiSpawnTags",
+        "className",
+        "consumesTags",
+        "disabled",
+        "entityClusterMemberGuid",
+        "guid",
+        "isSecurityNetworkHost",
+        "names",
+        "producesTags",
+        "recordPath",
+        "tags"
       ],
       "type": "object"
     },
@@ -7253,6 +7767,192 @@
       ],
       "type": "object"
     },
+    "ShipSpawnGroup": {
+      "description": "A group of ships that spawn together (`SpawnDescription_ShipGroup`).",
+      "properties": {
+        "name": {
+          "description": "The `Name` of the group, `null` when empty.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "slots": {
+          "description": "The ships of the group, one slot each.",
+          "items": {
+            "$ref": "#/$defs/ShipSpawnSlot"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "name",
+        "slots"
+      ],
+      "type": "object"
+    },
+    "ShipSpawnLink": {
+      "description": "The ship spawn description a contract states for a variable.",
+      "properties": {
+        "level": {
+          "$ref": "#/$defs/SpawnLevel",
+          "description": "The level that states the property: the first of sub contract, contract, handler and\ntemplate."
+        },
+        "poolGuid": {
+          "$ref": "#/$defs/Guid",
+          "description": "The `guid` of the entry of `contractShipSpawns`."
+        },
+        "token": {
+          "description": "The `extendedTextToken` of the property, `null` when empty.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "variable": {
+          "description": "The `missionVariableName` of the property.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "level",
+        "poolGuid",
+        "token",
+        "variable"
+      ],
+      "type": "object"
+    },
+    "ShipSpawnOption": {
+      "description": "One alternative of a ship slot: a ship the game picks by tags.",
+      "properties": {
+        "concurrentAmount": {
+          "description": "The `concurrentAmount`: how many of the ship are alive at once; `null` when absent.",
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "entityTags": {
+          "description": "The `entityTags`.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "includeLocationAISpawnTags": {
+          "description": "The `includeLocationAISpawnTags` flag; `null` when absent.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "initialDamageGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The `initialDamageSettings` Record, `null` when absent."
+        },
+        "markupTags": {
+          "description": "The `markupTags`.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "namePropertyVariable": {
+          "description": "The `missionVariableName` of the property the `nameProperty` points to, `null` when absent.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "negativeTags": {
+          "description": "The `negativeTags` a match must not carry.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "tags": {
+          "description": "The `tags` the game searches ships and crew by: ship model, role, faction, cargo, spawn\nflags.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "weight": {
+          "description": "The `weight` of the alternative among its slot; `null` when absent.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "concurrentAmount",
+        "entityTags",
+        "includeLocationAISpawnTags",
+        "initialDamageGuid",
+        "markupTags",
+        "namePropertyVariable",
+        "negativeTags",
+        "tags",
+        "weight"
+      ],
+      "type": "object"
+    },
+    "ShipSpawnPool": {
+      "description": "A ship spawn description of a contract: what a `MissionPropertyValue_ShipSpawnDescriptions`\nproperty states, shared by every contract that states the same.",
+      "properties": {
+        "allowedForMissionRestrictedDeliveries": {
+          "description": "The `allowedForMissionRestrictedDeliveries` flag; `null` when absent.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "groups": {
+          "description": "The groups in stored order.",
+          "items": {
+            "$ref": "#/$defs/ShipSpawnGroup"
+          },
+          "type": "array"
+        },
+        "guid": {
+          "$ref": "#/$defs/Guid",
+          "description": "The identifier of the content (see the catalog documentation); not a GUID of the Archive."
+        }
+      },
+      "required": [
+        "allowedForMissionRestrictedDeliveries",
+        "groups",
+        "guid"
+      ],
+      "type": "object"
+    },
+    "ShipSpawnSlot": {
+      "description": "The alternatives for one ship (`SpawnDescription_ShipOptions`): the game spawns one of them.",
+      "properties": {
+        "options": {
+          "description": "The alternatives in stored order.",
+          "items": {
+            "$ref": "#/$defs/ShipSpawnOption"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "options"
+      ],
+      "type": "object"
+    },
     "ShipStoreSlug": {
       "description": "An RSI store slug and the ship it stands for.",
       "properties": {
@@ -7501,6 +8201,31 @@
         "toolVersion"
       ],
       "type": "object"
+    },
+    "SpawnLevel": {
+      "description": "The level of a contract that states a property or a prerequisite.",
+      "oneOf": [
+        {
+          "const": "subContract",
+          "description": "The overrides of the sub contract.",
+          "type": "string"
+        },
+        {
+          "const": "contract",
+          "description": "The overrides of the contract.",
+          "type": "string"
+        },
+        {
+          "const": "handler",
+          "description": "The `contractParams` of the handler.",
+          "type": "string"
+        },
+        {
+          "const": "template",
+          "description": "The `contractProperties` of the `ContractTemplate`.",
+          "type": "string"
+        }
+      ]
     },
     "SpawnWith": {
       "description": "Items an entry spawns along with its own (`ArchetypeOptionalDataV3_SpawnWith`).",
@@ -7992,6 +8717,30 @@
       ],
       "type": "object"
     },
+    "TagTerm": {
+      "description": "The positive and negative tags of a tag search term.",
+      "properties": {
+        "negativeTags": {
+          "description": "The tags a match must not carry.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "positiveTags": {
+          "description": "The tags a match carries.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "negativeTags",
+        "positiveTags"
+      ],
+      "type": "object"
+    },
     "TaggedConfig": {
       "description": "One config of a [`SubHarvestableMultiConfig`] and the tags it applies to.",
       "properties": {
@@ -8330,10 +9079,24 @@
       "$ref": "#/$defs/Completeness",
       "description": "Whether each kind is a complete snapshot of the Build."
     },
+    "contractLocationQueries": {
+      "description": "The distinct location queries of the contracts, ordered by identifier.",
+      "items": {
+        "$ref": "#/$defs/LocationQuery"
+      },
+      "type": "array"
+    },
     "contractScenarios": {
       "description": "The contract scenarios with their reward tiers, ordered by GUID.",
       "items": {
         "$ref": "#/$defs/ContractScenario"
+      },
+      "type": "array"
+    },
+    "contractShipSpawns": {
+      "description": "The distinct ship spawn descriptions of the contracts, ordered by identifier.",
+      "items": {
+        "$ref": "#/$defs/ShipSpawnPool"
       },
       "type": "array"
     },
@@ -8499,6 +9262,13 @@
       },
       "type": "array"
     },
+    "missionLocationTemplates": {
+      "description": "The mission location templates, the places a location query matches by tags, ordered by\nGUID.",
+      "items": {
+        "$ref": "#/$defs/MissionLocationTemplate"
+      },
+      "type": "array"
+    },
     "missionTypes": {
       "description": "The mission types, the targets of `contracts[].missionTypeGuid`, ordered by GUID.",
       "items": {
@@ -8616,7 +9386,9 @@
     "cargoManifests",
     "commodities",
     "completeness",
+    "contractLocationQueries",
     "contractScenarios",
+    "contractShipSpawns",
     "contracts",
     "crafters",
     "craftingGlobal",
@@ -8640,6 +9412,7 @@
     "mineableEntities",
     "miningGlobalParams",
     "missionLocalities",
+    "missionLocationTemplates",
     "missionTypes",
     "paints",
     "qualityDistributions",

@@ -10,6 +10,7 @@ use crate::contract_hauling::HaulingOrder;
 use crate::contract_reward::FixedReward;
 use crate::guid_text::CatalogGuid;
 use crate::mission_cooldown::CooldownLayer;
+use crate::spawn_model::{LocationPrerequisite, LocationQueryLink, ShipSpawnLink};
 
 /// A contract or one of its sub contracts, with the overrides of sub contract, contract and
 /// handler laid over the template.
@@ -114,6 +115,18 @@ pub(crate) struct ContractEntry<'a> {
     /// The time to complete, buy-in, sharing, legality and availability facts of the contract.
     #[serde(flatten)]
     pub(crate) facts: ContractFacts,
+    /// The ship spawn descriptions the contract states, one per `missionVariableName`, ordered by
+    /// variable: the first of sub contract, contract, handler and template that states the
+    /// variable wins; a description without a group is left out.
+    pub(crate) ship_spawns: Vec<ShipSpawnLink>,
+    /// The location queries the contract states, resolved like `shipSpawns`. The game runs a
+    /// query when the mission starts; the catalog does not.
+    pub(crate) location_queries: Vec<LocationQueryLink>,
+    /// The `ContractPrerequisite_LocationProperty` prerequisites of handler, contract and sub
+    /// contract, in that order and as stored: the contract is offered at the location the named
+    /// variable of `locationQueries` resolves to. On LIVE four contracts (the North Rock PVP
+    /// bounties) name a variable no query states.
+    pub(crate) location_prerequisites: Vec<LocationPrerequisite>,
     /// The payouts the contract states itself (`ContractResult_Reward`) for success, as stored;
     /// empty for the contracts that pay through a calculated reward, whose amount the Archive
     /// does not state.

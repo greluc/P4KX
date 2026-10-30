@@ -7,11 +7,6 @@
 use serde_json::json;
 
 pub(super) fn contracts() -> serde_json::Value {
-    let places = json!([{
-        "starmapObjectGuid": "a2000000-0000-4000-8000-000000000001",
-        "objectType": "Planet",
-        "place": {"key": "@Stanton1_Name", "en": "Hurston", "de": null}
-    }]);
     let gains = json!([{
         "factionReputationGuid": "60000000-0000-4000-8000-000000000001",
         "factionReputationName": "acme",
@@ -39,7 +34,7 @@ pub(super) fn contracts() -> serde_json::Value {
             "name": "acme",
             "displayName": {"key": "@faction_acme", "en": "Acme Emporium", "de": null}
         },
-        "pickupPlaces": places,
+        "pickupPlaces": places(),
         "reputationGains": gains,
         "minStandingGuid": "62000000-0000-4000-8000-000000000001",
         "maxStandingGuid": null,
@@ -63,7 +58,42 @@ pub(super) fn contracts() -> serde_json::Value {
     if let (Some(entry), Some(facts)) = (entry.as_object_mut(), facts().as_object()) {
         entry.extend(facts.clone());
     }
+    if let (Some(target), serde_json::Value::Object(links)) = (entry.as_object_mut(), spawn_links())
+    {
+        target.extend(links);
+    }
     json!([entry])
+}
+
+fn places() -> serde_json::Value {
+    json!([{
+        "starmapObjectGuid": "a2000000-0000-4000-8000-000000000001",
+        "objectType": "Planet",
+        "place": {"key": "@Stanton1_Name", "en": "Hurston", "de": null}
+    }])
+}
+
+fn spawn_links() -> serde_json::Value {
+    json!({
+        "shipSpawns": [{
+            "variable": "HostileShips_BP",
+            "token": null,
+            "level": "contract",
+            "poolGuid": "e1000000-0000-4000-8000-000000000001"
+        }],
+        "locationQueries": [{
+            "variable": "Location_BP",
+            "token": "Location",
+            "level": "template",
+            "queryGuid": "e2000000-0000-4000-8000-000000000001"
+        }],
+        "locationPrerequisites": [{
+            "level": "handler",
+            "variable": "Location_BP",
+            "token": null,
+            "locationLevelType": "Planet"
+        }]
+    })
 }
 
 fn facts() -> serde_json::Value {

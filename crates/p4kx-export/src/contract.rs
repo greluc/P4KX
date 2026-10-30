@@ -34,8 +34,11 @@ pub(crate) use crate::contract_rewards::{
     BlueprintPool, CraftingGlobal, DismantleProcess, GameplayProperty, QualityDistribution,
 };
 pub(crate) use crate::contract_shops::Shop;
+pub(crate) use crate::contract_source::{BuildSource, Source};
 pub(crate) use crate::contract_starmap::StarmapObject;
 pub(crate) use crate::contract_store_slugs::ShipStoreSlug;
+pub(crate) use crate::location_template::MissionLocationTemplate;
+pub(crate) use crate::spawn_model::{LocationQuery, ShipSpawnPool};
 
 /// The version of the catalog shape.
 ///
@@ -143,49 +146,19 @@ pub(crate) struct Catalog<'a> {
     pub(crate) crafters: Vec<Crafter<'a>>,
     /// The cargo manifests, how the game fills the cargo grid of a spawned ship, ordered by GUID.
     pub(crate) cargo_manifests: Vec<CargoManifest<'a>>,
+    /// The mission location templates, the places a location query matches by tags, ordered by
+    /// GUID.
+    pub(crate) mission_location_templates: Vec<MissionLocationTemplate<'a>>,
+    /// The distinct ship spawn descriptions of the contracts, ordered by identifier.
+    pub(crate) contract_ship_spawns: Vec<ShipSpawnPool>,
+    /// The distinct location queries of the contracts, ordered by identifier.
+    pub(crate) contract_location_queries: Vec<LocationQuery>,
     /// The RSI store slugs that map to a ship of `ships`, with the retired ones flagged, ordered
     /// by `slug`. A curated list, not read from the Archive.
     pub(crate) ship_store_slugs: Vec<ShipStoreSlug<'a>>,
     /// The item recovery rules, the multipliers the game applies to claims, `null` when the
     /// Archive has no such Record. Not a kind.
     pub(crate) item_recovery: Option<ItemRecovery<'a>>,
-}
-
-/// Where a catalog came from.
-#[derive(Debug, Serialize, JsonSchema)]
-#[serde(rename_all = "camelCase")]
-#[schemars(transform = every_field_required)]
-pub(crate) struct Source<'a> {
-    /// The Channel: the name of the folder holding the Archive, `null` when there is none.
-    pub(crate) channel: Option<String>,
-    /// The Build from the Channel's build manifest, `null` when it is unknown.
-    pub(crate) build: Option<BuildSource<'a>>,
-    /// The size of the Archive file in bytes.
-    pub(crate) archive_size: u64,
-    /// The modification time of the Archive file, UTC in RFC 3339 form, `null` when unknown.
-    pub(crate) archive_modified: Option<String>,
-    /// The version of P4KX that wrote the catalog.
-    pub(crate) tool_version: &'static str,
-    /// When the catalog was written, UTC in RFC 3339 form.
-    pub(crate) exported_at: String,
-}
-
-/// The Build of the Archive.
-#[derive(Debug, Serialize, JsonSchema)]
-#[serde(rename_all = "camelCase")]
-#[schemars(transform = every_field_required)]
-pub(crate) struct BuildSource<'a> {
-    /// The branch, e.g. `sc-alpha-4.4.0`.
-    pub(crate) branch: &'a str,
-    /// The version, e.g. `4.4.162.12345`.
-    pub(crate) version: &'a str,
-    /// The Perforce change number the Build was made from.
-    pub(crate) change_number: &'a str,
-    /// The `BuildId` of the build manifest.
-    pub(crate) build_id: &'a str,
-    /// The public patch version, e.g. `4.7.2`, from the RSI Launcher log line with the same
-    /// change number; `null` when the log has none.
-    pub(crate) public_patch: Option<&'a str>,
 }
 
 /// The completeness of every kind.
@@ -273,6 +246,12 @@ pub(crate) struct Completeness<'a> {
     pub(crate) crafters: KindCompleteness<'a>,
     /// The completeness of `cargoManifests`.
     pub(crate) cargo_manifests: KindCompleteness<'a>,
+    /// The completeness of `missionLocationTemplates`.
+    pub(crate) mission_location_templates: KindCompleteness<'a>,
+    /// The completeness of `contractShipSpawns`.
+    pub(crate) contract_ship_spawns: KindCompleteness<'a>,
+    /// The completeness of `contractLocationQueries`.
+    pub(crate) contract_location_queries: KindCompleteness<'a>,
     /// The completeness of `shipStoreSlugs`.
     pub(crate) ship_store_slugs: KindCompleteness<'a>,
 }
@@ -321,6 +300,9 @@ impl<'a> Completeness<'a> {
             mineable_entities: completeness,
             crafters: completeness,
             cargo_manifests: completeness,
+            mission_location_templates: completeness,
+            contract_ship_spawns: completeness,
+            contract_location_queries: completeness,
             ship_store_slugs: completeness,
         }
     }

@@ -130,11 +130,20 @@ pub enum Kind {
     Crafters,
     /// Cargo manifests: `CargoManifest` Records under `cargomanifest`.
     CargoManifests,
+    /// Mission location templates: `MissionLocationTemplate` Records under
+    /// `missiondata/pu_locations`, what a location query of a contract matches by tags.
+    MissionLocationTemplates,
+    /// Contract ship spawns: the distinct ship spawn descriptions the contracts state. Derived from
+    /// the contracts, so no record-path rule of its own.
+    ContractShipSpawns,
+    /// Contract location queries: the distinct location queries the contracts state. Derived from
+    /// the contracts, so no record-path rule of its own.
+    ContractLocationQueries,
 }
 
 impl Kind {
     /// Every kind, in the order of the catalog.
-    pub const ALL: [Self; 40] = [
+    pub const ALL: [Self; 43] = [
         Self::Manufacturers,
         Self::Items,
         Self::Ships,
@@ -175,6 +184,9 @@ impl Kind {
         Self::LegacyLootArchetypes,
         Self::Crafters,
         Self::CargoManifests,
+        Self::MissionLocationTemplates,
+        Self::ContractShipSpawns,
+        Self::ContractLocationQueries,
     ];
 
     /// Returns the name of the kind's array in the catalog, e.g. `manufacturers`.
@@ -221,6 +233,9 @@ impl Kind {
             Self::LegacyLootArchetypes => "legacyLootArchetypes",
             Self::Crafters => "crafters",
             Self::CargoManifests => "cargoManifests",
+            Self::MissionLocationTemplates => "missionLocationTemplates",
+            Self::ContractShipSpawns => "contractShipSpawns",
+            Self::ContractLocationQueries => "contractLocationQueries",
         }
     }
 
@@ -236,6 +251,7 @@ impl Kind {
                 | Self::BlueprintPools
                 | Self::DismantleProcesses
                 | Self::Contracts
+                | Self::MissionLocationTemplates
         )
     }
 
@@ -282,6 +298,8 @@ impl Kind {
                 | Self::HarvestableLocations
                 | Self::Shops
                 | Self::LootContainers
+                | Self::ContractShipSpawns
+                | Self::ContractLocationQueries
         )
     }
 }

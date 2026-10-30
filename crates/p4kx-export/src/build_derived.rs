@@ -32,6 +32,7 @@ pub(crate) fn add_contracts<'f>(
         options.cancel,
     )?;
     collected.add_contracts(missions.contracts, missions.skipped, missions.failures);
+    collected.add_spawns(missions.templates, missions.pools);
     Ok(())
 }
 

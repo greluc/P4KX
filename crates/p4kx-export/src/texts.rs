@@ -72,8 +72,8 @@ impl<'e> Texts<'e> {
         })
     }
 
-    /// Returns the text with localisation `key` and its English and German texts, each with `\n`
-    /// decoded to a line feed; without a key every part is `None` and nothing is counted, and a
+    /// Returns the text with localisation `key` and its English and German texts, each
+    /// decoded (`\n` to a line feed) and trimmed; without a key every part is `None` and nothing is counted, and a
     /// [placeholder key](crate::PLACEHOLDER_KEYS) keeps the key, has no texts and is counted as a
     /// placeholder.
     pub(crate) fn localised<'a>(&self, key: Option<&'a str>) -> LocalisedText<'a>

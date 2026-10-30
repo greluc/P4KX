@@ -302,4 +302,6 @@ fn display_text_decodes_line_breaks_and_trims_the_ends() {
     assert_eq!(display_text("A\\nB \\n"), "A\nB");
     assert_eq!(display_text("\t \\n"), "");
     assert_eq!(display_text("Plain"), "Plain");
+    assert_eq!(display_text("\u{a0}Moss\u{3000}"), "Moss");
+    assert_eq!(display_text("\u{3000}A\\nB\u{a0}\\n"), "A\nB");
 }

@@ -7,7 +7,9 @@ use std::error::Error;
 use std::time::{Duration, UNIX_EPOCH};
 
 use p4kx_export::{CatalogOptions, Language, TextSummary, build_catalog, build_catalog_from};
-use p4kx_extraction::{Archive, DataForgeEntry};
+use p4kx_extraction::{
+    Archive, DataForgeEntry, IniText, LanguageTexts, Resolution, TextResolver, TextSet,
+};
 use p4kx_testkit::{
     ArchiveBuilder, DataForgeBuilder, GlobalIniBuilder, TestEntry, TestInstance, TestRecord,
     TestStruct, TestType, TestValue,
@@ -268,14 +270,18 @@ fn texts_are_trimmed_in_the_catalog_and_stay_padded_in_the_raw_resolver() -> Tes
         json!("Drake\nInterplanetary"),
         "inner line break kept"
     );
-    assert_eq!(summary.first().map(|texts| texts.unresolved), Some(2));
-
-    let text = p4kx_extraction::IniText::decode(&padded)?;
-    let set = p4kx_extraction::TextSet::new([(Language::English, text.index()?)]);
-    let raw = p4kx_extraction::LanguageTexts::new(&set, Language::English);
     assert_eq!(
-        p4kx_extraction::TextResolver::resolve(&raw, "@manufacturer_NameACAS"),
-        p4kx_extraction::Resolution::Text(" Ace Astrogation \n".into()),
+        summary.first().map(|texts| texts.unresolved),
+        Some(2),
+        "white-space-only texts count as unresolved"
+    );
+
+    let text = IniText::decode(&padded)?;
+    let set = TextSet::new([(Language::English, text.index()?)]);
+    let raw = LanguageTexts::new(&set, Language::English);
+    assert_eq!(
+        TextResolver::resolve(&raw, "@manufacturer_NameACAS"),
+        Resolution::Text(" Ace Astrogation \n".into()),
         "the raw resolver keeps the padding"
     );
     Ok(())

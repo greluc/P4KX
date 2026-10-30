@@ -43,7 +43,12 @@ pub fn decode_line_breaks(text: &str) -> Cow<'_, str> {
 pub fn display_text(text: &str) -> Cow<'_, str> {
     match decode_line_breaks(text) {
         Cow::Borrowed(decoded) => Cow::Borrowed(decoded.trim()),
-        Cow::Owned(decoded) => Cow::Owned(decoded.trim().to_owned()),
+        Cow::Owned(mut decoded) => {
+            decoded.truncate(decoded.trim_end().len());
+            let leading = decoded.len() - decoded.trim_start().len();
+            decoded.drain(..leading);
+            Cow::Owned(decoded)
+        }
     }
 }
 

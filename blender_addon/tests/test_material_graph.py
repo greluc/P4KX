@@ -327,6 +327,23 @@ def test_a_white_palette_glass_colour_with_the_flag_links_the_vertex_colours_alo
     assert graph.node(colours.key).kind == "ShaderNodeVertexColor"
 
 
+@pytest.mark.parametrize(
+    ("strength", "colour"),
+    [(1.0, (0.2, 0.3, 0.4)), (0.5, (0.6, 0.65, 0.7)), (0.0, (1.0, 1.0, 1.0)), (4.0, (0.2, 0.3, 0.4))],
+)
+def test_glass_tint_strength_fades_the_palette_colour_towards_white(
+    strength: float, colour: tuple[float, float, float]
+) -> None:
+    raw = description(
+        "x0001",
+        "GlassPBR",
+        palette="glass",
+        parameters=[{"name": "GlassTintStrength", "value": str(strength)}],
+    )
+    graph = single([raw], palette=load().palettes["p0001"])
+    assert graph.node("bsdf").inputs["Base Color"] == pytest.approx(colour)
+
+
 def test_clear_glass_lets_the_scene_through() -> None:
     graph = single([description("x0001", "GlassPBR")])
     assert graph.node("bsdf").inputs["Alpha"] == pytest.approx(0.15)
@@ -365,7 +382,7 @@ def test_glass_opacity_scales_the_alpha() -> None:
     assert graph.node("bsdf").inputs["Alpha"] == pytest.approx(0.075)
 
 
-NODRAW_KINDS ={"ShaderNodeBsdfTransparent", "ShaderNodeOutputMaterial"}
+NODRAW_KINDS = {"ShaderNodeBsdfTransparent", "ShaderNodeOutputMaterial"}
 
 
 def test_a_decal_without_any_texture_draws_nothing() -> None:

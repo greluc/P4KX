@@ -168,6 +168,8 @@ fn write_sound(
             state: emitted.state,
             unconverted: note
                 .filter(|_| format == SoundFormat::Raw && options.format != SoundFormat::Raw),
+            loop_points: wem.as_ref().and_then(Wem::loop_points),
+            prefetch_only: prefetch,
         };
         if options.policy == ConflictPolicy::Skip
             && let Ok(existing) = fs::symlink_metadata(&path)

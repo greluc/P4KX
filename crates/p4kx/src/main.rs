@@ -129,6 +129,7 @@ mod wwise;
 mod wwise_events;
 mod wwise_extract;
 mod wwise_json;
+mod wwise_txtp;
 
 use std::io::{self, Write};
 use std::process::ExitCode;

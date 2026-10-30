@@ -18,6 +18,7 @@ use crate::entity_audio::{IssueJson, issues_json, warn};
 use crate::extract::{cancel_on_interrupt, policy};
 use crate::wwise::{UnknownTrigger, language_choice};
 use crate::wwise_json::{self, LanguageJson, TriggerJson};
+use crate::wwise_txtp::{self, TxtpJson};
 use crate::{exit, json};
 
 #[derive(Serialize)]
@@ -28,6 +29,8 @@ struct ExtractJson<'a> {
     breaks: usize,
     #[serde(flatten)]
     export: ExportJson,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    txtp: Option<TxtpJson>,
     issues: Vec<IssueJson<'a>>,
 }
 
@@ -187,6 +190,9 @@ pub(crate) fn run(args: &WwiseExtractArgs, as_json: bool) -> Result<ExitCode> {
         .resolve_trigger_in(&args.trigger, &choice)
         .ok_or_else(|| UnknownTrigger::new(&args.trigger))?;
     let report = export(&audio, &[&sounds], &args.out, &args.export, &cancel)?;
+    let txtp = (args.txtp && !report.cancelled)
+        .then(|| wwise_txtp::write(&sounds, &report, args))
+        .transpose()?;
     if as_json {
         json::print(&ExtractJson {
             archive: json::path(archive.path()),
@@ -194,11 +200,15 @@ pub(crate) fn run(args: &WwiseExtractArgs, as_json: bool) -> Result<ExitCode> {
             trigger: wwise_json::trigger(&sounds),
             breaks: sounds.breaks().len(),
             export: export_json(&report, &args.out, &args.export),
+            txtp: txtp.as_ref().map(wwise_txtp::to_json),
             issues: issues_json(index),
         })?;
     } else {
         warn(index)?;
         print_report(&report, &args.out)?;
+        if let Some(txtp) = &txtp {
+            wwise_txtp::print(txtp, &args.out)?;
+        }
         if !sounds.breaks().is_empty() {
             writeln!(
                 io::stderr().lock(),

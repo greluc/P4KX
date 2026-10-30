@@ -12,7 +12,7 @@ use rayon::prelude::*;
 use crate::CatalogError;
 use crate::blueprint::as_struct;
 use crate::mission_layers::{Property, items, key, one, properties};
-use crate::record_fields::{integer, reference};
+use crate::record_fields::{boolean, integer, reference};
 
 const TEMPLATES: &str = "libs/foundry/records/contracts/contracttemplates/";
 const TEMPLATE_TYPE: &str = "ContractTemplate";
@@ -31,13 +31,16 @@ pub(crate) struct Broker<'f> {
     pub(crate) location: Option<Guid>,
 }
 
-/// What a `ContractTemplate` Record contributes to a contract: the title and the mission type of
-/// its display info and its properties.
+/// What a `ContractTemplate` Record contributes to a contract: the title, the mission type and the
+/// `illegal` flag of its display info, its properties and the `canBeShared` flag of its contract
+/// class.
 #[derive(Debug, Default)]
 pub(crate) struct Template<'f> {
     pub(crate) title: Option<&'f str>,
     pub(crate) mission_type: Option<Guid>,
     pub(crate) properties: Vec<Property<'f>>,
+    pub(crate) illegal: Option<bool>,
+    pub(crate) can_be_shared: Option<bool>,
 }
 
 /// A `MissionType` Record: the key of its localised name.
@@ -242,6 +245,11 @@ fn template_of<'f>(root: Option<&StructValue<'f>>) -> Template<'f> {
         title: title_key(display),
         mission_type: reference(display, "type").map(|guid| guid.0),
         properties: properties(root, "contractProperties"),
+        illegal: boolean(display, "illegal"),
+        can_be_shared: items(one(root, "contractClass"), "additionalParams")
+            .iter()
+            .filter_map(as_struct)
+            .find_map(|settings| boolean(Some(settings), "canBeShared")),
     }
 }
 

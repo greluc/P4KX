@@ -1074,6 +1074,9 @@ that the rule on equal `guid` and `subContractGuid` above drops.
 | `hasPersonalCooldown` | The `hasPersonalCooldown` flag, `null` when absent |
 | `personalCooldownTime`, `personalCooldownTimeVariation` | The personal cooldown and its variation, as stored (unit: see "Cooldowns"); `null` when absent |
 | `abandonedCooldownTime`, `abandonedCooldownTimeVariation` | The cooldown after the contract was abandoned and its variation, as stored; `null` when absent |
+| `timeToComplete`, `buyInAmount` | The `timeToComplete` (floating point) and the `contractBuyInAmount` of the contract's `contractResults`, as stored; a sub contract shares the contract's. The Archive states no unit; `timeToComplete` fits minutes |
+| `canBeShared`, `illegal`, `onceOnly`, `maxPlayersPerInstance`, `availableInPrison`, `canReacceptAfterAbandoning`, `canReacceptAfterFailing`, `hideInMobiGlas` | Each `{value, layer}` with `layer` `subContract`, `contract`, `handler` or `template` (see "Contract facts"), `null` when no level states it |
+| `requiredIntros` | The completion tags the contract requires with the intro contracts that grant each (see "Contract facts") |
 
 **Layers.** Sub contract, contract and handler each override the template: the first of them that
 states a value wins, the template last. A level states its overrides in `paramOverrides` (sub
@@ -1194,6 +1197,30 @@ numbers are as stored, in floating point. The Archive does not state their unit:
 type, attribute or game text shows it. The range (`personalCooldownTime` up to 2880,
 `abandonedCooldownTime` up to 60 on the `Career` handlers) fits minutes, 2880 being 48 hours, but
 that is a reading, not a fact of the Archive. On LIVE 4.10 all 5,175 entries state a cooldown.
+
+**Contract facts (ADR-0260).** `timeToComplete` and `buyInAmount` are numbers as stored. Each of
+the other eight values is `{value, layer}`: the first level that states it, nearest first. A
+level states it through a boolean or integer parameter (`CanBeShared`, `Illegal`, `OnceOnly`,
+`MaxPlayersPerInstance`, `AvailableInPrison`, `CanReacceptAfterAbandoning`,
+`CanReacceptAfterFailing`, `HideInMobiGlas`, matched without regard to case) of the sub contract,
+the contract (`paramOverrides`) or the handler (`contractParams`); when none does, the base value
+is the one of the Record that owns the default: the `defaultAvailability` of the handler (layer
+`handler`) for `onceOnly`, `maxPlayersPerInstance`, `availableInPrison`, the two re-accept flags
+and `hideInMobiGlas`; the template (layer `template`) for `illegal` (`contractDisplayInfo`) and
+`canBeShared` (`ActiveContractSettings` of the contract class). A contract without a template
+(the legacy `Covalex_HaulCargo_Career` contracts) has `null` for `illegal` and `canBeShared`
+unless a parameter states them. A negative `maxPlayersPerInstance` is as stored (-1 on 41 LIVE
+entries).
+
+`requiredIntros` lists the `ContractPrerequisite_CompletedContractTags` required tags of the handler
+(`defaultAvailability`), the contract and the sub contract (`additionalPrerequisites`), in that order
+and as stored: `level`, `tagGuid` and `introContracts`, the `id` of every contract in an
+`introContracts` array whose success result grants the tag (`ContractResult_CompletionTags`), ordered
+by `id`; empty when no intro contract grants it. The excluded tags are not exported, and the
+catalog does not decide how the levels combine. On LIVE 4.10 (2026-10-30) 2,464 of the 5,175 entries
+have a required tag and 598 have one an intro contract grants; the facts are stated by the handler
+for most values (`onceOnly` 5,049 of 5,175), by the contract for 96 `onceOnly` and 365 `illegal`
+values, and by the template for 4,501 `canBeShared` values.
 
 ### Factions, reputation and missions
 

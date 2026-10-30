@@ -8,6 +8,7 @@
 mod catalog_compression;
 mod catalog_contracts;
 mod catalog_contracts_cooldown;
+mod catalog_contracts_facts;
 mod catalog_contracts_standing;
 mod catalog_crafters;
 mod catalog_crafters_types;
@@ -52,6 +53,7 @@ mod crafting_depth;
 mod crafting_detail;
 mod crafting_detail_fixture;
 mod crafting_fixture;
+mod facts_fixture;
 mod flat_export;
 mod gear_fixture;
 mod harvest_fixture;

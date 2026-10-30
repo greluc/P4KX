@@ -5,6 +5,7 @@ use schemars::JsonSchema;
 use serde::Serialize;
 
 use crate::contract::{LocalisedText, every_field_required};
+use crate::contract_facts::ContractFacts;
 use crate::guid_text::CatalogGuid;
 use crate::mission_cooldown::CooldownLayer;
 
@@ -96,9 +97,12 @@ pub(crate) struct ContractEntry<'a> {
     /// The `abandonedCooldownTimeVariation`, as stored, in the unit of `personalCooldownTime`;
     /// `null` when absent.
     pub(crate) abandoned_cooldown_time_variation: Option<f32>,
+    /// The time to complete, buy-in, sharing, legality and availability facts of the contract.
+    #[serde(flatten)]
+    pub(crate) facts: ContractFacts,
 }
 
-/// The level at which a reputation prerequisite is stated.
+/// The level at which a prerequisite is stated.
 #[derive(Debug, Clone, Copy, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub(crate) enum StandingLevel {

@@ -1198,7 +1198,7 @@ type, attribute or game text shows it. The range (`personalCooldownTime` up to 2
 `abandonedCooldownTime` up to 60 on the `Career` handlers) fits minutes, 2880 being 48 hours, but
 that is a reading, not a fact of the Archive. On LIVE 4.10 all 5,175 entries state a cooldown.
 
-**Contract facts (ADR-0260).** `timeToComplete` and `buyInAmount` are numbers as stored. Each of
+**Contract facts (ADR-0263).** `timeToComplete` and `buyInAmount` are numbers as stored. Each of
 the other eight values is `{value, layer}`: the first level that states it, nearest first. A
 level states it through a boolean or integer parameter (`CanBeShared`, `Illegal`, `OnceOnly`,
 `MaxPlayersPerInstance`, `AvailableInPrison`, `CanReacceptAfterAbandoning`,

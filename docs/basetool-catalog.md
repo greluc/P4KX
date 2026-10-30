@@ -66,6 +66,7 @@ identifiers, short names or fact values. The catalog keeps the `description` fie
 Basetool's logged-in members; the Basetool keeps them, `displayType` and the contract texts away
 from third parties. Every such field carries
 `"x-gameText": true` in the JSON Schema, and no other field does; a test checks this.
+Every game text is trimmed of leading and trailing white space; see Texts.
 
 ```powershell
 p4kx catalog <archive> --out basetool-catalog.json [--filter <filter>] [--exported-at <seconds>]
@@ -1948,6 +1949,13 @@ The placeholder keys `@LOC_EMPTY`, `@LOC_PLACEHOLDER`, `@LOC_UNINITIALIZED` and 
 `PLACEHOLDER_KEYS` in `crates/p4kx-localization/src/lookup.rs`) mean "no text": the key stays,
 `en` and `de` are `null` even where the `global.ini` holds a text for them such as
 `<= PLACEHOLDER =>`, and they count as placeholders, neither resolved nor unresolved.
+
+Leading and trailing white space, line breaks included, is removed from every text, after the
+`\n` escapes are decoded (`display_text` in `crates/p4kx-localization/src/lookup.rs`), so
+`Antium Arms Moss Camo ` becomes `Antium Arms Moss Camo`. A text that is white space only counts as
+unresolved. White space inside a text stays. The trim is the catalog's and the window's alone: Record
+XML and JSON, `p4kx loc` and `dcb export --lang` keep the text byte for byte as the `global.ini`
+stores it. It does not change the catalog's determinism: the same Archive gives the same bytes.
 
 `p4kx catalog` counts the resolved, unresolved and placeholder texts per language in its summary.
 

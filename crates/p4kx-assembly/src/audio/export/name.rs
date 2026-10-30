@@ -14,7 +14,7 @@ const RESERVED: [&str; 24] = [
 /// Returns `text` as one safe file name stem: ASCII letters, digits, `_` and `-` are kept, every
 /// other character becomes `_`, a Windows device name gets a leading `_`, and an empty or
 /// overlong result is replaced or cut.
-pub(super) fn safe_stem(text: &str) -> String {
+pub(in crate::audio) fn safe_stem(text: &str) -> String {
     let mut stem: String = text
         .chars()
         .take(MAX_STEM_LEN)
@@ -38,13 +38,13 @@ pub(super) fn safe_stem(text: &str) -> String {
 /// The stems handed out so far, compared ignoring ASCII case so that the names stay distinct on a
 /// case-insensitive file system.
 #[derive(Debug, Default)]
-pub(super) struct StemSet {
+pub(in crate::audio) struct StemSet {
     taken: HashSet<String>,
 }
 
 impl StemSet {
     /// Returns `stem`, or `stem_2`, `stem_3`, … for the first one not handed out yet.
-    pub(super) fn unique(&mut self, stem: &str) -> String {
+    pub(in crate::audio) fn unique(&mut self, stem: &str) -> String {
         let mut candidate = stem.to_owned();
         let mut number = 2_u32;
         while !self.taken.insert(candidate.to_ascii_lowercase()) {

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
+use crate::screens_style::TestStyleEntry;
 pub use crate::screens_value::{TestColour, TestDim};
 use crate::{TestInstance, TestValue};
 
@@ -232,6 +233,12 @@ impl TestWidget {
     pub fn with(mut self, field: &'static str, value: TestValue) -> Self {
         self.extra.push((field, value));
         self
+    }
+
+    /// Gives the widget the inline style entry `entry`.
+    #[must_use]
+    pub fn inline_style(self, entry: &TestStyleEntry) -> Self {
+        self.with("inlineStyles", TestValue::Array(vec![entry.value()]))
     }
 
     pub(crate) fn value(&self) -> TestValue {

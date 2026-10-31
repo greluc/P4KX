@@ -34,13 +34,34 @@ fn decode_saturation(index: &PathIndex<'_>, entry: &str) -> Option<f32> {
 
 type Verdict = Arc<OnceLock<Option<bool>>>;
 
-/// The colour verdicts of the textures judged through a [`PathIndex`], by the position of the
-/// texture's Entry, so a map several materials or libraries name is decoded once, also when
-/// threads ask for it at the same time.
+/// The colour verdicts of the textures judged while reading models.
+///
+/// They are kept by the position of the texture's Entry, so a map several materials or libraries
+/// name is decoded once, also when threads ask for it at the same time.
+///
+/// The handle is opaque: pass it to [`crate::ModelSource`]. Positions are those of one Archive, so
+/// use one handle per Archive, shared by every read of it.
 #[derive(Debug, Default)]
-pub(crate) struct GreyVerdicts(Mutex<HashMap<usize, Verdict>>);
+pub struct TextureVerdicts(Mutex<HashMap<usize, Verdict>>);
 
-impl GreyVerdicts {
+impl TextureVerdicts {
+    /// Returns an empty cache.
+    #[must_use]
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Returns whether the texture a material file names as `file` is grey by the criterion of
+    /// [`p4kx_model::CompanionResolver::texture_is_grey`], or `None` when it cannot be judged. The
+    /// verdict is kept for the lifetime of the cache.
+    pub(crate) fn is_grey(&self, index: &PathIndex<'_>, file: &str) -> Option<bool> {
+        let entry = entry_path(file)?;
+        let position = index.position(&entry)?;
+        self.get_or_judge(position, || {
+            decode_saturation(index, &entry).map(|saturation| saturation <= MAX_GREY_SATURATION)
+        })
+    }
+
     /// Returns the verdict of `position`, judging it with `judge` on the first ask only.
     fn get_or_judge(&self, position: usize, judge: impl FnOnce() -> Option<bool>) -> Option<bool> {
         let cell = Arc::clone(
@@ -54,19 +75,6 @@ impl GreyVerdicts {
     }
 }
 
-impl PathIndex<'_> {
-    /// Returns whether the texture a material file names as `file` is grey by the criterion of
-    /// [`p4kx_model::CompanionResolver::texture_is_grey`], or `None` when it cannot be judged. The
-    /// verdict is kept for the lifetime of the index.
-    pub(crate) fn texture_is_grey(&self, file: &str) -> Option<bool> {
-        let entry = entry_path(file)?;
-        let position = self.position(&entry)?;
-        self.grey_verdicts().get_or_judge(position, || {
-            decode_saturation(self, &entry).map(|saturation| saturation <= MAX_GREY_SATURATION)
-        })
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use std::cell::Cell;
@@ -74,7 +82,7 @@ mod tests {
 
     use p4kx_testkit::{ArchiveBuilder, SplitDds, TestEntry, TestTextureFormat, test_key};
 
-    use super::GreyVerdicts;
+    use super::TextureVerdicts;
     use crate::{Archive, PathIndex};
 
     type TestResult = Result<(), Box<dyn Error>>;
@@ -109,7 +117,7 @@ mod tests {
             .entry(TestEntry::stored(ENTRY, dds(texels)))
             .write_to(&path)?;
         let archive = Archive::open_with_key(&path, Some(test_key()))?;
-        Ok(PathIndex::new(&archive).texture_is_grey(FILE))
+        Ok(TextureVerdicts::new().is_grey(&PathIndex::new(&archive), FILE))
     }
 
     #[test]
@@ -138,13 +146,14 @@ mod tests {
         let path = dir.path().join("Data.p4k");
         ArchiveBuilder::new().write_to(&path)?;
         let archive = Archive::open_with_key(&path, Some(test_key()))?;
-        assert_eq!(PathIndex::new(&archive).texture_is_grey(FILE), None);
+        let verdicts = TextureVerdicts::new();
+        assert_eq!(verdicts.is_grey(&PathIndex::new(&archive), FILE), None);
         Ok(())
     }
 
     #[test]
     fn a_verdict_is_judged_once_per_texture() {
-        let verdicts = GreyVerdicts::default();
+        let verdicts = TextureVerdicts::new();
         let judged = Cell::new(0);
         let judge = || {
             judged.set(judged.get() + 1);

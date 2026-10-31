@@ -12,6 +12,7 @@ use crate::chunk_source::MAX_CHUNK_FILE_LEN;
 use crate::entry_path::relative_path;
 use crate::path_index::PathIndex;
 use crate::sound::read_capped;
+use crate::texture_grey::TextureVerdicts;
 
 /// The largest `.mtl` file a model's material library is read from, in bytes.
 const MAX_MATERIAL_LEN: u64 = 16 << 20;
@@ -30,6 +31,7 @@ enum RefusedCompanion {
 pub(crate) struct ArchiveCompanions<'i, 'a> {
     pub(crate) index: &'i PathIndex<'a>,
     pub(crate) folder: &'i str,
+    pub(crate) verdicts: &'i TextureVerdicts,
 }
 
 impl CompanionResolver for ArchiveCompanions<'_, '_> {
@@ -60,7 +62,7 @@ impl CompanionResolver for ArchiveCompanions<'_, '_> {
     }
 
     fn texture_is_grey(&mut self, file: &str) -> Option<bool> {
-        self.index.texture_is_grey(file)
+        self.verdicts.is_grey(self.index, file)
     }
 }
 

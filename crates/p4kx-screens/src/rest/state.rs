@@ -7,6 +7,7 @@ use std::hash::{DefaultHasher, Hash, Hasher};
 use p4kx_dataforge::Guid;
 
 use super::Rest;
+use crate::style::GeometryModifiers;
 
 pub(super) const PARAMETER: &str = "ParamInput";
 pub(super) const STATE_TAG: &str = "StateTag";
@@ -22,6 +23,7 @@ pub(crate) struct AtRest {
     pub(super) canvases: HashMap<usize, Guid>,
     pub(super) typed: HashMap<usize, Vec<(String, Rest)>>,
     pub(super) state_tags: HashMap<usize, Vec<Guid>>,
+    pub(super) geometry: HashMap<usize, GeometryModifiers>,
     pub(super) left_out: Vec<(usize, String)>,
     pub(super) unknown: Vec<(usize, String, String)>,
 }
@@ -60,6 +62,17 @@ impl AtRest {
                 )]
                 let alpha = number.clamp(0.0, 1.0) as f32;
                 self.alpha.insert(widget, alpha);
+            }
+            (field, Rest::Num(number)) if GeometryModifiers::has_field(field) => {
+                #[expect(
+                    clippy::cast_possible_truncation,
+                    reason = "a layout number is held as f32 like the fields of a widget"
+                )]
+                let value = number as f32;
+                self.geometry
+                    .entry(widget)
+                    .or_default()
+                    .number(field, Some(value));
             }
             (field, value) if field.starts_with(PARAMETER) => {
                 let values = self.typed.entry(widget).or_default();
@@ -100,6 +113,12 @@ impl AtRest {
     /// Returns what the bindings make of the alpha of widget `widget`.
     pub(crate) fn alpha(&self, widget: usize) -> Option<f32> {
         self.alpha.get(&widget).copied()
+    }
+
+    /// Returns the number fields of the layout (size, anchor, pivot, scale, turn, position,
+    /// padding, margin, bounds, border radius) the bindings set on widget `widget`.
+    pub(crate) fn geometry(&self, widget: usize) -> Option<&GeometryModifiers> {
+        self.geometry.get(&widget)
     }
 
     /// Returns the canvas the bindings put in the canvas widget `widget`.

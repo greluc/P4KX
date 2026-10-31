@@ -106,6 +106,23 @@ pub(crate) fn applies(
             .any(|list| all(list, subject, above, tags, budget))
 }
 
+/// Like [`applies`], but tries only the selector lists of the entry for which `wanted` holds
+/// for the kind of the subject.
+pub(crate) fn applies_to_lists(
+    entry: &Entry,
+    wanted: fn(&[Condition], &str) -> bool,
+    (subject, above): (&Subject, &[Subject]),
+    tags: &TagPaths,
+    budget: &mut u64,
+) -> bool {
+    *budget = budget.saturating_sub(1);
+    entry
+        .lists
+        .iter()
+        .filter(|list| wanted(list, &subject.kind))
+        .any(|list| all(list, subject, above, tags, budget))
+}
+
 fn all(
     conditions: &[Condition],
     subject: &Subject,

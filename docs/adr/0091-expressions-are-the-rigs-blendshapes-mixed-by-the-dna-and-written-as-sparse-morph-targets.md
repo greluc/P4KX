@@ -96,6 +96,9 @@ StarBreaker uses to attenuate the blendshapes of the skin's `BShapesGpu` per ver
 here; the cells of slot 19 are used as they are, and the comparison with the `BShapesGpu` chunk
 (`0x57A38888`) of the head's `.skinm` is not made.
 
+Amendment (#589): the `BShapesGpu` layout and its comparison with the cells of the base head of the
+DNA rig are in ADR-0281; they agree within one quantisation step.
+
 ## Considered options
 
 - Dense morph target accessors: 27 MB for a head, eight times the sparse ones.

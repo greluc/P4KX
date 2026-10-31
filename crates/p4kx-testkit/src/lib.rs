@@ -48,6 +48,7 @@ mod entity_loadout;
 mod entity_module_sample;
 mod entity_mount;
 mod entity_npc;
+mod entity_npc_face;
 mod entity_npc_zones;
 mod entity_painted;
 mod entity_port;
@@ -108,6 +109,7 @@ mod screens_text;
 mod screens_text_schema;
 mod screens_value;
 mod screens_widget;
+mod skin_blendshapes;
 mod soc;
 mod soc_entities;
 mod split_dds;
@@ -181,6 +183,11 @@ pub use entity_npc::{
     NPC_BROW_SKIN, NPC_CLASS, NPC_EYES_MATERIAL, NPC_FILES_CLASS, NPC_HAIR_BLONDE, NPC_HAIR_BROWN,
     NPC_HEAD_CLASS, NPC_HEAD_FLAGS, NPC_HEAD_FOLDER, NPC_HEAD_MATERIAL, npc_entries,
 };
+pub use entity_npc_face::{
+    NPC_FACIAL_BONE, NPC_RIG_LOGIC, NPC_SKELETON_FILE, NPC_SKELETON_SHIFT, npc_face_entries,
+    npc_face_entries_posed_by, npc_face_entries_with, npc_face_logic, npc_face_shapes,
+    npc_face_skeleton,
+};
 pub use entity_npc_zones::{NPC_ZONE_CLASS, NpcZoneOptions, npc_zone_entries};
 pub use entity_painted::{
     PAINTED_FEMALE_PALETTE_GUID, PAINTED_LIBRARY_PALETTE, PAINTED_PALETTE_GUID, PAINTED_SUIT,
@@ -242,7 +249,7 @@ pub use reference_output::{
     REFERENCE_UNFORGE_VAR, REFERENCE_UNP4K_VAR, reference_scmdb_path, reference_ship_matrix_path,
     reference_starbreaker_path, reference_unforge_path, reference_unp4k_path,
 };
-pub use rig_logic::{RIG_LOGIC_CHUNK, TestRigLogic};
+pub use rig_logic::{RIG_LOGIC_CHUNK, TestLogicDeltas, TestLogicRecord, TestRigLogic};
 pub use screens::{SCREEN_COLOUR_SLOTS, screens_schema};
 pub use screens_canvas::{
     TestCanvas, movie_component, named_tag_record, screen_component, tag_record,
@@ -259,6 +266,7 @@ pub use screens_text::{
     text_localisation,
 };
 pub use screens_widget::{TestColour, TestDim, TestWidget};
+pub use skin_blendshapes::{BSHAPES_GPU_CHUNK, TestSkinBlendshapes, TestSkinEntry};
 pub use soc::{SOC_IDENTITY, TestObjectContainer, TestSoc};
 pub use soc_entities::{TestLight, TestLightState, TestSocEntity};
 pub use split_dds::{SplitDds, TestTextureFormat};

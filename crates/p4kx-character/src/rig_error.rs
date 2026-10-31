@@ -71,6 +71,9 @@ pub enum RigError {
         /// What is wrong.
         reason: &'static str,
     },
+    /// A `RigLogic` rig is used for the joint motion of its own head but carries no delta records.
+    #[error("the RigLogic rig carries no joint delta records")]
+    LogicWithoutDeltas,
     /// The mesh does not have the vertex count the rig was made for.
     #[error("the rig covers {rig} vertices, the mesh has {mesh}")]
     VertexCount {

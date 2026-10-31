@@ -7,8 +7,8 @@ use std::path::Path;
 
 use anyhow::Result;
 use p4kx_assembly::{
-    ArchiveFiles, BodyVariant, EntityLookupError, EntityNode, LoadoutFileError, LoadoutFiles,
-    LoadoutResolver, MAX_XML_LOADOUT_LEN, NpcHead, OutfitReport, Piece, Replaced,
+    ArchiveFiles, BodyVariant, EntityLookupError, EntityNode, Expressions, LoadoutFileError,
+    LoadoutFiles, LoadoutResolver, MAX_XML_LOADOUT_LEN, NpcHead, OutfitReport, Piece, Replaced,
 };
 use serde::Serialize;
 use thiserror::Error;
@@ -174,11 +174,13 @@ impl Selection<'_> {
 }
 
 impl<'a> Selection<'a> {
-    /// Finds the Entities of the `--piece`s and resolves the `--loadout`, if there is one.
+    /// Finds the Entities of the `--piece`s and resolves the `--loadout`, if there is one; the
+    /// head the Loadout gives its character is written with `expressions`.
     pub(crate) fn gather(
         resolver: &mut LoadoutResolver<'_>,
         files: &Files<'_>,
         (names, loadout): (&[String], Option<&'a str>),
+        expressions: &Expressions,
     ) -> Result<Self> {
         let given = names
             .iter()
@@ -194,7 +196,9 @@ impl<'a> Selection<'a> {
         };
         let found = resolve(resolver, files, text)?;
         let (mut pieces, replaced) = Piece::layer(resolver.worn(&found.tree), given);
-        let head = resolver.npc_head(&found.tree);
+        let head = resolver
+            .npc_head(&found.tree)
+            .map(|head| head.with_expressions(expressions));
         if let Some(head) = &head {
             pieces.extend(head.pieces().iter().cloned());
         }

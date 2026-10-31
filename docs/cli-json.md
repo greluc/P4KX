@@ -186,6 +186,7 @@ A **Node** is one Entity:
 | `docked_vehicle` | bool | The Entity is a docked vehicle: its `AttachDef.Type` starts with `NOITEM_Vehicle`, ignoring case, e.g. a snub craft in a ship's hangar; the root Entity is never marked, even if it is a vehicle |
 | `expanded` | bool | The Entity's ports are built; false only for a docked vehicle the resolver stopped at (the root Entity is always expanded) |
 | `issues` | array | Errors (without target) that do not stop the Entity: a part of its Loadout that cannot be read, an ambiguous class name, a vehicle implementation or Modification that is not read or applied in full, or the port limit |
+| `notes` | array | Only when not empty: notes in the form of `issues` that report no problem, as nothing was kept from being read. The only kind is `assortment_requirement` (the Requirement of a loadout assortment or of some of its groups names tags that only the game's spawn knows, so the Archive does not decide it; the assortment or group is used as if it applied; one note per assortment, ADR-0302) |
 | `vehicle` | Vehicle | Only for an Entity whose Record names a vehicle implementation that was read: the implementation with the Entity's Modification applied |
 | `landing_gear` | array | Only for an Entity whose `VehicleComponentParams.landingSystem` refers to a `VehicleLandingGearSystem` Record: its gears as objects with `bone`, `geometry` (the geometry path, empty when the Record gives none) and `mass` (kilograms or `null`) |
 | `ports` | array | One Port per port, see below for the order |
@@ -240,7 +241,8 @@ target: `reference` (the GUID) or `class_name`, the other `null`. The kinds are:
   could be read is still listed), `assortment` (a loadout assortment of a generated default
   Loadout is no assortment, names itself, directly or through another, or has a first alternative
   that is no Loadout; the other assortments still apply; a generated Loadout resolves to the
-  first alternative of each group of its assortments, ADR-0289), and `vehicle_implementation` (the implementation file is
+  first alternative of each group of its assortments, ADR-0289), and `vehicle_implementation` (the
+  implementation file is
   missing, corrupt or no `Vehicle` document, so `vehicle` is absent, or its Modification names a
   patch file that is missing (even when a fallback file is applied), corrupt, outside the implementation folder or too large to apply within the limits, a patch child or `id` that matches nothing in the base and has no base child of its name to replace, or no Modification of that name exists; the
   implementation without the patch is still listed). A landing system that refers to a Record that does not exist or cannot be read gives `dangling_reference` or `unreadable_record` among the issues.

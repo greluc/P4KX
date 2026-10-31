@@ -111,6 +111,7 @@ mod object_containers;
 mod outfit;
 mod outfit_read;
 mod palette;
+mod path_match;
 mod placement;
 mod plan;
 mod port;

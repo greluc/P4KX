@@ -36,6 +36,7 @@ mod cli_character;
 mod cli_chf;
 mod cli_chunks;
 mod cli_conflict;
+mod cli_convert;
 mod cli_coverage;
 mod cli_cryxml;
 mod cli_dcb;
@@ -57,6 +58,7 @@ mod cli_verify;
 mod cli_wwise;
 mod compare;
 mod compare_schema;
+mod convert;
 mod coverage;
 mod coverage_json;
 mod cryxml;
@@ -145,6 +147,7 @@ use clap::Parser;
 
 use crate::cli::{Cli, Command};
 
+#[expect(clippy::too_many_lines, reason = "one arm per command")]
 fn main() -> ExitCode {
     let cli = Cli::parse();
     let json = cli.json;
@@ -165,6 +168,7 @@ fn main() -> ExitCode {
         Command::List(args) => list::run(&args, json).map(success),
         Command::Search(args) => list::search(&args, json).map(success),
         Command::Extract(args) => extract::run(&args, json),
+        Command::Convert(args) => convert::run(&args, json),
         Command::Verify(args) => verify::run(&args, json),
         Command::Channels(args) => channels::run(&args, json).map(success),
         Command::Info(args) => info::run(&args, json).map(success),

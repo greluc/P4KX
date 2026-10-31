@@ -171,6 +171,15 @@ impl FolderSource {
             .collect()
     }
 
+    /// Returns how many files `filter` matches.
+    #[must_use]
+    pub fn count_matching(&self, filter: &Filter) -> usize {
+        self.files
+            .par_iter()
+            .filter(|file| filter.matches(&file.path))
+            .count()
+    }
+
     /// Returns the failures of the files and folders that were not listed.
     pub(crate) fn rejected_failures(&self) -> impl Iterator<Item = EntryFailure> {
         self.rejected.iter().map(|(path, reason)| EntryFailure {

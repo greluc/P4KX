@@ -171,6 +171,9 @@ fn run(
         });
     let mut report = report(ended, options.convert);
     report.records = records;
+    report.records_entry = dataforge
+        .and_then(|index| entries.get(index))
+        .map(|entry| entry.path().to_owned());
     report.archive_changed = options.watch.is_some_and(|watch| watch.check().is_err());
     report
 }

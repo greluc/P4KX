@@ -173,6 +173,7 @@ pub struct ExtractionReport {
     pub(crate) not_converted: usize,
     pub(crate) archive_changed: bool,
     pub(crate) records: Option<RecordExportReport>,
+    pub(crate) records_entry: Option<String>,
 }
 
 impl ExtractionReport {
@@ -236,6 +237,13 @@ impl ExtractionReport {
     #[must_use]
     pub const fn archive_changed(&self) -> bool {
         self.archive_changed
+    }
+
+    /// Returns the path of the DataForge Entry whose Records a Conversion wrote, or `None` when
+    /// none was converted.
+    #[must_use]
+    pub fn records_entry(&self) -> Option<&str> {
+        self.records_entry.as_deref()
     }
 
     /// Returns the outcome of the Records a Conversion wrote for the DataForge Entry, or `None`

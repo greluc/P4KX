@@ -26,6 +26,8 @@ pub(crate) struct ReportJson<'a> {
     #[serde(skip_serializing_if = "Option::is_none")]
     unconverted: Option<Vec<FailureJson<'a>>>,
     cancelled: &'a [String],
+    #[serde(skip_serializing_if = "is_zero")]
+    not_converted: usize,
     archive_changed: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     records: Option<RecordsJson<'a>>,
@@ -65,6 +67,7 @@ pub(crate) fn report_json<'a>(
             .converted()
             .map(|_| failures_json(report.unconverted(), false)),
         cancelled: report.cancelled(),
+        not_converted: report.not_converted(),
         archive_changed: report.archive_changed(),
         records: report.records().map(|records| RecordsJson {
             exported: records.written(),
@@ -80,6 +83,14 @@ pub(crate) fn report_json<'a>(
             records_with_errors: records.records_with_errors(),
         }),
     }
+}
+
+#[expect(
+    clippy::trivially_copy_pass_by_ref,
+    reason = "serde passes a reference"
+)]
+const fn is_zero(count: &usize) -> bool {
+    *count == 0
 }
 
 fn failures_json(failures: &[EntryFailure], without_mismatches: bool) -> Vec<FailureJson<'_>> {
@@ -141,9 +152,14 @@ pub(crate) fn print_report(
     } else {
         (report.failures().len(), String::new())
     };
+    let left_out = match report.not_converted() {
+        0 => String::new(),
+        count => format!(", left out {count} without a conversion"),
+    };
     writeln!(
         out,
-        "extracted {}{converted}, skipped {}, failed {failed}{mismatches}, cancelled {} into {}",
+        "extracted {}{converted}, skipped {}, failed {failed}{mismatches}, cancelled {}{left_out} \
+         into {}",
         report.extracted(),
         report.skipped().len(),
         report.cancelled().len(),

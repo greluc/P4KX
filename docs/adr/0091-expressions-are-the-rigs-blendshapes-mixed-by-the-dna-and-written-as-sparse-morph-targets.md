@@ -19,6 +19,11 @@ each once, joined by `*`. The numbers of the blendshapes in slot 19 of the DNA r
 morphs) run over the controls and then the correctives, in this order; the reader refuses a skin
 whose names do not count as many blendshapes as the rig.
 
+The `u64` in front of the rig is checked against the chunk: it must not exceed the bytes that
+follow it, and at most 7 bytes of the chunk's 8-byte alignment padding may remain behind the rig,
+which is then cut to the declared length. The chunk is read once per head, for the morph targets
+and for the face joints, and the parsed names stay with the head part for the animation.
+
 ## The Character's blendshape
 
 Slot 19 holds, per stock head and blendshape, the vertices the blendshape moves on that head. A
@@ -43,10 +48,9 @@ above 65535 vertices) and their moves, converted to Y up like the positions. The
 vertices has 399 targets that move 221654 vertices together; they cost 3.3 MB (the GLB grows from
 1.58 to 4.90 MB), dense they would cost 26.7 MB. The accessor's `min` and `max` are those of the dense data, which includes the 0 of the
 vertices the target leaves. Every primitive of the mesh lists the same accessors, `mesh.weights`
-are all 0 and `mesh.extras.targetNames` holds the names. The typed `gltf-json` document has no
-`extras` (the feature is off in the whole crate, and `Void::default()` is written at some hundred
-places), so the JSON is serialised to a value once, when a mesh has targets, and the names are put
-in. The morphs deform the mesh before the skin does, so they combine with the body skeleton, and
+are all 0 and `mesh.extras.targetNames` holds the names; the names are written into the typed
+`extras` of the mesh when the mesh is pushed (the `extras` feature of `gltf-json` is on), so they
+belong to the mesh they are made for. The morphs deform the mesh before the skin does, so they combine with the body skeleton, and
 `NORMAL` and `TANGENT` deltas are not written (the viewers recompute the shading and the blendshapes
 move vertices by millimetres). A viewer that supports sparse accessors, which glTF 2.0 requires,
 shows them; the first eight targets are the ones a viewer must support, the rest may be ignored by a
@@ -56,6 +60,13 @@ The testkit checker validates sparse accessors (bounds and alignment of both vie
 stride on them, ascending indices below the count, exact `min` and `max` over the dense data) and
 morph targets (the same number on every primitive, a `POSITION` delta of the vertex count with
 `min` and `max`, default weights and target names that match).
+
+The Khronos glTF-Validator runs as the CI job `glb-validator`: the package `gltf-validator` at an
+exact version from a lockfile with its integrity hash (`.github/glb-validator`) validates the GLBs
+that the test `the_synthetic_glbs_are_written_for_the_validator` writes from synthetic fixtures (a
+head with morph targets, a skinned mesh, a mesh with per-primitive `COLOR_0`); any error fails the
+job and warnings are listed. Real game data is never sent to CI, so the real default-head GLBs are
+not validated there; they come from the same writer code paths as the synthetic head.
 
 ## What the export does
 

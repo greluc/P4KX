@@ -11,6 +11,7 @@ mod catalog_contracts_cooldown;
 mod catalog_contracts_cooldown_overrides;
 mod catalog_contracts_description;
 mod catalog_contracts_facts;
+mod catalog_contracts_gaps;
 mod catalog_contracts_standing;
 mod catalog_crafters;
 mod catalog_crafters_types;

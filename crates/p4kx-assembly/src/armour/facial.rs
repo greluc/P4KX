@@ -15,6 +15,8 @@ pub(super) struct Facial {
     pub(super) offsets: Vec<[f32; 3]>,
     /// The bone of the skin each joint of the rig is, in the rig's order.
     pub(super) joints: Vec<usize>,
+    /// The rig logic of the skin, which names the controls and blendshapes.
+    pub(super) logic: RigLogic,
 }
 
 /// Matches the joints of the rig, which `logic` lists by the CRC-32 of their names, to the bones of
@@ -53,17 +55,22 @@ pub(super) fn facial(
         }
         joints.push(bone.unwrap_or(usize::MAX));
     }
-    Ok(Facial { offsets, joints })
+    Ok(Facial {
+        offsets,
+        joints,
+        logic: logic.clone(),
+    })
 }
 
 /// How a head part of an [`Armour`](super::Armour) is tied to the rig that animates it.
 #[derive(Debug, Clone)]
 pub(crate) struct FaceLink {
-    pub(crate) skin: String,
     pub(crate) rig: String,
     pub(crate) dna: Dna,
     pub(crate) joints: Vec<usize>,
     pub(crate) blendshapes: Vec<usize>,
+    /// The rig logic of the head skin, read once when the head is shaped.
+    pub(crate) logic: RigLogic,
 }
 
 impl FaceLink {

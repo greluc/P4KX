@@ -15,7 +15,7 @@ use crate::rig::{body, piece_model, skeleton_model};
 
 type TestResult = Result<(), Box<dyn Error>>;
 
-fn target(name: &str, moves: &[(u32, [f32; 3])]) -> MorphTarget {
+pub(crate) fn target(name: &str, moves: &[(u32, [f32; 3])]) -> MorphTarget {
     MorphTarget {
         name: name.to_owned(),
         vertices: moves.iter().map(|&(vertex, _)| vertex).collect(),
@@ -123,6 +123,32 @@ fn targets_that_do_not_fit_the_mesh_are_left_out() -> TestResult {
 }
 
 #[test]
+fn target_names_follow_the_mesh_that_has_the_targets() -> TestResult {
+    let body = skeleton_model(&body())?;
+    let first = piece_model(&TestModel::two_bone_skin())?;
+    let second = piece_model(&TestModel::two_bone_skin())?;
+    let materials = MaterialStatus::Unnamed;
+    let targets = [target("smile", &[(2, [0.01, 0.02, 0.03])])];
+    let pieces = [
+        RigPiece::new("plain", &first, &materials),
+        RigPiece::new("head", &second, &materials).with_morphs(&targets),
+    ];
+    let mut bytes = Vec::new();
+    write_rigged_glb(&body.bones, &pieces, &GlbOptions::default(), &mut bytes)?;
+    let glb = check_glb(&bytes)?;
+
+    let names: Vec<_> = glb
+        .document
+        .meshes()
+        .map(|mesh| glb.target_names(mesh.index()))
+        .collect();
+    assert_eq!(names.len(), 2);
+    assert_eq!(names[0], None);
+    assert_eq!(names[1], Some(vec!["smile".to_owned()]));
+    Ok(())
+}
+
+#[test]
 fn a_piece_without_targets_has_no_target_names_or_weights() -> TestResult {
     let (glb, summary) = write(&[])?;
 
@@ -133,7 +159,7 @@ fn a_piece_without_targets_has_no_target_names_or_weights() -> TestResult {
     Ok(())
 }
 
-fn glb_bytes(targets: &[MorphTarget]) -> Result<Vec<u8>, Box<dyn Error>> {
+pub(crate) fn glb_bytes(targets: &[MorphTarget]) -> Result<Vec<u8>, Box<dyn Error>> {
     let body = skeleton_model(&body())?;
     let piece = piece_model(&TestModel::two_bone_skin())?;
     let materials = MaterialStatus::Unnamed;

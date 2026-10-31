@@ -31,7 +31,7 @@ impl<'a> Tracker<'a> {
             on_progress,
             progress: Mutex::new(Progress {
                 entries_total: entries.len(),
-                bytes_total: entries.iter().map(|entry| entry.uncompressed_size()).sum(),
+                bytes_total: entries.iter().map(SourceEntry::uncompressed_size).sum(),
                 ..Progress::default()
             }),
             folders: FolderCache::default(),

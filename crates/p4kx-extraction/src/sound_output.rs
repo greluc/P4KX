@@ -126,6 +126,7 @@ mod tests {
             target: &target,
             policy: ConflictPolicy::Overwrite,
             convert: true,
+            copy_other: true,
             textures: TextureConversion::default(),
             audio: AudioConversion::Wav,
             verify: false,

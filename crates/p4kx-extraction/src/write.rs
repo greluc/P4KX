@@ -28,6 +28,8 @@ pub(crate) enum Outcome {
     Written,
     Converted,
     Kept,
+    /// Left out because a run that copies only converted files found nothing to convert.
+    NotConverted,
     Cancelled,
     Failed(ExtractionError),
 }
@@ -71,6 +73,9 @@ pub(crate) struct EntryWriter<'a> {
     pub(crate) target: &'a Path,
     pub(crate) policy: ConflictPolicy,
     pub(crate) convert: bool,
+    /// Whether a file that Conversion leaves unchanged is written too; without it such a file is
+    /// [`Outcome::NotConverted`].
+    pub(crate) copy_other: bool,
     pub(crate) textures: TextureConversion,
     pub(crate) audio: AudioConversion,
     pub(crate) verify: bool,
@@ -128,17 +133,43 @@ impl EntryWriter<'_> {
         if self.tracker.should_stop() {
             return Ok(Outcome::Cancelled);
         }
+        let mut prefix = [0; PEEK_LEN];
+        let sniffed = if convert && !self.copy_other {
+            let Some((reader, count)) = self.open_sniffed(entry, &mut prefix, written)? else {
+                return Ok(Outcome::Cancelled);
+            };
+            if !is_cryxml(prefix.get(..count).unwrap_or_default()) {
+                return Ok(Outcome::NotConverted);
+            }
+            Some((reader, count))
+        } else {
+            None
+        };
+        self.write_file(entry, buffers, (convert, sniffed), (&mut prefix, written))
+    }
+
+    /// Writes `entry` to its destination: converted when it is `CryXml` and `convert` is set,
+    /// otherwise unchanged. `sniffed` is the reader of the Entry and the length of the prefix
+    /// already read into `prefix`, when the caller looked at it before.
+    fn write_file(
+        &self,
+        entry: &SourceEntry<'_>,
+        buffers: &mut Buffers,
+        (convert, mut sniffed): (bool, Option<(SourceReader<'_>, usize)>),
+        (prefix, written): (&mut [u8; PEEK_LEN], &mut u64),
+    ) -> Result<Outcome, ExtractionError> {
         let destination = self.destination(entry)?;
         if destination.existing.is_some() && self.policy == ConflictPolicy::Skip {
             return Ok(Outcome::Kept);
         }
-        let mut prefix = [0; PEEK_LEN];
-        let mut peeked = 0;
-        let opened = if convert {
-            let mut reader = self.open_entry(entry)?;
-            let Some(count) = self.peek(&mut reader, &mut prefix, written)? else {
+        if convert && sniffed.is_none() {
+            let Some(opened) = self.open_sniffed(entry, prefix, written)? else {
                 return Ok(Outcome::Cancelled);
             };
+            sniffed = Some(opened);
+        }
+        let mut peeked = 0;
+        let opened = if let Some((mut reader, count)) = sniffed {
             peeked = count;
             let start = prefix.get(..peeked).unwrap_or_default();
             if is_cryxml(start) {
@@ -174,6 +205,20 @@ impl EntryWriter<'_> {
                 )
             });
         self.put_in_place(&temporary, &destination.file, copied, Outcome::Written)
+    }
+
+    /// Opens `entry` and reads its first bytes into `prefix`; returns the reader and how many
+    /// bytes were read, or `None` once the run is to stop.
+    fn open_sniffed(
+        &self,
+        entry: &SourceEntry<'_>,
+        prefix: &mut [u8; PEEK_LEN],
+        written: &mut u64,
+    ) -> Result<Option<(SourceReader<'_>, usize)>, ExtractionError> {
+        let mut reader = self.open_entry(entry)?;
+        Ok(self
+            .peek(&mut reader, prefix, written)?
+            .map(|count| (reader, count)))
     }
 
     /// Returns the checksum `decide` compares an existing file at `destination` with: the one the

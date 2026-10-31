@@ -98,6 +98,9 @@ pub enum ExtractionError {
     /// could not be started; nothing is written.
     #[error("cannot start the worker threads: {0}")]
     ThreadPool(String),
+    /// The file of an input folder cannot be read as an Entry.
+    #[error(transparent)]
+    Folder(#[from] crate::FolderFileError),
 }
 
 impl ExtractionError {
@@ -167,6 +170,7 @@ pub struct ExtractionReport {
     pub(crate) failures: Vec<EntryFailure>,
     pub(crate) unconverted: Vec<EntryFailure>,
     pub(crate) cancelled: Vec<String>,
+    pub(crate) not_converted: usize,
     pub(crate) archive_changed: bool,
     pub(crate) records: Option<RecordExportReport>,
 }
@@ -213,6 +217,13 @@ impl ExtractionReport {
     #[must_use]
     pub fn unconverted(&self) -> &[EntryFailure] {
         &self.unconverted
+    }
+
+    /// Returns the number of files a run that copies only converted files left out because
+    /// Conversion has nothing to do with them.
+    #[must_use]
+    pub const fn not_converted(&self) -> usize {
+        self.not_converted
     }
 
     /// Returns the paths of Entries not written because the run was cancelled.

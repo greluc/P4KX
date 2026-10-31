@@ -81,18 +81,21 @@ pub fn extract(
         .iter()
         .map(|entry| SourceEntry::of_archive(entry))
         .collect();
-    extract_files(archive, &files, target, options)
+    extract_files(archive, &files, target, options, true)
 }
 
-/// Runs an Extraction of `entries` of `source` like [`extract`].
+/// Runs an Extraction of `entries` of `source` like [`extract`]; with `copy_other` off, a file
+/// that Conversion leaves unchanged is not written but counted in
+/// [`ExtractionReport::not_converted`].
 pub(crate) fn extract_files(
     source: &dyn EntrySource,
     entries: &[SourceEntry<'_>],
     target: &Path,
     options: &ExtractOptions<'_>,
+    copy_other: bool,
 ) -> ExtractionReport {
     let Some(threads) = options.threads else {
-        return run(source, entries, target, options, None);
+        return run(source, entries, target, options, None, copy_other);
     };
     let limit = std::thread::available_parallelism().map_or(1, std::num::NonZero::get);
     let pool = rayon::ThreadPoolBuilder::new()
@@ -100,7 +103,7 @@ pub(crate) fn extract_files(
         .thread_name(|number| format!("p4kx-extract-{number}"))
         .build();
     match pool {
-        Ok(pool) => run(source, entries, target, options, Some(&pool)),
+        Ok(pool) => run(source, entries, target, options, Some(&pool), copy_other),
         Err(error) => ExtractionReport {
             failures: entries
                 .iter()
@@ -121,6 +124,7 @@ fn run(
     target: &Path,
     options: &ExtractOptions<'_>,
     pool: Option<&rayon::ThreadPool>,
+    copy_other: bool,
 ) -> ExtractionReport {
     if let Some(report) = not_started(entries, target, options) {
         return report;
@@ -132,6 +136,7 @@ fn run(
         target: &absolute,
         policy: options.policy,
         convert: options.convert,
+        copy_other,
         textures: options.textures,
         audio: options.audio,
         verify: options.verify,
@@ -290,6 +295,7 @@ fn report(ended: Vec<Ended>, convert: bool) -> ExtractionReport {
                 report.converted = report.converted.map(|count| count + 1);
             }
             Outcome::Kept => report.skipped.push(path),
+            Outcome::NotConverted => report.not_converted += 1,
             Outcome::Cancelled => report.cancelled.push(path),
             Outcome::Failed(error) => report.failures.push(EntryFailure { path, error }),
         }

@@ -16,6 +16,7 @@ mod entry_tree;
 mod exclusion;
 mod extraction;
 mod filter;
+mod folder_conversion;
 mod folder_links;
 mod installation;
 mod language_texts;

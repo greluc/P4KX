@@ -1,7 +1,8 @@
 # Screens enter the canvas a style or binding picks and leave render targets undrawn
 
 Decided for issue #912. Amends ADR-0110 (`CanvasReferenceRecord` is no longer out of scope) and
-ADR-0259 (namespaces).
+ADR-0259 (namespaces). ADR-0287 evaluates the state tags that this one leaves out, so the MFD it
+leaves empty draws.
 
 ## Context
 

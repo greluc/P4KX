@@ -8,5 +8,6 @@ mod real_canvas_reference;
 mod real_images;
 mod real_radar;
 mod real_screens;
+mod real_state_tags;
 mod real_text;
 mod real_variables;

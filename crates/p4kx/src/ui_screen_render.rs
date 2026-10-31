@@ -188,6 +188,9 @@ fn print_report(options: &Options<'_>, still: &Still, skipped: &[SkippedJson]) -
     for canvas in &report.missing_canvases {
         writeln!(stderr, "canvas not drawn: {canvas}")?;
     }
+    for texture in &report.missing_textures {
+        writeln!(stderr, "texture not in the Archive: {texture}")?;
+    }
     if report.truncated {
         writeln!(
             stderr,

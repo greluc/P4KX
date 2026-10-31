@@ -145,7 +145,8 @@ impl Walk<'_, '_, '_, '_> {
         parent: Area,
         depth: usize,
     ) -> [Option<f32>; 2] {
-        let subject = self.subject_of(probe.canvas, probe.widget, (probe.position, probe.kids));
+        let place = (probe.position, probe.kids);
+        let subject = self.subject_of(probe.canvas, (probe.index, probe.widget), place);
         let place = self.position_key(probe.position);
         self.push_chain(&(&subject.kind, &subject.tags, place));
         self.above.push(subject);

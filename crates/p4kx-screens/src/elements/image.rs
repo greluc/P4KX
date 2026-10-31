@@ -77,6 +77,7 @@ pub(super) fn draw(
         Ok(texture) => texture,
         Err(why) => {
             cx.report.images_left_out += 1;
+            cx.report.missing_texture(&path);
             cx.report.note(
                 &widget.type_name,
                 "texture missing or unreadable",

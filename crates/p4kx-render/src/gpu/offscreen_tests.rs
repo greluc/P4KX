@@ -18,7 +18,7 @@ const SIZE: [u32; 2] = [96, 64];
 )]
 pub(super) fn open(test: &str) -> Option<Offscreen> {
     arm(test);
-    match Offscreen::new(Adapters::Best) {
+    match Offscreen::new(Adapters::Software) {
         Ok(offscreen) => Some(offscreen),
         Err(error) => {
             assert!(

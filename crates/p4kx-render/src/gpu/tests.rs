@@ -12,7 +12,10 @@ const WAIT: Duration = Duration::from_secs(60);
 fn device_limited_to(max_buffer_size: u64) -> Option<(wgpu::Device, wgpu::Queue)> {
     let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
     let adapter = block_on_for(
-        instance.request_adapter(&wgpu::RequestAdapterOptions::default()),
+        instance.request_adapter(&wgpu::RequestAdapterOptions {
+            force_fallback_adapter: true,
+            ..wgpu::RequestAdapterOptions::default()
+        }),
         WAIT,
     )
     .and_then(Result::ok)?;

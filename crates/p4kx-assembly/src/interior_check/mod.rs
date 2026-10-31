@@ -5,10 +5,10 @@
 //!
 //! [`InteriorFit::new`] measures every container of an [`EntityInterior`] in the world: the box
 //! around the static models it places and the box of each room model among them (a hardpoint is
-//! held by a single room model, not by the union), the functional hardpoints of the Assembly (controller,
-//! seat, cargo grid, door; told by the item type of the Entity at the port, never by name) inside
-//! and outside it, and how far its animated parts lie from it. [`InteriorFit::misfits`] applies
-//! the rules a correct placement keeps.
+//! held by a single room model, not by the union), the functional hardpoints of the Assembly
+//! (controller, seat, cargo grid, door; told by the item type of the Entity at the port, never by
+//! name) inside and outside it, and how far its animated parts lie from it.
+//! [`InteriorFit::misfits`] applies the rules a correct placement keeps.
 
 mod bounds;
 mod fit;
@@ -18,7 +18,7 @@ mod misfit;
 pub use bounds::WorldBox;
 pub use fit::{AnimatedPart, ContainerFit, HardpointFit, ROOM_VOLUME_SHARE};
 pub use hardpoint::{Hardpoint, HardpointKind};
-pub use misfit::Misfit;
+pub use misfit::{HULL_SLACK, Misfit};
 
 use p4kx_model::Transform;
 
@@ -30,6 +30,7 @@ pub struct InteriorFit {
     containers: Vec<ContainerFit>,
     hardpoints: Vec<HardpointFit>,
     unplaced: Vec<String>,
+    hull: Option<WorldBox>,
 }
 
 impl InteriorFit {
@@ -71,7 +72,25 @@ impl InteriorFit {
                 None => unplaced.push(container.reference().file().to_owned()),
             }
         }
-        Self::from_measured(containers, hardpoints, unplaced)
+        let mut hull = None;
+        if let Some(root) = assembly.parts().first()
+            && let Some(model) = root.model()
+        {
+            WorldBox::grow_with_model(&mut hull, model, root.world());
+        }
+        Self::from_measured(containers, hardpoints, unplaced).with_hull(hull)
+    }
+
+    pub(crate) const fn with_hull(mut self, hull: Option<WorldBox>) -> Self {
+        self.hull = hull;
+        self
+    }
+
+    /// Returns the box around the root Entity's model in the world, or `None` when it has no
+    /// readable model.
+    #[must_use]
+    pub const fn hull(&self) -> Option<&WorldBox> {
+        self.hull.as_ref()
     }
 
     pub(crate) fn from_measured(
@@ -87,6 +106,7 @@ impl InteriorFit {
             containers,
             hardpoints,
             unplaced,
+            hull: None,
         }
     }
 

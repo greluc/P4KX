@@ -23,6 +23,8 @@ fn fit(rooms: &[Option<WorldBox>], hardpoints: Vec<Hardpoint>) -> InteriorFit {
             ContainerFit {
                 file: "room.socpak".to_owned(),
                 room: *room,
+                owner: 0,
+                models: rooms.clone(),
                 rooms,
                 inside,
                 outside,
@@ -56,62 +58,62 @@ fn a_displaced_cockpit_room_splits_the_controller_and_seat_from_every_room() {
 
     assert_eq!(
         misfits,
-        [
-            Misfit::CockpitSplit {
-                controller: 0,
-                seat: 1
-            },
-            Misfit::SeatOutsideRooms { seat: 1 },
-            Misfit::RoomsApart { container: 0 },
-            Misfit::RoomsApart { container: 1 }
-        ]
+        [Misfit::CockpitSplit {
+            controller: 0,
+            seat: 1
+        }]
     );
 }
 
+/// The hull of the synthetic ships: x from -3 to 3, y from -20 to 14, z from -1 to 5.
+fn hull() -> Option<WorldBox> {
+    WorldBox::around([[-3.0, -20.0, -1.0], [3.0, 14.0, 5.0]])
+}
+
+fn outside_hull(fit: &InteriorFit) -> Vec<usize> {
+    fit.misfits(TOLERANCE)
+        .into_iter()
+        .filter_map(|misfit| match misfit {
+            Misfit::RoomOutsideHull { container } => Some(container),
+            _ => None,
+        })
+        .collect()
+}
+
 #[test]
-fn a_room_moved_along_the_hull_away_from_its_neighbours_is_apart_though_it_holds_its_hardpoints() {
-    let gap = fit(
-        &[room_at(10.0), room_at(14.9)],
+fn a_room_moved_out_of_the_hull_is_a_misfit_though_it_holds_its_hardpoints() {
+    let hardpoints = || {
         vec![
-            hardpoint(HardpointKind::Controller, [0.0, 10.0, 1.0]),
-            hardpoint(HardpointKind::Seat, [0.0, 10.5, 1.0]),
-        ],
-    );
-
-    assert_eq!(
-        gap.misfits(TOLERANCE),
-        [
-            Misfit::RoomsApart { container: 0 },
-            Misfit::RoomsApart { container: 1 }
+            hardpoint(HardpointKind::Controller, [0.0, 14.8, 1.0]),
+            hardpoint(HardpointKind::Seat, [0.0, 15.3, 1.0]),
         ]
-    );
-    assert_eq!(gap.misfits(1.0), []);
+    };
+
+    let beyond = fit(&[room_at(0.0), room_at(15.0)], hardpoints()).with_hull(hull());
+    let within_slack = fit(&[room_at(0.0), room_at(12.5)], hardpoints()).with_hull(hull());
+    let no_hull = fit(&[room_at(0.0), room_at(15.0)], hardpoints());
+
+    assert_eq!(outside_hull(&beyond), [1]);
+    assert_eq!(outside_hull(&within_slack), Vec::<usize>::new());
+    assert_eq!(outside_hull(&no_hull), Vec::<usize>::new());
 }
 
 #[test]
-fn a_chain_of_rooms_is_not_apart_and_a_lone_room_is_not_either() {
-    let chain = fit(&[room_at(0.0), room_at(4.0), room_at(8.0)], Vec::new());
-    let lone = fit(&[room_at(0.0), None], Vec::new());
+fn a_room_without_room_models_cannot_protrude() {
+    let empty = fit(&[room_at(0.0), None], Vec::new()).with_hull(hull());
 
-    assert_eq!(chain.misfits(TOLERANCE), []);
-    assert_eq!(lone.misfits(TOLERANCE), []);
+    assert_eq!(outside_hull(&empty), Vec::<usize>::new());
 }
 
 #[test]
-fn a_seat_beyond_the_room_it_belongs_to_is_a_misfit_though_another_seat_is_nearer_the_controller() {
-    let moved = fit(
-        &[room_at(10.0)],
-        vec![
-            hardpoint(HardpointKind::Controller, [0.0, 10.0, 1.0]),
-            hardpoint(HardpointKind::Seat, [0.0, 9.0, 1.0]),
-            hardpoint(HardpointKind::Seat, [0.0, 14.0, 1.0]),
-        ],
-    );
+fn a_room_of_an_attached_entity_may_lie_outside_the_hull() {
+    let rooms = [room_at(0.0), room_at(30.0)];
+    let mut docked = fit(&rooms, Vec::new()).with_hull(hull());
+    let own = fit(&rooms, Vec::new()).with_hull(hull());
+    docked.containers[1].owner = 3;
 
-    assert_eq!(
-        moved.misfits(TOLERANCE),
-        [Misfit::SeatOutsideRooms { seat: 2 }]
-    );
+    assert_eq!(outside_hull(&docked), Vec::<usize>::new());
+    assert_eq!(outside_hull(&own), [1]);
 }
 
 #[test]
@@ -174,7 +176,7 @@ fn the_tolerance_decides_how_far_outside_a_box_still_counts() {
     );
 
     assert_eq!(near.misfits(TOLERANCE), []);
-    assert_eq!(near.misfits(0.1).len(), 2);
+    assert_eq!(near.misfits(0.1).len(), 1);
 }
 
 #[test]
@@ -203,7 +205,7 @@ fn a_container_without_a_room_box_holds_nothing() {
         ],
     );
 
-    assert_eq!(empty.misfits(f32::MAX).len(), 2);
+    assert_eq!(empty.misfits(f32::MAX).len(), 1);
 }
 
 #[test]

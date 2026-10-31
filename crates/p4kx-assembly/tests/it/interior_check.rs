@@ -69,9 +69,7 @@ fn a_cockpit_room_moved_away_leaves_the_seat_and_controller_outside_every_room()
         fit.misfits(TOLERANCE).as_slice(),
         [
             Misfit::CockpitSplit { .. },
-            Misfit::SeatOutsideRooms { .. },
-            Misfit::RoomsApart { container: 0 },
-            Misfit::RoomsApart { container: 1 }
+            Misfit::RoomOutsideHull { container: 0 }
         ]
     ));
     Ok(())

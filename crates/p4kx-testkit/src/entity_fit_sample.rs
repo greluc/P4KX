@@ -23,6 +23,13 @@ const IDENTITY: [[f32; 4]; 3] = [
     [0.0, 0.0, 1.0, 0.0],
 ];
 
+/// The hull's mesh: the 4 m cube stretched tenfold along y, so its box spans y from -20 to 20.
+const LONG: [[f32; 4]; 3] = [
+    [1.0, 0.0, 0.0, 0.0],
+    [0.0, 10.0, 0.0, 0.0],
+    [0.0, 0.0, 1.0, 0.0],
+];
+
 const fn at(x: f32, y: f32, z: f32) -> [[f32; 4]; 3] {
     [[1.0, 0.0, 0.0, x], [0.0, 1.0, 0.0, y], [0.0, 0.0, 1.0, z]]
 }
@@ -41,7 +48,7 @@ fn node(name: &str, parent: Option<u16>, local: [[f32; 4]; 3], kind: u16) -> Tes
 fn hull() -> TestModel {
     TestModel::cube().with_nodes(vec![
         node("hull", None, IDENTITY, 2),
-        node("hull_mesh", Some(0), IDENTITY, 0),
+        node("hull_mesh", Some(0), LONG, 0),
         node("hp_cockpit", Some(0), at(0.0, 10.0, 0.0), 2),
         node("hp_cargo", Some(0), at(0.0, 6.0, 0.0), 2),
         node("hp_stray", Some(0), at(0.0, 50.0, 0.0), 2),

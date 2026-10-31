@@ -45,20 +45,23 @@ impl AnimatedPart {
         self.position
     }
 
-    /// Returns the distance in metres from the part's origin to the nearest room model's box of
-    /// its container, 0 inside; `None` when the container has no room model or the position is
-    /// not finite.
+    /// Returns the distance in metres from the part's origin to the nearest static model's box of
+    /// its container, 0 inside; `None` when the container has no readable static model or the
+    /// position is not finite.
     #[must_use]
     pub const fn distance(&self) -> Option<f32> {
         self.distance
     }
 }
 
-/// One container of an Interior measured: the box of its room and which hardpoints lie in it.
+/// One container of an Interior measured: the boxes of its static models and which hardpoints lie
+/// in them.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ContainerFit {
     pub(crate) file: String,
+    pub(crate) owner: usize,
     pub(crate) room: Option<WorldBox>,
+    pub(crate) models: Vec<WorldBox>,
     pub(crate) rooms: Vec<WorldBox>,
     pub(crate) inside: Vec<usize>,
     pub(crate) outside: Vec<usize>,
@@ -66,7 +69,14 @@ pub struct ContainerFit {
     pub(crate) unreadable: usize,
 }
 
-/// The share of the largest static model's volume a model needs to count as a room model.
+/// The share of the largest static model's box volume a model needs to count as a room model.
+///
+/// Only the hull check ([`ContainerFit::overshoot`]) uses room models: dropping a small model
+/// can only weaken it, never raise a false alarm. On the 15 real ships measured on LIVE the
+/// smallest room model has a ratio of 0.251 and the largest dropped model 0.248, so a quarter is
+/// a cut inside a continuum, not a gap; the Cutlass cockpit model has 0.31. Hardpoints are
+/// measured against every static model instead: real cockpit and bridge seats lie in models
+/// with ratios down to 0.003.
 pub const ROOM_VOLUME_SHARE: f32 = 0.25;
 
 /// Returns the boxes of `models` that are room models: at least [`ROOM_VOLUME_SHARE`] of the
@@ -80,20 +90,23 @@ fn room_models(models: &[WorldBox]) -> Vec<WorldBox> {
         .collect()
 }
 
-/// Returns the distance in metres from `point` to the nearest box of `rooms`, 0 inside one, or
+/// Returns the distance in metres from `point` to the nearest of `boxes`, 0 inside one, or
 /// `None` when there is none or `point` is not finite.
-pub(super) fn distance_to_rooms(rooms: &[WorldBox], point: [f32; 3]) -> Option<f32> {
-    rooms
+pub(super) fn distance_to_boxes(boxes: &[WorldBox], point: [f32; 3]) -> Option<f32> {
+    boxes
         .iter()
-        .filter_map(|room| room.distance(point))
+        .filter_map(|bounds| bounds.distance(point))
         .min_by(f32::total_cmp)
 }
 
-/// Splits the indices of `hardpoints` into those inside a box of `rooms` and the rest.
-pub(super) fn classify(rooms: &[WorldBox], hardpoints: &[Hardpoint]) -> (Vec<usize>, Vec<usize>) {
+/// Splits the indices of `hardpoints` into those inside one of `boxes` and the rest.
+pub(super) fn classify(boxes: &[WorldBox], hardpoints: &[Hardpoint]) -> (Vec<usize>, Vec<usize>) {
     let (mut inside, mut outside) = (Vec::new(), Vec::new());
     for (index, hardpoint) in hardpoints.iter().enumerate() {
-        if distance_to_rooms(rooms, hardpoint.position) == Some(0.0) {
+        if boxes
+            .iter()
+            .any(|bounds| bounds.contains(hardpoint.position))
+        {
             inside.push(index);
         } else {
             outside.push(index);
@@ -145,12 +158,14 @@ impl ContainerFit {
         }
         let rooms = room_models(&models);
         for part in &mut animated {
-            part.distance = distance_to_rooms(&rooms, part.position);
+            part.distance = distance_to_boxes(&models, part.position);
         }
-        let (inside, outside) = classify(&rooms, hardpoints);
+        let (inside, outside) = classify(&models, hardpoints);
         Self {
             file: container.reference().file().to_owned(),
+            owner: container.part(),
             room,
+            models,
             rooms,
             inside,
             outside,
@@ -159,20 +174,29 @@ impl ContainerFit {
         }
     }
 
-    /// Returns whether `point` is at most `tolerance` metres from the box of a single room model
-    /// (see [`Self::rooms`]); a container without a room model holds nothing.
+    /// Returns whether `point` is at most `tolerance` metres from the box of a single static
+    /// model, not from the union of all of them; a container without a readable static model
+    /// holds nothing.
     #[must_use]
     pub fn holds(&self, point: [f32; 3], tolerance: f32) -> bool {
-        distance_to_rooms(&self.rooms, point).is_some_and(|distance| distance <= tolerance)
+        distance_to_boxes(&self.models, point).is_some_and(|distance| distance <= tolerance)
     }
 
     /// Returns the boxes of the container's room models: its static models whose volume is at
     /// least [`ROOM_VOLUME_SHARE`] of the largest one's. A socpak may place the model of a
     /// neighbouring hull section next to its own, so the union box [`Self::room`] can be much
-    /// longer than the room the container stands for.
+    /// longer than the room the container stands for. A container whose static models are all
+    /// unreadable has none.
     #[must_use]
     pub fn rooms(&self) -> &[WorldBox] {
         &self.rooms
+    }
+
+    /// Returns the boxes of all the container's readable static models, one per model, which
+    /// hardpoints and animated parts are measured against; [`Self::rooms`] is the larger part.
+    #[must_use]
+    pub fn models(&self) -> &[WorldBox] {
+        &self.models
     }
 
     /// Returns the number of static model parts whose model could not be read; they are missing
@@ -182,19 +206,21 @@ impl ContainerFit {
         self.unreadable
     }
 
-    /// Returns the distance in metres between the nearest room models of this container and of
-    /// `other`, 0 when they touch or overlap; `None` when either has no room model.
+    /// Returns how far in metres the room models protrude beyond `hull` on their worst axis, 0
+    /// when all lie inside; `None` when the container has no room model.
     #[must_use]
-    pub fn distance_to(&self, other: &Self) -> Option<f32> {
+    pub fn overshoot(&self, hull: &WorldBox) -> Option<f32> {
         self.rooms
             .iter()
-            .flat_map(|room| {
-                other
-                    .rooms
-                    .iter()
-                    .filter_map(|other_room| room.distance_to_box(other_room))
-            })
-            .min_by(f32::total_cmp)
+            .map(|room| room.overshoot(hull))
+            .max_by(f32::total_cmp)
+    }
+
+    /// Returns the index in the Assembly's parts of the Entity that names the container: 0 for
+    /// the root Entity, otherwise an attached one such as a docked ship.
+    #[must_use]
+    pub const fn owner(&self) -> usize {
+        self.owner
     }
 
     /// Returns the container file as the Record spells it.
@@ -205,20 +231,21 @@ impl ContainerFit {
 
     /// Returns the union box around the container's static models, or `None` when it has none
     /// that could be read. Hardpoints and animated parts are measured against
-    /// [`Self::rooms`], not against this box.
+    /// [`Self::models`], not against this box.
     #[must_use]
     pub const fn room(&self) -> Option<&WorldBox> {
         self.room.as_ref()
     }
 
-    /// Returns the indices into [`InteriorFit::hardpoints`] of the hardpoints inside a room model's box.
+    /// Returns the indices into [`InteriorFit::hardpoints`] of the hardpoints inside the box of a
+    /// static model.
     #[must_use]
     pub fn inside(&self) -> &[usize] {
         &self.inside
     }
 
-    /// Returns the indices into [`InteriorFit::hardpoints`] of the hardpoints outside every room model's
-    /// box, every one when the container has no room model.
+    /// Returns the indices into [`InteriorFit::hardpoints`] of the hardpoints outside the box of
+    /// every static model, every one when the container has none.
     #[must_use]
     pub fn outside(&self) -> &[usize] {
         &self.outside
@@ -241,14 +268,14 @@ pub struct HardpointFit {
 }
 
 impl HardpointFit {
-    /// Measures `hardpoint` against the room-model boxes of `containers`; the nearest wins, the
+    /// Measures `hardpoint` against the static-model boxes of `containers`; the nearest wins, the
     /// first of equals.
     pub(super) fn measure(hardpoint: Hardpoint, containers: &[ContainerFit]) -> Self {
         let nearest = containers
             .iter()
             .enumerate()
             .filter_map(|(index, container)| {
-                let distance = distance_to_rooms(&container.rooms, hardpoint.position)?;
+                let distance = distance_to_boxes(&container.models, hardpoint.position)?;
                 Some((index, distance))
             })
             .min_by(|(_, a), (_, b)| a.total_cmp(b));
@@ -265,8 +292,8 @@ impl HardpointFit {
         &self.hardpoint
     }
 
-    /// Returns the index into [`InteriorFit::containers`] of the container whose room box is
-    /// nearest to the hardpoint, or `None` when no container has a box or the position is not
+    /// Returns the index into [`InteriorFit::containers`] of the container whose static-model box
+    /// is nearest to the hardpoint, or `None` when no container has a box or the position is not
     /// finite.
     #[must_use]
     pub const fn container(&self) -> Option<usize> {
@@ -279,8 +306,8 @@ impl HardpointFit {
         self.distance
     }
 
-    /// Returns whether the hardpoint is at most `tolerance` metres from a room box; a hardpoint
-    /// with no box to measure against is not.
+    /// Returns whether the hardpoint is at most `tolerance` metres from a static-model box; a
+    /// hardpoint with no box to measure against is not.
     #[must_use]
     pub fn is_within(&self, tolerance: f32) -> bool {
         self.distance.is_some_and(|distance| distance <= tolerance)

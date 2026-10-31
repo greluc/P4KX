@@ -83,22 +83,18 @@ impl WorldBox {
             .product()
     }
 
-    /// Returns the distance in metres between this box and `other`, 0 when they touch or
-    /// overlap, or `None` when it overflows.
+    /// Returns how far in metres this box protrudes beyond `outer` on its worst axis, 0 when it
+    /// lies inside.
     #[must_use]
-    pub fn distance_to_box(&self, other: &Self) -> Option<f32> {
-        let squared: f32 = self
-            .min
+    pub fn overshoot(&self, outer: &Self) -> f32 {
+        self.min
             .iter()
             .zip(&self.max)
-            .zip(other.min.iter().zip(&other.max))
-            .map(|((low, high), (other_low, other_high))| {
-                let gap = (other_low - high).max(low - other_high).max(0.0);
-                gap * gap
+            .zip(outer.min.iter().zip(&outer.max))
+            .map(|((low, high), (outer_low, outer_high))| {
+                (outer_low - low).max(high - outer_high).max(0.0)
             })
-            .sum();
-        let distance = squared.sqrt();
-        distance.is_finite().then_some(distance)
+            .fold(0.0, f32::max)
     }
 
     /// Grows `bounds` around the first level of detail of `model`, placed by `placement` (the

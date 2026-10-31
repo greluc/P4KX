@@ -86,18 +86,15 @@ impl EntryWriter<'_> {
             capture,
             data: RefCell::new(std::mem::take(&mut buffers.data)),
         };
-        let merged = self
-            .open_entry(source.header)
-            .map_err(ExtractionError::from)
-            .and_then(|header| {
-                merge(
-                    header,
-                    source.header.uncompressed_size(),
-                    &siblings,
-                    &mut sink,
-                )
-                .map_err(|error| source.texture_error(error))
-            });
+        let merged = self.open_entry(source.header).and_then(|header| {
+            merge(
+                header,
+                source.header.uncompressed_size(),
+                &siblings,
+                &mut sink,
+            )
+            .map_err(|error| source.texture_error(error))
+        });
         buffers.data = siblings.data.into_inner();
         merged.map_err(MergeError::Merge)?;
         let (len, crc) = (sink.len, sink.crc);

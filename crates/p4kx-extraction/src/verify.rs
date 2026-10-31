@@ -7,6 +7,7 @@ use std::io::Read;
 use p4kx_archive::{Archive, Entry};
 use rayon::prelude::*;
 
+use crate::source::SourceEntry;
 use crate::tracker::Tracker;
 use crate::{ArchiveWatch, CancelToken, EntryFailure, ExtractionError, Progress};
 
@@ -132,7 +133,11 @@ pub fn verify(
             ..VerificationReport::default()
         };
     }
-    let tracker = Tracker::new(entries, options.cancel, options.watch, options.progress);
+    let files: Vec<SourceEntry<'_>> = entries
+        .iter()
+        .map(|entry| SourceEntry::of_archive(archive, entry))
+        .collect();
+    let tracker = Tracker::new(&files, options.cancel, options.watch, options.progress);
     let tally = entries
         .par_iter()
         .enumerate()
@@ -177,7 +182,7 @@ pub fn verify(
 fn check(archive: &Archive, entry: &Entry, buffer: &mut Vec<u8>, tracker: &Tracker<'_>) -> Verdict {
     let mut read = 0;
     let verdict = read_all(archive, entry, buffer, tracker, &mut read);
-    tracker.ended(entry, read);
+    tracker.ended(&SourceEntry::of_archive(archive, entry), read);
     match verdict {
         Err(_) if tracker.archive_file_changed() => Verdict::Cancelled,
         Err(error) => Verdict::Failed(error),

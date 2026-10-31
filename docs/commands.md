@@ -108,6 +108,28 @@ The first argument of nearly every command is the path of a `Data.p4k` Archive, 
   or with more than 32 `*` and `?`, an empty or blank exclusion Filter and more than 64 of them are invalid
   input too.
   `--threads <n>` limits the worker threads (default one per logical processor); more than about four rarely help on one disk (docs/performance.md).
+- `p4kx convert <folder> --out <folder> [--filter <filter>] [--textures <outputs>] [--mip <level>] [--audio <format>] [--conflict <policy>] [--copy-other] [--threads <n>]`
+  converts a folder of files that were extracted earlier without conversion, as `p4kx extract
+  --convert` converts the same Entries (ADR-0272): CryXml (by content), a texture header
+  `<name>.dds` with its parts `<name>.dds.N` and alpha tail `<name>.dds.a`, `.wem` sounds, `.bnk`
+  soundbanks and one DataForge file, which becomes one Record XML file per Record. The
+  paths below the input folder act as Entry paths, the options are those of `extract`, the output
+  names follow the rule of ADR-0248, and `--conflict` defaults to `skip`. A header whose parts are
+  missing is reported as not converted and written unchanged. A file with nothing to convert is
+  counted as not converted and left out; `--copy-other` writes it unchanged. The DataForge is the
+  file at a path the game reads, `Data\Game2.dcb` before `Data\Game.dcb` (also `Game2.dcb` when
+  the folder is the `Data` folder), because a stale `Game.dcb` next to the current one must not
+  win by sorting order; without one, the first `.dcb` file by path that starts like a DataForge;
+  without one, the first file of any name that does. Every other DataForge file the rule found
+  is named on stderr as `left out` and in `dataforge_left_out` of the JSON report. `--filter` matches the relative paths with
+  the rules of `p4kx search`; one that matches no file is invalid input. Links (symbolic links and
+  junctions) in the input folder are never followed and are listed as failed, as are names that
+  are not UTF-8 or hold a separator. An output folder that is the input folder, lies inside it or
+  contains it, or lies inside a Star Citizen installation is invalid input (exit 2) and nothing is
+  written; an input that is no folder is too. Progress, Ctrl+C, `--json` and the exit codes are
+  those of `extract`; the JSON report of [`p4kx extract`](cli-json.md#p4kx-extract--json) adds
+  `not_converted`, the number of files left out, when it is not 0. The window offers **Convert
+  folder…** in the Archive menu with progress and cancel.
 - `p4kx info <archive>` prints the Channel, the Build (branch, version, change number, BuildId)
   from the `build_manifest.id` next to the Archive, and the number, encryption and sizes of its
   Entries, and the number of Entry issues (ADR-0025). An Archive without a readable manifest has
@@ -528,7 +550,8 @@ The first argument of nearly every command is the path of a `Data.p4k` Archive, 
   `--expression NAME` (repeatable) limits them, `--no-expressions` leaves them out. Only LOD 0 has
   expressions. Hair, brows, lashes and beard get morph targets of their own that follow the head's
   (on the first mesh of each, at LOD 0 only); eyes and teeth have none. `--lod N` picks
-  the level of detail of head and body, `--no-vertex-colours` leaves the vertex colours out. A head
+  the level of detail of head and body, `--no-vertex-colours` leaves the vertex colours out (they
+  are written as `COLOR_0` only on primitives whose material reads them, ADR-0253). A head
   that cannot be shaped (its rig is missing, belongs to another rig or does not match the skin) is
   listed and left out of the GLB, which is still written, and the exit code is 1; an item or a
   material the Archive does not have is listed, and a character without face DNA exits with 2. The
@@ -557,7 +580,9 @@ The first argument of nearly every command is the path of a `Data.p4k` Archive, 
   [--texture-mip <n>] [--max-influences <n>]` writes it as one glTF 2.0 binary file (GLB), Y up and
   in metres (`--max-influences 4` keeps four bones per vertex, for viewers that read one set), with the
   normals, tangents and vertex
-  colours the meshes have (`--no-vertex-colours` leaves the colours out), and lists the unknown
+  colours the meshes have, as `COLOR_0` on the primitives whose material reads them (glass with
+  `PER_VERTEX_TINT`, layered surfaces without a blend map; ADR-0253), `--no-vertex-colours` leaves
+  the colours out, and lists the unknown
   chunks it skipped. `--lod` picks the level of detail, 0 by default; the LODs come from the
   companions `<name>_lod<n>.<extension>m`, and a level the model lacks exits with code 2.
   `--materials colours` (the default) gives every sub-material of the model's `.mtl` file a glTF

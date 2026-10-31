@@ -36,6 +36,7 @@ mod compare_diff;
 mod compare_nested;
 mod compare_records;
 mod compare_schema;
+mod convert_folder;
 mod coverage;
 mod cryxml;
 mod dcb;

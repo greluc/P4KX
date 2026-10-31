@@ -2,9 +2,7 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 use crate::Material;
-use crate::mtl_texture::texture_suffix_lowercase as suffix;
-
-const DIFFUSE_SLOT: &str = "TexSlot1";
+use crate::mtl_texture::{DIFFUSE_SLOT, texture_suffix_lowercase as suffix};
 
 /// What a texture of a material is used for.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

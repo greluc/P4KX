@@ -6,12 +6,12 @@
 
 #![expect(clippy::print_stdout, reason = "the judged materials are the output")]
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use std::error::Error;
 use std::path::Path;
 
-use p4kx_extraction::model::Material;
-use p4kx_extraction::{Archive, ModelSource, PathIndex};
+use p4kx_extraction::model::{GREY_PROBE_MIP, MAX_GREY_SATURATION, Material};
+use p4kx_extraction::{Archive, ModelSource, PathIndex, probe_saturation};
 use p4kx_testkit::{real_archive_key, real_archive_path};
 
 type TestResult = Result<(), Box<dyn Error>>;
@@ -25,6 +25,16 @@ const COLOURED_MAPS: [&str; 4] = [
     "behr_trim_1_a_diff",
 ];
 const MIN_JUDGED: usize = 20;
+const GREY_MEASURED_UP_TO: f32 = 0.032;
+const COLOURED_MEASURED_FROM: f32 = 0.076;
+
+/// A relief-decal candidate as judged: its material, its diffuse map and whether the rule hides it.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+struct Judged {
+    material: String,
+    map: String,
+    hidden: bool,
+}
 
 fn ship_libraries(archive: &Archive) -> Vec<(String, String)> {
     archive
@@ -48,12 +58,17 @@ fn ship_libraries(archive: &Archive) -> Vec<(String, String)> {
         .collect()
 }
 
-fn map_stem(material: &Material) -> String {
+fn diffuse_file(material: &Material) -> Option<&str> {
     material
         .textures
         .iter()
         .find(|texture| texture.map.eq_ignore_ascii_case("TexSlot1"))
-        .and_then(|texture| texture.file.rsplit(['/', '\\']).next())
+        .map(|texture| texture.file.as_str())
+}
+
+fn map_stem(file: &str) -> String {
+    file.rsplit(['/', '\\'])
+        .next()
         .and_then(|name| name.split('.').next())
         .unwrap_or_default()
         .to_ascii_lowercase()
@@ -64,7 +79,7 @@ fn map_stem(material: &Material) -> String {
 fn coloured_relief_candidates_are_drawn_and_grey_ones_are_hidden() -> TestResult {
     let archive = Archive::open_with_key(real_archive_path()?, Some(real_archive_key()?))?;
     let index = PathIndex::new(&archive);
-    let mut judged: BTreeMap<(String, String, bool), usize> = BTreeMap::new();
+    let mut judged: BTreeMap<Judged, usize> = BTreeMap::new();
     for (entry_path, library) in ship_libraries(&archive) {
         let status = ModelSource::material_library(&index, &entry_path, &library);
         for material in status
@@ -72,31 +87,81 @@ fn coloured_relief_candidates_are_drawn_and_grey_ones_are_hidden() -> TestResult
             .iter()
             .flat_map(|library| &library.materials)
         {
-            if material.diffuse_map_is_grey.is_some() {
-                let key = (
-                    material.name.clone(),
-                    map_stem(material),
-                    material.is_relief_decal(),
-                );
-                *judged.entry(key).or_default() += 1;
-            }
+            let Some(file) =
+                diffuse_file(material).filter(|_| material.diffuse_map_is_grey.is_some())
+            else {
+                continue;
+            };
+            let key = Judged {
+                material: material.name.clone(),
+                map: map_stem(file),
+                hidden: material.is_relief_decal(),
+            };
+            *judged.entry(key).or_default() += 1;
         }
     }
-    for ((name, map, hidden), files) in &judged {
-        println!("{files:4} x {name} {map} hidden {hidden}");
+    for (key, files) in &judged {
+        println!(
+            "{files:4} x {} {} hidden {}",
+            key.material, key.map, key.hidden
+        );
     }
     assert!(judged.len() >= MIN_JUDGED, "only {} judged", judged.len());
     assert!(
-        judged
-            .iter()
-            .any(|((_, map, hidden), _)| map == GREY_MASK && *hidden),
+        judged.keys().any(|key| key.map == GREY_MASK && key.hidden),
         "{GREY_MASK} is hidden"
     );
     for coloured in COLOURED_MAPS {
-        let hidden = judged
-            .iter()
-            .any(|((_, map, hidden), _)| map == coloured && *hidden);
+        let hidden = judged.keys().any(|key| key.map == coloured && key.hidden);
         assert!(!hidden, "{coloured} is drawn");
     }
+    Ok(())
+}
+
+#[test]
+#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
+fn the_grey_limit_lies_in_the_gap_between_grey_and_coloured_maps() -> TestResult {
+    let archive = Archive::open_with_key(real_archive_path()?, Some(real_archive_key()?))?;
+    let index = PathIndex::new(&archive);
+    let mut grey_most = 0.0_f32;
+    let mut coloured_least = f32::MAX;
+    let mut measured: HashSet<String> = HashSet::new();
+    for (entry_path, library) in ship_libraries(&archive) {
+        let status = ModelSource::material_library(&index, &entry_path, &library);
+        for material in status
+            .library()
+            .iter()
+            .flat_map(|library| &library.materials)
+        {
+            let (Some(file), Some(grey)) = (diffuse_file(material), material.diffuse_map_is_grey)
+            else {
+                continue;
+            };
+            if !measured.insert(file.to_ascii_lowercase()) {
+                continue;
+            }
+            let Some(saturation) = probe_saturation(&index, file) else {
+                continue;
+            };
+            if grey {
+                grey_most = grey_most.max(saturation);
+            } else {
+                coloured_least = coloured_least.min(saturation);
+            }
+        }
+    }
+    println!("probe mip {GREY_PROBE_MIP}: grey up to {grey_most}, coloured from {coloured_least}");
+    assert!(
+        grey_most <= GREY_MEASURED_UP_TO,
+        "grey maps measure up to {grey_most}"
+    );
+    assert!(
+        coloured_least >= COLOURED_MEASURED_FROM,
+        "coloured maps measure from {coloured_least}"
+    );
+    assert!(
+        (GREY_MEASURED_UP_TO..COLOURED_MEASURED_FROM).contains(&MAX_GREY_SATURATION),
+        "the limit {MAX_GREY_SATURATION} lies in the gap"
+    );
     Ok(())
 }

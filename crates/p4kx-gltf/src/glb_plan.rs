@@ -69,10 +69,23 @@ pub(crate) fn plan_layout<'m>(
     layout
 }
 
+/// Plans the animations of `content`: on the skeleton of the one model written alone, else on the
+/// skeleton of the scene.
+pub(crate) fn animation_plans<'m>(
+    layout: &mut Layout<'m>,
+    content: &Content<'_, 'm>,
+    single: Option<&Instance<'m>>,
+) -> Vec<AnimationPlan> {
+    match single {
+        Some(instance) => single_animation_plans(layout, instance, content.animations),
+        None => scene_animation_plans(layout, content),
+    }
+}
+
 /// Plans the animations of a scene whose skinned meshes are bound to the skeleton of `rig`: they
 /// move the bone nodes, which come after the nodes of the wrappers and of every model instance.
 /// Nothing is planned when no mesh is skinned, as no bones are written then.
-pub(crate) fn scene_animation_plans<'m>(
+fn scene_animation_plans<'m>(
     layout: &mut Layout<'m>,
     content: &Content<'_, 'm>,
 ) -> Vec<AnimationPlan> {
@@ -93,7 +106,7 @@ pub(crate) fn scene_animation_plans<'m>(
     plan_animations(layout, content.animations.iter().copied(), &targets)
 }
 
-pub(crate) fn single_animation_plans<'m>(
+fn single_animation_plans<'m>(
     layout: &mut Layout<'m>,
     instance: &Instance<'m>,
     animations: &[&'m Animation],

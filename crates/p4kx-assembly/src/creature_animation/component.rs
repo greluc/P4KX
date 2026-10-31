@@ -5,6 +5,7 @@ use std::sync::Arc;
 
 use p4kx_dataforge::StructValue;
 
+use crate::EntityNode;
 use crate::read::text;
 
 const ANIMATED_CHARACTER: &str = "SAnimatedCharacterComponentParams";
@@ -17,4 +18,13 @@ pub(crate) fn database_of(components: &[&StructValue<'_>]) -> Option<Arc<str>> {
         .find(|component| component.type_name() == ANIMATED_CHARACTER)?;
     let path = text(component, "animDatabase3P").trim();
     (!path.is_empty()).then(|| Arc::from(path))
+}
+
+impl EntityNode {
+    /// Returns the path of the Mannequin animation database (`.adb`) the Entity's
+    /// `SAnimatedCharacterComponentParams` name in `animDatabase3P`, or `None` when it names none.
+    #[must_use]
+    pub fn animation_database(&self) -> Option<&str> {
+        self.animation_database.as_deref()
+    }
 }

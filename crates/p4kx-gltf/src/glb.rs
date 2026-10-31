@@ -9,10 +9,7 @@ use p4kx_model::{Animation, Lod, MAX_INFLUENCES, Model};
 use crate::GltfError;
 use crate::animations::AnimationSummary;
 use crate::document::document;
-use crate::glb_plan::{
-    Skeletal, own_binds, plan_layout, scene_animation_plans, single_animation_plans, summarise,
-    texture_set,
-};
+use crate::glb_plan::{Skeletal, animation_plans, own_binds, plan_layout, summarise, texture_set};
 use crate::instance::{Content, Instance, material_requests};
 use crate::layout::Layout;
 use crate::material_index::index_materials;
@@ -300,7 +297,7 @@ pub(crate) fn write_instances(
         wrappers,
         instances,
         rig,
-        animations,
+        ..
     } = *content;
     let single = match (wrappers, instances) {
         ([], [instance]) => Some(instance),
@@ -315,10 +312,7 @@ pub(crate) fn write_instances(
         MaterialMode::Textures => texture_set(&layout, instances, options.texture_mip, textures),
         MaterialMode::Colours => TextureSet::default(),
     };
-    let animation_plans = match single {
-        Some(instance) => single_animation_plans(&mut layout, instance, animations),
-        None => scene_animation_plans(&mut layout, content),
-    };
+    let animation_plans = animation_plans(&mut layout, content, single);
     layout.push_images(images.images.iter().map(|image| image.png.len() as u64));
     let mut root = document(content, &layout, &images, &animation_plans);
     if options.material_indices {

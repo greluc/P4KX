@@ -117,13 +117,6 @@ impl EntityNode {
         self.loadout_file.as_deref()
     }
 
-    /// Returns the path of the Mannequin animation database (`.adb`) the Entity's
-    /// `SAnimatedCharacterComponentParams` name in `animDatabase3P`, or `None` when it names none.
-    #[must_use]
-    pub fn animation_database(&self) -> Option<&str> {
-        self.animation_database.as_deref()
-    }
-
     /// Returns whether the Entity's ports are built; `false` for a docked vehicle the resolver
     /// stopped at, whose ports are left out.
     #[must_use]

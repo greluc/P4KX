@@ -76,6 +76,7 @@ mod vertex_colours;
 mod vorbis_cost;
 mod weak_pointers;
 mod wem_survey;
+mod without_materials;
 
 type TestResult = Result<(), Box<dyn Error>>;
 type SendError = Box<dyn Error + Send + Sync>;

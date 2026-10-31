@@ -91,6 +91,12 @@ pub(super) fn notes(texts: &Texts, summary: &ModelExportSummary) -> Vec<(String,
     counted(
         texts,
         &mut notes,
+        (T::SummaryMissingLayers, summary.missing_layers()),
+        palette::WARNING,
+    );
+    counted(
+        texts,
+        &mut notes,
         (T::SummaryHidden, written.hidden_primitives),
         palette::GRAY_1,
     );

@@ -304,24 +304,30 @@ fn a_scaled_canvas_keeps_its_own_size_and_is_scaled_into_the_box() -> TestResult
 }
 
 #[test]
-fn aspect_overrides_width_takes_the_width_from_the_height() -> TestResult {
+fn aspect_overrides_width_lays_the_canvas_out_in_the_whole_box() -> TestResult {
     let image = render_with(
-        &host(100.0, 20.0, "Size"),
+        &host(80.0, 20.0, "Size"),
         vec![inner("aspectOverridesWidth").record()],
     )?;
-    assert!(red_at(&image, 38, 10), "twice the height wide: 40 pixels");
-    assert!(empty_at(&image, 45, 10), "and no wider");
+    assert!(
+        red_at(&image, 75, 10),
+        "as wide as the box, not as the aspect of the canvas"
+    );
+    assert!(empty_at(&image, 85, 10), "and no wider");
     Ok(())
 }
 
 #[test]
-fn aspect_overrides_height_takes_the_height_from_the_width() -> TestResult {
+fn aspect_overrides_height_lays_the_canvas_out_in_the_whole_box() -> TestResult {
     let image = render_with(
         &host(40.0, 50.0, "Size"),
         vec![inner("aspectOverridesHeight").record()],
     )?;
-    assert!(red_at(&image, 20, 18), "half the width high: 20 pixels");
-    assert!(empty_at(&image, 20, 25), "and no higher");
+    assert!(
+        red_at(&image, 20, 45),
+        "as high as the box, not as the aspect of the canvas"
+    );
+    assert!(empty_at(&image, 20, 55), "and no higher");
     Ok(())
 }
 

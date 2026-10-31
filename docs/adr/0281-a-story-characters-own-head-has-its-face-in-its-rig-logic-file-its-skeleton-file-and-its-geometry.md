@@ -70,7 +70,9 @@ unchanged:
 - the joints of the rig are the bones of the skin whose controller ID is the CRC-32 listed in the
   file; the head's bones join the body skeleton by name as before (ADR-0098), but with the bind
   poses of the same-named bones of the skeleton file, so the joints sit where the character's face
-  puts them; a head without a skeleton file keeps the poses of its skin;
+  puts them; a head without a skeleton file keeps the poses of its skin, and so does one whose
+  skeleton file lacks a facial bone of the skin or has it under another parent or with another
+  controller ID, which is listed as `face_joints_failed` naming the bone;
 - with `Expressions` the blendshapes of the geometry file are the morph targets, named by the file's
   controls and correctives like those of a CHF head (399 targets for Eckhart, 400 shape keys with
   the basis in Blender);

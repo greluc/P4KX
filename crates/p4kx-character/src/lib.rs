@@ -9,9 +9,11 @@
 //! the names, joint offsets, neutral and expression morphs, joint and region weights and delta
 //! records of the heads of a rig, and [`DnaMatrix`] the weights with which a Character's DNA
 //! blends them. [`ExpressionBlend`] turns the expression morphs of the stock heads into the
-//! blendshapes of a Character's head, and [`RigLogic`] names them. A head that ships no DNA rig,
-//! like a story character's own, has its joint deltas in its `.RigLogic` file ([`FaceRig::from_logic`])
-//! and its blendshapes in the `BShapesGpu` chunk of its skin geometry ([`SkinBlendshapes`]).
+//! blendshapes of a Character's head, and [`RigLogic`] names them.
+//!
+//! A head that ships no DNA rig, like a story character's own, has its joint deltas in its
+//! `.RigLogic` file ([`FaceRig::from_logic`]) and its blendshapes in the `BShapesGpu` chunk of its
+//! skin geometry ([`SkinBlendshapes`]).
 
 mod body_reader;
 mod body_writer;

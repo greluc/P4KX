@@ -107,6 +107,26 @@ fn a_bitmap_that_does_not_count_the_entries_of_its_vertex_is_refused() {
 }
 
 #[test]
+fn a_scale_or_bias_that_is_not_finite_gives_no_moves() -> TestResult {
+    for value in [f32::NAN, f32::INFINITY] {
+        for offset in [0_usize, 12] {
+            let mut chunk = TestSkinBlendshapes::small();
+            let (scale, bias) = chunk.ranges[1];
+            chunk.ranges[1] = if offset == 0 {
+                ([value, scale[1], scale[2]], bias)
+            } else {
+                (scale, [bias[0], value, bias[2]])
+            };
+            let bytes = chunk.build();
+            let shapes = SkinBlendshapes::read(&bytes)?;
+            assert_eq!(shapes.target(1).vertices, NONE, "{value} at {offset}");
+            assert_eq!(shapes.target(2).vertices, [1]);
+        }
+    }
+    Ok(())
+}
+
+#[test]
 fn a_bit_beyond_the_blendshapes_of_the_head_is_refused() {
     let mut chunk = TestSkinBlendshapes::small();
     chunk.entries.push(TestSkinEntry {

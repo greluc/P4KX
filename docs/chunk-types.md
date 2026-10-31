@@ -42,8 +42,12 @@ sizes show each is a real, regular chunk:
 | `0xF5C6EB5B` | `BShapes` | 551 | `.aim` |
 
 `BShapes` is the `.aim` form; the ID `p4kx` had for it (`0x875CCB28`) and the old `BShapesGpu`
-(`0x57A3BEFD`) occur in no Archive. The layouts of `RigLogic` and of `BShapesGpu` of a head are in
-ADR-0091 and ADR-0281.
+(`0x57A3BEFD`) occur in no Archive.
+
+The layout of `RigLogic` is in ADR-0091 (names, correctives, joints) and ADR-0281 (joint delta
+records). `BShapesGpu` of a head holds eight `u32` (blendshapes, vertices, entries, the offsets of
+four tables and of a name pool), then a start per vertex, six `f32` of scale and bias per
+blendshape, a 64-byte bitmap per vertex and three byte codes per entry; ADR-0281 is the reference.
 
 ## Table entries no measured Archive holds
 

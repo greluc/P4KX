@@ -118,13 +118,15 @@ impl<'a> SkinBlendshapes<'a> {
         Ok(this)
     }
 
+    /// Checks the bitmap of every vertex against the entries the starts give it. The first start
+    /// need not be 0: only the difference to the next start counts.
     fn check(&self, entries: usize) -> Result<(), SkinBlendshapesError> {
         let malformed = SkinBlendshapesError::Malformed;
         for (vertex, bitmap) in self.bitmaps.as_chunks::<BITMAP_LEN>().0.iter().enumerate() {
             let start = self
                 .start(vertex)
                 .ok_or_else(|| malformed("a start is missing"))?;
-            let end = self.start(vertex + 1).unwrap_or(entries);
+            let end = self.start(vertex.saturating_add(1)).unwrap_or(entries);
             let set: usize = bitmap.iter().map(|byte| byte.count_ones() as usize).sum();
             if end > entries || end.checked_sub(start) != Some(set) {
                 return Err(malformed(
@@ -168,7 +170,7 @@ impl<'a> SkinBlendshapes<'a> {
         let mut target = ExpressionTarget::default();
         let Some(range) = blendshape
             .checked_mul(RANGE_LEN)
-            .and_then(|at| self.ranges.get(at..at + RANGE_LEN))
+            .and_then(|at| self.ranges.get(at..at.checked_add(RANGE_LEN)?))
         else {
             return target;
         };
@@ -190,13 +192,13 @@ impl<'a> SkinBlendshapes<'a> {
                 .map_or(0, |&bits| (bits & ((1 << bit) - 1)).count_ones());
             let Some(entry) = self
                 .start(vertex)
-                .and_then(|start| start.checked_add(before + within as usize))
+                .and_then(|start| start.checked_add(before.checked_add(within as usize)?))
             else {
                 continue;
             };
             let Some(codes) = entry
                 .checked_mul(CODE_LEN)
-                .and_then(|at| self.codes.get(at..at + CODE_LEN))
+                .and_then(|at| self.codes.get(at..at.checked_add(CODE_LEN)?))
             else {
                 continue;
             };

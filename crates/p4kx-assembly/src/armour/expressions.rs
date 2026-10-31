@@ -7,12 +7,12 @@ use p4kx_character::{
 use p4kx_chunks::{ChunkFile, ivo};
 use p4kx_gltf::MorphTarget;
 use p4kx_model::Mesh;
-use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
 use crate::{ModelFailure, ModelProvider};
 
-/// The largest head skin that is read for the names of its expression blendshapes, 64 MiB.
-const MAX_SKIN_LEN: u64 = 64 << 20;
+/// The largest head skin, geometry file or skeleton file that is read for a head's rig, 64 MiB.
+pub(super) const MAX_SKIN_LEN: u64 = 64 << 20;
 const NO_VERTEX: u32 = u32::MAX;
 const CONTROL_PREFIX: &str = "ctl_";
 
@@ -175,6 +175,9 @@ pub(super) fn morphs(
 /// The blendshapes of a head on the vertices of its geometry stream.
 pub(super) trait BlendshapeSource: Sync {
     fn vertices(&self) -> usize;
+
+    /// Returns one blendshape; the cost is a pass over all vertices of the stream, so callers run
+    /// it per chosen blendshape, in parallel.
     fn target(&self, blendshape: usize) -> ExpressionTarget;
 }
 
@@ -183,6 +186,7 @@ impl BlendshapeSource for ExpressionBlend<'_> {
         Self::vertices(self)
     }
 
+    /// Costs a dense array of the stream's vertices and a pass over the cells of the heads.
     fn target(&self, blendshape: usize) -> ExpressionTarget {
         Self::target(self, blendshape)
     }
@@ -193,6 +197,7 @@ impl BlendshapeSource for SkinBlendshapes<'_> {
         Self::vertices(self)
     }
 
+    /// Costs one pass over the bitmaps of all vertices of the stream.
     fn target(&self, blendshape: usize) -> ExpressionTarget {
         Self::target(self, blendshape)
     }
@@ -248,12 +253,11 @@ fn make(
     next: &[u32],
 ) -> Vec<Option<MorphTarget>> {
     chosen
-        .to_vec()
-        .into_par_iter()
+        .par_iter()
         .map(|(number, name)| {
-            let (vertices, deltas) = on_mesh(&blend.target(number), first, next);
-            (!vertices.is_empty()).then_some(MorphTarget {
-                name,
+            let (vertices, deltas) = on_mesh(&blend.target(*number), first, next);
+            (!vertices.is_empty()).then(|| MorphTarget {
+                name: name.clone(),
                 vertices,
                 deltas,
             })

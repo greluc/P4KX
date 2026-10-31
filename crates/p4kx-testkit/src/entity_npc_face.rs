@@ -104,11 +104,29 @@ pub fn npc_face_entries_with(rig_logic: &[u8], shapes: &[u8]) -> Vec<TestEntry> 
         format!("Data\\{}", NPC_RIG_LOGIC.replace('/', "\\")),
         rig_logic,
     ));
-    let chr = skeleton_entry(
-        NPC_SKELETON_FILE.trim_end_matches(".chr"),
-        &skeleton(NPC_SKELETON_SHIFT),
-    );
-    entries.push(chr);
+    entries.push(skeleton_file(&skeleton(NPC_SKELETON_SHIFT)));
+    entries
+}
+
+fn skeleton_file(skeleton: &TestSkeleton) -> TestEntry {
+    skeleton_entry(NPC_SKELETON_FILE.trim_end_matches(".chr"), skeleton)
+}
+
+/// Returns the skeleton of the head skin with [`NPC_FACIAL_BONE`] shifted along x by `shift`
+/// metres, to change and give to [`npc_face_entries_posed_by`].
+#[must_use]
+pub fn npc_face_skeleton(shift: f32) -> TestSkeleton {
+    skeleton(shift)
+}
+
+/// Returns the Entries of [`npc_face_entries`] with `skeleton` as the skeleton file of the head.
+#[must_use]
+pub fn npc_face_entries_posed_by(skeleton: &TestSkeleton) -> Vec<TestEntry> {
+    let mut entries: Vec<TestEntry> = npc_face_entries()
+        .into_iter()
+        .filter(|entry| !entry.path().eq_ignore_ascii_case(NPC_SKELETON_FILE))
+        .collect();
+    entries.push(skeleton_file(skeleton));
     entries
 }
 

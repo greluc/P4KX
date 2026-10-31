@@ -10,16 +10,18 @@ use p4kx_character::{RigLogic, SkinBlendshapes};
 use p4kx_chunks::{ChunkFile, ivo};
 use p4kx_model::{Bone, Model};
 
-use super::expressions::{Expressions, Morphs, targets_of};
+use super::expressions::{Expressions, MAX_SKIN_LEN, Morphs, targets_of};
 use super::facial::{bones_of, own_facial};
 use super::shape::{Outcome, outcome};
-use crate::{ModelFailure, ModelProvider};
+use crate::{IssueKind, ModelFailure, ModelProvider};
 
 /// The folder below `Data` that holds the `.RigLogic` file of every head rig.
 const LOGIC_FOLDER: &str = "Objects/Characters/RigLogic";
 const HEAD_SUFFIX: &str = "_head.skin";
-/// The largest `.RigLogic` file and head geometry file that is read, 64 MiB.
-const MAX_FILE_LEN: u64 = 64 << 20;
+/// The largest `.RigLogic` file that is read, 4 MiB; the largest in LIVE has 0.5 MB.
+const MAX_LOGIC_LEN: u64 = 4 << 20;
+/// The prefix of the names of the facial bones, in lower case.
+const FACIAL_PREFIX: &str = "facial_";
 
 /// Returns the path of the `.RigLogic` file of the head whose skin is at `skin`: the file named
 /// like the skin without `_head.skin` in [`LOGIC_FOLDER`]; `None` for any other skin.
@@ -33,7 +35,7 @@ pub(super) fn logic_path(skin: &str) -> Option<String> {
 
 /// Reads the `.RigLogic` file at `path`; `None` when the Archive has no such file.
 fn read_logic(path: &str, models: &dyn ModelProvider) -> Result<Option<RigLogic>, String> {
-    let bytes = match models.file(path, MAX_FILE_LEN) {
+    let bytes = match models.file(path, MAX_LOGIC_LEN) {
         Ok(bytes) => bytes,
         Err(ModelFailure::Missing) => return Ok(None),
         Err(other) => return Err(format!("{path} cannot be read: {other}")),
@@ -46,9 +48,55 @@ fn read_logic(path: &str, models: &dyn ModelProvider) -> Result<Option<RigLogic>
     }
 }
 
-/// Returns the bones of the head `model` with the bind poses of the same-named bones of the
-/// skeleton file `<skin>_skel.chr` beside its skin at `skin`; `None` when the Archive has no such
-/// file.
+fn parent_name(bones: &[Bone], bone: &Bone) -> Option<String> {
+    bone.parent
+        .and_then(|parent| bones.get(parent))
+        .map(|parent| parent.name.to_ascii_lowercase())
+}
+
+/// Returns the bones `skin` with the bind poses of the same-named bones of `file`, the skeleton
+/// file at `path`, after checking that every facial bone of `skin` is in `file` with the same
+/// parent and controller ID.
+fn posed(skin: &[Bone], file: &[Bone], path: &str) -> Result<Vec<Bone>, String> {
+    let own: HashMap<String, &Bone> = file
+        .iter()
+        .map(|bone| (bone.name.to_ascii_lowercase(), bone))
+        .collect();
+    for bone in skin {
+        let name = bone.name.to_ascii_lowercase();
+        if !name.starts_with(FACIAL_PREFIX) {
+            continue;
+        }
+        let other = own
+            .get(&name)
+            .ok_or_else(|| format!("{path} lacks the facial bone {}", bone.name))?;
+        if parent_name(skin, bone) != parent_name(file, other) {
+            return Err(format!(
+                "{path}: the facial bone {} has another parent than in the skin",
+                bone.name
+            ));
+        }
+        if bone.controller_id != other.controller_id {
+            return Err(format!(
+                "{path}: the facial bone {} has another controller ID than in the skin",
+                bone.name
+            ));
+        }
+    }
+    Ok(skin
+        .iter()
+        .map(|bone| {
+            let mut bone = bone.clone();
+            if let Some(found) = own.get(&bone.name.to_ascii_lowercase()) {
+                bone.relative = found.relative;
+            }
+            bone
+        })
+        .collect())
+}
+
+/// Returns the bones of the head `model` with the bind poses of the skeleton file
+/// `<skin>_skel.chr` beside its skin at `skin`; `None` when the Archive has no such file.
 ///
 /// The skin's own copy of the facial bones is the stock head's, symmetric; the skeleton file has
 /// the joints where the character's face puts them.
@@ -66,21 +114,7 @@ fn posed_bones(
         Err(ModelFailure::Missing) => return Ok(None),
         Err(other) => return Err(format!("{path} cannot be read: {other}")),
     };
-    let own: HashMap<String, &Bone> = bones_of(&file)
-        .iter()
-        .map(|bone| (bone.name.to_ascii_lowercase(), bone))
-        .collect();
-    let posed = bones_of(model)
-        .iter()
-        .map(|bone| {
-            let mut bone = bone.clone();
-            if let Some(found) = own.get(&bone.name.to_ascii_lowercase()) {
-                bone.relative = found.relative;
-            }
-            bone
-        })
-        .collect();
-    Ok(Some(posed))
+    posed(bones_of(model), bones_of(&file), &path).map(Some)
 }
 
 /// Reads the blendshapes of the head whose skin is at `skin` from the `BShapesGpu` chunk of its
@@ -100,7 +134,7 @@ fn morphs(
     };
     let geometry = format!("{skin}m");
     let bytes = models
-        .file(&geometry, MAX_FILE_LEN)
+        .file(&geometry, MAX_SKIN_LEN)
         .map_err(|failure| format!("{geometry} cannot be read: {failure}"))?;
     let chunks =
         ChunkFile::parse(bytes.as_slice()).map_err(|error| format!("{geometry}: {error}"))?;
@@ -129,10 +163,12 @@ fn morphs(
     Ok(targets_of(&shapes, logic, mesh, expressions))
 }
 
-/// Returns what the own rig of the head `model`, whose skin is at `skin`, contributes: the joints
-/// of its face from the `.RigLogic` file, posed by the skeleton file beside the skin, and, for
-/// `expressions`, the blendshapes of its geometry as morph targets. `None` for a head without a `.RigLogic` file and for a level of detail
-/// below 0, which has no rig.
+/// Returns what the own rig of the head `model`, whose skin is at `skin`, contributes.
+///
+/// That is the joints of its face from the `.RigLogic` file, posed by the skeleton file beside the
+/// skin, and, for `expressions`, the blendshapes of its geometry as morph targets. A skeleton file
+/// that does not match the skin leaves the skin's poses and is listed as an issue. `None` for a
+/// head without a `.RigLogic` file and for a level of detail below 0, which has no rig.
 pub(super) fn own_head(
     model: &Model,
     skin: &str,
@@ -149,7 +185,12 @@ pub(super) fn own_head(
     };
     let made = (*expressions != Expressions::None)
         .then(|| morphs(model, skin, (&logic, expressions), models));
-    let face =
-        posed_bones(model, skin, models).map(|posed| (own_facial(model, logic, posed), path));
-    Some(outcome(made, Some(face)))
+    let (posed, mismatch) = match posed_bones(model, skin, models) {
+        Ok(posed) => (posed, None),
+        Err(reason) => (None, Some(IssueKind::FaceJointsFailed { reason })),
+    };
+    let face = (own_facial(model, logic, posed), path);
+    let mut made = outcome(made, Some(Ok(face)));
+    made.kinds.extend(mismatch);
+    Some(made)
 }

@@ -15,9 +15,10 @@ use p4kx_extraction::{Archive, DataForgeEntry};
 use p4kx_gltf::GlbOptions;
 use p4kx_model::Animation;
 use p4kx_testkit::{
-    NPC_CLASS, NPC_FACIAL_BONE, NPC_SKELETON_FILE, NPC_SKELETON_SHIFT, TestAnimation, TestEntry,
-    TestSkinBlendshapes, TestTrack, check_glb, npc_entries, npc_face_entries,
-    npc_face_entries_with, npc_face_logic, npc_face_shapes,
+    NPC_CLASS, NPC_FACIAL_BONE, NPC_SKELETON_FILE, NPC_SKELETON_SHIFT, TestAnimation, TestBone,
+    TestEntry, TestSkeleton, TestSkinBlendshapes, TestTrack, check_glb, npc_entries,
+    npc_face_entries, npc_face_entries_posed_by, npc_face_entries_with, npc_face_logic,
+    npc_face_shapes, npc_face_skeleton,
 };
 
 use crate::assembly_support::{Fixture, TestResult, fixture};
@@ -285,5 +286,73 @@ fn without_a_skeleton_file_the_facial_bone_keeps_the_pose_of_the_skin() -> TestR
 
     close(facial_bone_x(&npc)?, 0.0);
     assert_eq!(face_issues(&npc).len(), 0);
+    Ok(())
+}
+
+/// Builds the head with `skeleton` as its skeleton file and checks that the bone keeps the pose
+/// of the skin and that the mismatch is listed as a face joints issue naming the bone.
+fn assert_refused_skeleton(skeleton: &TestSkeleton, what: &str) -> TestResult {
+    let npc = build(npc_face_entries_posed_by(skeleton), &Expressions::None)?;
+
+    close(facial_bone_x(&npc)?, 0.0);
+    let named = npc.armour.issues().iter().any(|issue| {
+        matches!(
+            issue.kind(),
+            IssueKind::FaceJointsFailed { reason }
+                if reason.contains(NPC_FACIAL_BONE) && reason.contains(what)
+        )
+    });
+    assert!(named, "{what}: {:?}", npc.armour.issues());
+    let models = ArchiveModels::new(&npc.archive);
+    let list = [control("CTL_a")?];
+    let animations = npc.armour.animate(&list, &models);
+    assert_eq!(animations.sampled().len(), 1, "the joints still move");
+    Ok(())
+}
+
+#[test]
+fn a_skeleton_file_with_another_parent_for_the_facial_bone_is_refused() -> TestResult {
+    let mut bones = npc_face_skeleton(NPC_SKELETON_SHIFT).bones().to_vec();
+    bones.get_mut(3).ok_or("the facial bone")?.parent = Some(1);
+    assert_refused_skeleton(&TestSkeleton::new(bones), "parent")
+}
+
+#[test]
+fn a_skeleton_file_with_another_controller_id_for_the_facial_bone_is_refused() -> TestResult {
+    let mut bones = npc_face_skeleton(NPC_SKELETON_SHIFT).bones().to_vec();
+    bones.insert(
+        3,
+        TestBone {
+            name: "extra".to_owned(),
+            parent: Some(2),
+            rotation: [0.0, 0.0, 0.0, 1.0],
+            translation: [0.0; 3],
+        },
+    );
+    assert_refused_skeleton(&TestSkeleton::new(bones), "controller ID")
+}
+
+#[test]
+fn a_skeleton_file_without_the_facial_bone_is_refused() -> TestResult {
+    let mut bones = npc_face_skeleton(NPC_SKELETON_SHIFT).bones().to_vec();
+    bones.truncate(3);
+    assert_refused_skeleton(&TestSkeleton::new(bones), "lacks")
+}
+
+#[test]
+fn named_expressions_are_the_only_targets_and_an_unknown_name_is_listed() -> TestResult {
+    let only = Expressions::Only(vec!["ctl_b".to_owned(), "nope".to_owned()]);
+    let npc = build(npc_face_entries(), &only)?;
+
+    let names: Vec<&str> = head(&npc)?
+        .morphs()
+        .iter()
+        .map(|target| target.name.as_str())
+        .collect();
+    assert_eq!(names, ["CTL_b"]);
+    assert!(npc.armour.issues().iter().any(|issue| matches!(
+        issue.kind(),
+        IssueKind::UnknownExpression { name } if name == "nope"
+    )));
     Ok(())
 }

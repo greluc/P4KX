@@ -9,8 +9,8 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::error::Error;
 
-use p4kx_assembly::{ENTITY_TYPE, LoadoutError, LoadoutResolver};
-use p4kx_dataforge::{StructValue, Value};
+use p4kx_assembly::{ArchiveFiles, ENTITY_TYPE, LoadoutError, LoadoutResolver};
+use p4kx_dataforge::{DataForge, StructValue, Value};
 use p4kx_extraction::{Archive, DataForgeEntry};
 use p4kx_testkit::{real_archive_key, real_archive_path};
 
@@ -19,11 +19,32 @@ type TestResult = Result<(), Box<dyn Error>>;
 const ASSORTMENT: &str = "SLoadoutAssortment";
 const TAGS: &str = "SLoadoutRequirementTags";
 
-/// Returns the Requirement a field holds, or `None` for a null pointer or no field.
-fn requirement<'a, 'f>(structure: &'a StructValue<'f>) -> Option<&'a StructValue<'f>> {
-    match structure.field("Requirement") {
-        Some(Value::Struct(requirement)) => Some(requirement),
-        _ => None,
+/// What the Records hold: the groups and the Requirements of both levels.
+#[derive(Default)]
+struct Counts {
+    assortments: usize,
+    assortments_required: usize,
+    groups: usize,
+    groups_required: usize,
+    unrestricted: usize,
+    by_type: BTreeMap<String, usize>,
+}
+
+impl Counts {
+    fn require(&mut self, level: &str, requirement: &StructValue<'_>) {
+        *self
+            .by_type
+            .entry(format!("{level} {}", requirement.type_name()))
+            .or_default() += 1;
+    }
+
+    fn group(&mut self, group: &StructValue<'_>) {
+        self.groups += 1;
+        if let Some(Value::Struct(requirement)) = group.field("Requirement") {
+            self.groups_required += 1;
+            self.unrestricted += usize::from(names_no_tag(requirement));
+            self.require("group", requirement);
+        }
     }
 }
 
@@ -35,63 +56,39 @@ fn names_no_tag(requirement: &StructValue<'_>) -> bool {
         )
 }
 
-#[test]
-#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
-fn the_requirements_of_the_assortments_are_counted_and_the_undecided_ones_listed() -> TestResult {
-    let archive = Archive::open_with_key(real_archive_path()?, real_archive_key().ok())?;
-    let entry = DataForgeEntry::read(&archive)?;
-    let forge = entry.open()?;
-
-    let mut assortments = 0_usize;
-    let mut assortments_required = 0_usize;
-    let mut groups = 0_usize;
-    let mut unrestricted = 0_usize;
-    let mut by_type: BTreeMap<String, usize> = BTreeMap::new();
+fn count_requirements(forge: &DataForge<'_>) -> Counts {
+    let mut counts = Counts::default();
     for record in forge
         .records()
         .filter(|record| record.type_name().is_ok_and(|name| name == ASSORTMENT))
     {
         let Ok(tree) = record.tree() else { continue };
-        assortments += 1;
+        counts.assortments += 1;
         if let Some(Value::Struct(requirement)) = tree.field("Requirement") {
-            assortments_required += 1;
-            *by_type
-                .entry(format!("assortment {}", requirement.type_name()))
-                .or_default() += 1;
+            counts.assortments_required += 1;
+            counts.require("assortment", requirement);
         }
         if let Some(Value::Array(items)) = tree.field("GroupedLoadouts") {
-            for group in items.iter().filter_map(|item| match item {
-                Value::Struct(group) => Some(group),
-                _ => None,
-            }) {
-                groups += 1;
-                if let Some(requirement) = requirement(group) {
-                    let kind = requirement.type_name();
-                    *by_type.entry(format!("group {kind}")).or_default() += 1;
-                    unrestricted += usize::from(names_no_tag(requirement));
+            for item in items {
+                if let Value::Struct(group) = item {
+                    counts.group(group);
                 }
             }
         }
     }
-    let groups_required: usize = by_type
-        .iter()
-        .filter(|(key, _)| key.starts_with("group "))
-        .map(|(_, count)| count)
-        .sum();
-    println!(
-        "{assortments} assortments, {assortments_required} with a Requirement; {groups} groups, \
-         {groups_required} with a Requirement"
-    );
-    for (kind, count) in &by_type {
-        println!("  {kind}: {count}");
-    }
-    println!("{unrestricted} group Requirements name no tag and restrict nothing");
+    counts
+}
 
-    let archive_files = p4kx_assembly::ArchiveFiles::new(&archive);
-    let mut resolver = LoadoutResolver::new(&forge)
-        .with_files(&archive_files)
+/// Returns the assortments and groups, by assortment GUID and scope, that an Entity lists as
+/// undecided, and the number of Entities that list one.
+fn undecided_of_entities(
+    forge: &DataForge<'_>,
+    files: &ArchiveFiles<'_>,
+) -> (BTreeSet<(String, String)>, usize) {
+    let mut resolver = LoadoutResolver::new(forge)
+        .with_files(files)
         .stopping_at_docked_vehicles();
-    let mut undecided: BTreeSet<(String, String)> = BTreeSet::new();
+    let mut undecided = BTreeSet::new();
     let mut entities = 0_usize;
     for record in forge
         .records()
@@ -109,15 +106,47 @@ fn the_requirements_of_the_assortments_are_counted_and_the_undecided_ones_listed
         }
         entities += usize::from(listed);
     }
+    (undecided, entities)
+}
+
+#[test]
+#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
+fn the_requirements_of_the_assortments_are_counted_and_the_undecided_ones_listed() -> TestResult {
+    let archive = Archive::open_with_key(real_archive_path()?, real_archive_key().ok())?;
+    let entry = DataForgeEntry::read(&archive)?;
+    let forge = entry.open()?;
+
+    let counts = count_requirements(&forge);
+    println!(
+        "{} assortments, {} with a Requirement; {} groups, {} with a Requirement",
+        counts.assortments, counts.assortments_required, counts.groups, counts.groups_required
+    );
+    for (kind, count) in &counts.by_type {
+        println!("  {kind}: {count}");
+    }
+    println!(
+        "{} group Requirements name no tag and restrict nothing",
+        counts.unrestricted
+    );
+
+    let files = ArchiveFiles::new(&archive);
+    let (undecided, entities) = undecided_of_entities(&forge, &files);
     println!(
         "{} assortments or groups reached by an Entity depend on spawn tags; {entities} Entities \
          list one",
         undecided.len()
     );
 
-    assert!(assortments > 0, "the Archive holds loadout assortments");
     assert!(
-        undecided.len() <= assortments_required + groups_required,
+        counts.assortments > 0,
+        "the Archive holds loadout assortments"
+    );
+    assert!(
+        counts.groups_required > 0,
+        "some group of the Archive has a Requirement"
+    );
+    assert!(
+        undecided.len() <= counts.assortments_required + counts.groups_required,
         "only a Requirement that exists can be undecided"
     );
     Ok(())

@@ -14,7 +14,7 @@ use p4kx_assembly::{
 use p4kx_extraction::{ConversionError, DataForgeEntry, is_same_file, write_replacing};
 use p4kx_render::{
     Adapters, AssemblyDraw, AssemblyScene, BuildOptions, Camera, Colours, DrawList, Frame,
-    Hologram, HologramView, Hooks, Look, Offscreen, Picture, Shading, Subject,
+    Hologram, HologramView, Hooks, Look, Offscreen, Picture, Released, Shading, Subject,
 };
 use p4kx_settings::ModelMaterials;
 use serde::Serialize;
@@ -192,11 +192,18 @@ fn draw_picture(
     let drawn = started.elapsed();
     let bytes = write(&picture, &args.out)?;
     let total = started.elapsed();
+    let adapter = offscreen.adapter_name().to_owned();
+    if offscreen.close() == Released::Abandoned {
+        writeln!(
+            io::stderr().lock(),
+            "warning: the graphics driver did not release the device in time; the picture is written"
+        )?;
+    }
     Ok(Outcome {
         scene: Arc::into_inner(scene).context("the scene is still shared")?,
         picture,
         bytes,
-        adapter: offscreen.adapter_name().to_owned(),
+        adapter,
         camera,
         times: TimesJson {
             assembly: millis(assembled),

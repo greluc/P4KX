@@ -270,10 +270,20 @@ order is attached. The same Archive always gives the same document.
  "skinned_meshes": 0, "lod_fallbacks": 0, "shared_meshes": 33, "shared_materials": 103,
  "shared_textures": 0, "vertices": 744831,
  "triangles": 818426, "bytes": 44750744, "skipped": 0, "placements": [Placement, …],
- "issues": [Issue, …]}
+ "animations": [Animation, …], "issues": [Issue, …]}
 ```
 
-`<entity>` is named as for `p4kx entity loadout`, with the same exit codes. A docked vehicle is
+`<entity>` is named as for `p4kx entity loadout`, with the same exit codes. `animations` is absent
+without any; for a creature it lists each clip the GLB writes or leaves out, shaped as in `p4kx
+model glb`: `name`, `duration_seconds`, `additive`, `channels`, `keys` and `skipped_tracks`. A
+creature whose skins are bound to its skeleton gets the clips its animation database names
+(`animDatabase3P` of `SAnimatedCharacterComponentParams`, a Mannequin `.adb` with the databases
+nested in it), looked for by file name without extension in the animation folders (`#filepath`) and
+the track databases of its skeleton's parameter file ([ADR-0307](adr/0307-the-clips-of-a-creature-are-those-its-animation-database-names-and-are-written-on-the-bones-of-its-skeleton.md));
+`--no-animations` leaves them out. Names no clip has, such as blend spaces, are skipped, additive
+clips and clips that move no bone are left out as `animation_not_used` (one Issue per reason,
+`skipped` false), and a database, parameter file or folder the Archive lacks is
+`animations_unavailable` (`skipped` false). A docked vehicle is
 one part without the parts of its own Loadout; `--expand-docked-vehicles` places those too. A
 change to a port below an unexpanded docked vehicle, as `entity loadout` lists it, is not applied
 and no error; the report lists the ports as `ignored` (absent when empty), as for `entity loadout`.

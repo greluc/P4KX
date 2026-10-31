@@ -6,7 +6,9 @@
 use std::path::Path;
 
 use anyhow::Result;
-use p4kx_assembly::{Assembly, ChangedLoadout, EntityNode, Issue, LoadoutChanges};
+use p4kx_assembly::{
+    Assembly, ChangedLoadout, CreatureAnimations, CreatureClips, EntityNode, Issue, LoadoutChanges,
+};
 use p4kx_extraction::GlbSummary;
 use serde::Serialize;
 
@@ -14,6 +16,7 @@ use crate::cli_entity::EntityGlbArgs;
 use crate::entity_glb_body::{BodyJson, body_json};
 use crate::entity_glb_placements::{PlacementJson, painted, placements_json};
 use crate::json;
+use crate::model_animations::WrittenJson;
 
 /// What the JSON report of one `entity glb` run is built from.
 pub(crate) struct GlbReport<'a> {
@@ -24,6 +27,8 @@ pub(crate) struct GlbReport<'a> {
     pub(crate) summary: &'a GlbSummary,
     pub(crate) applied: &'a ChangedLoadout,
     pub(crate) changes: &'a LoadoutChanges,
+    /// The clips read for a creature and how they fitted its skeleton.
+    pub(crate) animations: (&'a CreatureClips, &'a CreatureAnimations<'a>),
 }
 
 impl GlbReport<'_> {
@@ -37,6 +42,7 @@ impl GlbReport<'_> {
             summary,
             applied,
             changes,
+            animations: (found, animated),
         } = *self;
         Ok(json::print(&GlbJson {
             archive: json::path(archive),
@@ -83,7 +89,8 @@ impl GlbReport<'_> {
                 .map(|(port, entity)| ReplacedJson { port, entity })
                 .collect(),
             placements: placements_json(assembly),
-            issues: assembly.issues().iter().map(IssueJson::from).collect(),
+            animations: summary.animations.iter().map(WrittenJson::of).collect(),
+            issues: issues_json(assembly, (found, animated)),
         })?)
     }
 }
@@ -132,7 +139,23 @@ struct GlbJson<'a> {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     replaced: Vec<ReplacedJson<'a>>,
     placements: Vec<PlacementJson<'a>>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    animations: Vec<WrittenJson>,
     issues: Vec<IssueJson<'a>>,
+}
+
+/// Returns the Issues of the Assembly, then those of reading and fitting the clips of a creature.
+fn issues_json<'a>(
+    assembly: &'a Assembly,
+    (found, animated): (&'a CreatureClips, &'a CreatureAnimations<'_>),
+) -> Vec<IssueJson<'a>> {
+    assembly
+        .issues()
+        .iter()
+        .chain(&found.issues)
+        .chain(animated.issues())
+        .map(IssueJson::from)
+        .collect()
 }
 
 #[derive(Serialize)]

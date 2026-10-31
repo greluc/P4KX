@@ -36,7 +36,7 @@ mod read_models;
 mod sample;
 mod shape;
 mod uncover;
-mod unused;
+pub(crate) mod unused;
 mod vec3;
 mod wearable;
 mod zones;

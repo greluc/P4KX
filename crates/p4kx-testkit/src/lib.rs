@@ -37,6 +37,7 @@ mod entity_bone;
 mod entity_cargo;
 mod entity_clothing;
 mod entity_creature;
+mod entity_creature_animated;
 mod entity_dressed;
 mod entity_fit_sample;
 mod entity_gear;
@@ -152,7 +153,8 @@ pub use entity_bone::{
 pub use entity_cargo::{TestCapacity, closed_container_record, open_container_record};
 pub use entity_clothing::{TestClothingCondition, TestZoneChunk, clothing_component};
 pub use entity_creature::{
-    CREATURE, CREATURE_ASSORTED, CREATURE_COLLAR_LOST, CREATURE_COLLAR_NODED, CREATURE_COLLARED,
+    CREATURE, CREATURE_ANIMATED, CREATURE_ANIMATION_DATABASE_LOST, CREATURE_ANIMATION_PARAMS_LOST,
+    CREATURE_ASSORTED, CREATURE_COLLAR_LOST, CREATURE_COLLAR_NODED, CREATURE_COLLARED,
     CREATURE_DEFINITION, CREATURE_HORNED, CREATURE_LOADOUT_LOST, CREATURE_NO_SKELETON,
     CREATURE_SHORT_SKELETON, RIGGED_PROP, creature_entries,
 };

@@ -33,6 +33,25 @@ pub enum TextureUse {
     Other,
 }
 
+impl From<p4kx_model::TextureRole> for TextureUse {
+    fn from(role: p4kx_model::TextureRole) -> Self {
+        use p4kx_model::TextureRole;
+        match role {
+            TextureRole::Diffuse => Self::Diffuse,
+            TextureRole::Normal => Self::Normal,
+            TextureRole::Specular => Self::Specular,
+            TextureRole::Mask => Self::Mask,
+            TextureRole::Blend => Self::Blend,
+            TextureRole::Detail => Self::Detail,
+            TextureRole::Wear => Self::Wear,
+            TextureRole::Occlusion => Self::Occlusion,
+            TextureRole::Displacement => Self::Displacement,
+            TextureRole::Gloss => Self::Gloss,
+            _ => Self::Other,
+        }
+    }
+}
+
 /// How a material is blended with what is behind it, derived from its opacity and alpha test.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -186,7 +205,9 @@ pub struct MaterialDescription {
     pub alpha_mode: AlphaMode,
     /// Whether the material reads the vertex colours of its mesh (1.4): glass with
     /// `PER_VERTEX_TINT`, and a layered surface without a blend map. The GLB meshes carry
-    /// `COLOR_0` on the primitives of such materials only.
+    /// `COLOR_0` on the primitives of such materials only. A package before 1.4 lacks it and reads
+    /// as `false` here, which is harmless: this crate only writes it, and the add-on tells an
+    /// absent field from `false` itself.
     #[serde(default)]
     pub reads_vertex_colours: bool,
     /// The palette entry the material takes: that of its first layer with a `PaletteTint` from 1

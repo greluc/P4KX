@@ -8,7 +8,7 @@ use std::error::Error;
 use p4kx_chunks::ChunkFile;
 use p4kx_gltf::{GlbOptions, write_glb};
 use p4kx_model::{CompanionError, CompanionPath, Model};
-use p4kx_testkit::gltf::Semantic;
+use p4kx_testkit::gltf::{Accessor, Semantic};
 use p4kx_testkit::{
     CUBE_MATERIAL_LIBRARY, CheckedGlb, TestModel, TestMtl, TestMtlMaterial, check_glb,
 };
@@ -69,7 +69,28 @@ fn a_mesh_whose_materials_all_ignore_the_colours_has_no_color_0() -> TestResult 
         TestMtlMaterial::new("b"),
     ])?;
     assert_eq!(has_colours(&glb)?, [false, false]);
+    assert_eq!(colour_accessors(&glb), 0, "no colour data is written");
     Ok(())
+}
+
+#[test]
+fn the_primitives_that_read_the_colours_share_one_accessor() -> TestResult {
+    let glb = export(&[
+        glass("unused", ""),
+        glass("a", "%PER_VERTEX_TINT"),
+        glass("b", "%PER_VERTEX_TINT"),
+    ])?;
+    assert_eq!(has_colours(&glb)?, [true, true]);
+    assert_eq!(colour_accessors(&glb), 1, "one accessor for the mesh");
+    Ok(())
+}
+
+/// Counts the normalised accessors, which in this unskinned cube are the colours.
+fn colour_accessors(glb: &CheckedGlb) -> usize {
+    glb.document
+        .accessors()
+        .filter(Accessor::normalized)
+        .count()
 }
 
 #[test]

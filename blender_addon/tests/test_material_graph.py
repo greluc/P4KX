@@ -318,11 +318,14 @@ def test_a_layered_surface_the_package_says_ignores_the_vertex_colours_is_not_bl
         assert (LAYER_BLEND in graph.groups()) is blended
 
 
-def test_the_glass_shader_name_is_tinted_like_glasspbr() -> None:
-    graph = single([description("x0001", "Glass", gen_mask=["PER_VERTEX_TINT"])])
-    colours = graph.linked("bsdf", "Base Color")
-    assert colours is not None
-    assert graph.node(colours.key).kind == "ShaderNodeVertexColor"
+def test_a_package_before_1_4_keeps_the_earlier_vertex_colour_rule() -> None:
+    glass = single([description("x0001", "GlassPBR", gen_mask=["PER_VERTEX_TINT"])])
+    assert "ShaderNodeVertexColor" in glass.kinds()
+    clear = single([description("x0001", "GlassPBR", gen_mask=["NORMAL_MAP"])])
+    assert "ShaderNodeVertexColor" not in clear.kinds()
+    layers = [{"name": "a", "material": "x0002"}, {"name": "b", "material": "x0002"}]
+    surface = [description("x0001", "HardSurface", layers=layers), description("x0002", "Layer")]
+    assert "ShaderNodeVertexColor" in single(surface).kinds()
 
 
 def test_a_white_palette_glass_colour_with_the_flag_links_the_vertex_colours_alone() -> None:

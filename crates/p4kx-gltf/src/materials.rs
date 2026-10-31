@@ -18,7 +18,6 @@ use crate::texture_roles::sources_with;
 const GLASS_ALPHA: f32 = 0.3;
 
 const DECAL_SHADERS: [&str; 2] = ["MeshDecal", "Decal"];
-const GLASS_SHADERS: [&str; 1] = ["GlassPBR"];
 const HAIR_CARD_SHADERS: [&str; 1] = ["HairPBR"];
 const HAIR_CARD_CUTOFF: f32 = 0.5;
 
@@ -216,7 +215,7 @@ pub(crate) fn display_name(material: &Material, slot: Slot) -> String {
 fn alpha_of(material: &Material) -> (AlphaMode, f32, Option<f32>) {
     let opacity = material.opacity.clamp(0.0, 1.0);
     let decal = is_one_of(&material.shader, &DECAL_SHADERS);
-    let glass = is_one_of(&material.shader, &GLASS_SHADERS);
+    let glass = material.is_glass();
     if material.alpha_test > 0.0 {
         (
             AlphaMode::Mask,

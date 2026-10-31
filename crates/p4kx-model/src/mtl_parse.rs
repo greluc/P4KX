@@ -5,6 +5,7 @@ use p4kx_cryxml::Xml;
 
 use crate::mtl::{MAX_SUB_MATERIALS, MAX_TEXTURE_SLOTS};
 use crate::mtl_raw::{Budget, attributes, layers, other_elements, public_params, raw};
+use crate::mtl_shader::GLASS_SHADER;
 use crate::mtl_xml::XmlElement;
 use crate::{Material, MaterialError, MaterialFlags, MaterialLibrary, PaletteSlot, TextureSlot};
 
@@ -147,7 +148,7 @@ fn palette_slot<'a>(element: impl XmlElement<'a>) -> Option<PaletteSlot> {
     layered.or_else(|| {
         let glass = element
             .attribute("Shader")
-            .is_some_and(|shader| shader.eq_ignore_ascii_case("GlassPBR"));
+            .is_some_and(|shader| shader.eq_ignore_ascii_case(GLASS_SHADER));
         let uses_palette = element
             .attribute("StringGenMask")
             .is_some_and(|mask| mask.to_ascii_uppercase().contains("USE_TINT_PALETTE"));

@@ -179,7 +179,6 @@ def _material(item: object) -> MaterialDesc | None:
     palette = item.get("palette")
     stated = item.get("reads_vertex_colours")
     return MaterialDesc(
-        stated_vertex_colours=stated if isinstance(stated, bool) else None,
         id=material_id,
         name=_string(item.get("name")),
         shader=_string(item.get("shader")),
@@ -199,6 +198,7 @@ def _material(item: object) -> MaterialDesc | None:
         textures=tuple(s for s in map(_slot, _list(item.get("textures"))) if s is not None),
         layers=tuple(layer for layer in map(_layer, _list(item.get("layers"))) if layer),
         parameters=_parameters(item.get("parameters")),
+        stated_vertex_colours=stated if isinstance(stated, bool) else None,
     )
 
 

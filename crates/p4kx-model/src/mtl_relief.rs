@@ -39,7 +39,7 @@ impl Material {
             })
     }
 
-    pub(crate) fn diffuse_file(&self) -> Option<&str> {
+    fn diffuse_file(&self) -> Option<&str> {
         self.textures
             .iter()
             .find(|texture| texture.map.eq_ignore_ascii_case(DIFFUSE_SLOT))

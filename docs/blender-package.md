@@ -296,7 +296,7 @@ shader still has every value the file holds.
 | `diffuse`, `specular`, `emissive` | Linear colours. `emissive` counts times `glow`. |
 | `shininess`, `opacity`, `alpha_test`, `glow` | Scalars of the file (`shininess` from 0 to 255). |
 | `alpha_mode` | `opaque`, `mask` (`alpha_test` above 0) or `blend` (`opacity` below 1, or a glass or decal shader): derived from the fields above. |
-| `reads_vertex_colours` | (1.4) `true` when the material reads the vertex colours of its mesh: `GlassPBR` or `Glass` with `PER_VERTEX_TINT`, or a layered surface without a blend map (`_blend`, `_mask`, `_opac`) that has a layer to blend over its base ([ADR-0253](adr/0253-glass-with-per-vertex-tint-takes-its-colour-from-the-vertex-colours.md)). The GLB meshes carry `COLOR_0` on the primitives of such materials only. Absent in 1.3 and older; the add-on then applies the rule it had before. |
+| `reads_vertex_colours` | (1.4) `true` when the material reads the vertex colours of its mesh: `GlassPBR` with `PER_VERTEX_TINT`, or a layered surface without a blend map (`_blend`, `_mask`, `_opac`) that has a layer to blend over its base ([ADR-0253](adr/0253-glass-with-per-vertex-tint-takes-its-colour-from-the-vertex-colours.md)). The GLB meshes carry `COLOR_0` on the primitives of such materials only. Absent in 1.3 and older; the add-on then applies the rule it had before. |
 | `palette` | `primary`, `secondary`, `tertiary` or `glass`: the palette entry the material takes (the first layer with a `PaletteTint` from 1 to 3, or the tint-palette glass colour). Absent when it takes none. |
 | `default_palette` | The Record path of the library's default palette. |
 | `textures` | The texture slots in file order, see below. |

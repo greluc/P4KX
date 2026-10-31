@@ -27,8 +27,8 @@ class GlassSurface:
     def _glass_base_colour(self, colour: Ref | Colour) -> Ref | Colour:
         """Returns the Base Color of glass: the palette's glass colour if named, then the tint.
 
-        The palette colour is faded towards white by ``GlassTintStrength`` (default 1). With
-        Glass that reads the vertex colours (``PER_VERTEX_TINT``) multiplies the colour by them.
+        The palette colour is faded towards white by ``GlassTintStrength`` (default 1). Glass that
+        reads the vertex colours (``PER_VERTEX_TINT``) then multiplies the colour by them.
         """
         desc, b = self.desc, self.builder
         if desc.palette == "glass" and self.context.palette:

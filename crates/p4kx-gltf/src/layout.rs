@@ -203,17 +203,18 @@ impl<'m> Layout<'m> {
             .as_ref()
             .filter(|tangents| tangents.len() == mesh.positions.len())
             .map(|tangents| self.push(BlockData::Tangents(tangents)));
-        let reading = |id: u16| colours_wanted && materials.reads_vertex_colours(id);
+        let reading: Vec<bool> = primitives
+            .iter()
+            .map(|&(_, id)| colours_wanted && materials.reads_vertex_colours(id))
+            .collect();
         let colours = mesh
             .colours
             .as_ref()
             .filter(|colours| colours.len() == mesh.positions.len())
-            .filter(|_| primitives.iter().any(|&(_, id)| reading(id)))
+            .filter(|_| reading.contains(&true))
             .map(|colours| self.push(BlockData::Colours(colours)));
         let (joints, weights) = self.plan_skin(mesh, binds, remapped);
-        let primitives = self.plan_primitives(&primitives, mesh.positions.len(), |id| {
-            colours.is_some() && reading(id)
-        });
+        let primitives = self.plan_primitives(&primitives, &reading, mesh.positions.len());
         self.meshes.push(MeshLayout {
             part,
             node: mesh.node,
@@ -234,20 +235,21 @@ impl<'m> Layout<'m> {
     fn plan_primitives(
         &mut self,
         primitives: &[(&'m [u32], u16)],
+        reading: &[bool],
         vertices: usize,
-        colours: impl Fn(u16) -> bool,
     ) -> Vec<PrimitiveLayout> {
         let short = u16::try_from(vertices).is_ok();
         primitives
             .iter()
-            .map(|&(indices, material_id)| PrimitiveLayout {
+            .zip(reading)
+            .map(|(&(indices, material_id), &colours)| PrimitiveLayout {
                 indices: self.push(if short {
                     BlockData::Short(indices)
                 } else {
                     BlockData::Wide(indices)
                 }),
                 material_id,
-                colours: colours(material_id),
+                colours,
             })
             .collect()
     }

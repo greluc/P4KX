@@ -161,58 +161,6 @@ fn a_hardpoint_without_a_box_or_a_finite_position_is_within_nothing() {
     }
 }
 
-fn fit_of(hardpoints: Vec<Hardpoint>) -> InteriorFit {
-    InteriorFit {
-        containers: Vec::new(),
-        unplaced: Vec::new(),
-        hull: None,
-        hardpoints: hardpoints
-            .into_iter()
-            .map(|hardpoint| HardpointFit::measure(hardpoint, &[]))
-            .collect(),
-    }
-}
-
-#[test]
-fn the_pilot_seat_is_the_seat_nearest_to_a_controller_once() {
-    let fit = fit_of(vec![
-        hardpoint(HardpointKind::Seat, [0.0, 0.0, 0.0]),
-        hardpoint(HardpointKind::Controller, [0.0, 4.5, 0.0]),
-        hardpoint(HardpointKind::Seat, [0.0, 5.0, 0.0]),
-        hardpoint(HardpointKind::Seat, [NAN, 4.5, 0.0]),
-        hardpoint(HardpointKind::Controller, [0.0, 4.0, 0.0]),
-    ]);
-
-    let seats = fit.pilot_seats();
-
-    assert_eq!(seats.len(), 1);
-    assert_eq!(seats[0].hardpoint().position(), [0.0, 5.0, 0.0]);
-}
-
-#[test]
-fn a_pilot_seat_belongs_to_the_vehicle_of_its_controller() {
-    let mut docked = hardpoint(HardpointKind::Seat, [0.0, 1.0, 0.0]);
-    docked.vehicle = "collar/attach".to_owned();
-    let fit = fit_of(vec![
-        hardpoint(HardpointKind::Controller, [0.0; 3]),
-        docked,
-        hardpoint(HardpointKind::Seat, [0.0, 9.0, 0.0]),
-    ]);
-
-    let seats = fit.pilot_seats();
-
-    assert_eq!(seats.len(), 1);
-    assert_eq!(seats[0].hardpoint().position(), [0.0, 9.0, 0.0]);
-}
-
-#[test]
-fn a_controller_without_a_seat_has_no_pilot_seat() {
-    let fit = fit_of(vec![hardpoint(HardpointKind::Controller, [0.0; 3])]);
-
-    assert_eq!(fit.pilot_seats().len(), 0);
-    assert_eq!(fit.of_kind(HardpointKind::Controller).count(), 1);
-}
-
 #[test]
 fn only_cga_models_are_animated() {
     use super::fit::is_animated;

@@ -6,7 +6,7 @@
 
 #![expect(clippy::print_stdout, reason = "the judged materials are the output")]
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use std::error::Error;
 use std::path::Path;
 
@@ -125,6 +125,7 @@ fn the_grey_limit_lies_in_the_gap_between_grey_and_coloured_maps() -> TestResult
     let index = PathIndex::new(&archive);
     let mut grey_most = 0.0_f32;
     let mut coloured_least = f32::MAX;
+    let mut measured: HashSet<String> = HashSet::new();
     for (entry_path, library) in ship_libraries(&archive) {
         let status = ModelSource::material_library(&index, &entry_path, &library);
         for material in status
@@ -136,6 +137,9 @@ fn the_grey_limit_lies_in_the_gap_between_grey_and_coloured_maps() -> TestResult
             else {
                 continue;
             };
+            if !measured.insert(file.to_ascii_lowercase()) {
+                continue;
+            }
             let Some(saturation) = probe_saturation(&index, file) else {
                 continue;
             };

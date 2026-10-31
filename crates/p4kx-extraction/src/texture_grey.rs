@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 use std::collections::HashMap;
-use std::sync::{Mutex, PoisonError};
+use std::sync::{Arc, Mutex, OnceLock, PoisonError};
 
 use p4kx_model::{GREY_PROBE_MIP, MAX_GREY_SATURATION};
 
@@ -10,8 +10,10 @@ use crate::{PathIndex, Texture};
 
 /// Returns the mean saturation of the probe mip of the texture a material file names as `file`.
 ///
-/// The probe mip is [`GREY_PROBE_MIP`], or the last when the texture has fewer. `None` when the
-/// Archive holds no such texture or it cannot be decoded.
+/// This is the measuring half of [`p4kx_model::CompanionResolver::texture_is_grey`], exposed for
+/// verification. The probe mip is [`GREY_PROBE_MIP`], or the last when the texture has fewer.
+/// `None` when the Archive holds no such texture or it cannot be decoded.
+#[doc(hidden)]
 #[must_use]
 pub fn probe_saturation(index: &PathIndex<'_>, file: &str) -> Option<f32> {
     let entry = entry_path(file)?;
@@ -30,28 +32,25 @@ fn decode_saturation(index: &PathIndex<'_>, entry: &str) -> Option<f32> {
     Some(image.mean_saturation())
 }
 
-/// The colour verdicts of the textures an [`PathIndex`] has judged, by the position of the
-/// texture's Entry, so a map several materials or libraries name is decoded once.
+type Verdict = Arc<OnceLock<Option<bool>>>;
+
+/// The colour verdicts of the textures judged through a [`PathIndex`], by the position of the
+/// texture's Entry, so a map several materials or libraries name is decoded once, also when
+/// threads ask for it at the same time.
 #[derive(Debug, Default)]
-pub(crate) struct GreyVerdicts(Mutex<HashMap<usize, Option<bool>>>);
+pub(crate) struct GreyVerdicts(Mutex<HashMap<usize, Verdict>>);
 
 impl GreyVerdicts {
-    /// Returns the verdict kept for `position`, judging it with `judge` first when there is none.
+    /// Returns the verdict of `position`, judging it with `judge` on the first ask only.
     fn get_or_judge(&self, position: usize, judge: impl FnOnce() -> Option<bool>) -> Option<bool> {
-        let kept = self
-            .0
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner)
-            .get(&position)
-            .copied();
-        kept.unwrap_or_else(|| {
-            let verdict = judge();
+        let cell = Arc::clone(
             self.0
                 .lock()
                 .unwrap_or_else(PoisonError::into_inner)
-                .insert(position, verdict);
-            verdict
-        })
+                .entry(position)
+                .or_default(),
+        );
+        *cell.get_or_init(judge)
     }
 }
 
@@ -62,7 +61,7 @@ impl PathIndex<'_> {
     pub(crate) fn texture_is_grey(&self, file: &str) -> Option<bool> {
         let entry = entry_path(file)?;
         let position = self.position(&entry)?;
-        self.grey.get_or_judge(position, || {
+        self.grey_verdicts().get_or_judge(position, || {
             decode_saturation(self, &entry).map(|saturation| saturation <= MAX_GREY_SATURATION)
         })
     }
@@ -84,14 +83,16 @@ mod tests {
     const ENTRY: &str = "Data\\Textures\\mask_diff.dds";
     const SIDE: u32 = 8;
     const GREY: [u8; 4] = [200, 200, 200, 255];
+    // Saturation is (200 - low) / 200 in f64 narrowed to f32: 10 / 200 is the f64 nearest 0.05 and
+    // narrows to the same f32 as the limit, so the first texel is exactly at it; 11 / 200 is above.
     const AT_LIMIT: [u8; 4] = [190, 190, 200, 255];
     const OVER_LIMIT: [u8; 4] = [189, 189, 200, 255];
     const RED: [u8; 4] = [0, 0, 255, 255];
 
-    /// A BGRA8 DDS of `SIDE` squared with `mips` levels, level `n` filled with `texels[n]`.
-    fn dds(texels: &[[u8; 4]]) -> Vec<u8> {
-        let mips = u32::try_from(texels.len()).unwrap_or(1);
-        let template = SplitDds::new(TestTextureFormat::LegacyBgra8, SIDE, SIDE).mips(mips);
+    /// A BGRA8 DDS of `SIDE` squared with `N` mips, mip `n` filled with `texels[n]`.
+    #[expect(clippy::cast_possible_truncation, reason = "N is at most 4")]
+    fn dds<const N: usize>(texels: [[u8; 4]; N]) -> Vec<u8> {
+        let template = SplitDds::new(TestTextureFormat::LegacyBgra8, SIDE, SIDE).mips(N as u32);
         let mut bytes = template.header_bytes();
         bytes.truncate(template.header_len());
         for (level, texel) in texels.iter().enumerate() {
@@ -101,7 +102,7 @@ mod tests {
         bytes
     }
 
-    fn verdict(texels: &[[u8; 4]]) -> Result<Option<bool>, Box<dyn Error>> {
+    fn verdict<const N: usize>(texels: [[u8; 4]; N]) -> Result<Option<bool>, Box<dyn Error>> {
         let dir = tempfile::tempdir()?;
         let path = dir.path().join("Data.p4k");
         ArchiveBuilder::new()
@@ -115,7 +116,7 @@ mod tests {
     fn the_limit_itself_is_grey_and_a_little_above_it_is_not() -> TestResult {
         for (texel, expected) in [(GREY, true), (AT_LIMIT, true), (OVER_LIMIT, false)] {
             assert_eq!(
-                verdict(&[RED, RED, RED, texel])?,
+                verdict([RED, RED, RED, texel])?,
                 Some(expected),
                 "{texel:?}"
             );
@@ -125,9 +126,9 @@ mod tests {
 
     #[test]
     fn a_texture_with_fewer_than_four_mips_is_judged_by_its_last() -> TestResult {
-        assert_eq!(verdict(&[RED, GREY])?, Some(true), "two mips, the last");
-        assert_eq!(verdict(&[GREY, RED])?, Some(false), "two mips, the last");
-        assert_eq!(verdict(&[GREY])?, Some(true), "one mip");
+        assert_eq!(verdict([RED, GREY])?, Some(true), "two mips, the last");
+        assert_eq!(verdict([GREY, RED])?, Some(false), "two mips, the last");
+        assert_eq!(verdict([GREY])?, Some(true), "one mip");
         Ok(())
     }
 

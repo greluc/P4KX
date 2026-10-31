@@ -48,8 +48,7 @@ pub enum CompanionPath<'a> {
 /// with fewer levels gives its last.
 pub const GREY_PROBE_MIP: u32 = 3;
 
-/// The mean saturation up to which a texture counts as grey; real grey masks measure up to 0.032
-/// and coloured maps from 0.077.
+/// The mean saturation up to which a texture counts as grey.
 pub const MAX_GREY_SATURATION: f32 = 0.05;
 
 /// Supplies the companion files of a model, so that reading a model needs no Archive.

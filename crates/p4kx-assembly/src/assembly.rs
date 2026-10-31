@@ -11,7 +11,7 @@ use p4kx_gltf::{
 };
 use p4kx_model::{MaterialStatus, Model, TintPalette, Transform};
 
-use crate::{AttachedModel, Issue};
+use crate::{AttachedModel, Issue, creature_rig};
 
 /// The most parts an Assembly holds; further parts of the Loadout are left out.
 pub const MAX_ASSEMBLY_PARTS: usize = 1 << 14;
@@ -297,7 +297,8 @@ impl Assembly {
     /// Writes the Assembly as a GLB file to `out`: a node per part named `<port>/<entity>` below
     /// the node of its parent part, placed by its transform, with the nodes of its model below it,
     /// and a node per bone attachment of a part below the part's node;
-    /// `out` should be buffered. `options.lod` should be the level the Assembly was built at.
+    /// the skins of a creature Entity, whose root geometry is a character file with a skeleton,
+    /// are written bound to that skeleton, with its bones as nodes. `out` should be buffered. `options.lod` should be the level the Assembly was built at.
     /// The materials are plain colours, drawn with the palette of each part; see
     /// [`Self::write_glb_with`] for textures.
     ///
@@ -334,7 +335,8 @@ impl Assembly {
     }
 
     fn scene(&self) -> Result<Scene<'_>, GltfError> {
-        let mut scene = Scene::new();
+        let mut scene = creature_rig::skeleton_of(&self.parts, &self.issues, self.lod)
+            .map_or_else(Scene::new, |skeleton| Scene::new().with_skeleton(skeleton));
         for part in &self.parts {
             let mut node = SceneNode::new(part.name.clone(), part.parent, part.local);
             if let Some(model) = &part.model {

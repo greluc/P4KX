@@ -5,13 +5,14 @@ use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use std::io::Write;
 
-use p4kx_model::{MaterialStatus, Model, TintPalette, Transform};
+use p4kx_model::{Bone, MaterialStatus, Model, TintPalette, Transform};
 
 use crate::GltfError;
 use crate::glb::{GlbOptions, GlbSummary, MaterialMode, write_instances};
-use crate::instance::{Instance, Wrapper};
+use crate::instance::{Content, Instance, Wrapper};
 use crate::materials::MaterialPlan;
 use crate::scene_light::{LIGHT_FRAME, SceneLight};
+use crate::scene_rig::SceneRig;
 use crate::texture_loader::{NoTextures, TextureLoader};
 
 type SharingKey = (usize, usize, usize, usize);
@@ -110,13 +111,36 @@ impl<'m> SceneNode<'m> {
 #[non_exhaustive]
 pub struct Scene<'m> {
     nodes: Vec<SceneNode<'m>>,
+    skeleton: Option<&'m [Bone]>,
 }
 
 impl<'m> Scene<'m> {
     /// Creates a scene without nodes.
     #[must_use]
     pub const fn new() -> Self {
-        Self { nodes: Vec::new() }
+        Self {
+            nodes: Vec::new(),
+            skeleton: None,
+        }
+    }
+
+    /// Binds the skinned meshes of the scene's models to `skeleton`, by bone name.
+    ///
+    /// The writer then adds the bones as nodes and one glTF skin over them, and writes
+    /// `JOINTS_n` and `WEIGHTS_n` on every skinned mesh, with its bones turned into the
+    /// skeleton's; a bone the skeleton lacks takes its nearest ancestor that it has. The
+    /// vertices of a skin are in the skeleton's space, so the node of a skinned mesh is a root
+    /// without transform. Nothing is added when no model has a skinned mesh.
+    #[must_use]
+    pub const fn with_skeleton(mut self, skeleton: &'m [Bone]) -> Self {
+        self.skeleton = Some(skeleton);
+        self
+    }
+
+    /// Returns the skeleton the skinned meshes are bound to, if the scene has one.
+    #[must_use]
+    pub const fn skeleton(&self) -> Option<&'m [Bone]> {
+        self.skeleton
     }
 
     /// Adds `node` and returns its index.
@@ -151,7 +175,8 @@ impl<'m> Scene<'m> {
 ///
 /// Every scene node becomes a glTF node with its transform, and the nodes of its model hang below
 /// it. The materials are plain colours whatever [`GlbOptions::materials`] says, and the models are
-/// written without skeletons; see [`write_scene_glb_with`] for textures.
+/// written without skeletons unless the scene has one, see [`Scene::with_skeleton`]; see
+/// [`write_scene_glb_with`] for textures.
 ///
 /// Each model is drawn at the level of detail `options` asks for, or, when it lacks that level,
 /// at the nearest lower one, or the lowest it has; [`GlbSummary::lod_fallbacks`] counts those.
@@ -241,15 +266,15 @@ pub fn write_scene_glb_with(
             }),
     );
     let (instances, fallbacks) = instances_of(scene, options);
-    write_instances(
-        &wrappers,
-        &instances,
-        &[],
-        options,
-        textures,
-        fallbacks,
-        out,
-    )
+    let rig = scene
+        .skeleton()
+        .and_then(|skeleton| SceneRig::new(skeleton, &instances));
+    let content = Content {
+        wrappers: &wrappers,
+        instances: &instances,
+        rig: rig.as_ref(),
+    };
+    write_instances(&content, &[], options, textures, fallbacks, out)
 }
 
 /// Returns for each node whether it holds a light and also a model or children, so that the

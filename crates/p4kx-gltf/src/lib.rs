@@ -20,8 +20,8 @@
 //!
 //! [`write_scene_glb`] writes a [`Scene`]: a tree of named, placed nodes that hold models, each
 //! drawn with the material library the scene gives it and, if the part has one, a
-//! [`p4kx_model::TintPalette`], in plain colours and without skeletons. Equal materials are
-//! written once. [`write_scene_glb_with`] adds the textures of [`MaterialMode::Textures`], shared
+//! [`p4kx_model::TintPalette`], in plain colours and without skeletons unless
+//! [`Scene::with_skeleton`] binds its skinned meshes to one. Equal materials are written once. [`write_scene_glb_with`] adds the textures of [`MaterialMode::Textures`], shared
 //! between parts like the materials. A scene node may also hold a [`SceneLight`], written with
 //! the `KHR_lights_punctual` extension.
 //!
@@ -54,6 +54,7 @@ mod rig_mount;
 mod scene;
 mod scene_light;
 mod scene_nodes;
+mod scene_rig;
 mod shading;
 mod skin;
 mod texture_assemble;

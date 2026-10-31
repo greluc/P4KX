@@ -20,6 +20,7 @@ mod scene_glb;
 mod scene_layers;
 mod scene_lights;
 mod scene_palettes;
+mod scene_skeleton;
 mod scene_support;
 mod scene_textures;
 mod skin;

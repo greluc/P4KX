@@ -165,6 +165,21 @@ impl MaterialVariant {
     }
 }
 
+/// Returns whether `path` names a `.cdf`, `.chr` or `.skin` file outside the human body rigs.
+pub(crate) fn is_rigged_path_outside_human_rigs(path: &str) -> bool {
+    let relative = path.trim_start_matches(['/', '\\']);
+    let relative = if starts_with_path(relative, DATA_FOLDER) {
+        relative.get(DATA_FOLDER.len()..).unwrap_or_default()
+    } else {
+        relative
+    };
+    relative.rsplit_once('.').is_some_and(|(_, extension)| {
+        CHARACTER_EXTENSIONS
+            .iter()
+            .any(|wanted| wanted.eq_ignore_ascii_case(extension))
+    }) && !starts_with_path(relative, HUMAN_RIGS)
+}
+
 impl Geometry {
     /// Returns the model file as the Record spells it, a path below `Data`, e.g.
     /// `Objects\Spaceships\Ships\AEGS\Gladius\AEGS_Gladius.cga`.
@@ -190,17 +205,7 @@ impl Geometry {
     /// `Objects/Characters/Human`, the folder of the human body rigs.
     #[must_use]
     pub fn is_rigged_file_outside_human_rigs(&self) -> bool {
-        let relative = self.path.trim_start_matches(['/', '\\']);
-        let relative = if starts_with_path(relative, DATA_FOLDER) {
-            relative.get(DATA_FOLDER.len()..).unwrap_or_default()
-        } else {
-            relative
-        };
-        relative.rsplit_once('.').is_some_and(|(_, extension)| {
-            CHARACTER_EXTENSIONS
-                .iter()
-                .any(|wanted| wanted.eq_ignore_ascii_case(extension))
-        }) && !starts_with_path(relative, HUMAN_RIGS)
+        is_rigged_path_outside_human_rigs(&self.path)
     }
 
     /// Reads the main geometry of a `SGeometryResourceParams` component.

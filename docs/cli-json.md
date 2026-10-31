@@ -263,8 +263,8 @@ order is attached. The same Archive always gives the same document.
 {"archive": "…", "entity": "AEGS_Gladius", "guid": "…", "out": "…", "lod": 0, "parts": 83,
  "modelled_parts": 55, "hidden_parts": 16, "palettes": 12, "nodes": 899, "meshes": 249, "primitives": 948,
  "materials": 204, "textured_materials": 0, "textures": 0, "texture_pixels": 0,
- "texture_fallbacks": [], "default_material_ids": 0, "hidden_primitives": 0, "lod_fallbacks": 0,
- "shared_meshes": 33, "shared_materials": 103, "shared_textures": 0, "vertices": 744831,
+ "texture_fallbacks": [], "default_material_ids": 0, "hidden_primitives": 0, "bones": 0,
+ "skinned_meshes": 0, "lod_fallbacks": 0, "shared_meshes": 33, "shared_materials": 103, "shared_textures": 0, "vertices": 744831,
  "triangles": 818426, "bytes": 44750744, "skipped": 0, "placements": [Placement, …],
  "issues": [Issue, …]}
 ```
@@ -294,7 +294,10 @@ texture, and `texture_fallbacks` the textures that were left out (objects with `
 `role`, `file` and `reason`, as for `p4kx model glb`): their materials keep the plain colour. All
 four are 0 or empty without textures.
 `default_material_ids` and `hidden_primitives` are summed over all models as for
-`p4kx model glb`. `skipped` counts the issues that leave a part or its model out. With `--exclude`
+`p4kx model glb`. `bones` and `skinned_meshes` count the bones written as nodes and the meshes
+that carry bone weights: a creature Entity whose root geometry holds a skeleton is written with its
+skins bound to it ([ADR-0275](adr/0275-the-skins-of-a-creature-are-written-bound-to-the-skeleton-of-its-root.md)),
+otherwise both are 0. `skipped` counts the issues that leave a part or its model out. With `--exclude`
 and `--replace`, as for `p4kx entity loadout`, the Assembly is built from the changed Loadout and
 the report lists `excluded` (the ports as given) and `replaced` (objects with `port` and
 `entity`, as given); both are absent without the options. An excluded branch is no part and no
@@ -626,7 +629,7 @@ Entity's Record cannot be read), `no_worn_geometry` (the Record names no geometr
 include; the piece is fitted and the issue is a note, ADR-0194),
 `main_geometry_worn` (the Record names no geometry per body, so its main geometry, which is not a
 skin, is worn on the body; a note only), `bones_not_in_skeleton` (some bones of the model are not in
-the body skeleton and follow their nearest parent that is) and `not_skinned` (the model has no bone
+the skeleton and follow their nearest parent that is) and `not_skinned` (the model has no bone
 weights and its port names no bone to hang it on, so it is placed as it is; one that hangs on
 the bone of its port is not listed, ADR-0231), both described at the exported level of detail,
 `body_zones_hidden` (the reason lists the body zones the worn clothing covers, whose triangles of

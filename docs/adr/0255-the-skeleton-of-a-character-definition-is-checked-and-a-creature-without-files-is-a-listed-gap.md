@@ -30,7 +30,7 @@ their Entities from the census, by class order.
   commands: 2 when the file is not in the Archive, 3 when it or a companion cannot be read. A
   part below the root that cannot be drawn stays a skipped Issue and the exit code is 0, as does
   an Entity that names no geometry at all (`no_geometry`).
-- **A creature is drawn static.** Its skins are placed in the bind pose, ADR-0224; no joints,
+- **A creature is drawn static.** (Superseded by ADR-0275.) Its skins are placed in the bind pose, ADR-0224; no joints,
   weights or animations are written for an Entity.
 
 ## What the census found in LIVE

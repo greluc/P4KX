@@ -132,3 +132,49 @@ fn interior_glb_reports_the_layer_files_its_archive_lacks() -> TestResult {
     assert_eq!(report["first_unresolved_layer"], ABSENT);
     Ok(())
 }
+
+#[test]
+fn two_parts_sharing_an_unresolved_layer_file_count_it_once() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let entries = with_absent_layer(p4kx_testkit::assembly_entries(), "ship.mtl");
+    let archive = write_archive(dir.path(), entries)?;
+    let out = dir.path().join("ship.glb");
+
+    let report = json(
+        &[&archive, Path::new("TEST_Ship"), Path::new("--out"), &out],
+        &["entity", "glb"],
+    )?;
+
+    assert_eq!(report["unresolved_layers"], 1, "the ship and its mount");
+    assert_eq!(report["first_unresolved_layer"], ABSENT);
+    Ok(())
+}
+
+#[test]
+fn the_interior_of_an_entity_adds_its_unresolved_layer_files() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let entries = with_absent_layer(p4kx_testkit::entity_interior_entries(), "ship.mtl");
+    let archive = write_archive(dir.path(), entries)?;
+    let out = dir.path().join("hull.glb");
+    let class = Path::new(p4kx_testkit::ENTITY_INTERIOR_CLASS);
+
+    let without = json(
+        &[&archive, class, Path::new("--out"), &out],
+        &["entity", "glb"],
+    )?;
+    let with = json(
+        &[
+            &archive,
+            class,
+            Path::new("--out"),
+            &out,
+            Path::new("--interior"),
+        ],
+        &["entity", "glb"],
+    )?;
+
+    assert_eq!(without["unresolved_layers"], 0, "the hull alone");
+    assert_eq!(with["unresolved_layers"], 1, "the containers add theirs");
+    assert_eq!(with["first_unresolved_layer"], ABSENT);
+    Ok(())
+}

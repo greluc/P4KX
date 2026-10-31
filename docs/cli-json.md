@@ -275,10 +275,13 @@ order is attached. The same Archive always gives the same document.
 
 `unresolved_layers` counts the layer files of the material libraries of all parts, their bone
 attachments and the Interior that the Archive lacks, that cannot be read or that exceed the load
-budget ([ADR-0291](adr/0291-layer-files-are-read-once-per-model-set-within-a-byte-budget.md)); a
-file that several libraries name counts once, and the materials that name it keep the colours of
-their own file. `first_unresolved_layer` is the first such path, as the layer names it; it is absent
-when `unresolved_layers` is 0.
+budget ([ADR-0291](adr/0291-layer-files-are-read-once-per-model-set-within-a-byte-budget.md)); the
+materials that name them keep the colours of their own file. A library lists a file once per
+`Submtl` it takes, as the Export as GLB summary counts it. Across libraries, spellings of one path
+that differ in case or in `\` and `/` are one file, which counts as often as its most frequent
+library lists it. Each library lists at most 256 files, so the number is a lower bound.
+`first_unresolved_layer` is the first such path, as the layer names it; it is absent when
+`unresolved_layers` is 0 (the example shows the case without any).
 
 `<entity>` is named as for `p4kx entity loadout`, with the same exit codes. A docked vehicle is
 one part without the parts of its own Loadout; `--expand-docked-vehicles` places those too. A
@@ -476,8 +479,8 @@ or wrong exits with code 7.
  "issues": [Issue, …]}
 ```
 
-`unresolved_layers` and `first_unresolved_layer` are those of `p4kx entity glb`, for the material
-libraries of the parts.
+`unresolved_layers` and `first_unresolved_layer` (absent when there is none) are those of
+`p4kx entity glb`, for the material libraries of the parts.
 
 `containers` are the Entry paths of the chain as for `p4kx socpak list`, with the same exit codes
 (an Entry the Archive lacks is 2, a container that cannot be opened 3). `parts` counts the root
@@ -605,13 +608,13 @@ Archive lacks is exit code 2, a library that cannot be read 3; issues leave the 
 
 `--materials textures` (default `colours`) and `--texture-mip N` embed the textures as for
 `p4kx chf glb`, counted in `textured_materials`, `textures` and `texture_pixels`.
-`unresolved_layers` and `first_unresolved_layer` are those of `p4kx entity glb`, for the
-material libraries of the parts. `files` of
-`loadout` lists the XML Loadout files the Loadout is made of in the order they are laid over each
-other: an Entity whose default Loadout is an outfit gives its base Loadout and the Loadouts of its
-outfits that apply (ADR-0109, ADR-0181), and `outfit` beside `files` (absent for any other
-source) lists every outfit as for `p4kx entity loadout`. `head` is `null` unless the Loadout has a
-head (an Entity of item type `Char_Head`); then `class_name` is the head Entity, `body` the variant its sub-type
+`unresolved_layers` and `first_unresolved_layer` (absent when there is none) are those of
+`p4kx entity glb`, for the material libraries of the parts. `files` of `loadout` lists the XML
+Loadout files the Loadout is made of in the order they are laid over each other: an Entity whose
+default Loadout is an outfit gives its base Loadout and the Loadouts of its outfits that apply
+(ADR-0109, ADR-0181), and `outfit` beside `files` (absent for any other source) lists every outfit
+as for `p4kx entity loadout`. `head` is `null` unless the Loadout has a head (an Entity of item
+type `Char_Head`); then `class_name` is the head Entity, `body` the variant its sub-type
 names, which `--body` overrides, `bespoke_folder` the folder of the character's own head skins
 (or `null` when its material library is in no folder of its own) and `parts` the pieces of the
 head. `material` of a part is the material library it is drawn with, `null` when it has none.

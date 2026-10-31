@@ -3,6 +3,7 @@
 
 use p4kx_testkit::{DataForgeBuilder, TestInstance, TestRecord, TestValue};
 
+use super::gaps;
 use super::lookups::{amount, bounty_params, empty_payout, legacy, payout};
 use super::prerequisites::{locality, location, standing_prerequisite};
 use super::{
@@ -10,7 +11,7 @@ use super::{
     CONTRACT_F, CONTRACT_G, CONTRACT_H, CONTRACT_I, ESCORT, FACTION, FACTION_SCOPE, GENERATOR,
     GENERATOR_COPY, GENERATOR_DEV, LOC_A, LOC_B, LOSS, MISSING_TEMPLATE, OBJ_PLANET, ORGANIZATION,
     PLAIN_TEMPLATE, RANK_FIFTY, RANK_TWO_HUNDRED, SOLO_ORGANIZATION, STRAY_TEMPLATE, SUB_ONE,
-    SUB_TWO, TEMPLATE,
+    TEMPLATE,
 };
 
 pub(super) const fn reference(guid: u128) -> TestValue {
@@ -83,7 +84,7 @@ fn overrides(
     )
 }
 
-fn results(results: Vec<TestValue>) -> TestValue {
+pub(super) fn results(results: Vec<TestValue>) -> TestValue {
     TestValue::Struct(
         TestInstance::new("ContractResultBlock")
             .value("contractResults", TestValue::Array(results)),
@@ -174,7 +175,7 @@ fn delivery_contract() -> TestInstance {
                     standing_prerequisite(true, Some((RANK_TWO_HUNDRED, RANK_FIFTY))),
                 ],
             ),
-            sub(SUB_TWO, overrides(None, None, Vec::new()), Vec::new()),
+            gaps::sub_two(),
         ]),
     )
     .value(
@@ -204,6 +205,8 @@ fn delivery_contract() -> TestInstance {
             payout([false, true, false, false, false], 1_000),
             empty_payout([true, false, false, false, false]),
             TestValue::Struct(TestInstance::new("ContractResult_CompletionTags")),
+            gaps::blueprint(true, gaps::POOL_CONTRACT, 0.25),
+            gaps::blueprint(false, gaps::POOL_UNREACHED, 1.0),
         ]),
     )
 }
@@ -273,7 +276,8 @@ fn delivery_handler() -> TestValue {
             None,
             vec![property("Wrap", string_hash("@wrap_text"))],
         ),
-    );
+    )
+    .value("additionalPrerequisites", gaps::odd_locations());
     let brokered = TestInstance::new("CareerContract")
         .value("id", TestValue::Guid(CONTRACT_E))
         .value("debugName", TestValue::text("Haul_E"))
@@ -313,13 +317,16 @@ fn copy_handler() -> TestValue {
         "Deliver_G",
         MISSING_TEMPLATE,
         overrides(Some("@title_handler"), None, Vec::new()),
-    );
+    )
+    .value("additionalPrerequisites", gaps::exclusion());
     let stray = contract(
         CONTRACT_H,
         "Deliver_H",
         STRAY_TEMPLATE,
         overrides(None, None, Vec::new()),
-    );
+    )
+    .value("additionalPrerequisites", gaps::requirement())
+    .value("contractResults", gaps::rival_only());
     let organisations = contract(
         CONTRACT_I,
         "Deliver_I",
@@ -332,7 +339,8 @@ fn copy_handler() -> TestValue {
                 property("Solo", organization(SOLO_ORGANIZATION)),
             ],
         ),
-    );
+    )
+    .value("contractResults", gaps::rival_then_gain());
     handler(
         "Copy_Career",
         overrides(None, None, Vec::new()),

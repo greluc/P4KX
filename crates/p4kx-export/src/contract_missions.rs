@@ -7,6 +7,7 @@ use serde::Serialize;
 use crate::contract::{LocalisedText, every_field_required};
 use crate::contract_facts::ContractFacts;
 use crate::contract_hauling::HaulingOrder;
+use crate::contract_offer::{BlueprintReward, GiverFaction, OfferedAt};
 use crate::contract_reward::FixedReward;
 use crate::guid_text::CatalogGuid;
 use crate::mission_cooldown::ContractCooldown;
@@ -74,6 +75,19 @@ pub(crate) struct ContractEntry<'a> {
     /// `MissionBrokerEntry`. Empty when that names none either or the starmap objects are not part
     /// of the catalog build.
     pub(crate) pickup_places: Vec<PickupPlace<'a>>,
+    /// Every place the contract is offered at, without the cap of `pickupPlaces`: the localities
+    /// and location objects of the same prerequisites, as stated.
+    pub(crate) offered_at: OfferedAt<'a>,
+    /// The faction of the contract and where it was found: `faction` (source `handler`), else the
+    /// first reputation amount granted on success that is positive (`reputationResult`; a negative
+    /// amount names a rival), else the first reputation prerequisite that is no exclusion
+    /// (`reputationPrerequisite`). `null` when none names a faction. `faction` itself stays the
+    /// handler's value.
+    pub(crate) giver_faction: Option<GiverFaction<'a>>,
+    /// The blueprint pools the contract hands out, from its own resolved results: those of the
+    /// sub contract when it states any, else of the contract. A contract that hands out none
+    /// has an empty list.
+    pub(crate) blueprint_rewards: Vec<BlueprintReward>,
     /// The reputation the contract grants on success, one entry per amount: the results whose
     /// first mission result (success) is set. A result that fires on failure only is left out; an
     /// amount may be negative (a success that costs standing with a rival, as stored).

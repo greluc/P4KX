@@ -7,11 +7,12 @@ use p4kx_extraction::{Guid, StructValue};
 
 use crate::contract::LocalisedText;
 use crate::contract_missions::PickupPlace;
+use crate::contract_offer::OfferedAt;
 use crate::contract_starmap::StarmapObject;
 use crate::guid_text::CatalogGuid;
 use crate::mission_index::MissionIndex;
 use crate::mission_layers::items;
-use crate::record_fields::reference;
+use crate::record_fields::linked;
 
 /// The most pickup places an entry lists.
 pub(crate) const MAX_PICKUP_PLACES: usize = 5;
@@ -40,10 +41,10 @@ impl Where {
             match prerequisite.type_name() {
                 LOCALITY => found
                     .localities
-                    .extend(reference(Some(prerequisite), "localityAvailable").map(|guid| guid.0)),
+                    .extend(linked(Some(prerequisite), "localityAvailable").map(|guid| guid.0)),
                 LOCATION => found
                     .locations
-                    .extend(reference(Some(prerequisite), "locationAvailable").map(|guid| guid.0)),
+                    .extend(linked(Some(prerequisite), "locationAvailable").map(|guid| guid.0)),
                 _ => {}
             }
         }
@@ -113,15 +114,75 @@ impl<'s, 'f> Places<'s, 'f> {
         ranked
             .into_iter()
             .take(MAX_PICKUP_PLACES)
-            .map(|(_, guid, object)| PickupPlace {
-                starmap_object_guid: CatalogGuid(guid),
-                object_type: object.r#type,
-                place: LocalisedText {
-                    key: object.name.key,
-                    en: object.name.en.clone(),
-                    de: object.name.de.clone(),
-                },
-            })
+            .map(|(_, guid, object)| describe(guid, Some(object)))
             .collect()
+    }
+
+    /// Returns the pickup places and everywhere the contract is offered, for the prerequisites of
+    /// its handler and contract (`inherited`) and of its sub contract (`own`); a sub contract's
+    /// own places replace the inherited ones. A contract left without a pickup place takes
+    /// `broker`, the location of its broker entry.
+    pub(crate) fn locate(
+        &self,
+        index: &MissionIndex<'f>,
+        (own, inherited): (Option<&Where>, [&Where; 2]),
+        broker: Option<Guid>,
+    ) -> (Vec<PickupPlace<'f>>, OfferedAt<'f>) {
+        let levels: Vec<&Where> = own
+            .filter(|own| !own.is_empty())
+            .map_or_else(|| inherited.to_vec(), |own| vec![own]);
+        let mut pickup = self.pickup(index, &levels);
+        if pickup.is_empty()
+            && let Some(location) = broker
+        {
+            let at_broker = Where {
+                localities: Vec::new(),
+                locations: vec![location],
+            };
+            pickup = self.pickup(index, &[&at_broker]);
+        }
+        (pickup, self.offered(&levels, broker))
+    }
+
+    /// Returns every place the levels `levels` name, uncapped: their localities and their
+    /// location objects, each in stored order and none twice. A contract that names no place
+    /// takes `fallback`, the location of its broker entry.
+    pub(crate) fn offered(&self, levels: &[&Where], fallback: Option<Guid>) -> OfferedAt<'f> {
+        let mut seen_localities: HashSet<Guid> = HashSet::new();
+        let mut seen_locations: HashSet<Guid> = HashSet::new();
+        let localities: Vec<CatalogGuid> = levels
+            .iter()
+            .flat_map(|level| level.localities.iter().copied())
+            .filter(|guid| seen_localities.insert(*guid))
+            .map(CatalogGuid)
+            .collect();
+        let mut locations: Vec<Guid> = levels
+            .iter()
+            .flat_map(|level| level.locations.iter().copied())
+            .filter(|guid| seen_locations.insert(*guid))
+            .collect();
+        if localities.is_empty() && locations.is_empty() {
+            locations.extend(fallback);
+        }
+        OfferedAt {
+            locality_guids: localities,
+            locations: locations
+                .into_iter()
+                .map(|guid| describe(guid, self.objects.get(&guid).copied()))
+                .collect(),
+        }
+    }
+}
+
+/// Describes the starmap object `guid`; without the object only its GUID is known.
+fn describe<'f>(guid: Guid, object: Option<&StarmapObject<'f>>) -> PickupPlace<'f> {
+    PickupPlace {
+        starmap_object_guid: CatalogGuid(guid),
+        object_type: object.and_then(|object| object.r#type),
+        place: object.map_or_else(LocalisedText::default, |object| LocalisedText {
+            key: object.name.key,
+            en: object.name.en.clone(),
+            de: object.name.de.clone(),
+        }),
     }
 }

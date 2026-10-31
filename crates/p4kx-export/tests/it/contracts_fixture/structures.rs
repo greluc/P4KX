@@ -21,6 +21,7 @@ pub(super) fn structures(builder: DataForgeBuilder) -> DataForgeBuilder {
         handler_structs(),
         generator_structs(),
         prerequisite_structs(),
+        blueprint_structs(),
         property_structs(),
         record_structs(),
     ]
@@ -45,6 +46,16 @@ fn prerequisite_structs() -> Vec<TestStruct> {
             .field("scope", TestType::Reference)
             .field("minStanding", TestType::Reference)
             .field("maxStanding", TestType::Reference),
+    ]
+}
+
+fn blueprint_structs() -> Vec<TestStruct> {
+    vec![
+        TestStruct::new("BlueprintRewards")
+            .parent("ContractResult")
+            .field("chance", TestType::Single)
+            .array("missionResults", class("Bool"))
+            .field("blueprintPool", TestType::Reference),
     ]
 }
 
@@ -121,7 +132,8 @@ fn generator_structs() -> Vec<TestStruct> {
             .field("id", TestType::Guid)
             .field("debugName", TestType::String)
             .array("additionalPrerequisites", pointer("ContractPrerequisite"))
-            .field("paramOverrides", class("ContractParamOverrides")),
+            .field("paramOverrides", class("ContractParamOverrides"))
+            .field("contractResults", class("ContractResultBlock")),
         TestStruct::new("MissionLocality").array("availableLocations", TestType::Reference),
         TestStruct::new("StarMapObjectType").field("name", TestType::String),
         TestStruct::new("StarMapObject")

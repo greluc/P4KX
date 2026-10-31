@@ -7,25 +7,25 @@ use p4kx_extraction::{
 use rayon::prelude::*;
 
 use crate::blueprint::as_struct;
-use crate::contract_facts::ContractFacts;
-use crate::contract_missions::{ContractEntry, ContractFaction, PickupPlace, ReputationGain};
-use crate::contract_reward::{FixedReward, fixed_rewards};
+use crate::contract_missions::{ContractEntry, ContractFaction};
 use crate::contract_starmap::StarmapObject;
 use crate::guid_text::CatalogGuid;
 use crate::location_template::{self, LocationTemplates};
-use crate::mission_cooldown::{ContractCooldown, CooldownDefaults};
-use crate::mission_facts::{Levels, SharedFacts};
+use crate::mission_blueprints::blueprint_rewards;
+use crate::mission_cooldown::ContractCooldown;
+use crate::mission_facts::Levels;
+use crate::mission_giver::giver;
 use crate::mission_hauling_levels::HaulingLevels;
 use crate::mission_index::{Broker, MissionIndex, Template};
 use crate::mission_intros::{Grants, record_grants, resolve};
 use crate::mission_layers::{Layer, items, one};
 use crate::mission_places::{Places, Where};
-use crate::mission_results::{gains, granted_tags, link};
-use crate::mission_standing::Standing;
+use crate::mission_results::{granted_tags, link};
+use crate::mission_shared::{Found, Shared};
 use crate::mission_titles::titles;
 use crate::record_fields::{boolean, guid_value, reference, text};
 use crate::selection::{Kind, is_leftover};
-use crate::spawn_layers::{HandlerSpawns, RecordSpawns, Resolved, SpawnPools};
+use crate::spawn_layers::{HandlerSpawns, RecordSpawns, SpawnPools};
 use crate::texts::Texts;
 use crate::{CatalogError, CatalogFailure};
 
@@ -241,13 +241,7 @@ impl<'f> Parent<'_, 'f> {
         let contract_layer = Layer::read(one(Some(self.contract), "paramOverrides"));
         let broker = reference(Some(self.contract), "missionBrokerEntry")
             .and_then(|guid| index.broker(guid.0));
-        let shared = Shared {
-            gains: gains(self.contract, index),
-            standing: Standing::read(self.handler, self.contract),
-            cooldown: CooldownDefaults::read(self.handler),
-            facts: SharedFacts::read(self.handler, self.contract),
-            fixed_rewards: fixed_rewards(self.contract),
-        };
+        let shared = Shared::read(self.handler, self.contract, index);
         let spawn_levels = self.spawns.contract(
             self.contract,
             template_data.and_then(|data| data.spawns.as_ref()),
@@ -262,13 +256,26 @@ impl<'f> Parent<'_, 'f> {
                 handler: self.handler_layer,
             };
             let facts = shared.facts.facts(sub, &levels, template_data);
-            let pickup = self.pickup(sub, &contract_where, broker, context);
+            let own = sub.map(|sub| Where::read(Some(sub), "additionalPrerequisites"));
+            let (pickup, offered_at) = context.places.locate(
+                index,
+                (own.as_ref(), [&contract_where, self.handler_where]),
+                broker.and_then(|broker| broker.location),
+            );
             Ok(self.entry(
                 sub,
                 &levels,
                 template,
                 (template_data, broker),
-                (&shared, pickup, facts, spawns),
+                (
+                    &shared,
+                    Found {
+                        pickup,
+                        offered_at,
+                        facts,
+                        spawns,
+                    },
+                ),
                 context,
             ))
         };
@@ -288,48 +295,30 @@ impl<'f> Parent<'_, 'f> {
         Ok(skipped)
     }
 
-    /// Returns the pickup places of the contract or of its sub contract `sub`.
-    fn pickup(
-        &self,
-        sub: Option<&StructValue<'f>>,
-        contract_where: &Where,
-        broker: Option<&Broker<'f>>,
-        context: &Context<'_, 'f>,
-    ) -> Vec<PickupPlace<'f>> {
-        let own = sub.map(|sub| Where::read(Some(sub), "additionalPrerequisites"));
-        let inherited = [contract_where, self.handler_where];
-        let wheres: Vec<&Where> = own
-            .as_ref()
-            .filter(|own| !own.is_empty())
-            .map_or_else(|| inherited.to_vec(), |own| vec![own]);
-        let mut pickup = context.places.pickup(context.index, &wheres);
-        if pickup.is_empty()
-            && let Some(location) = broker.and_then(|broker| broker.location)
-        {
-            let at_broker = Where {
-                localities: Vec::new(),
-                locations: vec![location],
-            };
-            pickup = context.places.pickup(context.index, &[&at_broker]);
-        }
-        pickup
-    }
-
     fn entry(
         &self,
         sub: Option<&StructValue<'f>>,
         levels: &Levels<'_, 'f>,
         template: Option<p4kx_extraction::Guid>,
         (template_data, broker): (Option<&Template<'f>>, Option<&Broker<'f>>),
-        (shared, pickup, facts, spawns): (
-            &Shared<'f>,
-            Vec<PickupPlace<'f>>,
-            ContractFacts,
-            Resolved,
-        ),
+        (shared, found): (&Shared<'f>, Found<'f>),
         context: &Context<'_, 'f>,
     ) -> ContractEntry<'f> {
+        let Found {
+            pickup,
+            offered_at,
+            facts,
+            spawns,
+        } = found;
         let (index, texts) = (context.index, context.texts);
+        let faction = self.faction(context);
+        let standing_requirements = shared.standing.requirements_of(sub);
+        let giver_faction = giver(
+            faction.as_ref(),
+            &shared.gains,
+            &standing_requirements,
+            (index, texts),
+        );
         let (title, description) = titles(levels, (template_data, broker), (index, texts));
         let mission_type = levels
             .iter()
@@ -355,12 +344,15 @@ impl<'f> Parent<'_, 'f> {
                     .and_then(|kind| kind.name_key),
             ),
             contractor: texts.localised(levels.iter().find_map(|level| level.contractor)),
-            faction: self.faction(context),
+            faction,
             pickup_places: pickup,
+            offered_at,
+            giver_faction,
+            blueprint_rewards: blueprint_rewards(self.contract, sub),
             reputation_gains: shared.gains.clone(),
             min_standing_guid: shared.standing.min,
             max_standing_guid: shared.standing.max,
-            standing_requirements: shared.standing.requirements_of(sub),
+            standing_requirements,
             cooldown: ContractCooldown::resolve(&shared.cooldown, levels),
             facts,
             ship_spawns: spawns.ship_spawns,
@@ -376,19 +368,14 @@ impl<'f> Parent<'_, 'f> {
         link(self.handler, "factionReputation").map(|(guid, name)| ContractFaction {
             guid,
             name,
-            display_name: context.texts.localised(context.index.faction_name(guid.0)),
+            display_name: context.texts.localised(
+                context
+                    .index
+                    .faction(guid.0)
+                    .and_then(|faction| faction.display_key),
+            ),
         })
     }
-}
-
-/// What the entries of one contract share: the reputation it grants and requires, the cooldown
-/// defaults of its handler and its facts.
-struct Shared<'f> {
-    gains: Vec<ReputationGain<'f>>,
-    standing: Standing,
-    cooldown: CooldownDefaults,
-    facts: SharedFacts,
-    fixed_rewards: Vec<FixedReward<'f>>,
 }
 
 fn identity(structure: &StructValue<'_>) -> Option<p4kx_extraction::Guid> {

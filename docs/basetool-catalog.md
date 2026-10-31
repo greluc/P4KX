@@ -57,7 +57,8 @@ The rule is ADR-0054 (amending ADR-0002):
   `contractLocationQueries` with the contract fields `shipSpawns`, `locationQueries` and
   `locationPrerequisites` (#902, ADR-0266). Later additions keep version 2 as long as they are
   additive. The contract field `fixedRewards` (#888, ADR-0268) is one, and so is `cooldownLayers`
-  (#909, ADR-0271).
+  (#909, ADR-0271), and the contract fields `offeredAt`, `giverFaction` and `blueprintRewards`
+  (#915, ADR-0273).
 - **A production import takes catalogs of the Channel `LIVE` only.** `PTU`, `EPTU`, `TECH-PREVIEW`
   and `HOTFIX` are confidential test Channels (ADR-0038).
 
@@ -1100,7 +1101,10 @@ that the rule on equal `guid` and `subContractGuid` above drops.
 | `missionTypeGuid`, `missionType` | The `MissionType` Record and its localised name (game text) |
 | `contractor` | The `Contractor` string parameter (game text) |
 | `pickupPlaces` | Up to five starmap objects the contract is offered at, each `starmapObjectGuid`, `objectType`, `place` (game text) |
+| `offeredAt` | Every place the contract is offered at, uncapped (see "Offered at"): `localityGuids` (entries of `missionLocalities`) and `locations` (starmap objects, each `starmapObjectGuid`, `objectType`, `place`) |
 | `faction` | The `factionReputation` of the handler as stored: `guid`, Record `name` and `displayName` (game text), `null` when the handler names none |
+| `giverFaction` | The faction of the contract and where it was found: `source` (`handler`, `reputationResult` or `reputationPrerequisite`) and `faction` (`guid`, `name`, `displayName`), `null` when none names one (see "Giver faction") |
+| `blueprintRewards` | The blueprint pools the contract hands out, each `poolGuid` (an entry of `blueprintPools`) and `chance` as stored (see "Blueprint rewards") |
 | `reputationGains` | The reputation granted on success; an amount may be negative |
 | `minStandingGuid`, `maxStandingGuid` | The `minStanding` and `maxStanding` of the contract: the standings between which it is offered, entries of `reputationStandings`; `null` when absent. A sub contract shares the contract's |
 | `standingRequirements` | The reputation prerequisites (see "Standing") |
@@ -1193,6 +1197,29 @@ what is not in `starmapObjects` is skipped. The list is ordered by rank, stably:
 at most **5** places (`MAX_PICKUP_PLACES`). Each place has the `starmapObjectGuid`, its `objectType`
 and the `place` name (game text). The places come from the starmap objects of the same build: a
 Filter that leaves them out leaves `pickupPlaces` empty.
+
+**Offered at (ADR-0273).** The same prerequisites as the pickup places, read without the cap and
+without a filter on the object type. `localityGuids` lists the `MissionLocality` Record of each
+`ContractPrerequisite_Locality`, in stored order and none twice; a consumer reads its places in
+`missionLocalities[].starmapObjectGuids` and their names in `starmapObjects`. `locations` lists the
+object of each `ContractPrerequisite_Location` as stated: a star stays, an object missing from
+`starmapObjects` has `objectType` and `place` `null`. As for the pickup places, the places of a sub
+contract replace those of the contract and its handler. A contract that names no place at all takes
+the `locationMissionAvailable` of its broker entry as the only entry of `locations`.
+
+**Giver faction (ADR-0273).** `faction` stays the `factionReputation` of the handler. `giverFaction`
+states a faction for the contracts whose handler names none, together with the place that names it
+(`source`): `handler` (the same faction as `faction`); else `reputationResult`, the faction of the
+first success amount of `reputationGains` with a positive `amount`; else `reputationPrerequisite`,
+the faction of the first entry of `standingRequirements` that is not an exclusion (`exclude` is not
+`true`). A negative amount names a rival that loses standing and never counts. The catalog picks
+the first stated faction and does not weigh several against each other.
+
+**Blueprint rewards (ADR-0273).** The `ContractResult_BlueprintRewards` results of the entry's own
+resolved results: those of the sub contract when it has a `contractResults` block, else those of
+the contract. Each has the `poolGuid` of its `blueprintPool` and its `chance` as stored. Which
+sub contract hands out which pool is therefore stated per entry, where
+`blueprintPools[].rewardSources` names only the `id` that a contract and its sub contracts share.
 
 **Known gaps (LIVE, 2026-10-23, 5,175 entries before the template fix).** None of them is stated
 elsewhere in the Archive:

@@ -6,6 +6,28 @@
 
 use serde_json::json;
 
+/// The places, the giver faction and the blueprint rewards of an entry.
+fn gaps() -> serde_json::Value {
+    json!({
+        "offeredAt": {
+            "localityGuids": ["a0000000-0000-4000-8000-000000000001"],
+            "locations": places()
+        },
+        "giverFaction": {
+            "source": "handler",
+            "faction": {
+                "guid": "60000000-0000-4000-8000-000000000001",
+                "name": "acme",
+                "displayName": {"key": "@faction_acme", "en": "Acme Emporium", "de": null}
+            }
+        },
+        "blueprintRewards": [{
+            "poolGuid": "e4000000-0000-4000-8000-000000000001",
+            "chance": 1.0
+        }]
+    })
+}
+
 pub(super) fn contracts() -> serde_json::Value {
     let gains = json!([{
         "factionReputationGuid": "60000000-0000-4000-8000-000000000001",
@@ -49,7 +71,7 @@ pub(super) fn contracts() -> serde_json::Value {
         "fixedRewards": [{"currency": "UEC", "amount": 40000, "max": 0, "plusBonuses": false}],
         "haulingOrders": orders()
     });
-    for extra in [facts(), cooldown()] {
+    for extra in [facts(), cooldown(), gaps()] {
         if let (Some(entry), Some(extra)) = (entry.as_object_mut(), extra.as_object()) {
             entry.extend(extra.clone());
         }

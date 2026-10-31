@@ -337,6 +337,28 @@
       ],
       "type": "object"
     },
+    "BlueprintReward": {
+      "description": "A blueprint pool a contract hands out on success.",
+      "properties": {
+        "chance": {
+          "description": "The `chance` of the reward as stored, `null` when it states none.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "poolGuid": {
+          "$ref": "#/$defs/Guid",
+          "description": "The `guid` of the entry of `blueprintPools` the reward draws from."
+        }
+      },
+      "required": [
+        "chance",
+        "poolGuid"
+      ],
+      "type": "object"
+    },
     "BlueprintTier": {
       "description": "One tier of a blueprint: its craft time and its costs.",
       "properties": {
@@ -1120,6 +1142,13 @@
           ],
           "description": "Parameter `AvailableInPrison`; base: `availableInPrison` of the handler's\n`defaultAvailability`."
         },
+        "blueprintRewards": {
+          "description": "The blueprint pools the contract hands out, from its own resolved results: those of the\nsub contract when it states any, else of the contract. A contract that hands out none\nhas an empty list.",
+          "items": {
+            "$ref": "#/$defs/BlueprintReward"
+          },
+          "type": "array"
+        },
         "buyInAmount": {
           "description": "The `contractBuyInAmount` of the contract's `contractResults`, as stored; `null` when\nabsent. A sub contract shares the contract's value.",
           "format": "int64",
@@ -1210,6 +1239,17 @@
             "$ref": "#/$defs/FixedReward"
           },
           "type": "array"
+        },
+        "giverFaction": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GiverFaction"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The faction of the contract and where it was found: `faction` (source `handler`), else the\nfirst reputation amount granted on success that is positive (`reputationResult`; a negative\namount names a rival), else the first reputation prerequisite that is no exclusion\n(`reputationPrerequisite`). `null` when none names a faction. `faction` itself stays the\nhandler's value."
         },
         "guid": {
           "$ref": "#/$defs/Guid",
@@ -1328,6 +1368,10 @@
             "null"
           ]
         },
+        "offeredAt": {
+          "$ref": "#/$defs/OfferedAt",
+          "description": "Every place the contract is offered at, without the cap of `pickupPlaces`: the localities\nand location objects of the same prerequisites, as stated."
+        },
         "onceOnly": {
           "anyOf": [
             {
@@ -1445,6 +1489,7 @@
         "abandonedCooldownTime",
         "abandonedCooldownTimeVariation",
         "availableInPrison",
+        "blueprintRewards",
         "buyInAmount",
         "canBeShared",
         "canReacceptAfterAbandoning",
@@ -1456,6 +1501,7 @@
         "description",
         "faction",
         "fixedRewards",
+        "giverFaction",
         "guid",
         "handler",
         "hasPersonalCooldown",
@@ -1470,6 +1516,7 @@
         "missionType",
         "missionTypeGuid",
         "notForRelease",
+        "offeredAt",
         "onceOnly",
         "personalCooldownTime",
         "personalCooldownTimeVariation",
@@ -2606,6 +2653,42 @@
         "recordPath"
       ],
       "type": "object"
+    },
+    "GiverFaction": {
+      "description": "The faction a contract is stated for, with the place that states it.",
+      "properties": {
+        "faction": {
+          "$ref": "#/$defs/ContractFaction",
+          "description": "The faction."
+        },
+        "source": {
+          "$ref": "#/$defs/GiverSource",
+          "description": "Where the faction was found."
+        }
+      },
+      "required": [
+        "faction",
+        "source"
+      ],
+      "type": "object"
+    },
+    "GiverSource": {
+      "description": "Where the faction of a contract was found.",
+      "type": "string",
+      "x-values": [
+        {
+          "description": "The `factionReputation` of the handler.",
+          "value": "handler"
+        },
+        {
+          "description": "The faction of the first reputation amount the contract grants on success whose\n`reputationAmount` is positive.",
+          "value": "reputationResult"
+        },
+        {
+          "description": "The faction of the first `ContractPrerequisite_Reputation` that is not an exclusion.",
+          "value": "reputationPrerequisite"
+        }
+      ]
     },
     "Guid": {
       "description": "A GUID as canonical lower-case UUID text.",
@@ -6163,6 +6246,30 @@
         "guid",
         "recordPath",
         "typeName"
+      ],
+      "type": "object"
+    },
+    "OfferedAt": {
+      "description": "Everywhere a contract is offered, as its prerequisites state it and without a cap.",
+      "properties": {
+        "localityGuids": {
+          "description": "The `MissionLocality` Records of the `ContractPrerequisite_Locality` prerequisites, the\n`guid`s of entries of `missionLocalities`, in stored order, none twice. A locality names\nits places through `starmapObjectGuids`.",
+          "items": {
+            "$ref": "#/$defs/Guid"
+          },
+          "type": "array"
+        },
+        "locations": {
+          "description": "The objects of the `ContractPrerequisite_Location` prerequisites, in stored order, none\ntwice, a star and an object that is not in `starmapObjects` included (its `objectType` and\n`place` are then `null`). When the contract states no place at all, the\n`locationMissionAvailable` of its `MissionBrokerEntry`.",
+          "items": {
+            "$ref": "#/$defs/PickupPlace"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "localityGuids",
+        "locations"
       ],
       "type": "object"
     },

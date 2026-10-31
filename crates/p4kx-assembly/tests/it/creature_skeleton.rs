@@ -9,8 +9,9 @@ use p4kx_assembly::{Assembly, Placement};
 use p4kx_extraction::Archive;
 use p4kx_gltf::{GlbOptions, GlbSummary};
 use p4kx_testkit::{
-    CREATURE, CREATURE_DEFINITION, CREATURE_HORNED, CREATURE_NO_SKELETON, CREATURE_SHORT_SKELETON,
-    CheckedGlb, RIGGED_PROP, check_glb, creature_entries,
+    CREATURE, CREATURE_COLLAR_LOST, CREATURE_COLLARED, CREATURE_DEFINITION, CREATURE_HORNED,
+    CREATURE_NO_SKELETON, CREATURE_SHORT_SKELETON, CheckedGlb, RIGGED_PROP, check_glb,
+    creature_entries,
 };
 
 fn export(class: &str) -> Result<(Assembly, CheckedGlb, GlbSummary), Box<dyn std::error::Error>> {
@@ -97,6 +98,34 @@ fn a_rigid_part_on_a_bone_port_stays_at_its_bone_beside_the_skinned_body() -> Te
         .filter(|node| node.skin().is_some())
         .count();
     assert_eq!(skinned, 1, "only the body is skinned, not the horn");
+    Ok(())
+}
+
+#[test]
+fn an_item_port_of_the_skin_anchors_to_a_bone_of_the_creature_skeleton() -> TestResult {
+    let (assembly, _, summary) = export(CREATURE_COLLARED)?;
+
+    let collar = assembly
+        .part_at("Body_ItemPort/Collar_ItemPort")
+        .ok_or("the collar")?;
+    assert_eq!(collar.placement(), &Placement::Helper("pelvis".to_owned()));
+    assert_eq!(codes(&assembly), Vec::<(&str, &str)>::new());
+    assert_eq!((summary.bones, summary.skinned_meshes), (3, 1));
+    Ok(())
+}
+
+#[test]
+fn a_helper_no_skeleton_holds_stays_a_listed_note() -> TestResult {
+    let (assembly, _, _) = export(CREATURE_COLLAR_LOST)?;
+
+    let collar = assembly
+        .part_at("Body_ItemPort/Collar_ItemPort")
+        .ok_or("the collar")?;
+    assert_eq!(collar.placement(), &Placement::Origin);
+    assert_eq!(
+        codes(&assembly),
+        [("Body_ItemPort/Collar_ItemPort", "helper_not_found")]
+    );
     Ok(())
 }
 

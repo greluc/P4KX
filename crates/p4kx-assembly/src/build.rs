@@ -92,7 +92,10 @@ impl Assembly {
             let attachments = attached(draft, *model, shared, &mut reported, &mut issues);
             let (palette, unresolved) = palettes.of_part(draft, *model, &materials);
             issues.extend(unresolved.into_iter().map(|kind| issue(draft, kind)));
-            let (local, placement) = place(draft, &parts, *model, &mut issues);
+            let rig = under_skin(draft, &parts)
+                .then(|| creature_rig::rig_model(&parts, &issues).cloned())
+                .flatten();
+            let (local, placement) = place(draft, &parts, *model, rig.as_deref(), &mut issues);
             let world = world_of(draft, &parts, &local);
             parts.push(Part {
                 name: draft.name.clone(),
@@ -298,11 +301,21 @@ fn read_libraries(
         .collect()
 }
 
-/// Returns the transform of a part to its parent's and how it was found.
+/// Returns whether the parent of the part is a skin part.
+fn under_skin(draft: &Draft<'_>, parts: &[Part]) -> bool {
+    draft
+        .parent
+        .and_then(|parent| parts.get(parent))
+        .is_some_and(|parent| parent.placement == Placement::Skin)
+}
+
+/// Returns the transform of a part to its parent's and how it was found. `rig` is the model of a
+/// creature root whose skeleton the item ports of its skins anchor to.
 fn place(
     draft: &Draft<'_>,
     parts: &[Part],
     model: Option<&Loaded>,
+    rig: Option<&Model>,
     issues: &mut Vec<Issue>,
 ) -> (Transform, Placement) {
     let mut unreported = Vec::new();
@@ -328,7 +341,14 @@ fn place(
     let helper = definition
         .map(PortTransform::helper)
         .filter(|helper| !helper.is_empty());
-    let (placement, base) = anchor(parent.model(), helper, port);
+    let (mut placement, mut base) = anchor(parent.model(), helper, port);
+    if placement == Placement::Origin
+        && let Some((found, transform)) = rig
+            .zip(helper)
+            .and_then(|(rig, helper)| creature_rig::skin_port_anchor(rig, parent, helper))
+    {
+        (placement, base) = (found, transform);
+    }
     if let Some(helper) = helper
         && placement == Placement::Origin
         && parent.model().is_some()

@@ -23,6 +23,13 @@ pub const CREATURE_NO_SKELETON: &str = "Test_Creature_NoSkeleton";
 /// Like [`CREATURE`], with a rigid horn on a bone port at the bone `tip` beside the skinned body.
 pub const CREATURE_HORNED: &str = "Test_Creature_Horned";
 
+/// Like [`CREATURE`], with a rigid collar on an item port of the skin, at the helper `pelvis`, a
+/// bone of the creature's skeleton and no node or bone of the skin's own model.
+pub const CREATURE_COLLARED: &str = "Test_Creature_Collared";
+
+/// Like [`CREATURE_COLLARED`], but the helper of the collar port is no bone of the skeleton.
+pub const CREATURE_COLLAR_LOST: &str = "Test_Creature_CollarLost";
+
 /// A rigged Entity outside the characters folder, a prop with a skeleton file and the same skin.
 pub const RIGGED_PROP: &str = "Test_Rigged_Prop";
 
@@ -107,10 +114,37 @@ fn database() -> DataForgeBuilder {
         horn,
         skin,
     ]
-    .iter()
+    .into_iter()
+    .chain(collar_entities())
     .fold(entity_schema(DataForgeBuilder::new()), |builder, entity| {
         builder.record(entity.record())
     })
+}
+
+/// Returns the creatures [`CREATURE_COLLARED`] and [`CREATURE_COLLAR_LOST`] with the skins that
+/// hold the collar port, whose helper is the bone `pelvis` and the name `nowhere`.
+fn collar_entities() -> [TestEntity; 4] {
+    let creature = |id, class: &str, skin: &str| {
+        TestEntity::new(id, class, format!("entities/{class}.xml"))
+            .geometry(format!("{FOLDER}/creature_skel.chr"), None)
+            .port(TestPort::new("Body_ItemPort").skin())
+            .loadout(TestLoadout::Manual(vec![
+                TestLoadoutEntry::class("Body_ItemPort", skin).loadout(TestLoadout::Manual(vec![
+                    TestLoadoutEntry::class("Collar_ItemPort", "Test_Creature_Horn"),
+                ])),
+            ]))
+    };
+    let skin = |id, class: &str, helper: &str| {
+        TestEntity::new(id, class, format!("entities/{class}.xml"))
+            .geometry(format!("{FOLDER}/creature.skin"), None)
+            .port(TestPort::new("Collar_ItemPort").helper(helper, [0.0; 3], [0.0; 3]))
+    };
+    [
+        creature(0x7, CREATURE_COLLARED, "Test_Creature_Collar_Skin"),
+        creature(0x8, CREATURE_COLLAR_LOST, "Test_Creature_Lost_Skin"),
+        skin(0x12, "Test_Creature_Collar_Skin", "pelvis"),
+        skin(0x13, "Test_Creature_Lost_Skin", "nowhere"),
+    ]
 }
 
 /// Returns the Entries of a synthetic Archive that holds creatures with a skeleton and a skin.

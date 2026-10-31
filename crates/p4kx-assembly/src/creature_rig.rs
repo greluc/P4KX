@@ -4,10 +4,13 @@
 //! The skeleton the skins of a creature Entity are bound to: the bones of the root Entity's own
 //! model, when its geometry is a character file outside the human rigs.
 
-use p4kx_model::{Bone, BoneMatch, Model};
+use std::sync::Arc;
+
+use p4kx_model::{Bone, BoneMatch, Model, Transform};
 
 use crate::geometry::is_creature_path;
-use crate::{Issue, IssueKind, Part};
+use crate::placement::bone_transform;
+use crate::{Issue, IssueKind, Part, Placement};
 
 /// Returns the bones of the root part's model at the level `level` of detail, or `None` when the
 /// root's geometry is no creature file (a character file below `Objects/Characters` outside the
@@ -22,6 +25,14 @@ pub(crate) fn skeleton_of<'a>(
     issues: &[Issue],
     level: u32,
 ) -> Option<&'a [Bone]> {
+    let model = rig_model(parts, issues)?;
+    let bones = model.bones_of(model.nearest_lod(level)?);
+    (!bones.is_empty()).then_some(bones)
+}
+
+/// Returns the model of the root part when it is a creature whose skeleton file is present, the
+/// model whose bones the skins and the item ports of the skins are bound to.
+pub(crate) fn rig_model<'a>(parts: &'a [Part], issues: &[Issue]) -> Option<&'a Arc<Model>> {
     let root = parts.first()?;
     if !root.geometry.as_deref().is_some_and(is_creature_path)
         || issues.iter().any(|issue| {
@@ -34,9 +45,23 @@ pub(crate) fn skeleton_of<'a>(
     {
         return None;
     }
-    let model = root.model.as_deref()?;
-    let bones = model.bones_of(model.nearest_lod(level)?);
-    (!bones.is_empty()).then_some(bones)
+    root.model.as_ref()
+}
+
+/// Anchors the item port of a skin part to the bone `helper` of the creature skeleton `rig`: the
+/// bind pose of the bone in the space of `parent`, a skin part, which has no such bone of its own.
+/// Returns `None` when `parent` is no skin part or the skeleton lacks the bone.
+pub(crate) fn skin_port_anchor(
+    rig: &Model,
+    parent: &Part,
+    helper: &str,
+) -> Option<(Placement, Transform)> {
+    if parent.placement != Placement::Skin {
+        return None;
+    }
+    let pose = bone_transform(rig, helper)?;
+    let transform = parent.world.inverse()?.then(&pose);
+    Some((Placement::Helper(helper.to_owned()), transform))
 }
 
 /// Lists, per skinned part below the root, the bones of its model that the root's skeleton lacks;

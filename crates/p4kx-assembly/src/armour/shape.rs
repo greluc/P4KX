@@ -44,40 +44,63 @@ pub(super) struct Worn {
     pub(super) numbers: Vec<usize>,
 }
 
+/// What a head contributes besides its model: its morph targets, the blendshape number of each,
+/// the joints of its face, and what could not be made as issues.
+pub(super) struct Outcome {
+    pub(super) targets: Vec<MorphTarget>,
+    pub(super) kinds: Vec<IssueKind>,
+    pub(super) face: Option<(Facial, String)>,
+    pub(super) numbers: Vec<usize>,
+}
+
+/// Returns the outcome of the morph targets and the face joints of a head, as they were made.
+pub(super) fn outcome(
+    morphs: Option<Result<Morphs, String>>,
+    face: Option<Result<(Facial, String), String>>,
+) -> Outcome {
+    let mut numbers = Vec::new();
+    let (targets, mut kinds) = match morphs {
+        Some(Ok(morphs)) => {
+            let unknown = morphs
+                .unknown
+                .into_iter()
+                .map(|name| IssueKind::UnknownExpression { name });
+            let empty = morphs
+                .empty
+                .into_iter()
+                .map(|name| IssueKind::EmptyExpression { name });
+            numbers = morphs.numbers;
+            (morphs.targets, unknown.chain(empty).collect())
+        }
+        Some(Err(reason)) => (Vec::new(), vec![IssueKind::MorphsFailed { reason }]),
+        None => (Vec::new(), Vec::new()),
+    };
+    let face = match face {
+        Some(Ok(face)) => Some(face),
+        Some(Err(reason)) => {
+            kinds.push(IssueKind::FaceJointsFailed { reason });
+            None
+        }
+        None => None,
+    };
+    Outcome {
+        targets,
+        kinds,
+        face,
+        numbers,
+    }
+}
+
 impl Shaped {
     /// Returns the model, its morph targets and what could not be made of them as issues.
     pub(super) fn into_parts(self) -> Worn {
-        let mut numbers = Vec::new();
-        let (targets, mut kinds) = match self.morphs {
-            Some(Ok(morphs)) => {
-                let unknown = morphs
-                    .unknown
-                    .into_iter()
-                    .map(|name| IssueKind::UnknownExpression { name });
-                let empty = morphs
-                    .empty
-                    .into_iter()
-                    .map(|name| IssueKind::EmptyExpression { name });
-                numbers = morphs.numbers;
-                (morphs.targets, unknown.chain(empty).collect())
-            }
-            Some(Err(reason)) => (Vec::new(), vec![IssueKind::MorphsFailed { reason }]),
-            None => (Vec::new(), Vec::new()),
-        };
-        let face = match self.face {
-            Some(Ok(face)) => Some(face),
-            Some(Err(reason)) => {
-                kinds.push(IssueKind::FaceJointsFailed { reason });
-                None
-            }
-            None => None,
-        };
+        let made = outcome(self.morphs, self.face);
         Worn {
             model: self.model,
-            targets,
-            kinds,
-            face,
-            numbers,
+            targets: made.targets,
+            kinds: made.kinds,
+            face: made.face,
+            numbers: made.numbers,
         }
     }
 }

@@ -11,6 +11,7 @@ use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use super::face_build::{Face, Found, settled};
 use super::head_move::{HeadMove, Worn, check_follows, followed, level_zero_meshes};
 use super::jobs::{Job, issue, planned};
+use super::own_face::own_head;
 use super::read_models::{Loaded, choose, read_models};
 use super::shape::shaped;
 use super::zones::{covered, without_covered};
@@ -102,9 +103,10 @@ impl Armour {
             };
             let model = without_covered(job, dressed.model, variant, &covering, &mut issues);
             let face = dressed.face.take();
-            heads.extend(Found::of(parts.len(), &job.path, job.shape.as_ref(), face));
             if job.bespoke {
-                heads.push(Found::bespoke(parts.len(), &job.path));
+                heads.push(Found::bespoke(parts.len(), face));
+            } else {
+                heads.extend(Found::of(parts.len(), &job.path, job.shape.as_ref(), face));
             }
             part_jobs.push(job);
             let materials = drawn_with(
@@ -276,7 +278,7 @@ fn fitted(
     issues: &mut Vec<Issue>,
 ) -> Option<(Arc<Model>, Vec<MorphTarget>, Option<Face>)> {
     let Some(dna) = &job.shape else {
-        return Some((Arc::clone(&found.model), Vec::new(), None));
+        return Some(unshaped(job, found, models, issues));
     };
     let head = job.part == HEAD;
     let shaped = match shaped(&found.model, &job.path, dna, &job.expressions, models, head) {
@@ -288,15 +290,31 @@ fn fitted(
     };
     let worn = shaped.into_parts();
     issues.extend(worn.kinds.into_iter().map(|kind| issue(job, kind)));
-    let face = head.then(|| {
-        let (facial, rig) = worn.face.unzip();
-        Face {
-            facial,
-            rig: rig.unwrap_or_default(),
-            numbers: worn.numbers,
-        }
-    });
+    let face = head.then(|| Face::made(worn.face, worn.numbers));
     Some((Arc::new(worn.model), worn.targets, face))
+}
+
+/// Returns the model of a job without a DNA as it is worn: unchanged. The head of a story
+/// character with a `.RigLogic` file of its own also has the face of that rig: its joints and
+/// the morph targets the job asks for.
+fn unshaped(
+    job: &Job,
+    found: &Loaded,
+    models: &dyn ModelProvider,
+    issues: &mut Vec<Issue>,
+) -> (Arc<Model>, Vec<MorphTarget>, Option<Face>) {
+    let own = (job.bespoke && job.part == HEAD)
+        .then(|| own_head(&found.model, &job.path, &job.expressions, models))
+        .flatten();
+    let Some(made) = own else {
+        return (Arc::clone(&found.model), Vec::new(), None);
+    };
+    issues.extend(made.kinds.into_iter().map(|kind| issue(job, kind)));
+    (
+        Arc::clone(&found.model),
+        made.targets,
+        Some(Face::made(made.face, made.numbers)),
+    )
 }
 
 fn provider_failure(path: &str, variant: BodyVariant, failure: ModelFailure) -> AssemblyError {

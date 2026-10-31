@@ -4,7 +4,7 @@
 use std::collections::HashSet;
 use std::io::Write;
 
-use p4kx_character::{DnaRig, FaceRig};
+use p4kx_character::{Dna, DnaRig, FaceRig};
 use p4kx_gltf::{
     GlbOptions, GlbSummary, GltfError, RigAnimation, RigPiece, SampledAnimation, SampledWeights,
     TextureLoader, write_rigged_glb_animated, write_rigged_glb_animated_with,
@@ -12,7 +12,8 @@ use p4kx_gltf::{
 use p4kx_model::Animation;
 
 use super::expressions::logic_of;
-use super::facial::FaceLink;
+use super::facial::{FaceLink, FaceSource};
+use super::own_face::own_rig;
 use super::sample::{Control, evaluate, joint_samples, reduced, values_of, weight_samples};
 use super::shape::MAX_DNA_RIG_LEN;
 use super::unused::summarise;
@@ -144,20 +145,32 @@ fn refused(
 }
 
 fn load(link: &FaceLink, models: &dyn ModelProvider) -> Result<Loaded, String> {
-    let bytes = models
-        .file(&link.rig, MAX_DNA_RIG_LEN)
-        .map_err(|failure| match failure {
-            ModelFailure::Missing => format!("the DNA rig {} does not exist", link.rig),
-            other => format!("the DNA rig {} cannot be read: {other}", link.rig),
-        })?;
-    let rig = DnaRig::read(&bytes).map_err(|error| format!("{}: {error}", link.rig))?;
-    let matrix = rig
-        .matrix(&link.dna)
-        .map_err(|error| format!("{}: {error}", link.rig))?;
-    let logic = logic_of(&link.skin, models)?;
-    let face =
-        FaceRig::new(&rig, &matrix, &logic).map_err(|error| format!("{}: {error}", link.rig))?;
+    let face = match &link.source {
+        FaceSource::Dna { skin, rig, dna } => dna_face(skin, (rig, dna), models)?,
+        FaceSource::Own { logic } => own_rig(logic, models)?,
+    };
     Ok(Loaded { face })
+}
+
+/// Makes the face rig of a head shaped by `dna` from the DNA rig at `rig` and the `RigLogic`
+/// chunk of the skin at `skin`.
+fn dna_face(
+    skin: &str,
+    (rig_path, dna): (&str, &Dna),
+    models: &dyn ModelProvider,
+) -> Result<FaceRig, String> {
+    let bytes = models
+        .file(rig_path, MAX_DNA_RIG_LEN)
+        .map_err(|failure| match failure {
+            ModelFailure::Missing => format!("the DNA rig {rig_path} does not exist"),
+            other => format!("the DNA rig {rig_path} cannot be read: {other}"),
+        })?;
+    let rig = DnaRig::read(&bytes).map_err(|error| format!("{rig_path}: {error}"))?;
+    let matrix = rig
+        .matrix(dna)
+        .map_err(|error| format!("{rig_path}: {error}"))?;
+    let logic = logic_of(skin, models)?;
+    FaceRig::new(&rig, &matrix, &logic).map_err(|error| format!("{rig_path}: {error}"))
 }
 
 impl Armour {

@@ -42,7 +42,8 @@ sizes show each is a real, regular chunk:
 | `0xF5C6EB5B` | `BShapes` | 551 | `.aim` |
 
 `BShapes` is the `.aim` form; the ID `p4kx` had for it (`0x875CCB28`) and the old `BShapesGpu`
-(`0x57A3BEFD`) occur in no Archive.
+(`0x57A3BEFD`) occur in no Archive. The layouts of `RigLogic` and of `BShapesGpu` of a head are in
+ADR-0091 and ADR-0281.
 
 ## Table entries no measured Archive holds
 

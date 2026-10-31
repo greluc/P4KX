@@ -4,10 +4,10 @@
 use std::collections::HashMap;
 
 use p4kx_character::Dna;
-use p4kx_model::{Bone, BoneMatch, Model, extend_skeleton};
+use p4kx_model::{BoneMatch, Model, extend_skeleton};
 
 use super::ArmourPart;
-use super::facial::{FaceLink, Facial};
+use super::facial::{FaceLink, FaceSource, Facial, bones_of};
 use super::jobs::{Job, issue};
 use super::mount::{is_unskinned, place};
 use crate::{Issue, IssueKind};
@@ -20,27 +20,45 @@ pub(super) struct Face {
     pub(super) numbers: Vec<usize>,
 }
 
+impl Face {
+    /// Returns the face of a head from the joints and rig path it was made with, if it was, and
+    /// the blendshape number of each of its morph targets.
+    pub(super) fn made(face: Option<(Facial, String)>, numbers: Vec<usize>) -> Self {
+        let (facial, rig) = face.unzip();
+        Self {
+            facial,
+            rig: rig.unwrap_or_default(),
+            numbers,
+        }
+    }
+}
+
 /// A head part and what ties it to its rig.
 pub(super) struct Found {
     pub(super) part: usize,
-    pub(super) skin: String,
-    pub(super) dna: Option<Dna>,
+    pub(super) source: Option<FaceSource>,
     pub(super) face: Face,
 }
 
 impl Found {
-    /// Returns the part `part` made of the skin at `skin` of a story character's own head: its
-    /// bones join the skeleton at the positions its skin gives, and it has no rig to animate.
-    pub(super) fn bespoke(part: usize, skin: &str) -> Self {
+    /// Returns the part `part` made of the skin of a story character's own head: its bones join
+    /// the skeleton at the positions its skin gives. It is animated when it has `face`, the joints
+    /// of the character's own `.RigLogic` file.
+    pub(super) fn bespoke(part: usize, face: Option<Face>) -> Self {
+        let source = face
+            .as_ref()
+            .filter(|face| face.facial.is_some())
+            .map(|face| FaceSource::Own {
+                logic: face.rig.clone(),
+            });
         Self {
             part,
-            skin: skin.to_owned(),
-            dna: None,
-            face: Face {
+            source,
+            face: face.unwrap_or(Face {
                 facial: None,
                 rig: String::new(),
                 numbers: Vec::new(),
-            },
+            }),
         }
     }
 
@@ -52,31 +70,32 @@ impl Found {
         dna: Option<&Dna>,
         face: Option<Face>,
     ) -> Option<Self> {
+        let face = face?;
         Some(Self {
             part,
-            skin: skin.to_owned(),
-            dna: Some(dna?.clone()),
-            face: face?,
+            source: Some(FaceSource::Dna {
+                skin: skin.to_owned(),
+                rig: face.rig.clone(),
+                dna: dna?.clone(),
+            }),
+            face,
         })
     }
-}
-
-fn bones_of(model: &Model) -> Vec<Bone> {
-    model
-        .lods
-        .first()
-        .map(|lod| model.bones_of(lod).to_vec())
-        .unwrap_or_default()
 }
 
 /// Appends the bones of each head to the skeleton, moved to the Character's own joint positions
 /// where the rig gives them, and ties each head part to its rig.
 pub(super) fn extend_with_faces(skeleton: &mut Model, parts: &mut [ArmourPart], found: Vec<Found>) {
-    for head in found {
+    for mut head in found {
         let Some(part) = parts.get_mut(head.part) else {
             continue;
         };
-        let bones = bones_of(&part.model);
+        let posed = head
+            .face
+            .facial
+            .as_mut()
+            .and_then(|facial| facial.posed.take());
+        let bones = posed.unwrap_or_else(|| bones_of(&part.model).to_vec());
         let moves = head
             .face
             .facial
@@ -84,7 +103,7 @@ pub(super) fn extend_with_faces(skeleton: &mut Model, parts: &mut [ArmourPart], 
             .map(|facial| facial.offsets.as_slice())
             .unwrap_or_default();
         skeleton.bones = extend_skeleton(&skeleton.bones, &bones, moves);
-        let (Some(facial), Some(dna)) = (head.face.facial, head.dna) else {
+        let (Some(facial), Some(source)) = (head.face.facial, head.source) else {
             continue;
         };
         let mut by_name: HashMap<String, usize> = HashMap::with_capacity(skeleton.bones.len());
@@ -106,9 +125,7 @@ pub(super) fn extend_with_faces(skeleton: &mut Model, parts: &mut [ArmourPart], 
             .collect();
         part.face = Some(
             FaceLink {
-                skin: head.skin,
-                rig: head.face.rig,
-                dna,
+                source,
                 joints,
                 blendshapes: head.face.numbers,
             }

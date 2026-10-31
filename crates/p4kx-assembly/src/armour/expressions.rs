@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use p4kx_character::{DnaMatrix, DnaRig, ExpressionBlend, ExpressionTarget, RigLogic};
+use p4kx_character::{
+    DnaMatrix, DnaRig, ExpressionBlend, ExpressionTarget, RigLogic, SkinBlendshapes,
+};
 use p4kx_chunks::{ChunkFile, ivo};
 use p4kx_gltf::MorphTarget;
 use p4kx_model::Mesh;
@@ -169,9 +171,46 @@ pub(super) fn morphs(
             blend.blendshapes()
         ));
     }
-    let (chosen, unknown) = select(&logic, selection);
-    let (first, next) = by_stream_vertex(mesh, blend.vertices());
-    let made = make(&blend, &chosen, &first, &next);
+    Ok(targets_of(&blend, &logic, mesh, selection))
+}
+
+/// The blendshapes of a head on the vertices of its geometry stream.
+pub(super) trait BlendshapeSource: Sync {
+    fn vertices(&self) -> usize;
+    fn target(&self, blendshape: usize) -> ExpressionTarget;
+}
+
+impl BlendshapeSource for ExpressionBlend<'_> {
+    fn vertices(&self) -> usize {
+        Self::vertices(self)
+    }
+
+    fn target(&self, blendshape: usize) -> ExpressionTarget {
+        Self::target(self, blendshape)
+    }
+}
+
+impl BlendshapeSource for SkinBlendshapes<'_> {
+    fn vertices(&self) -> usize {
+        Self::vertices(self)
+    }
+
+    fn target(&self, blendshape: usize) -> ExpressionTarget {
+        Self::target(self, blendshape)
+    }
+}
+
+/// Makes the morph targets `selection` asks for of the head `mesh` from `source`, named by
+/// `logic`; the targets ascend by blendshape and leave out the blendshapes that move no vertex.
+pub(super) fn targets_of(
+    source: &impl BlendshapeSource,
+    logic: &RigLogic,
+    mesh: &Mesh,
+    selection: &Expressions,
+) -> Morphs {
+    let (chosen, unknown) = select(logic, selection);
+    let (first, next) = by_stream_vertex(mesh, source.vertices());
+    let made = make(source, &chosen, &first, &next);
     let empty = match selection {
         Expressions::Only(_) => made
             .iter()
@@ -196,16 +235,16 @@ pub(super) fn morphs(
             target.name = format!("{}#{count}", target.name);
         }
     }
-    Ok(Morphs {
+    Morphs {
         targets,
         numbers,
         unknown,
         empty,
-    })
+    }
 }
 
 fn make(
-    blend: &ExpressionBlend<'_>,
+    blend: &impl BlendshapeSource,
     chosen: &[(usize, String)],
     first: &[u32],
     next: &[u32],

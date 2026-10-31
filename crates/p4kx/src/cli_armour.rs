@@ -100,8 +100,8 @@ pub(crate) struct ArmourGlbArgs {
     pub(crate) no_vertex_colours: bool,
     /// Writes only the expression with this name as a morph target of the head a --loadout gives
     /// its character; repeat the option for more. Without it all expressions of a story
-    /// character's own head are written at LOD 0, read from the blendshapes of its geometry; a
-    /// head without a `.RigLogic` file of its own has none. A name is a control of the head rig,
+    /// character's own head are written, read from the blendshapes of its geometry at LOD 0 and
+    /// carried to the vertices of a lower level; a head without a `.RigLogic` file of its own has none. A name is a control of the head rig,
     /// e.g. `CTL_jaw_open`, or the controls of a corrective joined by `*`, in any case and with or
     /// without the prefix `CTL_`. A name the head lacks is listed as an issue.
     #[arg(

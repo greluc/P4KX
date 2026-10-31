@@ -39,7 +39,8 @@ type Verdict = Arc<OnceLock<Option<bool>>>;
 /// They are kept by the position of the texture's Entry, so a map several materials or libraries
 /// name is decoded once, also when threads ask for it at the same time.
 ///
-/// Positions are those of one Archive: use one handle per Archive, shared by every read of it.
+/// The handle is opaque: pass it to [`crate::ModelSource`]. Positions are those of one Archive, so
+/// use one handle per Archive, shared by every read of it.
 #[derive(Debug, Default)]
 pub struct TextureVerdicts(Mutex<HashMap<usize, Verdict>>);
 

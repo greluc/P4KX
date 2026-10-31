@@ -25,6 +25,9 @@ impl ModelSource {
     /// Reads the model Entry at `path`, matched with either separator and ignoring ASCII case,
     /// and its companions from the same folder of the Archive, all looked up through `index`.
     ///
+    /// Each call judges the colour of its textures afresh; to share the verdicts across reads use
+    /// [`Self::from_index_reading`] with one [`TextureVerdicts`].
+    ///
     /// # Errors
     ///
     /// Returns [`ConversionError::UnknownEntry`] when no Entry has that path,
@@ -52,7 +55,7 @@ impl ModelSource {
 
     /// Reads the levels of detail `lods` of the model Entry at `path` like
     /// [`Self::from_index_with`], dequantising its positions with `position_box`, see
-    /// [`Model::read_with_box`].
+    /// [`Model::read_with_box`]. Like [`Self::from_index`], it judges its textures afresh.
     ///
     /// # Errors
     ///

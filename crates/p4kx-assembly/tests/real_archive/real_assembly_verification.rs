@@ -58,7 +58,7 @@ const CASES: [Case; 5] = [
         size: "ground vehicle",
         lod: 0,
         least_parts: 10,
-        shares_meshes: true,
+        shares_meshes: false,
     },
     Case {
         class_name: "",

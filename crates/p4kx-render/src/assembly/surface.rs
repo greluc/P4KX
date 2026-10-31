@@ -15,7 +15,6 @@ pub(super) const LAYERED_PREFIX: &str = "layered:";
 
 const GLASS_ALPHA: f32 = 0.3;
 const DECAL_SHADERS: [&str; 2] = ["MeshDecal", "Decal"];
-const GLASS_SHADERS: [&str; 1] = ["GlassPBR"];
 
 /// The material library, palette and material ID that decide how a range is drawn.
 pub(super) type SurfaceKey = (usize, usize, u16);
@@ -68,7 +67,7 @@ pub(super) fn surface_of(material: &Material, mode: ModelMaterials) -> Option<Su
         return None;
     }
     let opacity = material.opacity.clamp(0.0, 1.0);
-    let glass = is_one_of(&material.shader, &GLASS_SHADERS);
+    let glass = material.is_glass();
     let (alpha, translucent) = if glass {
         (opacity.min(GLASS_ALPHA), true)
     } else if opacity < 1.0 && material.alpha_test <= 0.0 {

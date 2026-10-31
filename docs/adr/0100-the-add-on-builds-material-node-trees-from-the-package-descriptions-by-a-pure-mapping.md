@@ -8,6 +8,14 @@ detail overlay uses the red channel of the packed detail map only; without a ble
 layer is blended by `(1 − vertex red) · WearBlendBase`; with a blend map the layers are blended by
 the precedence of its channels. The mapping of the layers lives in `material_layers.py`.
 
+Amended by #563: a material without a blend map, a mask map or vertex colours (the package's
+`reads_vertex_colours` is false) weights its layers by position as ADR-0097 does, the first layer
+`1 − WearBlendBase` and the others `WearBlendBase` between them, folded into one blend per layer; a
+material with no weight keeps its own colours. A texture whose file does not load
+(`BuildContext.loadable`) counts as an unwritten slot, in the material and in its layer files, so
+the graph uses its factors. A decal without a palette entry takes `StencilDiffuseColor` (`r,g,b`)
+as its colour factor and `StencilOpacity` scales its opacity; a palette entry still wins.
+
 ## Decision
 
 **Description in, graph description out, nodes last.** `material_graph.build_graph` maps a
@@ -102,6 +110,5 @@ materials has one of each.
 New shader parameters keep arriving as custom properties and need no change to the mapping until
 one is worth using; a new family is a name in `material_graph.py`, its graph, and a row above.
 The layer channel convention is the first thing to revisit when a real ship is compared with the
-game; layer weighting without a blend map, a fallback for missing textures and decal stencils are
-not settled. Parallax and damage are not wired yet. The pure mapping is the place to follow the
+game. Parallax and damage are not wired yet. The pure mapping is the place to follow the
 colour derivation of the viewer and the GLB (ADR-0097).

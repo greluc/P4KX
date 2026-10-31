@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import math
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any
 
 _MATERIAL_ID = re.compile(r"^x[0-9]{4,}$")
@@ -133,6 +133,21 @@ class MaterialDesc:
     def number(self, name: str) -> float | None:
         """Returns the shader parameter ``name`` as a finite number, or ``None``."""
         return _number(self.parameters.get(name))
+
+    def colour_parameter(self, name: str) -> Colour | None:
+        """Returns the shader parameter ``name`` as a colour (``r,g,b``), or ``None``."""
+        value = self.parameters.get(name)
+        if value is None:
+            return None
+        return _colour([_number(part) for part in value.split(",")], None)
+
+    def with_textures_only(self, loadable: frozenset[str]) -> MaterialDesc:
+        """Returns the description without the slots whose texture is not in ``loadable``.
+
+        A slot without a texture id (a placeholder) stays; it already reads as unwritten.
+        """
+        kept = tuple(s for s in self.textures if s.texture is None or s.texture in loadable)
+        return self if len(kept) == len(self.textures) else replace(self, textures=kept)
 
 
 def parse_materials(items: object, warnings: list[str]) -> dict[str, MaterialDesc]:

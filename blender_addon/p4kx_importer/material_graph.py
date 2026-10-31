@@ -22,6 +22,8 @@ from .material_surface import (
     NEUTRAL_SMOOTHNESS_SHADERS,
     PARAM_PREFIX,
     SPECULAR_LEVEL_PER_F0,
+    STENCIL_COLOUR,
+    STENCIL_OPACITY,
     TINT_PALETTE_DECAL,
     BuildContext,
     Surface,
@@ -50,7 +52,7 @@ def build_graph(desc: MaterialDesc, context: BuildContext) -> GraphSpec:
 
 class _Maker(LayerBlending, GlassSurface):
     def __init__(self, desc: MaterialDesc, context: BuildContext) -> None:
-        self.desc = desc
+        self.desc = context.usable(desc)
         self.context = context
         self.family = family_of(desc.shader)
         self.builder = GraphBuilder(self.family)
@@ -119,12 +121,18 @@ class _Maker(LayerBlending, GlassSurface):
             return palette.primary
         return entry
 
+    def _stencil_colour(self) -> Colour | None:
+        """Returns the decal's ``StencilDiffuseColor`` when no palette entry colours it."""
+        if self.family != "decal":
+            return None
+        return self.desc.colour_parameter(STENCIL_COLOUR)
+
     def _has_decal_placeholder(self) -> bool:
         return any(s.file.startswith(TINT_PALETTE_DECAL) for s in self.desc.textures)
 
     def _base(self) -> Surface:
         entry = self._entry()
-        factor = entry.tint if entry else self.desc.diffuse
+        factor = entry.tint if entry else self._stencil_colour() or self.desc.diffuse
         if entry:
             smooth = entry.glossiness / 255.0
         elif self.desc.shader.lower() in NEUTRAL_SMOOTHNESS_SHADERS:
@@ -280,8 +288,10 @@ class _Maker(LayerBlending, GlassSurface):
         if mode != "blend":
             return None
         opacity = desc.opacity
-        if self.family == "decal" and (extra := desc.number("DecalDiffuseOpacity")) is not None:
-            opacity *= extra
+        if self.family == "decal":
+            for name in ("DecalDiffuseOpacity", STENCIL_OPACITY):
+                if (extra := desc.number(name)) is not None:
+                    opacity *= extra
         if source is None:
             if cap:
                 return 0.0

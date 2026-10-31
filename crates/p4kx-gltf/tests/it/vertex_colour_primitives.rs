@@ -15,13 +15,14 @@ use p4kx_testkit::{
 
 type TestResult = Result<(), Box<dyn Error>>;
 
-fn glass(name: &str, mask: &str) -> TestMtlMaterial {
+pub(crate) fn glass(name: &str, mask: &str) -> TestMtlMaterial {
     TestMtlMaterial::new(name)
         .shader("GlassPBR")
         .string_gen_mask(mask)
 }
 
-fn export(materials: &[TestMtlMaterial]) -> Result<CheckedGlb, Box<dyn Error>> {
+/// Returns the GLB of the testkit cube with vertex colours and the given materials.
+pub(crate) fn glb_bytes(materials: &[TestMtlMaterial]) -> Result<Vec<u8>, Box<dyn Error>> {
     let cube = TestModel::cube().with_colours(vec![[10, 20, 30, 40]; 24]);
     let cgfm = cube.cgfm();
     let mtl = TestMtl::multi(materials).cryxml();
@@ -35,7 +36,11 @@ fn export(materials: &[TestMtlMaterial]) -> Result<CheckedGlb, Box<dyn Error>> {
     let model = Model::read("cube.cgf", &ChunkFile::parse(cube.cgf())?, &mut companions)?;
     let mut bytes = Vec::new();
     write_glb(&model, &GlbOptions::default(), &mut bytes)?;
-    Ok(check_glb(&bytes)?)
+    Ok(bytes)
+}
+
+fn export(materials: &[TestMtlMaterial]) -> Result<CheckedGlb, Box<dyn Error>> {
+    Ok(check_glb(&glb_bytes(materials)?)?)
 }
 
 fn has_colours(glb: &CheckedGlb) -> Result<Vec<bool>, Box<dyn Error>> {

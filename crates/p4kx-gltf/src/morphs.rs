@@ -183,8 +183,8 @@ fn push_view(
     })
 }
 
-/// Returns the `extras` of the mesh `mesh`: `targetNames` with the names of its morph targets, or
-/// none without morph targets.
+/// Returns the `extras` of `mesh`, which hold `targetNames`, the names of its morph targets, or
+/// none for a mesh without morph targets.
 pub(crate) fn mesh_extras(mesh: &MeshLayout) -> json::extras::Extras {
     if mesh.morphs.is_empty() {
         return None;

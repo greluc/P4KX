@@ -238,7 +238,10 @@ fn unprefixed(chunk: &[u8]) -> Result<&[u8], RigLogicError> {
         .get(PREFIX_LEN..)
         .filter(|rig| has_magic(rig))
         .ok_or(RigLogicError::BadMagic)?;
-    let declared = u64_at(chunk, 0).unwrap_or_default();
+    let declared = u64_at(chunk, 0).ok_or(RigLogicError::Truncated {
+        need: PREFIX_LEN,
+        have: chunk.len(),
+    })?;
     let mismatch = || RigLogicError::PrefixMismatch {
         declared,
         have: rig.len(),

@@ -183,12 +183,13 @@ fn a_control_is_found_by_its_stored_hash_and_a_table_that_disagrees_with_the_nam
 fn a_prefix_that_differs_from_the_chunk_length_is_refused() {
     let mut chunk = TestRigLogic::small().build();
     let rig_len = chunk.len() - 8;
+    let declared = u64::try_from(rig_len).unwrap_or_default() + 1;
     assert!(RigLogic::read(&chunk).is_ok());
     chunk[0] = chunk[0].wrapping_add(1);
     assert_eq!(
         RigLogic::read(&chunk).err(),
         Some(RigLogicError::PrefixMismatch {
-            declared: rig_len as u64 + 1,
+            declared,
             have: rig_len
         })
     );

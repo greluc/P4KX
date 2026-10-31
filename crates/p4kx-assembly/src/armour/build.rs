@@ -99,9 +99,9 @@ impl Armour {
             };
             let model = without_covered(job, dressed.model, variant, &covering, &mut issues);
             let face = dressed.face.take();
-            heads.extend(Found::of(parts.len(), &job.path, job.shape.as_ref(), face));
+            heads.extend(Found::of(parts.len(), job.shape.as_ref(), face));
             if job.bespoke {
-                heads.push(Found::bespoke(parts.len(), &job.path));
+                heads.push(Found::bespoke(parts.len()));
             }
             part_jobs.push(job);
             let materials = drawn_with(

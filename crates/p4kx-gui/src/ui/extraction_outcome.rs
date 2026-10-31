@@ -234,46 +234,7 @@ pub(super) fn lists(ui: &mut Ui, texts: &Texts, summary: &ExtractionSummary) {
             true,
         );
     }
-    let heading = T::SummaryRecordsFailed;
-    let lines = failure_lines(
-        ui,
-        texts,
-        (summary, heading),
-        summary.record_failures(),
-        |failure| {
-            let args = [
-                ("path", failure.record_path.clone().into()),
-                ("guid", failure.guid.clone().into()),
-                ("reason", failure.reason.clone().into()),
-            ];
-            (
-                texts.format(T::SummaryRecordFailure, &args),
-                failure.reason.len(),
-            )
-        },
-    );
-    list(
-        ui,
-        texts,
-        (heading, &lines.lines, Some(&lines.reasons)),
-        true,
-    );
-    let heading = T::SummaryRecordsRenamed;
-    let renamed = failure_lines(
-        ui,
-        texts,
-        (summary, heading),
-        summary.records_renamed(),
-        |note| {
-            let args = [
-                ("path", note.record_path.clone().into()),
-                ("guid", note.guid.clone().into()),
-                ("reason", note.reason.clone().into()),
-            ];
-            (texts.format(T::SummaryRecordRenamed, &args), 0)
-        },
-    );
-    list(ui, texts, (heading, &renamed.lines, None), true);
+    super::extraction_record_lists::show(ui, texts, summary);
     list(
         ui,
         texts,
@@ -290,15 +251,15 @@ pub(super) fn lists(ui: &mut Ui, texts: &Texts, summary: &ExtractionSummary) {
 
 /// The formatted failure lines of a summary and where the reason starts in each.
 #[derive(Clone)]
-struct FailureLines {
+pub(super) struct FailureLines {
     key: (usize, usize, Language),
-    lines: Arc<[String]>,
-    reasons: Arc<[usize]>,
+    pub(super) lines: Arc<[String]>,
+    pub(super) reasons: Arc<[usize]>,
 }
 
 /// Returns the lines of `failed`, the list under `heading` of `summary`, formatted once per
 /// summary and language; `format` returns a line and the length of the reason it ends with.
-fn failure_lines<F>(
+pub(super) fn failure_lines<F>(
     ui: &Ui,
     texts: &Texts,
     (summary, heading): (&ExtractionSummary, T),
@@ -335,7 +296,7 @@ fn failure_lines<F>(
     failures
 }
 
-fn list(
+pub(super) fn list(
     ui: &mut Ui,
     texts: &Texts,
     (heading, lines, reasons): (T, &[String], Option<&[usize]>),

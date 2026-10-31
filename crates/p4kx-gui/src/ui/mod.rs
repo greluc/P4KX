@@ -57,6 +57,7 @@ mod entry_status;
 mod extraction;
 mod extraction_exclude;
 mod extraction_outcome;
+mod extraction_record_lists;
 mod field_rows;
 mod folder_conversion_outcome;
 mod game_running;

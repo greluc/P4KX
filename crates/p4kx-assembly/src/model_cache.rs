@@ -244,6 +244,10 @@ impl ModelProvider for CachedModels<'_> {
         self.inner.library(entry, name)
     }
 
+    fn layer_budget(&self) -> LayerBudget {
+        self.inner.layer_budget()
+    }
+
     fn layer_library(&self, path: &str, budget: &mut LayerBudget) -> Arc<MaterialStatus> {
         self.inner.layer_library(path, budget)
     }

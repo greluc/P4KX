@@ -14,13 +14,13 @@ use p4kx_model::{
 };
 use p4kx_testkit::{TestModel, TestMtl, TestMtlMaterial};
 
-type TestResult = Result<(), Box<dyn Error>>;
+pub(super) type TestResult = Result<(), Box<dyn Error>>;
 
-const FIRST: &str = "objects/test/first";
+pub(super) const FIRST: &str = "objects/test/first";
 const SECOND: &str = "objects/test/second";
-const SET: &str = "materials/layers/set";
+pub(super) const SET: &str = "materials/layers/set";
 
-fn hull(submaterial: &str) -> Vec<u8> {
+pub(super) fn hull(submaterial: &str) -> Vec<u8> {
     layering(&[("materials/layers/set.mtl", submaterial)])
 }
 
@@ -34,7 +34,7 @@ fn layering(layers: &[(&str, &str)]) -> Vec<u8> {
     TestMtl::single(&material).cryxml()
 }
 
-fn set() -> Vec<u8> {
+pub(super) fn set() -> Vec<u8> {
     TestMtl::multi(&[
         TestMtlMaterial::new("first").diffuse([0.1; 3]),
         TestMtlMaterial::new("second").diffuse([0.9; 3]),
@@ -53,7 +53,7 @@ fn diffuse_of(status: &MaterialStatus) -> Result<Vec<Option<[f32; 3]>>, Box<dyn 
         .collect())
 }
 
-fn load(
+pub(super) fn load(
     name: &str,
     companions: &mut dyn p4kx_model::CompanionResolver,
     cache: &LayerCache,
@@ -319,65 +319,4 @@ fn the_sub_material_of_a_layer_is_picked_by_one_rule() -> TestResult {
     )?;
     assert_eq!(single.layer_position("anything"), Some(0), "a single file");
     Ok(())
-}
-
-#[test]
-fn a_layer_file_read_as_a_library_is_fetched_once_with_the_surface_loads() -> TestResult {
-    let fetched = Cell::new(0);
-    let mut companions = |path: CompanionPath<'_>| -> Result<Option<Vec<u8>>, CompanionError> {
-        Ok(match path {
-            CompanionPath::Material(FIRST) => Some(hull("first")),
-            CompanionPath::Material(SET) => {
-                fetched.set(fetched.get() + 1);
-                Some(set())
-            }
-            _ => None,
-        })
-    };
-    let cache = LayerCache::new();
-    let mut budget = cache.budget();
-
-    load(FIRST, &mut companions, &cache);
-    let status = cache.library(
-        r"Data\materials\layers\SET.mtl",
-        &mut companions,
-        &mut budget,
-    );
-    let again = cache.library(SET, &mut companions, &mut budget);
-
-    let library = status.library().ok_or("loaded")?;
-    assert_eq!(library.materials.len(), 2, "every sub-material is there");
-    assert!(std::sync::Arc::ptr_eq(&status, &again), "one parsed file");
-    assert_eq!(fetched.get(), 1, "one fetch for the load and both reads");
-    Ok(())
-}
-
-#[test]
-fn a_layer_library_that_cannot_be_read_is_a_status_with_its_reason() {
-    let mut companions = |path: CompanionPath<'_>| -> Result<Option<Vec<u8>>, CompanionError> {
-        Ok(match path {
-            CompanionPath::Material("materials/layers/broken") => Some(b"not xml".to_vec()),
-            _ => None,
-        })
-    };
-    let cache = LayerCache::with_limits(LayerLimits {
-        files_per_load: 2,
-        ..LayerLimits::default()
-    });
-    let mut budget = cache.budget();
-
-    let missing = cache.library("materials/layers/gone.mtl", &mut companions, &mut budget);
-    let broken = cache.library("materials/layers/broken.mtl", &mut companions, &mut budget);
-    let spent = cache.library("materials/layers/third.mtl", &mut companions, &mut budget);
-    let unsafe_path = cache.library("../outside.mtl", &mut companions, &mut budget);
-
-    assert!(matches!(*missing, MaterialStatus::Missing { .. }));
-    assert!(matches!(*broken, MaterialStatus::Unreadable { .. }));
-    assert!(spent.problem().is_some_and(|text| text.contains("budget")));
-    assert!(matches!(*unsafe_path, MaterialStatus::Unreadable { .. }));
-    assert_eq!(
-        cache.len(),
-        2,
-        "the unadmitted and unsafe files are not cached"
-    );
 }

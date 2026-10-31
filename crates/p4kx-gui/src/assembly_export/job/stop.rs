@@ -28,6 +28,10 @@ impl ModelProvider for Stoppable<'_, '_> {
         self.models.library(entry, name)
     }
 
+    fn layer_budget(&self) -> LayerBudget {
+        self.models.layer_budget()
+    }
+
     fn layer_library(&self, path: &str, budget: &mut LayerBudget) -> Arc<MaterialStatus> {
         self.models.layer_library(path, budget)
     }

@@ -66,6 +66,7 @@ mod mtl_relief;
 mod mtl_render_to_texture;
 mod mtl_roles;
 mod mtl_shader;
+mod mtl_size;
 mod mtl_texture;
 mod mtl_vertex_colours;
 mod mtl_xml;

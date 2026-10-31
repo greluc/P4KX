@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use p4kx_assembly::ModelProvider;
 use p4kx_gltf::{DrawnMaterial, drawn_materials, texture_path};
@@ -51,6 +51,7 @@ pub(crate) struct Collected {
     index_of: HashMap<String, usize>,
     keys: HashMap<MaterialKey, usize>,
     layer_budget: LayerBudget,
+    layer_issues: HashSet<(String, String, String)>,
     cut: BTreeMap<usize, (String, String)>,
     folder: String,
 }
@@ -63,7 +64,10 @@ impl Collected {
         level: u32,
         models: &dyn ModelProvider,
     ) -> Self {
-        let mut collected = Self::default();
+        let mut collected = Self {
+            layer_budget: models.layer_budget(),
+            ..Self::default()
+        };
         for index in 0..plan.len() {
             let item = plan.first(index).and_then(|position| items.get(position));
             let drawn = item
@@ -242,13 +246,10 @@ impl Collected {
     }
 
     fn layer_issue(&mut self, parent: &Material, path: &str, reason: &str) {
-        let known = self.issues.iter().any(|issue| {
-            issue.kind == "layer_material"
-                && issue.path == path
-                && issue.name == parent.name
-                && issue.reason == reason
-        });
-        if known {
+        let first =
+            self.layer_issues
+                .insert((path.to_owned(), parent.name.clone(), reason.to_owned()));
+        if !first {
             return;
         }
         self.issues.push(Issue {

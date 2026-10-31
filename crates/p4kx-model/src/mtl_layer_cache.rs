@@ -30,8 +30,8 @@ pub struct LayerLimits {
     pub bytes_per_load: usize,
     /// The layer files a cache keeps before it starts over.
     pub cached_files: usize,
-    /// The bytes of the layer files a cache keeps before it starts over; the libraries it holds
-    /// are parsed from those bytes, so they bound its memory.
+    /// The estimated bytes of the parsed layer libraries a cache keeps before it starts over, see
+    /// [`MaterialLibrary::estimated_bytes`].
     pub cached_bytes: usize,
 }
 
@@ -84,10 +84,12 @@ impl LayerBudget {
     }
 }
 
-/// What fetching a layer file came to: the bytes it held and the library, or why there is none.
+/// What fetching a layer file came to: the bytes the file held, the estimated bytes its parsed
+/// library takes, and the library or why there is none.
 #[derive(Debug)]
 struct Fetched {
     bytes: usize,
+    held: usize,
     status: Arc<MaterialStatus>,
 }
 
@@ -198,9 +200,10 @@ impl LayerCache {
     }
 
     /// Returns the layer file at `path` as a material library, read without its own layers and
-    /// diffuse maps: a path that is unsafe, a file that is missing or unreadable, or one that
+    /// diffuse maps. A path that is unsafe, a file that is missing or unreadable, or one that
     /// `budget` does not admit is a status, not a failure. The file is fetched and parsed once
-    /// per cache, whatever the loads that ask for it.
+    /// per key until the cache starts over, whatever the loads that ask for it; its library path
+    /// is the lower-cased request, so it does not depend on which spelling asked first.
     #[must_use]
     pub fn library(
         &self,
@@ -217,19 +220,18 @@ impl LayerCache {
         let key = request.to_ascii_lowercase();
         if !budget.admits(&key) {
             return Arc::new(MaterialStatus::Unreadable {
-                path: path.to_owned(),
-                reason: "one load reads no more layer files than its budget allows".to_owned(),
+                path: request,
+                reason: "the layer-file budget is spent".to_owned(),
             });
         }
         let cell = self.cell(&key);
         let mut fetching = false;
         let fetched = cell.get_or_init(|| {
             fetching = true;
-            fetch(&request, companions)
+            fetch(&request, &key, companions)
         });
         if fetching {
-            self.cached_bytes
-                .fetch_add(fetched.bytes, Ordering::Relaxed);
+            self.cached_bytes.fetch_add(fetched.held, Ordering::Relaxed);
         }
         budget.charge(&key, fetched.bytes);
         Arc::clone(&fetched.status)
@@ -254,7 +256,7 @@ impl LayerCache {
     }
 }
 
-fn fetch(request: &str, companions: &mut dyn CompanionResolver) -> Fetched {
+fn fetch(request: &str, key: &str, companions: &mut dyn CompanionResolver) -> Fetched {
     let path = request.to_owned();
     let (bytes, status) = match companions.resolve(CompanionPath::Material(request)) {
         Ok(None) => (0, MaterialStatus::Missing { path }),
@@ -267,7 +269,7 @@ fn fetch(request: &str, companions: &mut dyn CompanionResolver) -> Fetched {
         ),
         Ok(Some(bytes)) => (
             bytes.len(),
-            match MaterialLibrary::parse(request, &bytes) {
+            match MaterialLibrary::parse(key, &bytes) {
                 Ok(library) => MaterialStatus::Loaded(library),
                 Err(error) => MaterialStatus::Unreadable {
                     path,
@@ -278,6 +280,7 @@ fn fetch(request: &str, companions: &mut dyn CompanionResolver) -> Fetched {
     };
     Fetched {
         bytes,
+        held: status.library().map_or(0, MaterialLibrary::estimated_bytes),
         status: Arc::new(status),
     }
 }

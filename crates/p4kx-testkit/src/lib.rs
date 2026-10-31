@@ -96,6 +96,7 @@ mod real_archive;
 mod reference_output;
 mod rig_logic;
 mod screens;
+mod screens_animation;
 mod screens_canvas;
 mod screens_geometry;
 mod screens_image;

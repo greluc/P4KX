@@ -1,6 +1,7 @@
 # Screens evaluate Child and Count selectors, layout modifiers and the state at rest
 
 `CanvasReferenceRecord` modifiers and `StringFromBooleanCanvas` bindings are evaluated since ADR-0277.
+State tags and the settled state of animations are evaluated since ADR-0287.
 
 Decided for issue #539, on top of ADR-0089 (the cascade), ADR-0101 (texts), ADR-0105 (images) and
 ADR-0106 (layouts, clones and the geometry modifiers). Nothing here was observed in the game;

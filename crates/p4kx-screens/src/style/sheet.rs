@@ -64,6 +64,37 @@ impl CanvasStyles {
         }
     }
 
+    /// Returns the canvases the styles and bindings of `canvas` may put in one of its canvas
+    /// widgets, whatever the brand: those of its shared styles, defaults, embedded styles, every
+    /// brand's styles and entries, its inline styles and its operations.
+    pub(crate) fn swapped_canvases(
+        forge: &DataForge<'_>,
+        cache: &mut StyleCache,
+        canvas: &Canvas,
+    ) -> Vec<Guid> {
+        let styles = canvas
+            .shared
+            .iter()
+            .chain(canvas.brands.iter().map(|brand| &brand.style));
+        let mut groups: Vec<Rc<[Entry]>> = styles
+            .map(|style| style_entries(forge, cache, style.guid))
+            .collect();
+        groups.push(Rc::clone(&canvas.defaults));
+        groups.push(Rc::clone(&canvas.embedded));
+        groups.extend(canvas.brands.iter().map(|brand| Rc::clone(&brand.entries)));
+        let inline = canvas
+            .widgets
+            .iter()
+            .flat_map(|widget| widget.inline.iter());
+        groups
+            .iter()
+            .flat_map(|group| group.iter())
+            .chain(inline)
+            .filter_map(|entry| entry.modifiers.canvas)
+            .chain(canvas.operations.canvas_choices())
+            .collect()
+    }
+
     /// Returns which selectors that need the shape of the tree the styles hold.
     pub(crate) const fn uses(&self) -> Uses {
         self.uses

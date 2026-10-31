@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
+use crate::screens_animation::alpha_animation;
 use crate::screens_canvas::record_in;
 use crate::screens_widget::TestColour;
 use crate::{TestInstance, TestRecord, TestValue};
@@ -120,12 +121,16 @@ pub enum TestModifier {
     Number(&'static str, f32),
     /// An enumerated field: the kind, e.g. `WidthBehavior` or `FlexDirection`, and the option.
     Enumerated(&'static str, &'static str),
+    /// An animation of `Alpha` from the first value at the start to the second at the end, with
+    /// the fill mode (`None`, `Forward`, ...) and the direction (`Forward`, `Reverse`, ...).
+    AlphaAnimation(&'static str, &'static str, f32, f32),
 }
 
 /// How a modifier is written: a named field of a kind, or a typed struct inside `field`.
 enum Shape {
     Field(&'static str, &'static str, TestValue),
     Typed(&'static str, String, TestValue),
+    Whole(TestValue),
 }
 
 impl TestModifier {
@@ -165,11 +170,15 @@ impl TestModifier {
             Self::Vertical(name) => enumerated("EnumeratedTypeVerticalAlignment", name),
             Self::Case(name) => enumerated("EnumeratedTypeCaseModifier", name),
             Self::Enumerated(kind, name) => enumerated(&format!("EnumeratedType{kind}"), name),
+            Self::AlphaAnimation(fill, direction, from, to) => {
+                Shape::Whole(alpha_animation(fill, direction, (from, to)))
+            }
         }
     }
 
     pub(crate) fn value(self) -> TestValue {
         match self.shape() {
+            Shape::Whole(value) => value,
             Shape::Typed(kind, inner, value) => typed(kind, &inner, value),
             Shape::Field(kind, field, value) => {
                 let key = if kind == "Color" { "color" } else { "value" };

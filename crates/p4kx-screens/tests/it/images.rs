@@ -148,6 +148,11 @@ fn a_missing_texture_is_listed_and_the_widget_skipped() -> TestResult {
         "the path is named: {:?}",
         missing.examples
     );
+    assert_eq!(
+        report.missing_textures,
+        ["UI/Test/missing.dds"],
+        "the Archive path is listed once for the screen"
+    );
     let raster = composed.rasterize(&stage())?;
     assert_eq!(pixel(&raster.image, 120, 40), CLEAR, "nothing is drawn");
     assert!(report.images_left_out >= 1, "it is counted");

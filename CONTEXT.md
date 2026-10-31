@@ -575,7 +575,8 @@ The rules that give a widget its colours, geometry and visibility at rest: the p
 `BuildingBlocks_Style`, and style entries whose selectors (type, tag, parent, ancestor, child,
 count and their combinations) pick widgets and whose modifiers set fill, stroke, background,
 border colour, alpha, activity, sizes, margins, padding, anchor, pivot, scale and flex settings.
-State tags, animations and transitions are not evaluated (ADR-0089, ADR-0110).
+State tags bound by a canvas are tags of their widget, and an animation that holds its last frame
+is applied at that frame (ADR-0287); transitions are not evaluated (ADR-0089, ADR-0110).
 _Avoid_: CSS, theme
 
 **State at rest**:

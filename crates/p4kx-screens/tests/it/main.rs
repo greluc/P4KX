@@ -24,6 +24,7 @@ mod render;
 mod rest;
 mod selectors;
 mod selectors_reference;
+mod state_tags;
 mod still;
 mod stylesheet;
 mod support;

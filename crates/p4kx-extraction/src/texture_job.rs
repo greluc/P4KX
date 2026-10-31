@@ -3,14 +3,12 @@
 
 use std::collections::{BTreeMap, HashMap, HashSet};
 
-use p4kx_archive::{Archive, Entry};
-use rayon::prelude::*;
-
 use crate::sound_job::sound_role;
+use crate::source::{EntrySource, SourceEntry};
 use crate::texture_images::IMAGE_EXTENSIONS;
 
 /// An Entry of the run with its position in the requested order.
-pub(crate) type Indexed<'a> = (usize, &'a Entry);
+pub(crate) type Indexed<'a> = (usize, &'a SourceEntry<'a>);
 
 /// One unit of work of an Extraction.
 pub(crate) enum Item<'a> {
@@ -29,9 +27,9 @@ pub(crate) enum Item<'a> {
 pub(crate) struct TextureJob<'a> {
     pub(crate) header: Indexed<'a>,
     pub(crate) requested: Vec<Indexed<'a>>,
-    pub(crate) parts: BTreeMap<u32, &'a Entry>,
-    pub(crate) alpha_header: Option<&'a Entry>,
-    pub(crate) alpha_parts: BTreeMap<u32, &'a Entry>,
+    pub(crate) parts: BTreeMap<u32, SourceEntry<'a>>,
+    pub(crate) alpha_header: Option<SourceEntry<'a>>,
+    pub(crate) alpha_parts: BTreeMap<u32, SourceEntry<'a>>,
 }
 
 impl<'a> TextureJob<'a> {
@@ -50,7 +48,7 @@ impl<'a> TextureJob<'a> {
         std::iter::once(self.header).chain(self.requested.iter().copied())
     }
 
-    fn add(&mut self, member: Member, entry: &'a Entry) {
+    fn add(&mut self, member: Member, entry: SourceEntry<'a>) {
         match member {
             Member::Part(number) => {
                 self.parts.entry(number).or_insert(entry);
@@ -115,7 +113,10 @@ impl Item<'_> {
 /// Splits `entries` into items: each requested `.dds` header with its requested parts and alpha
 /// tail Entries and those the Archive holds becomes one texture, every other Entry stays on its
 /// own.
-pub(crate) fn group_textures<'a>(archive: &'a Archive, entries: &[&'a Entry]) -> Vec<Item<'a>> {
+pub(crate) fn group_textures<'a>(
+    source: &'a dyn EntrySource,
+    entries: &'a [SourceEntry<'a>],
+) -> Vec<Item<'a>> {
     let mut headers = Headers::default();
     for (index, entry) in entries.iter().enumerate() {
         if role(entry.path()) == Some(Role::Header) {
@@ -123,25 +124,20 @@ pub(crate) fn group_textures<'a>(archive: &'a Archive, entries: &[&'a Entry]) ->
         }
     }
     if headers.by_key.is_empty() {
-        return entries
-            .iter()
-            .copied()
-            .enumerate()
-            .map(Item::Entry)
-            .collect();
+        return entries.iter().enumerate().map(Item::Entry).collect();
     }
     let mut jobs: HashMap<usize, TextureJob<'a>> = headers
         .by_key
         .values()
-        .filter_map(|&index| Some((index, TextureJob::new((index, *entries.get(index)?)))))
+        .filter_map(|&index| Some((index, TextureJob::new((index, entries.get(index)?)))))
         .collect();
-    for (header, member, entry) in archive_members(archive, &headers) {
+    for (header, member, entry) in source_members(source, &headers) {
         if let Some(job) = jobs.get_mut(&header) {
             job.add(member, entry);
         }
     }
     let mut items = Vec::with_capacity(entries.len());
-    for (index, entry) in entries.iter().copied().enumerate() {
+    for (index, entry) in entries.iter().enumerate() {
         if jobs.contains_key(&index) {
             continue;
         }
@@ -185,16 +181,23 @@ impl Headers {
     }
 }
 
-/// Finds the parts and alpha tail Entries of the `headers` in one parallel pass over the Archive.
-fn archive_members<'a>(archive: &'a Archive, headers: &Headers) -> Vec<(usize, Member, &'a Entry)> {
-    archive
-        .entries()
-        .par_iter()
+/// Finds the parts and alpha tail Entries of the `headers` in one parallel pass over the source.
+fn source_members<'a>(
+    source: &'a dyn EntrySource,
+    headers: &Headers,
+) -> Vec<(usize, Member, SourceEntry<'a>)> {
+    let owner = |path: &str| {
+        let Some(Role::Member(header_path, member)) = role(path) else {
+            return None;
+        };
+        Some((headers.find(header_path)?, member))
+    };
+    source
+        .members(&|path| owner(path).is_some())
+        .into_iter()
         .filter_map(|entry| {
-            let Some(Role::Member(header_path, member)) = role(entry.path()) else {
-                return None;
-            };
-            Some((headers.find(header_path)?, member, entry))
+            let (header, member) = owner(entry.path())?;
+            Some((header, member, entry))
         })
         .collect()
 }

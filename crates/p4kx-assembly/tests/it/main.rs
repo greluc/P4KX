@@ -5,6 +5,7 @@
 
 mod armour_build;
 mod armour_mount;
+mod armour_natural_hair;
 mod armour_palette;
 mod assembly_build;
 mod assembly_changes;
@@ -40,6 +41,7 @@ mod character_definitions;
 mod character_item_ports;
 mod character_skeletons;
 mod clothing_hidden;
+mod creature_skeleton;
 mod docked_vehicles;
 mod entity_catalogue;
 mod entity_interior;

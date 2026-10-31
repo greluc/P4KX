@@ -41,6 +41,9 @@ every texture and `--no-vertex-colours` leaves the vertex colours out of the mes
 `--interior` adds the Entity's Interior as for `entity glb --interior` (ADR-0086), see
 [Interiors and lights](#interiors-and-lights).
 
+A creature Entity is written as static meshes in a package, without bones or weights, although
+`entity glb` binds its skins to its skeleton (ADR-0275); the skinned form is #926.
+
 `p4kx interior package <archive> <container>... --out <folder>` writes the Interior of a socpak
 container on its own, with `--lod`, `--texture-mip` and `--no-vertex-colours`: the same nodes,
 props and lights as `entity package --interior`, see
@@ -80,7 +83,7 @@ written (there are no `null`s).
 | Field | Meaning |
 | --- | --- |
 | `format` | Always `p4kx-blender-package`. |
-| `version` | `<major>.<minor>` of the package format, matching `^[0-9]+\.[0-9]+$`; `1.3` today. |
+| `version` | `<major>.<minor>` of the package format, matching `^[0-9]+\.[0-9]+$`; `1.4` today. |
 | `generator` | `name` (`p4kx`) and `version` of the program that wrote the package. |
 | `source` | `channel` (the Channel folder, e.g. `LIVE`), `build` (`branch`, `version`, `public_patch`, `change_number`, `build_id` of the Archive's build manifest) and `entity` (`class_name`, `guid`). `channel` and `build` are absent when unknown. A Character package (1.3) also has `character` (`name`, `body`, `chf`, `loadout`), see "Characters", and puts the Character's name in `entity.class_name` with an empty `guid`. |
 | `coordinates` | `basis` is `gltf_y_up` and `unit` is `metre`. A reader refuses a `basis` or `unit` it does not know. |
@@ -296,6 +299,7 @@ shader still has every value the file holds.
 | `diffuse`, `specular`, `emissive` | Linear colours. `emissive` counts times `glow`. |
 | `shininess`, `opacity`, `alpha_test`, `glow` | Scalars of the file (`shininess` from 0 to 255). |
 | `alpha_mode` | `opaque`, `mask` (`alpha_test` above 0) or `blend` (`opacity` below 1, or a glass or decal shader): derived from the fields above. |
+| `reads_vertex_colours` | (1.4) `true` when the material reads the vertex colours of its mesh: `GlassPBR` with `PER_VERTEX_TINT`, or a layered surface without a blend map (`_blend`, `_mask`, `_opac`) that has a layer to blend over its base ([ADR-0253](adr/0253-glass-with-per-vertex-tint-takes-its-colour-from-the-vertex-colours.md)). The GLB meshes carry `COLOR_0` on the primitives of such materials only. Absent in 1.3 and older; the add-on then applies the rule it had before. |
 | `palette` | `primary`, `secondary`, `tertiary` or `glass`: the palette entry the material takes (the first layer with a `PaletteTint` from 1 to 3, or the tint-palette glass colour). Absent when it takes none. |
 | `default_palette` | The Record path of the library's default palette. |
 | `textures` | The texture slots in file order, see below. |
@@ -458,7 +462,8 @@ Version history: **1.0** is the first format; **1.1** adds the material descript
 and the glTF material indices in the meshes; **1.2** adds the node kinds `container`, `object` and
 `light` and the node field `light` (`entity package --interior`). A reader of 1.1 skips such nodes
 with their children. **1.3** adds the node kind `character` and the mesh field `rig`
-(`character package`); a reader of 1.2 skips the node and warns about the minor version.
+(`character package`); a reader of 1.2 skips the node and warns about the minor version. **1.4**
+adds the material field `reads_vertex_colours`.
 
 The schema file is the schema of the version in `FORMAT_VERSION`: a change of the Rust types that
 changes the schema is a change of the format, and the checked-in schema changes with it. A schema

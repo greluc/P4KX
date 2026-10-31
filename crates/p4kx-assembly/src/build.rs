@@ -12,6 +12,7 @@ use crate::build_gear::load_models;
 use crate::build_models::{Loaded, choose_models};
 use crate::build_palettes::Palettes;
 use crate::build_zones::BodyCut;
+use crate::creature_rig;
 use crate::flatten::{Draft, flatten};
 use crate::placement::{bone_transform, node_transform, offset};
 use crate::{
@@ -116,6 +117,7 @@ impl Assembly {
                 hidden: draft.hidden,
             });
         }
+        creature_rig::note_fit(&parts, options.lod, &mut issues);
         Ok(Self {
             parts,
             issues,

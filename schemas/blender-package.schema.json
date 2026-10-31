@@ -483,6 +483,11 @@
           },
           "type": "array"
         },
+        "reads_vertex_colours": {
+          "default": false,
+          "description": "Whether the material reads the vertex colours of its mesh (1.4): glass with\n`PER_VERTEX_TINT`, and a layered surface without a blend map. The GLB meshes carry\n`COLOR_0` on the primitives of such materials only. A package before 1.4 lacks it and reads\nas `false` here, which is harmless: this crate only writes it, and the add-on tells an\nabsent field from `false` itself.",
+          "type": "boolean"
+        },
         "shader": {
           "description": "The shader, e.g. `Illum`, `HardSurface`, `Layer`, `MeshDecal` or `GlassPBR`; empty when the\nfile gives none.",
           "type": "string"

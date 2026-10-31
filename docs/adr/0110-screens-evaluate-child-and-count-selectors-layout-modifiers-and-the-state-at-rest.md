@@ -1,5 +1,7 @@
 # Screens evaluate Child and Count selectors, layout modifiers and the state at rest
 
+`CanvasReferenceRecord` modifiers and `StringFromBooleanCanvas` bindings are evaluated since ADR-0277.
+
 Decided for issue #539, on top of ADR-0089 (the cascade), ADR-0101 (texts), ADR-0105 (images) and
 ADR-0106 (layouts, clones and the geometry modifiers). Nothing here was observed in the game;
 every rule is read from the Records and from what the names of the fields say, and the guesses are

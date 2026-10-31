@@ -10,6 +10,7 @@ use p4kx_model::{Lod, Model, Transform};
 use crate::layout::Layout;
 use crate::materials::{MaterialPlan, MaterialTextures, Slot, build_material, display_name};
 use crate::scene_light::SceneLight;
+use crate::scene_rig::SceneRig;
 use crate::texture_plan::TextureSet;
 
 /// A glTF node of the scene that holds no model of its own.
@@ -30,6 +31,14 @@ pub(crate) struct Instance<'m> {
     /// The earlier instance of the same model, level, material library and palette whose meshes this one
     /// reuses; such an instance plans no blocks and no materials of its own.
     pub(crate) twin: Option<usize>,
+}
+
+/// What a document is written from: the `wrappers`, the model `instances` below them, and the
+/// skeleton the skinned instances are bound to, if there is one.
+pub(crate) struct Content<'a, 'm> {
+    pub(crate) wrappers: &'a [Wrapper<'m>],
+    pub(crate) instances: &'a [Instance<'m>],
+    pub(crate) rig: Option<&'a SceneRig<'m>>,
 }
 
 pub(crate) type MaterialIds = BTreeMap<u16, Index<json::Material>>;

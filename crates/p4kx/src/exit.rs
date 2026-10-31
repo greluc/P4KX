@@ -10,7 +10,7 @@ use p4kx_export::{ActionMapError, CatalogError};
 use p4kx_extraction::cryxml::CryXmlError;
 use p4kx_extraction::{
     ArchiveError, DataForgeError, DataForgeLoadError, FieldStatisticsError, FilterError,
-    LocalizationLoadError, UnknownEntries,
+    FolderError, LocalizationLoadError, UnknownEntries,
 };
 use p4kx_screens::ScreenError;
 
@@ -121,7 +121,8 @@ pub(crate) const EXIT_CODES_HELP: &str = "Exit codes:
      without defaultProfile.xml for actionmap export, --csv-raw with another format for
      actionmap export, a canvas for ui render --screen that no Record, several Records or a
      Record of another type name, or whose side is below 1 or above 16384 pixels, or a prefab
-     library or prefab the Archive lacks
+     library or prefab the Archive lacks, or for convert an input that is no folder or an output
+     folder that overlaps the input folder
   3  the Archive or the input file cannot be read: missing, not an Archive, not CryXml, not a
      chunk or CHF file or UI movie, corrupt, a corrupt model or companion (for entity glb and
      entity package the geometry of the Entity itself, its .chrm or .skinm companion or the
@@ -130,9 +131,10 @@ pub(crate) const EXIT_CODES_HELP: &str = "Exit codes:
      too large to read into memory, or with unreadable Entry data, also a socpak container that
      cannot be opened, a --diff Entry that cannot be read or holds corrupt CryXml, a global.ini of the
      catalog that is corrupt or cannot be read, a defaultProfile.xml that is no XML, is too large
-     or cannot be read, a prefab library that cannot be read, or the skeleton of a body variant
-     (armour glb) that is missing or unreadable; a missing texture, sound, soundbank, chunk file,
-     UI movie file, model or geometry companion is 2
+     or cannot be read, a prefab library that cannot be read, the skeleton of a body variant
+     (armour glb) that is missing or unreadable, or the input folder of convert that cannot be
+     read or holds too many files; a missing texture, sound, soundbank, chunk file, UI movie
+     file, model or geometry companion is 2
   4  the Archive changed on disk while it was open, e.g. updated by the RSI Launcher; the
      Extraction stopped, and Entries written before may be stale
   5  the DataForge cannot be read: the Archive holds none, its version is not supported or it
@@ -227,7 +229,9 @@ fn code_for(error: &anyhow::Error) -> u8 {
 }
 
 fn is_text_or_profile_error(error: &anyhow::Error) -> bool {
-    error.downcast_ref::<LocalizationLoadError>().is_some() || is_action_map_error(error, false)
+    error.downcast_ref::<LocalizationLoadError>().is_some()
+        || is_action_map_error(error, false)
+        || is_unreadable_folder(error)
 }
 
 fn is_action_map_error(error: &anyhow::Error, missing: bool) -> bool {
@@ -250,6 +254,30 @@ fn is_loadout_or_screen_forge_error(error: &anyhow::Error) -> bool {
 fn is_unknown_audio_input(error: &anyhow::Error) -> bool {
     error.downcast_ref::<UnknownTrigger>().is_some()
         || error.downcast_ref::<UnknownAudioLanguage>().is_some()
+}
+
+/// Returns whether `error` is an input folder of `p4kx convert` that cannot be read or is too
+/// large.
+fn is_unreadable_folder(error: &anyhow::Error) -> bool {
+    matches!(
+        error.downcast_ref::<FolderError>(),
+        Some(
+            FolderError::Read { .. }
+                | FolderError::TooManyEntries { .. }
+                | FolderError::TooDeep { .. }
+        )
+    )
+}
+
+/// Returns whether `error` is a folder pair of `p4kx convert` that must not be used: the input
+/// is no folder, or the output overlaps it or lies in a Star Citizen installation.
+fn is_refused_folder(error: &anyhow::Error) -> bool {
+    matches!(
+        error.downcast_ref::<FolderError>(),
+        Some(
+            FolderError::NotAFolder(_) | FolderError::Overlap { .. } | FolderError::Installation(_)
+        )
+    )
 }
 
 /// Returns whether `error` is a source of an Assembly that cannot be read: the skeleton of a body
@@ -294,6 +322,7 @@ fn is_unreadable_change(error: &anyhow::Error) -> bool {
 
 fn is_output_or_query_error(error: &anyhow::Error) -> bool {
     crate::prefab::is_invalid_input(error)
+        || is_refused_folder(error)
         || error.downcast_ref::<ChangeError>().is_some()
         || error.downcast_ref::<JsonNeedsOut>().is_some()
         || error.downcast_ref::<InvalidQuery>().is_some()

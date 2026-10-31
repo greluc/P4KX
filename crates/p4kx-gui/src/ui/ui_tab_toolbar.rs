@@ -113,6 +113,7 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
     }
     if let Some(power) = chosen.power {
         model.ui_mut().set_power(power);
+        requests.settings_changed = true;
     }
     if let Some(format) = chosen.format {
         model.ui_mut().set_format(format);
@@ -122,7 +123,7 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
         requests.dialog = Some(Dialog::UiFile);
     }
     if model.ui().mode() == UiMode::Ships {
-        ui_tab_variables::show(ui, model);
+        requests.settings_changed |= ui_tab_variables::show(ui, model);
     }
     outcome(ui, model);
 }

@@ -122,10 +122,11 @@ mod tests {
         let cancel = CancelToken::new();
         let tracker = Tracker::new(&[], Some(&cancel), None, None);
         let writer = EntryWriter {
-            archive: &archive,
+            source: &archive,
             target: &target,
             policy: ConflictPolicy::Overwrite,
             convert: true,
+            copy_other: true,
             textures: TextureConversion::default(),
             audio: AudioConversion::Wav,
             verify: false,

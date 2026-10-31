@@ -3,9 +3,8 @@
 
 use std::sync::Mutex;
 
-use p4kx_archive::Entry;
-
 use crate::folder_cache::FolderCache;
+use crate::source::SourceEntry;
 use crate::written_paths::WrittenPaths;
 use crate::{ArchiveWatch, CancelToken, Progress};
 
@@ -21,7 +20,7 @@ pub(crate) struct Tracker<'a> {
 
 impl<'a> Tracker<'a> {
     pub(crate) fn new(
-        entries: &[&Entry],
+        entries: &[SourceEntry<'_>],
         cancel: Option<&'a CancelToken>,
         watch: Option<&'a ArchiveWatch>,
         on_progress: Option<&'a (dyn Fn(Progress) + Sync)>,
@@ -32,7 +31,7 @@ impl<'a> Tracker<'a> {
             on_progress,
             progress: Mutex::new(Progress {
                 entries_total: entries.len(),
-                bytes_total: entries.iter().map(|entry| entry.uncompressed_size()).sum(),
+                bytes_total: entries.iter().map(SourceEntry::uncompressed_size).sum(),
                 ..Progress::default()
             }),
             folders: FolderCache::default(),
@@ -66,7 +65,7 @@ impl<'a> Tracker<'a> {
 
     /// Records the end of an Entry of which `written` bytes were reported through
     /// [`wrote`](Self::wrote).
-    pub(crate) fn ended(&self, entry: &Entry, written: u64) {
+    pub(crate) fn ended(&self, entry: &SourceEntry<'_>, written: u64) {
         self.update(|progress| {
             progress.bytes_done += entry.uncompressed_size().saturating_sub(written);
             progress.entries_done += 1;

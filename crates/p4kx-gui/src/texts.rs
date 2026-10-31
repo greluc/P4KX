@@ -18,6 +18,7 @@ mod dataforge_text;
 mod diff_text;
 mod entity_text;
 mod extraction_text;
+mod folder_conversion_text;
 mod group_text;
 mod image_text;
 mod incoming_text;
@@ -52,6 +53,7 @@ pub use dataforge_text::{DataForgeText, RecordSearchText};
 pub use diff_text::DiffText;
 pub use entity_text::EntityText;
 pub use extraction_text::ExtractionText;
+pub use folder_conversion_text::FolderConversionText;
 pub use group_text::GroupText;
 pub use image_text::ImageText;
 pub use incoming_text::IncomingText;
@@ -281,6 +283,8 @@ pub enum Text {
     ModelInfo(ModelInfoText),
     /// A text of the Export as GLB windows.
     ModelExport(ModelExportText),
+    /// A text of the Convert folder windows.
+    FolderConversion(FolderConversionText),
     /// A text of the Characters tab.
     Character(CharacterText),
     /// A text of the Entities tab.

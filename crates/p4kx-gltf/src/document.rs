@@ -13,11 +13,12 @@ use p4kx_model::{Lod, Model};
 
 use crate::animations::{AnimationPlan, push_animations};
 use crate::block_data::BlockData;
-use crate::instance::{Instance, MaterialIds, Wrapper, materials};
+use crate::instance::{Content, Instance, MaterialIds, materials};
 use crate::layout::{Block, Layout, MeshLayout};
 use crate::morphs::{primitive_targets, push_targets};
 use crate::nodes::{Skeleton, push_nodes};
-use crate::scene_nodes::push_scene_nodes;
+use crate::scene_nodes::{SceneSkin, push_scene_nodes};
+use crate::scene_rig::SceneRig;
 use crate::texture_plan::TextureSet;
 
 pub(crate) const GENERATOR: &str = concat!("P4KX ", env!("CARGO_PKG_VERSION"));
@@ -31,12 +32,16 @@ const PNG_MIME: &str = "image/png";
 /// meshes then share one skin. The animations of `animations` are written after the nodes they
 /// move.
 pub(crate) fn document(
-    wrappers: &[Wrapper<'_>],
-    instances: &[Instance<'_>],
+    content: &Content<'_, '_>,
     layout: &Layout<'_>,
     textures: &TextureSet,
     animations: &[AnimationPlan],
 ) -> Root {
+    let Content {
+        wrappers,
+        instances,
+        rig,
+    } = *content;
     let mut root = Root {
         asset: json::Asset {
             generator: Some(GENERATOR.to_owned()),
@@ -61,20 +66,45 @@ pub(crate) fn document(
         || empty_nodes(instances),
         |buffer| push_meshes(&mut root, buffer, layout, instances, &materials),
     );
-    match (
+    if let ([], [instance], [meshes], [skinned]) = (
         wrappers,
         instances,
         node_meshes.as_slice(),
         skinned.as_slice(),
     ) {
-        ([], [instance], [meshes], [skinned]) => {
-            push_single(
-                &mut root, buffer, layout, instance, meshes, skinned, animations,
-            );
-        }
-        _ => push_scene_nodes(&mut root, wrappers, instances, &node_meshes),
+        push_single(
+            &mut root, buffer, layout, instance, meshes, skinned, animations,
+        );
+    } else {
+        let skin = scene_skin(&mut root, buffer, layout, rig, &skinned);
+        push_scene_nodes(
+            &mut root,
+            (wrappers, instances),
+            &node_meshes,
+            skin.as_ref(),
+        );
     }
     root
+}
+
+/// Returns the skeleton of the scene when `rig` is given and a mesh is skinned, after writing the
+/// accessor of its inverse bind matrices.
+fn scene_skin<'a>(
+    root: &mut Root,
+    buffer: Option<Index<json::Buffer>>,
+    layout: &Layout<'_>,
+    rig: Option<&'a SceneRig<'_>>,
+    skinned: &'a [Vec<bool>],
+) -> Option<SceneSkin<'a>> {
+    let rig = rig.filter(|_| skinned.iter().flatten().any(|&skinned| skinned))?;
+    let block = layout
+        .inverse_binds
+        .and_then(|block| layout.blocks.get(block))?;
+    Some(SceneSkin {
+        bones: rig.bones,
+        inverse_binds: push_accessor(root, buffer?, block, None),
+        skinned,
+    })
 }
 
 pub(crate) type NodeMeshes = Vec<Vec<Option<Index<json::Mesh>>>>;
@@ -124,6 +154,12 @@ pub(crate) fn push_meshes(
         if let Some(twin) = instance.twin
             && let Some(shared) = node_meshes.get(twin).cloned()
             && let Some(slot) = node_meshes.get_mut(part)
+        {
+            *slot = shared;
+        }
+        if let Some(twin) = instance.twin
+            && let Some(shared) = skinned.get(twin).cloned()
+            && let Some(slot) = skinned.get_mut(part)
         {
             *slot = shared;
         }
@@ -260,19 +296,23 @@ fn push_mesh(
         let accessor = push_accessor(root, buffer, &tangents, None);
         attributes.insert(Valid(Semantic::Tangents), accessor);
     }
-    if let Some(colours) = mesh.colours.and_then(block) {
-        let accessor = push_accessor(root, buffer, &colours, None);
-        attributes.insert(Valid(Semantic::Colors(0)), accessor);
-    }
     push_skin_attributes(root, buffer, layout, mesh, &mut attributes);
+    let colours = mesh
+        .colours
+        .and_then(block)
+        .map(|colours| push_accessor(root, buffer, &colours, None));
     let targets = push_targets(root, buffer, layout, mesh);
     let primitives = mesh
         .primitives
         .iter()
         .filter_map(|primitive| {
             let indices = block(primitive.indices)?;
+            let mut attributes = attributes.clone();
+            if let Some(colours) = colours.filter(|_| primitive.colours) {
+                attributes.insert(Valid(Semantic::Colors(0)), colours);
+            }
             Some(Primitive {
-                attributes: attributes.clone(),
+                attributes,
                 indices: Some(push_accessor(root, buffer, &indices, None)),
                 material: materials.and_then(|ids| ids.get(&primitive.material_id).copied()),
                 mode: Valid(Mode::Triangles),

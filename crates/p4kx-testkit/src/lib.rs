@@ -35,6 +35,7 @@ mod entity_assembly;
 mod entity_bone;
 mod entity_cargo;
 mod entity_clothing;
+mod entity_creature;
 mod entity_dressed;
 mod entity_fit_sample;
 mod entity_gear;
@@ -143,6 +144,10 @@ pub use entity_bone::{
 };
 pub use entity_cargo::{TestCapacity, closed_container_record, open_container_record};
 pub use entity_clothing::{TestClothingCondition, TestZoneChunk, clothing_component};
+pub use entity_creature::{
+    CREATURE, CREATURE_DEFINITION, CREATURE_HORNED, CREATURE_NO_SKELETON, CREATURE_SHORT_SKELETON,
+    RIGGED_PROP, creature_entries,
+};
 pub use entity_dressed::{
     DRESSED_BROWS, DRESSED_EYES, DRESSED_EYES_MATERIAL, DRESSED_GONE_HAIR, DRESSED_HAIR,
     DRESSED_HAIR_MATERIAL, DRESSED_HAIR_OPACITY, DRESSED_HEAD_DIFFUSE, DRESSED_HEAD_MATERIAL,

@@ -27,4 +27,7 @@ pub use settings::{
     ExtractionAudio, ExtractionTextures, MAX_SETTINGS_SIZE, ManualChannels, Settings,
     SettingsError, WindowGeometry, default_settings_file,
 };
-pub use ui_render::{UiRenderBackground, UiRenderFormat, UiRenderSettings, UiRenderSize};
+pub use ui_render::{
+    MAX_VARIABLES_BYTES, UiRenderBackground, UiRenderFormat, UiRenderPower, UiRenderSettings,
+    UiRenderSize, bound_variables,
+};

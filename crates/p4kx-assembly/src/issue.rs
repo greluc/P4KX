@@ -286,9 +286,9 @@ pub enum IssueKind {
         /// The code of the body variant.
         body: String,
     },
-    /// Some bones of the piece's model are not in the body skeleton; their vertices follow the
+    /// Some bones of the model are not in the skeleton it is bound to; their vertices follow the
     /// nearest ancestor bone the skeleton has.
-    #[error("{count} bones are not in the body skeleton and follow their nearest parent")]
+    #[error("{count} bones are not in the skeleton and follow their nearest parent")]
     BonesNotInSkeleton {
         /// The number of bones.
         count: usize,

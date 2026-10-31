@@ -14,8 +14,9 @@ use crate::widgets::text::plain;
 use crate::{Model, UiText};
 
 /// Shows the field for more game variables of a screen, and the settings in it that are no
-/// `NAME=VALUE`.
-pub(super) fn show(ui: &mut Ui, model: &mut Model) {
+/// `NAME=VALUE`; returns whether the field was left after a change, so that the text is stored.
+/// The text is also stored when the window closes, from the model, which holds every change.
+pub(super) fn show(ui: &mut Ui, model: &mut Model) -> bool {
     let texts = model.texts();
     let label = eyebrow(&texts.get(UiText::VariablesLabel));
     let hint = texts.get(UiText::VariablesHint);
@@ -27,20 +28,38 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model) {
         )
     });
     let mut text = model.ui().variables_text().to_owned();
-    let mut changed = false;
+    let mut edited = Edited::default();
     ui.horizontal(|ui| {
         let label = ui.label(label);
-        changed = edit(ui, &mut text, &hint, label.id);
+        edited = edit(ui, &mut text, &hint, label.id);
     });
     if let Some(warning) = warning {
         ui.label(plain(warning, FS_SM, Weight::Regular).color(palette::WARNING));
     }
-    if changed {
+    if edited.changed {
         model.ui_mut().set_variables_text(&text);
     }
+    let dirty = ui.make_persistent_id(DIRTY);
+    if edited.changed {
+        ui.data_mut(|data| data.insert_temp(dirty, true));
+    }
+    edited.left
+        && ui
+            .data_mut(|data| data.remove_temp::<bool>(dirty))
+            .unwrap_or(false)
 }
 
-fn edit(ui: &mut Ui, text: &mut String, hint: &str, label: Id) -> bool {
+/// Remembers that the text changed since the field was last left.
+const DIRTY: &str = "ui-variables-dirty";
+
+/// What happened to the field in this frame.
+#[derive(Debug, Default, Clone, Copy)]
+struct Edited {
+    changed: bool,
+    left: bool,
+}
+
+fn edit(ui: &mut Ui, text: &mut String, hint: &str, label: Id) -> Edited {
     let bloom = field::bloom_slot(ui);
     let frame = field::frame_slot(ui);
     let edit = TextEdit::singleline(text)
@@ -60,5 +79,8 @@ fn edit(ui: &mut Ui, text: &mut String, hint: &str, label: Id) -> bool {
     if response.has_focus() {
         field::paint_bloom(ui, bloom, response.rect);
     }
-    response.changed()
+    Edited {
+        changed: response.changed(),
+        left: response.lost_focus(),
+    }
 }

@@ -342,6 +342,31 @@ fn a_tag_the_game_names_at_run_time_is_unknown() {
 }
 
 #[test]
+fn a_tag_read_as_a_text_is_a_typed_unknown() {
+    let operations = graph(
+        vec![
+            Node::Param {
+                parameter: "ParamInput0".to_owned(),
+                default: Rest::Text(String::new()),
+            },
+            Node::TextEmpty(Some(0)),
+        ],
+        vec![binding("IsActive", FieldKind::Boolean, 1)],
+    );
+    let given = [("ParamInput0".to_owned(), Rest::Tag(Some(tag(5))))];
+    let state = AtRest::of(&operations, &given, &[]);
+    assert_eq!(state.active(0), None);
+    assert!(
+        state
+            .unknown()
+            .iter()
+            .any(|(_, _, why)| why.contains("not a text")),
+        "{:?}",
+        state.unknown()
+    );
+}
+
+#[test]
 fn parameters_tell_states_apart_by_key() {
     let none = AtRest::of(&graph(Vec::new(), Vec::new()), &[], &[]);
     let some = AtRest::of(

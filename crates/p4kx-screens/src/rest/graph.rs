@@ -214,14 +214,14 @@ fn node(short: &str, op: &StructValue<'_>) -> Option<Node> {
             pairs: items(op, "values")
                 .iter()
                 .filter_map(as_struct)
-                .filter_map(|pair| {
+                .map(|pair| {
                     let first = int(pair, "first")?;
                     Some((
                         f64::from(first),
                         reference(pair, "second").map(Reference::guid),
                     ))
                 })
-                .collect(),
+                .collect::<Option<Vec<_>>>()?,
             default: reference(op, "defaultValue").map(Reference::guid),
             input: input(),
         },

@@ -22,8 +22,9 @@ mfdscreens` (191 canvases):
 - **Tags are the tags of the styles.** The tags are `UI.Style…` tags (`UI.Style.__Internal.selected`,
   `UI.Style.General.Secondary`, `UI.Style.ShipEvents.PowerState.Normal`, ...), the same that
   `styleTags` and the `Tag` selectors of style entries use. No widget field holds a state tag.
-- **Text selectors.** 300 selectors have the type `Text`, none the type `TextField`, while the
-  canvases hold 532 `WidgetTextField` and no `WidgetText`. The entries read `Type Text` with a
+- **Text selectors.** In those 191 canvases 300 selectors have the type `Text`, none the type
+  `TextField`, while the canvases hold 532 `WidgetTextField` and no `WidgetText` (counted over the
+  exported JSON). The entries read `Type Text` with a
   `Parent` that holds a tag (`Body Text Colour`: `Type Text` below `Text_Body`), and the tag sits
   on the text field itself, whose own parent, a card, has none.
 - **Animations.** An entry such as `PowerOnAnim` (`PowerState.Normal` or `.Warning`) holds no
@@ -44,14 +45,19 @@ mfdscreens` (191 canvases):
   bound field PrimaryStateTag is not evaluated: …`. The game's events (`ShipEvents`) are not
   bound by any Record and add no tag.
 - **A text field holds a text.** For the selectors, a `WidgetTextField` is the field and, below it,
-  the text it draws, of the type `Text`. The entries that select that text, with the field as
-  its `Parent`, are applied to the field after the entries that select the field itself; where
-  both set a modifier, the text wins.
+  the text it draws, of the type `Text`. Only entries that require the type `Text` of the widget
+  they select (in at least one selector list, directly or inside an all-of) are tried against
+  that text, with the field as its `Parent`, and their modifiers apply to the field after the
+  entries that select the field itself; where both set a modifier, the text wins. Untyped
+  entries, entries typed otherwise and the inline styles of the widget are not tried against it.
 - **An animation settles.** The animation of a style entry (`FieldModifierAnimation`) puts the
-  modifiers of its last keyframe in force when its `fillMode` is `Forward` or `Both` and its
-  direction is `Forward`; with the direction `Reverse` the first keyframe. An animation that
-  loops, alternates, does not hold its frame or has no embedded keyframes adds nothing.
-  Transitions stay out of scope.
+  modifiers of its last keyframe in force when its `fillMode` is `Forward` or `Both`, its
+  direction is `Forward` and that keyframe is at the end of the timeline (percent 1); with the
+  direction `Reverse` the first keyframe, which must be at percent 0. An animation that loops,
+  alternates, does not hold its frame, has no embedded keyframes or does not reach the end of its
+  timeline adds nothing. Delay and iteration count are ignored. Transitions stay out of scope.
+- **Integer pairs that do not fit.** A `TagFromIntegerSwitch` with a pair whose integer does not
+  fit 32 bits is not evaluated and is listed as `TagFromIntegerSwitch is not evaluated`.
 - **Missing textures are listed per screen.** `Report::missing_textures` names each Archive path
   of a texture that could not be read, once, at most 256; `p4kx ui render` prints each as
   `texture not in the Archive: <path>`, and the JSON report carries the array when it is not
@@ -67,13 +73,15 @@ mfdscreens` (191 canvases):
 | `m_mfd_screen` | at rest | `powerstate=1` |
 | --- | --- | --- |
 | widgets in canvases | 1 in 1 | 206 in 18 |
-| shapes | 0 | 85 |
-| texts drawn | 0 | 13 (7 left out) |
+| shapes | 0 | 52 |
+| texts drawn | 0 | 4 (16 left out) |
 | images drawn | 0 | 15 (7 left out) |
 
-The PNG shows the header (`ORDNANCE > ORDNANCE`), the bars and frames of the self status and the
-missile list; at rest it is empty. Three textures of `S42/MFDs/AEGS` are not in LIVE and are
-listed. Some texts overlap: the layout of bound sizes and anchors is not evaluated (ADR-0110).
+The PNG shows the bars, frames and two large segments of the cast; at rest it is empty. Most texts
+stay without a colour: the entries that colour them select the text with a `Parent` and no type,
+which the rule above leaves out. Three textures of `S42/MFDs/AEGS` are not in LIVE and are
+listed. The large segments are probably too big: bound sizes and anchors are not evaluated
+(ADR-0110).
 
 ## Guesses, unverified against the game
 

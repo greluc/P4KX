@@ -55,27 +55,78 @@ fn keyframe(percent: f32, value: f32) -> TestValue {
     )
 }
 
-/// Returns an animation of `Alpha` from `from` at 0 to `to` at 1, with the fill mode and the
-/// direction given.
-pub(crate) fn alpha_animation(fill: &str, direction: &str, (from, to): (f32, f32)) -> TestValue {
-    TestValue::Struct(
-        TestInstance::new("BuidlingBlocks_FieldModifierAnimation").value(
-            "value",
-            TestValue::Struct(
-                TestInstance::new("BuildingBlocks_Animation")
-                    .value("fillMode", TestValue::text(fill))
-                    .value("direction", TestValue::text(direction))
-                    .value("loopIndefinitely", TestValue::Bool(false))
-                    .value(
-                        "animationTimeline",
-                        TestValue::Struct(
-                            TestInstance::new("BuildingBlocks_TimelineTypeEmbedded").value(
-                                "keyframes",
-                                TestValue::Array(vec![keyframe(0.0, from), keyframe(1.0, to)]),
+/// An animation of `Alpha` from a value at the start of the timeline to another at its end.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct TestAlphaAnimation {
+    fill: &'static str,
+    direction: &'static str,
+    from: f32,
+    to: f32,
+    looping: bool,
+    keyframes: bool,
+    last_at: f32,
+}
+
+impl TestAlphaAnimation {
+    /// Creates an animation with the fill mode (`None`, `Forward`, ...) and the direction
+    /// (`Forward`, `Reverse`, ...), from `from` at 0 to `to` at 1.
+    #[must_use]
+    pub const fn alpha(fill: &'static str, direction: &'static str, from: f32, to: f32) -> Self {
+        Self {
+            fill,
+            direction,
+            from,
+            to,
+            looping: false,
+            keyframes: true,
+            last_at: 1.0,
+        }
+    }
+
+    /// Makes the animation loop indefinitely.
+    #[must_use]
+    pub const fn looping(mut self) -> Self {
+        self.looping = true;
+        self
+    }
+
+    /// Leaves the timeline without keyframes.
+    #[must_use]
+    pub const fn without_keyframes(mut self) -> Self {
+        self.keyframes = false;
+        self
+    }
+
+    /// Puts the last keyframe at `percent` instead of 1.
+    #[must_use]
+    pub const fn ending_at(mut self, percent: f32) -> Self {
+        self.last_at = percent;
+        self
+    }
+
+    pub(crate) fn value(self) -> TestValue {
+        let frames = if self.keyframes {
+            vec![keyframe(0.0, self.from), keyframe(self.last_at, self.to)]
+        } else {
+            Vec::new()
+        };
+        TestValue::Struct(
+            TestInstance::new("BuidlingBlocks_FieldModifierAnimation").value(
+                "value",
+                TestValue::Struct(
+                    TestInstance::new("BuildingBlocks_Animation")
+                        .value("fillMode", TestValue::text(self.fill))
+                        .value("direction", TestValue::text(self.direction))
+                        .value("loopIndefinitely", TestValue::Bool(self.looping))
+                        .value(
+                            "animationTimeline",
+                            TestValue::Struct(
+                                TestInstance::new("BuildingBlocks_TimelineTypeEmbedded")
+                                    .value("keyframes", TestValue::Array(frames)),
                             ),
                         ),
-                    ),
+                ),
             ),
-        ),
-    )
+        )
+    }
 }

@@ -244,6 +244,7 @@ pub use reference_output::{
 };
 pub use rig_logic::{RIG_LOGIC_CHUNK, TestRigLogic};
 pub use screens::{SCREEN_COLOUR_SLOTS, screens_schema};
+pub use screens_animation::TestAlphaAnimation;
 pub use screens_canvas::{
     TestCanvas, movie_component, named_tag_record, screen_component, tag_record,
 };

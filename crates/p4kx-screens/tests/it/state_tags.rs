@@ -6,12 +6,13 @@
 use p4kx_dataforge::DataForge;
 use p4kx_screens::{Composed, ScreenComposer, Variable};
 use p4kx_testkit::{
-    TestCanvas, TestCondition, TestDim, TestModifier, TestOp, TestStyleEntry, TestWidget,
-    tag_record,
+    TestAlphaAnimation, TestCanvas, TestCondition, TestDim, TestModifier, TestOp, TestStyleEntry,
+    TestWidget, tag_record,
 };
 
 use crate::support::{
-    BLUE, GREEN, RED, SCREEN, TestResult, database, empty_at, green_at, guid_text, red_at, stage,
+    BLUE, GREEN, RED, SCREEN, TestResult, blue_at, database, empty_at, green_at, guid_text, red_at,
+    stage,
 };
 
 const ON: u128 = SCREEN + 0x200;
@@ -83,11 +84,9 @@ fn a_state_tag_is_not_listed_as_left_out() -> TestResult {
     Ok(())
 }
 
-fn animated(fill: &'static str, direction: &'static str, from: f32, to: f32) -> TestCanvas {
+fn animated(animation: TestAlphaAnimation) -> TestCanvas {
     canvas()
-        .embedded(
-            paint("shown", ON, BLUE).set(TestModifier::AlphaAnimation(fill, direction, from, to)),
-        )
+        .embedded(paint("shown", ON, BLUE).set(TestModifier::Animation(animation)))
         .operation("flag", TestOp::BoolVar)
         .operation("pick", TestOp::TagFromBool("flag", ON, OFF))
         .widget(swatch())
@@ -100,36 +99,58 @@ fn animated(fill: &'static str, direction: &'static str, from: f32, to: f32) -> 
 #[test]
 fn an_animation_that_holds_its_last_frame_settles_on_it() -> TestResult {
     let settled = compose(
-        &animated("Forward", "Forward", 0.0, 1.0),
+        &animated(TestAlphaAnimation::alpha("Forward", "Forward", 0.0, 1.0)),
         &["variable=true"],
     )?;
     assert!(
-        crate::support::blue_at(&settled.rasterize(&stage())?.image, 5, 5),
+        blue_at(&settled.rasterize(&stage())?.image, 5, 5),
         "from nothing to opaque: opaque"
     );
     let faded = compose(
-        &animated("Forward", "Forward", 1.0, 0.0),
+        &animated(TestAlphaAnimation::alpha("Forward", "Forward", 1.0, 0.0)),
         &["variable=true"],
     )?;
     assert!(
         empty_at(&faded.rasterize(&stage())?.image, 5, 5),
         "from opaque to nothing: nothing"
     );
-    let reversed = compose(&animated("Both", "Reverse", 1.0, 0.0), &["variable=true"])?;
+    let reversed = compose(
+        &animated(TestAlphaAnimation::alpha("Both", "Reverse", 1.0, 0.0)),
+        &["variable=true"],
+    )?;
     assert!(
-        crate::support::blue_at(&reversed.rasterize(&stage())?.image, 5, 5),
+        blue_at(&reversed.rasterize(&stage())?.image, 5, 5),
         "a reverse animation settles on its first frame"
     );
     Ok(())
 }
 
+/// Composes a screen whose animation would fade the swatch out if it settled, and returns whether
+/// the swatch stays opaque.
+fn stays_opaque(animation: TestAlphaAnimation) -> Result<bool, Box<dyn std::error::Error>> {
+    let composed = compose(&animated(animation), &["variable=true"])?;
+    Ok(blue_at(&composed.rasterize(&stage())?.image, 5, 5))
+}
+
 #[test]
-fn an_animation_that_does_not_hold_its_last_frame_leaves_nothing() -> TestResult {
-    let released = compose(&animated("None", "Forward", 1.0, 0.0), &["variable=true"])?;
-    assert!(crate::support::blue_at(
-        &released.rasterize(&stage())?.image,
-        5,
-        5
-    ));
+fn an_animation_that_does_not_settle_changes_nothing() -> TestResult {
+    let fade = TestAlphaAnimation::alpha("Forward", "Forward", 1.0, 0.0);
+    assert!(
+        stays_opaque(TestAlphaAnimation::alpha("None", "Forward", 1.0, 0.0))?,
+        "the frame is not held"
+    );
+    assert!(stays_opaque(fade.looping())?, "it loops");
+    assert!(
+        stays_opaque(TestAlphaAnimation::alpha("Forward", "Alternate", 1.0, 0.0))?,
+        "it alternates"
+    );
+    assert!(
+        stays_opaque(fade.without_keyframes())?,
+        "it has no keyframes"
+    );
+    assert!(
+        stays_opaque(fade.ending_at(0.5))?,
+        "its last frame is not at the end of the timeline"
+    );
     Ok(())
 }

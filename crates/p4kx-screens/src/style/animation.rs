@@ -13,7 +13,9 @@ pub(super) const ANIMATION: &str = "BuidlingBlocks_FieldModifierAnimation";
 
 /// Returns the modifiers a keyframed animation leaves in force once it has run, `None` when it
 /// leaves none: it loops, it does not hold its last frame (`fillMode` neither `Forward` nor
-/// `Both`), it alternates, or it has no embedded keyframes.
+/// `Both`), it alternates, it has no embedded keyframes, or its last frame is not at the end of
+/// the timeline (percent 1; percent 0 for a reverse animation). Delay and iteration count are
+/// ignored.
 ///
 /// A forward animation settles on its last keyframe, a reverse one on its first.
 pub(super) fn settled(modifier: &StructValue<'_>) -> Option<Modifiers> {
@@ -32,11 +34,19 @@ pub(super) fn settled(modifier: &StructValue<'_>) -> Option<Modifiers> {
         .iter()
         .filter_map(as_struct)
         .filter_map(|frame| Some((float(frame, "percent")?, frame)));
-    let (_, frame) = if reverse {
+    let (percent, frame) = if reverse {
         frames.min_by(|left, right| left.0.total_cmp(&right.0))
     } else {
         frames.max_by(|left, right| left.0.total_cmp(&right.0))
     }?;
+    let at_end = if reverse {
+        percent <= 0.0
+    } else {
+        percent >= 1.0
+    };
+    if !at_end {
+        return None;
+    }
     let found = modifiers(
         items(frame, "modifiers")
             .iter()

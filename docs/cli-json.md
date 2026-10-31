@@ -364,6 +364,9 @@ attachment that cannot be read, are not drawn; reported once per definition, `sk
 `skeleton_missing` and `skeleton_unreadable` (the skeleton file, `Model File`, of a character
 definition is not in the Archive, is larger than 16 MiB or cannot be read as a model; the skin
 is still the part's model; reported once per definition, `skipped` is false),
+`loadout_unreadable` (the Loadout of a creature, an Entity whose root geometry is a character file
+below `Objects/Characters` outside `Human`, cannot be read in full, such as an XML Loadout the
+Archive lacks, so its body port stays empty; reported on the root, `skipped` is false, ADR-0289),
 `material_library` (the library is missing or unreadable; the part is
 drawn with the default material; reported once per library, for the first part that draws with
 it), `palette` (a tint palette the Entity or its library names

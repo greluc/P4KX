@@ -7,6 +7,7 @@ use std::sync::Arc;
 use p4kx_dataforge::{Guid, RecordTree, StructValue, Value, ValueError};
 
 use crate::armour::{ZoneList, read_zones};
+use crate::assortment::RANDOM_GENERATED_LOADOUT;
 use crate::merge::port_key;
 use crate::outfit_read::OutfitInfo;
 use crate::port::{PortDefinition, read_definition};
@@ -47,6 +48,8 @@ pub(crate) enum LoadoutSpec {
     /// base Loadout, then the Loadouts of the outfits that always apply. An entry without an
     /// Entity adds its nested entries to those of the earlier entry of the same port.
     Layered(Arc<[Self]>),
+    /// A Loadout generated at random from `SLoadoutAssortment` Records: the Records by GUID.
+    Assortments(Arc<[Guid]>),
 }
 
 /// What supplied the attachment of a port: an Entity Record, or an XML Loadout file.
@@ -352,12 +355,30 @@ pub(crate) fn read_loadout(loadout: &StructValue<'_>, record: &Arc<str>) -> Opti
     if loadout.type_name() == OUTFIT_LOADOUT {
         return crate::outfit_read::read(loadout, record, false).loadout;
     }
+    if loadout.type_name() == RANDOM_GENERATED_LOADOUT {
+        return read_assortments(loadout);
+    }
     loadout.field("entries")?;
     Some(LoadoutSpec::Manual(
         struct_items(loadout, "entries")
             .map(|entry| read_entry(entry, record))
             .collect(),
     ))
+}
+
+/// Reads the assortments a random generated Loadout names; `None` when it names none.
+fn read_assortments(loadout: &StructValue<'_>) -> Option<LoadoutSpec> {
+    let Some(Value::Array(items)) = loadout.field("LoadoutAssortments") else {
+        return None;
+    };
+    let guids: Arc<[Guid]> = items
+        .iter()
+        .filter_map(|item| match reference_target(item) {
+            TargetSpec::Reference(guid) => Some(guid),
+            _ => None,
+        })
+        .collect();
+    (!guids.is_empty()).then_some(LoadoutSpec::Assortments(guids))
 }
 
 fn read_entry(entry: &StructValue<'_>, record: &Arc<str>) -> EntrySpec {

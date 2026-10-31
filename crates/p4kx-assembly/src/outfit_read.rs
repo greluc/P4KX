@@ -131,7 +131,7 @@ impl LoadoutSpec {
                     layer.xml_paths(paths);
                 }
             }
-            Self::Manual(_) => {}
+            Self::Manual(_) | Self::Assortments(_) => {}
         }
     }
 }

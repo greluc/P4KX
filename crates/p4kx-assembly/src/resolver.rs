@@ -311,6 +311,7 @@ impl<'f> LoadoutResolver<'f> {
             None => Ok(Entries::complete(Arc::from([]))),
             Some(LoadoutSpec::Manual(entries)) => Ok(Entries::complete(Arc::clone(entries))),
             Some(LoadoutSpec::Layered(layers)) => self.layered_entries(layers),
+            Some(LoadoutSpec::Assortments(guids)) => self.assortment_entries(guids),
             Some(LoadoutSpec::Xml(path)) => {
                 let Some(files) = self.files else {
                     return Err(LoadoutError::NoLoadoutFiles {

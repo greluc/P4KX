@@ -16,7 +16,7 @@ pub use job::{RecordExport, RecordExportStatus};
 pub(crate) use job::{Request, Selection, start};
 pub use progress::{RecordExportProgress, RecordExportStage};
 pub(crate) use selection::records_below;
-pub use summary::{FailedRecord, RecordExportSummary};
+pub use summary::{FailedRecord, RecordExportSummary, RenamedRecord};
 
 use crate::TargetKind;
 use crate::installation::refusal_of;

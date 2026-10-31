@@ -136,8 +136,8 @@ pub use query::{
 };
 pub use record_export::{
     FailedRecord, RECORD_FORMS, RecordExport, RecordExportProgress, RecordExportSetup,
-    RecordExportStage, RecordExportStatus, RecordExportSummary, RecordScope, TreeSelection,
-    form_annotates_tags,
+    RecordExportStage, RecordExportStatus, RecordExportSummary, RecordScope, RenamedRecord,
+    TreeSelection, form_annotates_tags,
 };
 pub use record_index::{
     DataForgeSummary, RecordId, RecordInfo, RecordNodeId, RecordNodeKind, SUMMARY_RECORDS,
@@ -160,8 +160,8 @@ pub use texts::{
     CharacterText, ComparisonText, ContainerText, ContentSearchText, DataForgeText, DiffText,
     EntityText, ExtractionText, FolderConversionText, GroupText, ImageText, IncomingText,
     LocalizationText, ModelExportText, ModelInfoText, ModelText, QueryText, RecordChangeText,
-    RecordExportText, RecordLanguageText, RecordSearchText, RecordText, SchemaText, ScrollText,
-    SoundsText, TagsText, Text, Texts, UiText, XmlText,
+    RecordExportText, RecordLanguageText, RecordSearchText, RecordText, RenameText, SchemaText,
+    ScrollText, SoundsText, TagsText, Text, Texts, UiText, XmlText,
 };
 pub use ui_tab::{
     ContentRow, Fact, FileList, MAX_CONTENT_ROWS, Note, ReportLine, RowDetail, ShipList, ShipPick,

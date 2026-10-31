@@ -66,6 +66,7 @@
 mod animation_folders;
 mod armour;
 mod assembly;
+mod assortment;
 mod attached;
 pub mod audio;
 mod build;

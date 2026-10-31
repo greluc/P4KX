@@ -7,6 +7,7 @@ use std::sync::Arc;
 use p4kx_dataforge::{Guid, RecordTree, StructValue, Value, ValueError};
 
 use crate::armour::{ZoneList, read_zones};
+use crate::assortment::read_assortments;
 use crate::merge::port_key;
 use crate::outfit_read::OutfitInfo;
 use crate::port::{PortDefinition, read_definition};
@@ -18,6 +19,7 @@ const DEFAULT_LOADOUT: &str = "SEntityComponentDefaultLoadoutParams";
 const PORT_CONTAINER: &str = "SItemPortContainerComponentParams";
 const XML_LOADOUT: &str = "SItemPortLoadoutXMLParams";
 const OUTFIT_LOADOUT: &str = "SItemPortLoadoutOutfitParams";
+const GENERATED_LOADOUT: &str = "SItemPortLoadoutRandomGeneratedParams";
 const VEHICLE_PARAMS: &str = "VehicleComponentParams";
 const ATTACHABLE: &str = "SAttachableComponentParams";
 const INVENTORY_CONTAINER: &str = "SCItemInventoryContainerComponentParams";
@@ -47,6 +49,8 @@ pub(crate) enum LoadoutSpec {
     /// base Loadout, then the Loadouts of the outfits that always apply. An entry without an
     /// Entity adds its nested entries to those of the earlier entry of the same port.
     Layered(Arc<[Self]>),
+    /// A Loadout generated at random from `SLoadoutAssortment` Records: the Records by GUID.
+    Assortments(Arc<[Guid]>),
 }
 
 /// What supplied the attachment of a port: an Entity Record, or an XML Loadout file.
@@ -352,6 +356,9 @@ pub(crate) fn read_loadout(loadout: &StructValue<'_>, record: &Arc<str>) -> Opti
     if loadout.type_name() == OUTFIT_LOADOUT {
         return crate::outfit_read::read(loadout, record, false).loadout;
     }
+    if loadout.type_name() == GENERATED_LOADOUT {
+        return read_assortments(loadout);
+    }
     loadout.field("entries")?;
     Some(LoadoutSpec::Manual(
         struct_items(loadout, "entries")
@@ -377,7 +384,7 @@ fn read_entry(entry: &StructValue<'_>, record: &Arc<str>) -> EntrySpec {
     }
 }
 
-fn reference_target(value: &Value<'_>) -> TargetSpec {
+pub(crate) fn reference_target(value: &Value<'_>) -> TargetSpec {
     match value {
         Value::Reference(link) => TargetSpec::Reference(link.guid()),
         Value::Error(ValueError::DanglingReference { guid }) => TargetSpec::Reference(*guid),

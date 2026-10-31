@@ -349,7 +349,7 @@ pub enum IssueKind {
         /// Why.
         reason: String,
     },
-    /// The Loadout of the piece's Entity could not be read in full; the piece is worn as it is.
+    /// The Loadout of the Entity could not be read in full; what could be read is used.
     #[error("the Loadout of the Entity cannot be read in full: {reason}")]
     LoadoutUnreadable {
         /// Why.

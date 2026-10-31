@@ -41,10 +41,7 @@ impl Row {
     fn count(&mut self, class: &str, assembly: &Assembly) {
         self.entities += 1;
         self.model_readable += usize::from(assembly.modelled_parts() > 0);
-        self.draws += usize::from(assembly.parts().iter().any(|part| {
-            part.model()
-                .is_some_and(|model| model.lods.iter().any(|lod| lod.vertex_count() > 0))
-        }));
+        self.draws += usize::from(draws(assembly));
         self.material_missing += usize::from(
             assembly
                 .parts()
@@ -89,6 +86,32 @@ impl Row {
     }
 }
 
+/// Returns whether any part of the Assembly has a model with vertices.
+fn draws(assembly: &Assembly) -> bool {
+    assembly.parts().iter().any(|part| {
+        part.model()
+            .is_some_and(|model| model.lods.iter().any(|lod| lod.vertex_count() > 0))
+    })
+}
+
+/// Returns the codes of the issues that explain why an Entity draws nothing.
+fn reasons(assembly: &Assembly) -> Vec<&'static str> {
+    const EXPLAINING: [&str; 6] = [
+        "unresolved",
+        "geometry_missing",
+        "geometry_unreadable",
+        "skeleton_missing",
+        "skeleton_unreadable",
+        "loadout_unreadable",
+    ];
+    assembly
+        .issues()
+        .iter()
+        .map(|issue| issue.kind().code())
+        .filter(|code| EXPLAINING.contains(code))
+        .collect()
+}
+
 /// Returns the file kind and the folder of the geometry file, lower case, as the census groups.
 fn group_of(path: &str) -> String {
     let path = path.replace('\\', "/").to_ascii_lowercase();
@@ -115,6 +138,7 @@ fn every_nonhuman_character_entity_exports_to_a_valid_glb_and_the_census_lists_w
         .with_materials(MaterialMode::Textures)
         .with_texture_mip(TEXTURE_MIP);
     let mut rows: BTreeMap<String, Row> = BTreeMap::new();
+    let mut silent: Vec<String> = Vec::new();
     for record in forge.records().filter(|record| {
         record
             .type_name()
@@ -134,22 +158,47 @@ fn every_nonhuman_character_entity_exports_to_a_valid_glb_and_the_census_lists_w
         let mut bytes = Vec::new();
         assembly.write_glb_with(&glb_options, &textures, &mut bytes)?;
         check_glb(&bytes).map_err(|error| format!("{}: {error}", tree.class_name()))?;
-        rows.entry(group_of(geometry.path()))
+        let group = group_of(geometry.path());
+        if group.starts_with("chr ") && !draws(&assembly) {
+            silent.push(format!(
+                "{} ({group}): {}",
+                tree.class_name(),
+                reasons(&assembly).join(", ")
+            ));
+        }
+        rows.entry(group)
             .or_default()
             .count(tree.class_name(), &assembly);
     }
 
-    println!(
-        "kind folder: entities, model readable, draws vertices, geometry missing / unreadable, \
-         skeleton missing / unreadable, material missing"
+    print_census(&rows, &silent);
+    let unexplained: Vec<&String> = silent.iter().filter(|line| line.ends_with(": ")).collect();
+    assert!(
+        unexplained.is_empty(),
+        "skeleton-rooted Entities that draw nothing without a listed reason: {unexplained:?}"
     );
-    for (group, row) in &rows {
-        row.print(group);
-    }
     assert!(
         rows.iter()
             .any(|(group, row)| group.starts_with("chr ") && row.draws > 0),
         "a skeleton-rooted character that draws"
     );
     Ok(())
+}
+
+/// Prints the table of the census and the skeleton-rooted Entities that draw nothing.
+fn print_census(rows: &BTreeMap<String, Row>, silent: &[String]) {
+    println!(
+        "kind folder: entities, model readable, draws vertices, geometry missing / unreadable, \
+         skeleton missing / unreadable, material missing"
+    );
+    for (group, row) in rows {
+        row.print(group);
+    }
+    println!(
+        "skeleton-rooted Entities that draw nothing: {}",
+        silent.len()
+    );
+    for line in silent {
+        println!("    {line}");
+    }
 }

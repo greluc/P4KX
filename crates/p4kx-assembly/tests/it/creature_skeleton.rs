@@ -9,9 +9,9 @@ use p4kx_assembly::{Assembly, Placement};
 use p4kx_extraction::Archive;
 use p4kx_gltf::{GlbOptions, GlbSummary};
 use p4kx_testkit::{
-    CREATURE, CREATURE_COLLAR_LOST, CREATURE_COLLAR_NODED, CREATURE_COLLARED, CREATURE_DEFINITION,
-    CREATURE_HORNED, CREATURE_NO_SKELETON, CREATURE_SHORT_SKELETON, CheckedGlb, RIGGED_PROP,
-    check_glb, creature_entries,
+    CREATURE, CREATURE_ASSORTED, CREATURE_COLLAR_LOST, CREATURE_COLLAR_NODED, CREATURE_COLLARED,
+    CREATURE_DEFINITION, CREATURE_HORNED, CREATURE_LOADOUT_LOST, CREATURE_NO_SKELETON,
+    CREATURE_SHORT_SKELETON, CheckedGlb, RIGGED_PROP, check_glb, creature_entries,
 };
 
 fn export(class: &str) -> Result<(Assembly, CheckedGlb, GlbSummary), Box<dyn std::error::Error>> {
@@ -98,6 +98,27 @@ fn a_rigid_part_on_a_bone_port_stays_at_its_bone_beside_the_skinned_body() -> Te
         .filter(|node| node.skin().is_some())
         .count();
     assert_eq!(skinned, 1, "only the body is skinned, not the horn");
+    Ok(())
+}
+
+#[test]
+fn a_generated_loadout_gives_the_creature_its_default_body() -> TestResult {
+    let (assembly, glb, summary) = export(CREATURE_ASSORTED)?;
+
+    assert_eq!(codes(&assembly), Vec::<(&str, &str)>::new());
+    assert!(assembly.part_at("Body_ItemPort").is_some());
+    assert_eq!((summary.bones, summary.skinned_meshes), (3, 1));
+    assert_eq!(glb.document.skins().len(), 1);
+    Ok(())
+}
+
+#[test]
+fn a_creature_whose_loadout_cannot_be_read_lists_why_it_draws_nothing() -> TestResult {
+    let (assembly, _, summary) = export(CREATURE_LOADOUT_LOST)?;
+
+    assert_eq!(codes(&assembly), [("", "loadout_unreadable")]);
+    assert!(assembly.issues().iter().all(|issue| !issue.kind().skips()));
+    assert_eq!(summary.skinned_meshes, 0);
     Ok(())
 }
 

@@ -10,7 +10,7 @@ use p4kx_model::{Bone, BoneMatch, Model, Transform};
 
 use crate::geometry::is_creature_path;
 use crate::placement::bone_pose;
-use crate::{Issue, IssueKind, Part, Placement};
+use crate::{EntityNode, Issue, IssueKind, LoadoutError, Part, Placement};
 
 /// Returns the bones of the root part's model at the level `level` of detail, or `None` when the
 /// root's geometry is no creature file (a character file below `Objects/Characters` outside the
@@ -89,6 +89,34 @@ pub(crate) fn note_fit(parts: &[Part], level: u32, issues: &mut Vec<Issue>) {
             })
         })
         .collect();
+    issues.extend(notes);
+}
+
+/// Lists what the Loadout of a creature root could not read, such as an XML Loadout the Archive
+/// lacks, so that a creature that draws nothing says why. Other Entities list nothing here.
+pub(crate) fn note_loadout(root: &EntityNode, issues: &mut Vec<Issue>) {
+    if !root
+        .geometry()
+        .is_some_and(|geometry| is_creature_path(geometry.path()))
+    {
+        return;
+    }
+    let notes = root
+        .issues()
+        .iter()
+        .filter(|issue| {
+            !matches!(
+                issue,
+                LoadoutError::AmbiguousClass { .. } | LoadoutError::VehicleImplementation { .. }
+            )
+        })
+        .map(|issue| Issue {
+            path: String::new(),
+            name: root.class_name().to_owned(),
+            kind: IssueKind::LoadoutUnreadable {
+                reason: issue.to_string(),
+            },
+        });
     issues.extend(notes);
 }
 

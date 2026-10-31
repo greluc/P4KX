@@ -111,6 +111,17 @@ fn rotate(rotation: [f32; 4], vector: [f32; 3]) -> [f32; 3] {
 /// their parents', so the skeleton stays consistent whatever `extra`'s own world poses were.
 #[must_use]
 pub fn extend_skeleton(base: &[Bone], extra: &[Bone], moves: &[[f32; 3]]) -> Vec<Bone> {
+    extend_skeleton_placed(base, extra, moves).0
+}
+
+/// Returns [`extend_skeleton`]'s bones and, for each bone of `extra`, its index in them: that of
+/// the bone of `base` with the same name, else that of the bone appended for it.
+#[must_use]
+pub fn extend_skeleton_placed(
+    base: &[Bone],
+    extra: &[Bone],
+    moves: &[[f32; 3]],
+) -> (Vec<Bone>, Vec<usize>) {
     let mut by_name: HashMap<String, usize> = HashMap::with_capacity(base.len());
     for (index, bone) in base.iter().enumerate() {
         by_name
@@ -153,7 +164,7 @@ pub fn extend_skeleton(base: &[Bone], extra: &[Bone], moves: &[[f32; 3]]) -> Vec
         });
     }
     settle(&mut bones, base.len());
-    bones
+    (bones, placed)
 }
 
 fn nearest_placed(extra: &[Bone], placed: &[usize], start: usize) -> Option<usize> {
@@ -240,6 +251,24 @@ mod tests {
         assert_eq!(bones[2].relative.translation, [0.0, 1.5, 0.0]);
         assert_eq!(bones[3].world.translation, [1.0, 0.0, 2.0]);
         assert_eq!(bones[2].world.translation, [1.0, 1.5, 2.0]);
+    }
+
+    #[test]
+    fn each_extra_bone_is_placed_at_its_namesake_or_its_appended_copy() {
+        let base = vec![
+            bone("Root", None, [0.0; 3]),
+            bone("Head", Some(0), [0.0; 3]),
+        ];
+        let extra = vec![
+            bone("head", None, [0.0; 3]),
+            bone("leaf", Some(0), [0.0; 3]),
+            bone("mid", Some(0), [0.0; 3]),
+        ];
+
+        let (bones, placed) = extend_skeleton_placed(&base, &extra, &[]);
+
+        assert_eq!(placed, [1, 2, 3]);
+        assert_eq!(bones.len(), 4);
     }
 
     #[test]

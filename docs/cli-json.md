@@ -340,11 +340,13 @@ otherwise `body` is absent. The text report has the line `body <variant>, named 
 `placements` has one object per part, the root first and every part after its parent, with
 `path` (as for an Issue), `placement` (`root`, `helper`, `port_node`, `skin` or `origin`). A `skin`
 is a part on a skin port, with or without a helper: it is drawn in the parent's bind pose with its
-helper and offset ignored, and without an Issue. Otherwise the part sits at the helper its port
-names in the parent's model, or, for a landing gear, at the node of its Entity's model named like
-the gear's bone; at the node of the parent's model named like the port, or at the parent's origin,
-which is also where a port with no helper and no node of its name lands, without an Issue, and
-where a landing gear lands whose Entity has no model. `helper`
+helper and offset ignored, and without an Issue; a rigid prop on a skin port that is no character
+item (the mobiGlas) is a `helper` at the bone its port names in the skeleton of the root
+(ADR-0297). Otherwise the part sits at the helper its port names in the parent's model, else at
+that bone of the root's skeleton when the parent is a skin part, or, for a landing gear, at the
+node of its Entity's model named like the gear's bone; at the node of the parent's model named
+like the port, or at the parent's origin, which is also where a port with no helper and no node of
+its name lands, without an Issue, and where a landing gear lands whose Entity has no model. `helper`
 (the helper's name, or the bone of a landing gear; only for `helper`), `modelled`
 (the part has a model) and `hidden` (the part is hidden, see `hidden_parts`; a part below a hidden
 one has no model to anchor to, so its `placement` may read `origin`; so is a landing gear of a
@@ -2387,7 +2389,10 @@ target's largest move, named like the head's and moved as they follow the neutra
 (ADR-0200); the teeth and eyes have none. Only the first mesh of such a piece at LOD 0 gets
 targets: a piece with several meshes adds the note `follow_morphs_first_mesh_only`, and
 `follow_weights_skipped` says that a facial animation sets no weights for a piece whose targets do
-not match the head's. A facial animation's budget counts the hair weights too. A name the rig lacks adds
+not match the head's. These pieces are also bound to the facial joints of the head
+(ADR-0299); `follow_joints_skipped` says that one is not, because the head mesh has no weights or
+the bones would not fit 16-bit joint indices, and it keeps its own bones.
+A facial animation's budget counts the hair weights too. A name the rig lacks adds
 `unknown_expression`, a named one that moves no vertex `empty_expression`, and expressions that
 cannot be made (the rig of the level has no expression morphs, the names of the skin do not fit
 the rig) add `morphs_failed`; the head is kept, the GLB is written and the command exits with code

@@ -6,39 +6,6 @@ use thiserror::Error;
 use crate::LoadoutError;
 use crate::issue_text::{animations_left_out, attachments_left_out};
 
-/// Something an Assembly could not do for a part, found while building it.
-///
-/// A part that cannot be resolved is left out or kept without geometry, and the rest of the
-/// Assembly is built; the issue says which part and why.
-#[derive(Debug, Clone, PartialEq)]
-pub struct Issue {
-    pub(crate) path: String,
-    pub(crate) name: String,
-    pub(crate) kind: IssueKind,
-}
-
-impl Issue {
-    /// Returns the path of the part's port from the root, port names joined by `/`; empty for
-    /// the root Entity.
-    #[must_use]
-    pub fn path(&self) -> &str {
-        &self.path
-    }
-
-    /// Returns the class name of the part's Entity, or what the Loadout names for an attachment
-    /// that cannot be resolved.
-    #[must_use]
-    pub fn name(&self) -> &str {
-        &self.name
-    }
-
-    /// Returns what went wrong.
-    #[must_use]
-    pub const fn kind(&self) -> &IssueKind {
-        &self.kind
-    }
-}
-
 /// What went wrong with a part of an Assembly.
 #[derive(Debug, Clone, PartialEq, Error)]
 #[non_exhaustive]
@@ -346,6 +313,13 @@ pub enum IssueKind {
     /// The morph targets of a piece that follows the head take no animation weights.
     #[error("its expression targets are not animated: {reason}")]
     FollowWeightsSkipped {
+        /// Why.
+        reason: String,
+    },
+    /// A piece that follows the head is not bound to the head's joints, so a facial animation does
+    /// not move it; it keeps its own bones.
+    #[error("it is not bound to the facial joints of the head: {reason}")]
+    FollowJointsSkipped {
         /// Why.
         reason: String,
     },

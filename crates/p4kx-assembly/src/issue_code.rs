@@ -55,6 +55,7 @@ impl IssueKind {
             Self::BodyTypeMismatch { .. } => "body_type_mismatch",
             Self::FollowMorphsFirstMeshOnly { .. } => "follow_morphs_first_mesh_only",
             Self::FollowWeightsSkipped { .. } => "follow_weights_skipped",
+            Self::FollowJointsSkipped { .. } => "follow_joints_skipped",
             Self::LoadoutUnreadable { .. } => "loadout_unreadable",
             Self::MorphsFailed { .. } => "morphs_failed",
             Self::UnknownExpression { .. } => "unknown_expression",

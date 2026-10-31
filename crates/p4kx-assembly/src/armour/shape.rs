@@ -133,11 +133,16 @@ pub(super) fn shaped(
         ));
     };
     apply(mesh, &moves).map_err(|problem| format!("{rig_path}: {problem}"))?;
-    let morphs = (*expressions != Expressions::None)
-        .then(|| morphs(&rig, &matrix, mesh, path, expressions, models));
-    let face = (face && level == 0).then(|| {
-        let logic = logic_of(path, models)?;
-        facial(model, &logic, &rig, &matrix).map(|found| (found, rig_path.clone()))
+    let wants_morphs = *expressions != Expressions::None;
+    let wants_face = face && level == 0;
+    let logic = (wants_morphs || wants_face).then(|| logic_of(path, models));
+    let morphs = logic.as_ref().filter(|_| wants_morphs).map(|logic| {
+        let logic = logic.as_ref().map_err(Clone::clone)?;
+        morphs(&rig, &matrix, mesh, logic, expressions)
+    });
+    let face = logic.as_ref().filter(|_| wants_face).map(|logic| {
+        let logic = logic.as_ref().map_err(Clone::clone)?;
+        facial(model, logic, &rig, &matrix).map(|found| (found, rig_path.clone()))
     });
     Ok(Shaped {
         model: shaped,

@@ -183,33 +183,17 @@ fn push_view(
     })
 }
 
-/// Writes the JSON of `root`; the meshes with morph targets get `extras.targetNames`, which the
-/// typed document cannot carry.
-pub(crate) fn json_bytes(root: &Root, layout: &Layout<'_>) -> Result<Vec<u8>, serde_json::Error> {
-    if layout.meshes.iter().all(|mesh| mesh.morphs.is_empty()) {
-        return root.to_vec();
+/// Returns the `extras` of the mesh `mesh`: `targetNames` with the names of its morph targets, or
+/// none without morph targets.
+pub(crate) fn mesh_extras(mesh: &MeshLayout) -> json::extras::Extras {
+    if mesh.morphs.is_empty() {
+        return None;
     }
-    let mut value = root.to_value()?;
-    if let Some(meshes) = value
-        .get_mut("meshes")
-        .and_then(serde_json::Value::as_array_mut)
-    {
-        for (mesh, layout) in meshes.iter_mut().zip(&layout.meshes) {
-            if layout.morphs.is_empty() {
-                continue;
-            }
-            let names: Vec<&str> = layout
-                .morphs
-                .iter()
-                .map(|morph| morph.name.as_str())
-                .collect();
-            if let Some(object) = mesh.as_object_mut() {
-                object.insert(
-                    "extras".to_owned(),
-                    serde_json::json!({ "targetNames": names }),
-                );
-            }
-        }
-    }
-    serde_json::to_vec(&value)
+    let names: Vec<&str> = mesh
+        .morphs
+        .iter()
+        .map(|morph| morph.name.as_str())
+        .collect();
+    // Serialising a map of strings cannot fail, so no failure is dropped here.
+    serde_json::value::to_raw_value(&serde_json::json!({ "targetNames": names })).ok()
 }

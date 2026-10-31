@@ -5,7 +5,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import NamedTuple
 
@@ -20,6 +20,8 @@ NODRAW_SHADERS = frozenset({"nodraw", "nodraw_proxy", "proxy"})
 MAX_BLENDED_LAYERS = 4
 MASKED_LAYERS = 4
 TINT_PALETTE_DECAL = "$TintPaletteDecal"
+# Generation-mask flag: the decal draws a stencil; only then its stencil parameters count.
+STENCIL_MAP = "STENCIL_MAP"
 # Decal shader parameters: the stencil colour (``r,g,b``) and its opacity.
 STENCIL_COLOUR = "StencilDiffuseColor"
 STENCIL_OPACITY = "StencilOpacity"
@@ -46,14 +48,14 @@ NEUTRAL_SMOOTHNESS_SHADERS = frozenset({"hardsurface", "layerblend_v2", "layer"}
 class BuildContext:
     """What a graph needs besides the description: layer files, the mesh's palette, alphas.
 
-    ``loadable`` holds the ids of the textures whose file loads; ``None`` means every texture.
+    ``loadable`` says whether the file of a texture id loads; ``None`` means every texture does.
     A slot of any other texture counts as unwritten, so the graph uses the factors instead.
     """
 
     materials: Mapping[str, MaterialDesc]
     palette: Palette | None
     texture_alpha: Mapping[str, str]
-    loadable: frozenset[str] | None = None
+    loadable: Callable[[str], bool] | None = None
 
     def usable(self, desc: MaterialDesc) -> MaterialDesc:
         """Returns ``desc`` without the texture slots that cannot be loaded."""

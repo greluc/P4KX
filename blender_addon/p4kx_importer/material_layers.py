@@ -17,8 +17,8 @@ from .material_surface import (
 )
 
 Resolved = tuple[int, Layer, MaterialDesc]
-# A weight sum at or below this is no weight at all.
-MIN_WEIGHT_SUM = 1e-7
+# A weight sum at or below this is no weight at all (``f32::EPSILON`` of the Rust writer).
+WEIGHT_EPSILON = 1.1920929e-07
 
 
 class LayerBlending:
@@ -96,10 +96,11 @@ class LayerBlending:
         """Blends the layers by their position weights, for a material without a blend source.
 
         The first layer weighs ``1 - WearBlendBase`` and the others ``WearBlendBase`` between them
-        (ADR-0097). With no weight at all the material keeps its own colours.
+        (ADR-0097), as the package states them. With no weight at all the first layer takes
+        everything; the material keeps its own colours only when that layer is missing.
         """
         weights = self._position_weights([at for at, _, _ in resolved])
-        if sum(weights) <= MIN_WEIGHT_SUM:
+        if weights is None:
             return self._base()
         wear = self._wear_for([layer for _, layer, _ in resolved])
         surfaces = [self._worn_surface(layer, layer_desc, wear) for _, layer, layer_desc in resolved]
@@ -112,21 +113,33 @@ class LayerBlending:
             current = current._replace(colour=self._base().colour)
         return current
 
-    def _position_weights(self, present: list[int]) -> list[float]:
-        """Returns the weight by position of each layer in ``present``, summing to 1 or to 0."""
+    def _position_weights(self, present: list[int]) -> list[float] | None:
+        """Returns the weight of each layer in ``present``, or ``None`` for the own colours.
+
+        A package of format 1.5 states the shares (``Material::layer_shares``). For an older one
+        the same rule is applied here: no weight at all gives the first layer everything when it
+        is present, else the own colours.
+        """
         desc = self.desc
+        if desc.layer_shares is not None:
+            weights = [desc.layer_shares[at] for at in present]
+            return weights if sum(weights) > WEIGHT_EPSILON else None
         wear = min(max(desc.number("WearBlendBase") or 0.0, 0.0), 1.0)
         others = max(len(desc.layers) - 1, 1)
         weights = [1.0 - wear if at == 0 else wear / others for at in present]
         total = sum(weights)
-        if total <= MIN_WEIGHT_SUM:
-            return [0.0 for _ in present]
-        return [weight / total for weight in weights]
+        if total > WEIGHT_EPSILON:
+            return [weight / total for weight in weights]
+        if present and present[0] == 0:
+            return [1.0, *(0.0 for _ in present[1:])]
+        return None
 
     def _rest_shares(self, present: list[int]) -> list[float]:
         """Returns the share by position of each layer after the base layers, as the bake has it."""
-        weights = dict(zip(present, self._position_weights(present)))
-        return [weights[at] for at in present if at >= MASKED_LAYERS]
+        weights = self._position_weights(present)
+        if weights is None:
+            return [0.0 for at in present if at >= MASKED_LAYERS]
+        return [weight for at, weight in zip(present, weights) if at >= MASKED_LAYERS]
 
     def _wear_for(self, layers: list[Layer]) -> Ref | float | None:
         if any(layer.wear_tint for layer in layers):

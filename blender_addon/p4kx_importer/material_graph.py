@@ -23,6 +23,7 @@ from .material_surface import (
     PARAM_PREFIX,
     SPECULAR_LEVEL_PER_F0,
     STENCIL_COLOUR,
+    STENCIL_MAP,
     STENCIL_OPACITY,
     TINT_PALETTE_DECAL,
     BuildContext,
@@ -122,10 +123,13 @@ class _Maker(LayerBlending, GlassSurface):
         return entry
 
     def _stencil_colour(self) -> Colour | None:
-        """Returns the decal's ``StencilDiffuseColor`` when no palette entry colours it."""
-        if self.family != "decal":
+        """Returns the ``StencilDiffuseColor`` of a decal with a stencil map."""
+        if not self._stenciled():
             return None
         return self.desc.colour_parameter(STENCIL_COLOUR)
+
+    def _stenciled(self) -> bool:
+        return self.family == "decal" and STENCIL_MAP in self.desc.gen_mask
 
     def _has_decal_placeholder(self) -> bool:
         return any(s.file.startswith(TINT_PALETTE_DECAL) for s in self.desc.textures)
@@ -289,7 +293,8 @@ class _Maker(LayerBlending, GlassSurface):
             return None
         opacity = desc.opacity
         if self.family == "decal":
-            for name in ("DecalDiffuseOpacity", STENCIL_OPACITY):
+            names = ["DecalDiffuseOpacity", *([STENCIL_OPACITY] if self._stenciled() else [])]
+            for name in names:
                 if (extra := desc.number(name)) is not None:
                     opacity *= extra
         if source is None:

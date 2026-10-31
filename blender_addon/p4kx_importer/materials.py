@@ -45,9 +45,9 @@ class ImageCache:
             self._images[texture_id] = self._load(texture) if texture else None
         return self._images[texture_id]
 
-    def loadable(self) -> frozenset[str]:
-        """Returns the ids of the package's textures whose file loads."""
-        return frozenset(texture_id for texture_id in self._package.textures if self.get(texture_id))
+    def loads(self, texture_id: str) -> bool:
+        """Returns whether the file of a texture loads; loads it on the first call."""
+        return self.get(texture_id) is not None
 
     def _load(self, texture: Texture) -> bpy.types.Image | None:
         try:
@@ -200,5 +200,5 @@ def _context(package: Package, images: ImageCache, palette: Palette | None = Non
         package.material_descriptions,
         palette,
         {texture.id: texture.alpha for texture in package.textures.values()},
-        images.loadable(),
+        images.loads,
     )

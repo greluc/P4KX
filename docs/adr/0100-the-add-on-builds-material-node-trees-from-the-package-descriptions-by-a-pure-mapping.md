@@ -8,13 +8,24 @@ detail overlay uses the red channel of the packed detail map only; without a ble
 layer is blended by `(1 − vertex red) · WearBlendBase`; with a blend map the layers are blended by
 the precedence of its channels. The mapping of the layers lives in `material_layers.py`.
 
-Amended by #563: a material without a blend map, a mask map or vertex colours (the package's
-`reads_vertex_colours` is false) weights its layers by position as ADR-0097 does, the first layer
-`1 − WearBlendBase` and the others `WearBlendBase` between them, folded into one blend per layer; a
-material with no weight keeps its own colours. A texture whose file does not load
-(`BuildContext.loadable`) counts as an unwritten slot, in the material and in its layer files, so
-the graph uses its factors. A decal without a palette entry takes `StencilDiffuseColor` (`r,g,b`)
-as its colour factor and `StencilOpacity` scales its opacity; a palette entry still wins.
+Amended by #563: a material that blends its layers by neither a blend map, a mask map nor vertex
+colours weights them by position as ADR-0097 does, folded into one blend per layer. The shares are
+not computed twice: the package states them (`layer_shares`, format 1.5), computed by
+`Material::layer_shares`, the code the GLB shades by. The first layer weighs `1 − WearBlendBase`,
+the others `WearBlendBase` between them; a layer without a file has no weight. With no weight at
+all the first layer takes everything when it exists, else the material keeps its own colours. The
+add-on applies the same rule only to a package before 1.5.
+
+Reach: the Rust rule makes a surface with two or more layers (counting the material's own diffuse
+map) and no blend or mask map read the vertex colours, so those blend by the vertex colours and not
+by the shares. The shares decide a single-layer surface, a material that is no surface, and a
+material whose blend map cannot be loaded.
+
+A texture whose file does not load (`BuildContext.loadable`, asked only for the textures a
+material names) counts as an unwritten slot, in the material and in its layer files, so the graph
+uses its factors. A decal with `STENCIL_MAP` in its generation mask and no palette entry takes
+`StencilDiffuseColor` (`r,g,b`) as its colour factor, and `StencilOpacity` scales its opacity; a
+palette entry still wins. The stencil mask and `StencilTintOverride` stay with #856.
 
 ## Decision
 

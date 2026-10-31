@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use p4kx_dataforge::{StructValue, Value};
+use p4kx_dataforge::{Guid, Reference, StructValue, Value};
 
 use super::Rest;
 use crate::bindings::index_at;
@@ -135,6 +135,11 @@ pub(crate) enum Node {
         input: Input,
         inputs: [Input; 2],
     },
+    /// The canvas a boolean picks: the first when it holds, else the second.
+    CanvasChoice {
+        canvases: [Option<Guid>; 2],
+        input: Input,
+    },
     Unsupported(usize),
 }
 
@@ -259,6 +264,10 @@ fn node(short: &str, op: &StructValue<'_>) -> Option<Node> {
             input: input(),
         },
         "BooleanFromStringIsEmpty" => Node::TextEmpty(input()),
+        "StringFromBooleanCanvas" => Node::CanvasChoice {
+            canvases: ["isTrue", "isFalse"].map(|name| reference(op, name).map(Reference::guid)),
+            input: input(),
+        },
         _ => return numeric(short, op),
     })
 }
@@ -348,6 +357,19 @@ impl Operations {
             Node::Variable { binding, .. } => Some(binding.as_str()),
             _ => None,
         })
+    }
+
+    /// Returns the canvases the graph can put in a canvas widget.
+    pub(crate) fn canvas_choices(&self) -> impl Iterator<Item = Guid> + '_ {
+        self.nodes
+            .iter()
+            .filter_map(|node| match node {
+                Node::CanvasChoice { canvases, .. } => Some(canvases),
+                _ => None,
+            })
+            .flatten()
+            .flatten()
+            .copied()
     }
 
     /// Returns the index of the kind of operation `name` among the kinds that are not evaluated.

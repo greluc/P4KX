@@ -292,7 +292,6 @@ class _Maker(LayerBlending, GlassSurface):
         desc, b = self.desc, self.builder
         bsdf = b.add("ShaderNodeBsdfPrincipled", key="bsdf")
         out = b.add("ShaderNodeOutputMaterial", key="output")
-        b.link(Ref(bsdf, "BSDF"), out, "Surface")
         colour = surface.colour
         if self.family == "glass":
             colour = self._glass_base_colour(colour)
@@ -315,6 +314,8 @@ class _Maker(LayerBlending, GlassSurface):
             b.spec.node(bsdf).inputs["Emission Strength"] = max(desc.glow, 1.0)
         alpha = self._alpha()
         if self.family == "glass":
-            alpha = self._glass_alpha(colour, alpha)
+            b.link(self._glass_surface(bsdf, colour, alpha), out, "Surface")
+            return
+        b.link(Ref(bsdf, "BSDF"), out, "Surface")
         if alpha is not None:
             b.put(bsdf, "Alpha", alpha)

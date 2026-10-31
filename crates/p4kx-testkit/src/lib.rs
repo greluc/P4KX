@@ -195,7 +195,7 @@ pub use entity_npc_face::{
     npc_face_skeleton,
 };
 pub use entity_npc_zones::{
-    NPC_ZONE_CLASS, NpcZoneOptions, npc_jacketed_entries, npc_zone_entries,
+    NPC_ZONE_CLASS, NpcExtra, NpcZoneOptions, npc_jacketed_entries, npc_zone_entries,
 };
 pub use entity_painted::{
     PAINTED_FEMALE_PALETTE_GUID, PAINTED_LIBRARY_PALETTE, PAINTED_PALETTE_GUID, PAINTED_SUIT,

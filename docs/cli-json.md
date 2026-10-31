@@ -360,7 +360,12 @@ with exit code 2 or 3 instead and writes nothing, ADR-0255), `sub_geometry_missi
 sub-geometry the port's flags choose is not in the Archive, so the part keeps the main geometry of
 its Entity; a note, `skipped` is false), `body_geometry_missing` (the sub-geometry tagged for the
 body of the character is not in the Archive; the part has no model, the placeholder main geometry
-is not drawn instead; `reason` names the body and the path), `gear_not_deployed` (a landing gear has no clip that
+is not drawn instead; `reason` names the body and the path), `part_hidden` (the worn clothing or
+armour at the port is hidden by the `HiddenParts` of another worn Entity of the same character, so
+the part has no model, ADR-0304; `name` is its class name and `reason` names the port and the part
+that hides it; a part below it is hidden with it, and an attachment that cannot be resolved at, or
+below, such a port is reported as `part_hidden` instead of `unresolved`),
+`gear_not_deployed` (a landing gear has no clip that
 deploys it, or the clip cannot be read or applied to its model; the gear keeps the pose of its
 model; a note, `skipped` is false), `attachments_left_out` (the geometry is
 a character definition, `.cdf`: its skin, else its first attachment, is the part's model, its bone

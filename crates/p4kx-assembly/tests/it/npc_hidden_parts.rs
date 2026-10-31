@@ -9,7 +9,9 @@ use std::error::Error;
 
 use p4kx_assembly::{Assembly, BodyVariant, IssueKind};
 use p4kx_extraction::Archive;
-use p4kx_testkit::{NPC_ZONE_CLASS, TestZoneChunk, ZONE_JACKET, ZONE_SHIRT, npc_jacketed_entries};
+use p4kx_testkit::{
+    NPC_ZONE_CLASS, NpcExtra, TestZoneChunk, ZONE_JACKET, ZONE_SHIRT, npc_jacketed_entries,
+};
 
 use crate::assembly_support::{TestResult, assemble, fixture};
 use crate::body_zones::places;
@@ -23,10 +25,26 @@ fn wear(
     shirt: (Chunks<'_>, &[&str]),
     jacket: (Chunks<'_>, &[&str]),
 ) -> Result<Assembly, Box<dyn Error>> {
+    wear_with(shirt, jacket, &[])
+}
+
+fn wear_with(
+    shirt: (Chunks<'_>, &[&str]),
+    jacket: (Chunks<'_>, &[&str]),
+    extras: &[NpcExtra],
+) -> Result<Assembly, Box<dyn Error>> {
     let [male, female] = BodyVariant::ALL.map(places);
-    let fixture = fixture(npc_jacketed_entries([&male, &female], shirt, jacket))?;
+    let entries = npc_jacketed_entries([&male, &female], shirt, jacket, extras);
+    let fixture = fixture(entries)?;
     let archive = Archive::open(&fixture.path)?;
     assemble(&archive, NPC_ZONE_CLASS, 0)
+}
+
+fn is_unresolved(assembly: &Assembly) -> bool {
+    assembly
+        .issues()
+        .iter()
+        .any(|issue| matches!(issue.kind(), IssueKind::Unresolved(_)))
 }
 
 fn hidden_pieces(assembly: &Assembly) -> Vec<(&str, &str, &str)> {
@@ -135,6 +153,90 @@ fn a_garment_never_hides_itself() -> TestResult {
 
     assert!(is_drawn(&assembly, SHIRT_PATH));
     assert_eq!(hidden_pieces(&assembly), []);
+    Ok(())
+}
+
+const JACKET_PART: &str = "Clothing_Torso_1/TEST_ZoneJacket";
+
+#[test]
+fn a_weapon_at_a_port_named_like_a_hidden_clothing_port_stays_drawn() -> TestResult {
+    let jacket = [TestZoneChunk::new("l_arm01_zone", 2)];
+
+    let assembly = wear_with(
+        (&[], &[]),
+        (&jacket, &["Clothing_Legs"]),
+        &[NpcExtra::Weapon("Clothing_Legs")],
+    )?;
+
+    let gun = assembly
+        .part_at("Body_ItemPort/Clothing_Legs")
+        .ok_or("no weapon")?;
+    assert!(!gun.is_hidden());
+    assert_eq!(hidden_pieces(&assembly), []);
+    Ok(())
+}
+
+#[test]
+fn the_clothing_of_one_wearer_does_not_hide_the_items_of_another() -> TestResult {
+    let jacket = [TestZoneChunk::new("l_arm01_zone", 2)];
+
+    let assembly = wear_with(
+        (&[], &[]),
+        (&jacket, &["Clothing_Torso_0"]),
+        &[NpcExtra::SecondWearer],
+    )?;
+
+    let own = assembly.part_at(SHIRT_PATH).ok_or("no shirt")?;
+    let other = assembly
+        .part_at("Second_ItemPort/Clothing_Torso_0")
+        .ok_or("no shirt of the second wearer")?;
+    assert!(own.is_hidden() && !other.is_hidden());
+    assert_eq!(
+        hidden_pieces(&assembly),
+        [(ZONE_SHIRT, "Clothing_Torso_0", JACKET_PART)]
+    );
+    Ok(())
+}
+
+#[test]
+fn a_part_below_a_hidden_garment_is_hidden_with_it() -> TestResult {
+    let jacket = [TestZoneChunk::new("l_arm01_zone", 2)];
+
+    let assembly = wear_with(
+        (&[], &[]),
+        (&jacket, &["Clothing_Torso_0"]),
+        &[NpcExtra::Pouch],
+    )?;
+
+    let pouch = assembly
+        .part_at("Body_ItemPort/Clothing_Torso_0/Pouch_ItemPort")
+        .ok_or("no pouch")?;
+    assert!(pouch.is_hidden() && pouch.model().is_none());
+    assert_eq!(
+        hidden_pieces(&assembly),
+        [
+            (ZONE_SHIRT, "Clothing_Torso_0", JACKET_PART),
+            ("TEST_ZonePouch", "Pouch_ItemPort", JACKET_PART),
+        ]
+    );
+    Ok(())
+}
+
+#[test]
+fn an_unresolved_attachment_at_a_hidden_port_is_reported_as_hidden() -> TestResult {
+    let jacket = [TestZoneChunk::new("l_arm01_zone", 2)];
+    let missing = [NpcExtra::Missing("Hair_ItemPort")];
+
+    let hidden = wear_with((&[], &[]), (&jacket, &["hair_itemport"]), &missing)?;
+    let kept = wear_with((&[], &[]), (&jacket, &[]), &missing)?;
+
+    assert!(!is_unresolved(&hidden));
+    assert_eq!(
+        hidden_pieces(&hidden),
+        [("TEST_ZoneMissing", "Hair_ItemPort", JACKET_PART)]
+    );
+    assert!(is_unresolved(&kept));
+    assert_eq!(hidden_pieces(&kept), []);
     Ok(())
 }
 

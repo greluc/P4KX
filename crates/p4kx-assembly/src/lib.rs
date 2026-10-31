@@ -92,6 +92,7 @@ mod flatten;
 mod gear_clip;
 mod gear_pose;
 mod geometry;
+mod hide_rule;
 mod hologram;
 mod interior;
 #[cfg(feature = "verification")]

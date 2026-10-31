@@ -558,7 +558,7 @@ The first argument of nearly every command is the path of a `Data.p4k` Archive, 
   into the character's neutral face (the neutral morphs of the DNA rig beside the skin, mixed by
   the DNA's blends: per face part up to the four strongest heads), worn on the default body of the
   character's body variant. The teeth and what the character wears on its head are included: the
-  eyes, hair, brows, lashes and beard, with the materials the character chose (its head material,
+  eyes, hair, brows, lashes and beard, with the materials the character chose (its head and body material,
   skin tone, iris colour, hair melanin and dye) and their textures (`--materials colours` leaves
   the textures out, `--texture-mip N` picks their size). The head rig's expressions (about 400 of
   its 495 blendshapes, e.g. `CTL_expressions blinkR`) are written as named morph targets of the

@@ -2342,7 +2342,7 @@ character's head port that has geometry for the body variant (`origin` `head`): 
 `eyelashes_itemport`, `beard_itemport`, `universal_scalp_itemport`, and a port this tool does not
 know `port_<hash>`. The eyes and the teeth are shaped by the DNA like the head; the other items
 follow the shaped head (ADR-0090). The materials the character chose are applied (its head
-material, skin tone, iris colour and hair melanin and dye), and `--materials textures`, the
+and body material, skin tone, iris colour and hair melanin and dye), and `--materials textures`, the
 default, embeds the textures of the materials as PNG images at the mip level `--texture-mip N`
 (default 1); `--materials colours` writes plain colours. `textured_materials`, `textures`,
 `texture_pixels` and `texture_fallbacks` are those of `p4kx entity glb`: a texture that cannot be

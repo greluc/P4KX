@@ -35,6 +35,7 @@ mod audio_trigger_fields;
 mod audio_txtp;
 mod audio_txtp_edges;
 mod audio_txtp_support;
+mod body_restyle;
 mod body_zones;
 mod character_bone_attachments;
 mod character_definitions;

@@ -280,7 +280,7 @@ and no error; the report lists the ports as `ignored` (absent when empty), as fo
 A replacement that does not fit its port is written all the same and listed in `incompatible` (absent
 when empty), as for `entity loadout`.
 `parts` counts the root Entity, every attached Entity that resolved and every landing gear of those
-Entities ([ADR-0210](adr/0210-landing-gear-are-parts-placed-at-their-bone.md)), `modelled_parts` those with a model, `hidden_parts` those on a port flagged `invisible` or below
+Entities ([ADR-0210](adr/0210-landing-gear-are-parts-placed-at-their-bone.md)), `modelled_parts` those with a model, `hidden_parts` those on a port flagged `invisible`, at a port a worn Entity hides by its `HiddenParts` (ADR-0304), or below
 one (kept, but with no model, no object containers and not drawn), and `nodes` the glTF nodes: one per part and the nodes of each model. A landing gear is written deployed: posed at the end of the clip of its
 skeleton's parameters that extends or deploys it; without one it keeps the pose of its model and an Issue says so. `lod_fallbacks` counts the
 models that lack the requested level and are written at the nearest lower one, or at their

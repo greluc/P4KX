@@ -54,6 +54,7 @@ pub use dress::HeadItems;
 pub use expressions::Expressions;
 pub use forge_items::ForgeItems;
 pub use head::{Head, HeadError};
+pub(crate) use hidden::{Facts, hidden_by};
 pub use loadout::{Replaced, is_worn_type};
 pub use look::Look;
 pub use npc::NpcHead;

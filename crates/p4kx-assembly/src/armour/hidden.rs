@@ -9,7 +9,7 @@ use super::piece::Source;
 use crate::{Issue, IssueKind};
 
 /// What decides whether a piece is hidden.
-struct Facts<'p> {
+pub(crate) struct Facts<'p> {
     name: &'p str,
     port: Option<&'p str>,
     /// The name of the piece that holds the port this piece is mounted on.
@@ -18,6 +18,17 @@ struct Facts<'p> {
 }
 
 impl<'p> Facts<'p> {
+    /// Returns the facts of a piece called `name` that sits at `port`, if any, and whose Record
+    /// hides the ports `hides` (lower case), with no holder.
+    pub(crate) const fn at(name: &'p str, port: Option<&'p str>, hides: &'p [String]) -> Self {
+        Self {
+            name,
+            port,
+            holder: None,
+            hides,
+        }
+    }
+
     fn of(piece: &'p Piece) -> Self {
         let hides = match &piece.source {
             Source::Wearable(wearable) => wearable.hidden_ports(),
@@ -59,7 +70,7 @@ fn direct(facts: &[Facts<'_>], index: usize) -> Option<usize> {
 /// no port type that hides another in a cycle and no armour port that is ever hidden, and the
 /// result does not depend on the order of the pieces, even for a cycle, which hides both pieces.
 /// A piece mounted on a hidden holder is hidden by whatever hides the holder.
-fn hidden_by(facts: &[Facts<'_>]) -> Vec<Option<usize>> {
+pub(crate) fn hidden_by(facts: &[Facts<'_>]) -> Vec<Option<usize>> {
     let mut by: Vec<Option<usize>> = (0..facts.len()).map(|at| direct(facts, at)).collect();
     // Each pass hides at least one more piece or stops, so at most `facts.len()` passes run.
     loop {

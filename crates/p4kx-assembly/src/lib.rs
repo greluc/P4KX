@@ -72,6 +72,7 @@ pub mod audio;
 mod build;
 mod build_attachments;
 mod build_gear;
+mod build_hidden;
 mod build_models;
 mod build_palettes;
 mod build_place;

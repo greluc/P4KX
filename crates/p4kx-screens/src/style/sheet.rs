@@ -6,9 +6,9 @@ use std::rc::Rc;
 
 use p4kx_dataforge::{DataForge, Guid};
 
-use super::condition::{Uses, requires_type};
+use super::condition::{Uses, selects_text};
 use super::entry::{Entry, Modifiers, parse_entries};
-use super::matching::{Subject, TagPaths, applies};
+use super::matching::{Subject, TagPaths, applies, applies_to_lists};
 use crate::canvas::Canvas;
 use crate::reader::items;
 use crate::widget::Widget;
@@ -159,8 +159,9 @@ pub(crate) fn resolve(
 }
 
 /// Resolves the entries of `sheets` that select the text a text field holds: those that require
-/// the type `Text` of the widget they select. Untyped entries and inline styles are left to the
-/// field.
+/// the type `Text` of the widget they select and those that name no type and select by the parent
+/// (ADR-0296), by the selector lists that do so only. Other untyped entries and inline styles are
+/// left to the field, and only the modifiers a text draws with apply.
 pub(crate) fn resolve_text(
     sheets: &[Rc<CanvasStyles>],
     (subject, above): (&Subject, &[Subject]),
@@ -168,22 +169,16 @@ pub(crate) fn resolve_text(
     budget: &mut u64,
 ) -> Modifiers {
     let mut resolved = Modifiers::default();
-    let typed = sheets
+    let all = sheets
         .iter()
         .flat_map(|sheet| sheet.groups.iter())
-        .flat_map(|group| group.iter())
-        .filter(|entry| {
-            entry
-                .lists
-                .iter()
-                .any(|list| requires_type(list, &subject.kind))
-        });
-    for entry in typed {
+        .flat_map(|group| group.iter());
+    for entry in all {
         if *budget == 0 {
             break;
         }
-        if applies(entry, subject, above, tags, budget) {
-            merge(&mut resolved, &entry.modifiers);
+        if applies_to_lists(entry, selects_text, (subject, above), tags, budget) {
+            merge(&mut resolved, &entry.modifiers.for_text());
         }
     }
     resolved

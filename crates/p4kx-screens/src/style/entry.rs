@@ -28,6 +28,20 @@ pub(crate) struct Modifiers {
     pub(crate) geometry: GeometryModifiers,
 }
 
+impl Modifiers {
+    /// Returns the modifiers a text draws with: colours, background and text settings.
+    pub(crate) fn for_text(&self) -> Self {
+        Self {
+            background: self.background.clone(),
+            fill: self.fill.clone(),
+            stroke: self.stroke.clone(),
+            enable_background: self.enable_background,
+            text: self.text.clone(),
+            ..Self::default()
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct Entry {
     pub(crate) name: String,

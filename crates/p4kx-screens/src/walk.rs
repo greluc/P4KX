@@ -2,7 +2,6 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 use std::collections::{HashMap, HashSet};
-use std::hash::{DefaultHasher, Hash, Hasher};
 use std::rc::Rc;
 
 use p4kx_dataforge::Guid;
@@ -18,13 +17,12 @@ use crate::limits::Limits;
 use crate::look::Look;
 use crate::paint::Area;
 use crate::rest::{AtRest, RestParams};
-use crate::style::{CanvasStyles, Modifiers, StyleCache, Subject, TagPaths, Uses, merge, resolve};
+use crate::style::{CanvasStyles, Modifiers, StyleCache, Subject, TagPaths, Uses};
 use crate::text::Shaped;
 use crate::transform::Placement;
 use crate::variables::Variable;
 use crate::walk_instance::Override;
 use crate::walk_measure::{MeasureKey, Probe};
-use crate::widget::Widget;
 
 pub(crate) struct Walk<'s, 'a, 'f, 't> {
     pub(crate) store: &'s mut CanvasStore<'a, 'f>,
@@ -114,55 +112,6 @@ impl<'s, 'a, 'f, 't> Walk<'s, 'a, 'f, 't> {
     pub(crate) const fn with_variables(mut self, variables: &'s [Variable]) -> Self {
         self.variables = variables;
         self
-    }
-
-    pub(crate) fn push_chain(&mut self, key: &impl Hash) {
-        let mut hasher = DefaultHasher::new();
-        self.chain.last().copied().unwrap_or(0).hash(&mut hasher);
-        key.hash(&mut hasher);
-        self.chain.push(hasher.finish());
-    }
-
-    fn push_subject(&mut self, subject: &Subject, position: usize) {
-        let place = self.position_key(position);
-        let mut kids = DefaultHasher::new();
-        for kid in &subject.kids {
-            (&kid.kind, &kid.tags, kid.position).hash(&mut kids);
-        }
-        self.push_chain(&(&subject.kind, &subject.tags, place, kids.finish()));
-    }
-
-    pub(crate) fn style_of(
-        &mut self,
-        canvas: &Canvas,
-        (index, widget): (usize, &Widget),
-        place: (usize, &[usize]),
-    ) -> Rc<Modifiers> {
-        let key = (
-            canvas.guid,
-            index,
-            self.chain.last().copied().unwrap_or(0),
-            self.override_key(),
-            self.position_key(place.0),
-        );
-        if let Some(known) = self.resolved.get(&key) {
-            return Rc::clone(known);
-        }
-        let subject = self.subject_of(canvas, (index, widget), place);
-        let mut style = resolve(
-            &self.sheets,
-            widget,
-            (&subject, &self.above),
-            self.tags,
-            &mut self.budget,
-        );
-        if let Some(part) = self.text_part(widget, &subject) {
-            merge(&mut style, &part);
-        }
-        self.apply_overrides(canvas, index, &mut style);
-        let style = Rc::new(style);
-        self.resolved.insert(key, Rc::clone(&style));
-        style
     }
 
     /// Resolves the widget `index`, the child at `position`, of which the first `own` of its

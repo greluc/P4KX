@@ -195,7 +195,7 @@ fn what_is_not_evaluated_is_reported_and_leaves_the_widget_as_it_is() -> TestRes
             .operation("size", TestOp::NumFromBool("flag", 1.0, 2.0))
             .widget(square(TestWidget::display("w").background(RED)))
             .operation("bind", TestOp::BoolField("w", "IsActive", "mystery"))
-            .operation("grow", TestOp::NumField("w", "SizeX", "size")),
+            .operation("grow", TestOp::NumField("w", "PosZ", "size")),
     )?;
     let reasons: Vec<&str> = composed
         .report()

@@ -7,7 +7,6 @@ use p4kx_archive::{Archive, Entry};
 use rayon::prelude::*;
 
 use crate::entry_path::same_entry_path;
-use crate::texture_grey::GreyVerdicts;
 
 const FNV_OFFSET: u64 = 0xCBF2_9CE4_8422_2325;
 const FNV_PRIME: u64 = 0x0000_0100_0000_01B3;
@@ -15,16 +14,10 @@ const FNV_PRIME: u64 = 0x0000_0100_0000_01B3;
 /// The Entries of an Archive looked up by path, ignoring ASCII case and the separator kind.
 ///
 /// Building the index hashes every path once; each lookup is then a binary search.
-///
-/// The index also carries the colour verdicts of the textures judged through it. Every caller that
-/// builds an `ArchiveCompanions` already shares one index per Archive, so a separate handle would
-/// change the signatures of the model readers and material-library calls in every front-end; the
-/// cache stays behind a crate-private accessor until that handle is worth the change.
 #[derive(Debug)]
 pub struct PathIndex<'a> {
     archive: &'a Archive,
     keys: Cow<'a, [(u64, u32)]>,
-    grey: GreyVerdicts,
 }
 
 /// The sorted path hashes of an Archive's Entries, kept apart from the Archive so one build serves
@@ -51,15 +44,12 @@ impl PathKeys {
     }
 
     /// Returns the index over `archive`, which must be the Archive these keys were built from; for
-    /// another one lookups find nothing or an Entry whose path really matches. Each call starts
-    /// with an empty texture-verdict cache, so keep one index for as long as verdicts should be
-    /// shared.
+    /// another one lookups find nothing or an Entry whose path really matches.
     #[must_use]
     pub fn index<'a>(&'a self, archive: &'a Archive) -> PathIndex<'a> {
         PathIndex {
             archive,
             keys: Cow::Borrowed(&self.keys),
-            grey: GreyVerdicts::default(),
         }
     }
 }
@@ -71,12 +61,7 @@ impl<'a> PathIndex<'a> {
         Self {
             archive,
             keys: Cow::Owned(PathKeys::new(archive).keys),
-            grey: GreyVerdicts::default(),
         }
-    }
-
-    pub(crate) const fn grey_verdicts(&self) -> &GreyVerdicts {
-        &self.grey
     }
 
     /// Returns the Archive the index is over.

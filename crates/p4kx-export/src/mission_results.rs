@@ -33,12 +33,23 @@ impl RunTerms {
     }
 }
 
-/// Returns the reputation `contract` grants on success.
+/// Returns the `contractResults` block an entry reads: the sub contract's when it states results
+/// of its own, else the contract's.
+pub(crate) fn entry_results<'t, 'f>(
+    contract: &'t StructValue<'f>,
+    sub: Option<&'t StructValue<'f>>,
+) -> Option<&'t StructValue<'f>> {
+    sub.and_then(|sub| one(Some(sub), "contractResults"))
+        .filter(|block| !items(Some(block), "contractResults").is_empty())
+        .or_else(|| one(Some(contract), "contractResults"))
+}
+
+/// Returns the reputation the `contractResults` block `block` grants on success.
 pub(crate) fn gains<'f>(
-    contract: &StructValue<'f>,
+    block: Option<&StructValue<'f>>,
     index: &MissionIndex<'f>,
 ) -> Vec<ReputationGain<'f>> {
-    results(contract)
+    results(block)
         .filter(|result| result.type_name() == LEGACY_REPUTATION && succeeds(result))
         .flat_map(|result| items(Some(result), "contractResultReputationAmounts"))
         .filter_map(as_struct)
@@ -58,7 +69,7 @@ pub(crate) fn gains<'f>(
 
 /// Returns the completion tags `contract` grants on success, in stored order.
 pub(crate) fn granted_tags(contract: &StructValue<'_>) -> Vec<Guid> {
-    results(contract)
+    results(one(Some(contract), "contractResults"))
         .filter(|result| result.type_name() == COMPLETION_TAGS && succeeds(result))
         .flat_map(|result| items(Some(result), "completionTags"))
         .filter_map(as_struct)
@@ -81,10 +92,11 @@ pub(crate) fn link<'f>(parent: &StructValue<'f>, name: &str) -> Option<(CatalogG
     }
 }
 
-fn results<'t, 'f>(contract: &'t StructValue<'f>) -> impl Iterator<Item = &'t StructValue<'f>> {
-    items(one(Some(contract), "contractResults"), "contractResults")
-        .iter()
-        .filter_map(as_struct)
+/// Returns the results of the `contractResults` block `block`, in stored order.
+pub(crate) fn results<'t, 'f>(
+    block: Option<&'t StructValue<'f>>,
+) -> impl Iterator<Item = &'t StructValue<'f>> {
+    items(block, "contractResults").iter().filter_map(as_struct)
 }
 
 pub(crate) fn succeeds(result: &StructValue<'_>) -> bool {

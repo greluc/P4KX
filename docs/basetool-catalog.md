@@ -57,7 +57,8 @@ The rule is ADR-0054 (amending ADR-0002):
   `contractLocationQueries` with the contract fields `shipSpawns`, `locationQueries` and
   `locationPrerequisites` (#902, ADR-0266). Later additions keep version 2 as long as they are
   additive. The contract field `fixedRewards` (#888, ADR-0268) is one, and so is `cooldownLayers`
-  (#909, ADR-0271).
+  (#909, ADR-0271), and the contract fields `offeredAt`, `giverFaction` and `blueprintRewards`
+  (#915, ADR-0273).
 - **A production import takes catalogs of the Channel `LIVE` only.** `PTU`, `EPTU`, `TECH-PREVIEW`
   and `HOTFIX` are confidential test Channels (ADR-0038).
 
@@ -1100,7 +1101,10 @@ that the rule on equal `guid` and `subContractGuid` above drops.
 | `missionTypeGuid`, `missionType` | The `MissionType` Record and its localised name (game text) |
 | `contractor` | The `Contractor` string parameter (game text) |
 | `pickupPlaces` | Up to five starmap objects the contract is offered at, each `starmapObjectGuid`, `objectType`, `place` (game text) |
+| `offeredAt` | Every place the contract is offered at, uncapped (see "Offered at"): `localityGuids` (entries of `missionLocalities`) and `locations` (starmap objects, each `starmapObjectGuid`, `objectType`, `place`), and `brokerFallback` (`true` when `locations` is the broker entry's location because no place is stated) |
 | `faction` | The `factionReputation` of the handler as stored: `guid`, Record `name` and `displayName` (game text), `null` when the handler names none |
+| `giverFaction` | The faction of the contract and where it was found: `source` (`handler`, `reputationResult` or `reputationPrerequisite`) and `faction` (`guid`, `name`, `displayName`), `null` when none names one (see "Giver faction") |
+| `blueprintRewards` | The blueprint pools the contract hands out, each `poolGuid` (an entry of `blueprintPools`), `source` (`result` or `temporaryModifier`) and `chance` as stored, `null` for a modifier (see "Blueprint rewards") |
 | `reputationGains` | The reputation granted on success; an amount may be negative |
 | `minStandingGuid`, `maxStandingGuid` | The `minStanding` and `maxStanding` of the contract: the standings between which it is offered, entries of `reputationStandings`; `null` when absent. A sub contract shares the contract's |
 | `standingRequirements` | The reputation prerequisites (see "Standing") |
@@ -1194,6 +1198,44 @@ at most **5** places (`MAX_PICKUP_PLACES`). Each place has the `starmapObjectGui
 and the `place` name (game text). The places come from the starmap objects of the same build: a
 Filter that leaves them out leaves `pickupPlaces` empty.
 
+**Offered at (ADR-0273).** The same prerequisites as the pickup places, read without the cap and
+without a filter on the object type. `localityGuids` lists the `MissionLocality` Record of each
+`ContractPrerequisite_Locality`, in stored order and none twice; a consumer reads its places in
+`missionLocalities[].starmapObjectGuids` and their names in `starmapObjects`. `locations` lists the
+object of each `ContractPrerequisite_Location` as stated: a star stays, an object missing from
+`starmapObjects` has `objectType` and `place` `null`. As for the pickup places, the places of a sub
+contract replace those of the contract and its handler. A contract whose prerequisites name no place
+at all takes the `locationMissionAvailable` of its broker entry as the only entry of `locations`,
+and `brokerFallback` is `true`; otherwise it is `false` and every entry is a stated place. The
+difference to `pickupPlaces`: those fall back to the broker location whenever no place resolves
+(for example when the prerequisites name only stars), `offeredAt` only when none is stated.
+
+**Giver faction (ADR-0273).** `faction` stays the `factionReputation` of the handler. `giverFaction`
+states a faction for the contracts whose handler names none, together with the place that names it
+(`source`): `handler` (the same faction as `faction`); else `reputationResult`, the faction of the
+first success amount of `reputationGains` with a positive `amount`; else `reputationPrerequisite`,
+the faction of the first reputation prerequisite (order of `standingRequirements`) that is not an
+exclusion (`exclude` is not `true`); its name is the last part of the Reference's record path, as
+for `reputationGains`, so a faction Record outside the faction folder stays with a `null`
+`displayName`. A negative amount names a rival that loses standing and never counts. The catalog
+picks the first stated faction and does not weigh several against each other; on LIVE no
+`reputationResult` entry has more than one positive faction. The gains are those of the entry's own
+resolved results (see "Blueprint rewards"), like `reputationGains`.
+
+**Blueprint rewards (ADR-0273).** The `BlueprintRewards` results (first `missionResults` flag, the
+success, set) of the entry's own resolved results: those of the sub contract when it states
+results, else those of the contract; `source` is `result`. After them come the enabled
+`MissionModifier_TemporaryBlueprint` entries of `modifierOverrides` of the nearest level (sub
+contract, contract, handler) that states one, `source` `temporaryModifier` and `chance` `null`.
+Each has the `poolGuid` of its `blueprintPool` and, for a result, its `chance` as stored. Which
+sub contract hands out which pool is therefore stated per entry, where
+`blueprintPools[].rewardSources` names only the `id` that a contract and its sub contracts share.
+Three reward sources of `blueprintPools` are in no entry: `BlueprintRewards` results that fire on the
+second outcome, not on success (on LIVE the contracts `TheCollector_Vehicle_L22_Wolf`,
+`TheCollector_Vehicle_DrakeClipper` and `ORS_Cr_Large`). Every other source of an exported contract
+is in its entries; no contract `id` is stated twice with a reward, so the rule that drops an equal
+`guid` and `subContractGuid` loses none.
+
 **Known gaps (LIVE, 2026-10-23, 5,175 entries before the template fix).** None of them is stated
 elsewhere in the Archive:
 
@@ -1214,6 +1256,10 @@ elsewhere in the Archive:
   name only a star, 87 only a broker entry located at a star, 83 a broker entry without a
   location, 85 only a `ContractPrerequisite_LocationProperty` (a variable the game fills in) and
   6 a locality that lists no object of the starmap.
+- Three `BlueprintRewards` results (the contracts `TheCollector_Vehicle_L22_Wolf`,
+  `TheCollector_Vehicle_DrakeClipper` and `ORS_Cr_Large`) fire on the second outcome, not on
+  success, so no `blueprintRewards` entry lists them although `blueprintPools[].rewardSources`
+  does (ADR-0273).
 
 **Reward (ADR-0268).** `fixedRewards` lists the `ContractResult_Reward` results (a
 `MissionReward`) that fire on success. Most contracts pay through `ContractResult_CalculatedReward`,

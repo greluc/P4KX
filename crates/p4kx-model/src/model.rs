@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
+use std::sync::Arc;
+
 use p4kx_chunks::{ChunkFile, ChunkType, Container, ivo};
 
 use crate::build::build;
@@ -40,6 +42,9 @@ pub struct Model {
     pub issues: Vec<ModelIssue>,
     /// Every chunk of the model file and its geometry companion, with how the model used it.
     pub chunks: Vec<ModelChunk>,
+    /// The bytes of the model file's `RigLogic` chunk, which a consumer above this layer parses;
+    /// `None` for a model without one. The bytes are shared by every clone of the model.
+    pub rig_logic: Option<Arc<[u8]>>,
 }
 
 /// One node of a model's hierarchy.

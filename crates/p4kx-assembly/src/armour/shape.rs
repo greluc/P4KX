@@ -159,7 +159,7 @@ pub(super) fn shaped(
     apply(mesh, &moves).map_err(|problem| format!("{rig_path}: {problem}"))?;
     let wants_morphs = *expressions != Expressions::None;
     let wants_face = face && level == 0;
-    let logic = (level == 0 && (wants_morphs || wants_face)).then(|| logic_of(path, models));
+    let logic = (level == 0 && (wants_morphs || wants_face)).then(|| logic_of(model, path));
     let morphs = if level == 0 {
         logic.as_ref().filter(|_| wants_morphs).map(|logic| {
             with_logic(logic, |logic| {

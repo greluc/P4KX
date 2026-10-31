@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
+use std::sync::Arc;
+
 use p4kx_chunks::{ChunkFile, ChunkType, ivo};
 
 use crate::bone_map::check_joints;
@@ -86,6 +88,11 @@ pub(crate) fn build<B: AsRef<[u8]>>(
         material_library(file.chunk_data(index).unwrap_or_default())
     });
 
+    let rig_logic = first_of(file, &[ivo::RIG_LOGIC]).and_then(|index| {
+        read.push((ModelFile::Model, index));
+        file.chunk_data(index).map(Arc::from)
+    });
+
     let Geometry {
         lods,
         base_name,
@@ -113,6 +120,7 @@ pub(crate) fn build<B: AsRef<[u8]>>(
         material_indices,
         issues,
         chunks,
+        rig_logic,
     })
 }
 

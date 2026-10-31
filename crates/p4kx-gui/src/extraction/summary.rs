@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use p4kx_extraction::{EntryFailure, ExtractionReport, RecordExportReport};
 
 use crate::model::describe;
-use crate::record_export::FailedRecord;
+use crate::record_export::{FailedRecord, RenamedRecord};
 
 /// One Entry an Extraction did not write, with the reason.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -60,6 +60,7 @@ pub struct ExtractionSummary {
     archive_changed: bool,
     records: Option<RecordCounts>,
     record_failures: Vec<FailedRecord>,
+    records_renamed: Vec<RenamedRecord>,
     excluded_parts: usize,
     not_converted: usize,
 }
@@ -87,6 +88,10 @@ impl ExtractionSummary {
             record_failures: report
                 .records()
                 .map(|records| records.failures().iter().map(FailedRecord::of).collect())
+                .unwrap_or_default(),
+            records_renamed: report
+                .records()
+                .map(|records| records.renamed().iter().map(RenamedRecord::of).collect())
                 .unwrap_or_default(),
             excluded_parts: 0,
             not_converted: report.not_converted(),
@@ -148,6 +153,13 @@ impl ExtractionSummary {
     #[must_use]
     pub fn record_failures(&self) -> &[FailedRecord] {
         &self.record_failures
+    }
+
+    /// Returns the Records of the DataForge Entry written under a file that differs from their
+    /// name or record path; they do not count as failed.
+    #[must_use]
+    pub fn records_renamed(&self) -> &[RenamedRecord] {
+        &self.records_renamed
     }
 
     /// Returns whether the Archive changed on disk, which stopped the Extraction.

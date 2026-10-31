@@ -102,6 +102,9 @@ fn print_node(out: &mut impl Write, node: &EntityNode, depth: usize) -> io::Resu
     for issue in node.issues() {
         writeln!(out, "{indent}! {}", one_line(&issue.to_string()))?;
     }
+    for note in node.notes() {
+        writeln!(out, "{indent}note: {}", one_line(&note.to_string()))?;
+    }
     entity_vehicle::print(out, node, &indent)?;
     print_ports(out, node.ports(), depth)
 }

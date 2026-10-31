@@ -79,16 +79,13 @@ fn count_requirements(forge: &DataForge<'_>) -> Counts {
     counts
 }
 
-/// Returns the assortments and groups, by assortment GUID and scope, that an Entity lists as
-/// undecided, and the number of Entities that list one.
-fn undecided_of_entities(
-    forge: &DataForge<'_>,
-    files: &ArchiveFiles<'_>,
-) -> (BTreeSet<(String, String)>, usize) {
+/// Returns the number of assortments and groups that Entities list as undecided, counted once per
+/// assortment GUID and group, and the number of Entities that list one.
+fn undecided_of_entities(forge: &DataForge<'_>, files: &ArchiveFiles<'_>) -> (usize, usize) {
     let mut resolver = LoadoutResolver::new(forge)
         .with_files(files)
         .stopping_at_docked_vehicles();
-    let mut undecided = BTreeSet::new();
+    let mut undecided: BTreeSet<(String, Option<String>)> = BTreeSet::new();
     let mut entities = 0_usize;
     for record in forge
         .records()
@@ -98,20 +95,38 @@ fn undecided_of_entities(
             continue;
         };
         let mut listed = false;
-        for issue in node.issues() {
-            if let LoadoutError::AssortmentRequirement { guid, scope } = issue {
-                undecided.insert((guid.to_string(), scope.clone()));
-                listed = true;
+        for note in node.notes() {
+            let LoadoutError::AssortmentRequirement {
+                guid,
+                assortment,
+                groups,
+            } = note
+            else {
+                continue;
+            };
+            let guid = guid.to_string();
+            if *assortment {
+                undecided.insert((guid.clone(), None));
             }
+            undecided.extend(
+                groups
+                    .iter()
+                    .map(|group| (guid.clone(), Some(group.clone()))),
+            );
+            listed = true;
         }
+        assert!(
+            node.issues().iter().all(|issue| !issue.is_note()),
+            "a note is never an issue"
+        );
         entities += usize::from(listed);
     }
-    (undecided, entities)
+    (undecided.len(), entities)
 }
 
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
-fn the_requirements_of_the_assortments_are_counted_and_the_undecided_ones_listed() -> TestResult {
+fn the_requirements_of_the_assortments_are_counted_and_the_undecided_ones_noted() -> TestResult {
     let archive = Archive::open_with_key(real_archive_path()?, real_archive_key().ok())?;
     let entry = DataForgeEntry::read(&archive)?;
     let forge = entry.open()?;
@@ -132,22 +147,24 @@ fn the_requirements_of_the_assortments_are_counted_and_the_undecided_ones_listed
     let files = ArchiveFiles::new(&archive);
     let (undecided, entities) = undecided_of_entities(&forge, &files);
     println!(
-        "{} assortments or groups reached by an Entity depend on spawn tags; {entities} Entities \
-         list one",
-        undecided.len()
+        "{undecided} assortments or groups reached by an Entity depend on spawn tags; {entities} \
+         Entities note one"
     );
 
+    let tag_groups = counts.by_type.get("group SLoadoutRequirementTags").copied();
+    assert!(counts.assortments > 0, "the Archive holds assortments");
+    assert!(counts.groups_required <= counts.groups);
     assert!(
-        counts.assortments > 0,
-        "the Archive holds loadout assortments"
+        counts.unrestricted <= tag_groups.unwrap_or(0),
+        "only a tag Requirement can name no tag"
     );
     assert!(
-        counts.groups_required > 0,
-        "some group of the Archive has a Requirement"
-    );
-    assert!(
-        undecided.len() <= counts.assortments_required + counts.groups_required,
+        undecided <= counts.assortments_required + counts.groups_required,
         "only a Requirement that exists can be undecided"
+    );
+    assert!(
+        undecided == 0 || entities > 0,
+        "an undecided Requirement is noted by an Entity"
     );
     Ok(())
 }

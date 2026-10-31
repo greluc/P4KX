@@ -108,6 +108,7 @@ mod node;
 mod node_body;
 mod node_geometry;
 mod node_nested;
+mod node_notes;
 mod object_containers;
 mod outfit;
 mod outfit_read;

@@ -95,14 +95,18 @@ pub enum LoadoutError {
         /// Why it cannot be used.
         reason: String,
     },
-    /// The Requirement of a loadout assortment or of one of its groups depends on tags the Archive
-    /// does not hold; the assortment or group is used as if it applied.
-    #[error("the Requirement of {scope} of the loadout assortment {guid} depends on spawn tags")]
+    /// A note, not a problem: the Requirement of a loadout assortment or of some of its groups
+    /// depends on tags the Archive does not hold, so they are used as if they applied. Nothing
+    /// was kept from being read; [`EntityNode::notes`](crate::EntityNode::notes) lists it, never
+    /// `issues`.
+    #[error("{}", requirement_text(*assortment, groups, *guid))]
     AssortmentRequirement {
         /// The GUID of the assortment Record.
         guid: Guid,
-        /// What the Requirement belongs to: the assortment or a named group.
-        scope: String,
+        /// Whether the Requirement of the assortment itself is undecided.
+        assortment: bool,
+        /// The names of the groups whose Requirement is undecided, in order, without duplicates.
+        groups: Vec<String>,
     },
     /// The vehicle implementation of an Entity, or its Modification, is not read in full or not
     /// applied as it names; what could be read is still kept.
@@ -136,6 +140,13 @@ impl LoadoutError {
             Self::AssortmentRequirement { .. } => "assortment_requirement",
             Self::VehicleImplementation { .. } => "vehicle_implementation",
         }
+    }
+
+    /// Returns whether this only informs: it kept nothing from being read and belongs to
+    /// [`EntityNode::notes`](crate::EntityNode::notes), not to `issues`.
+    #[must_use]
+    pub const fn is_note(&self) -> bool {
+        matches!(self, Self::AssortmentRequirement { .. })
     }
 }
 
@@ -191,4 +202,17 @@ pub enum EntityLookupError {
         /// The Record's type.
         type_name: String,
     },
+}
+
+fn requirement_text(assortment: bool, groups: &[String], guid: Guid) -> String {
+    let what = match (assortment, groups) {
+        (true, []) => "the assortment".to_owned(),
+        (true, groups) => format!("the assortment and the groups {}", groups.join(", ")),
+        (false, [group]) => format!("the group {group}"),
+        (false, groups) => format!("the groups {}", groups.join(", ")),
+    };
+    format!(
+        "the Requirement of {what} of the loadout assortment {guid} depends on spawn tags; \
+         it is used as if it applied"
+    )
 }

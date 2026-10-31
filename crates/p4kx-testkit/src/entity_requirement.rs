@@ -29,7 +29,9 @@ impl TestRequirement {
         }
     }
 
-    pub(crate) fn value(&self) -> TestValue {
+    /// Returns the pointer value that holds the Requirement in a Record.
+    #[must_use]
+    pub fn value(&self) -> TestValue {
         let tags = |guids: &[u128]| {
             TestValue::Array(guids.iter().copied().map(TestValue::Reference).collect())
         };

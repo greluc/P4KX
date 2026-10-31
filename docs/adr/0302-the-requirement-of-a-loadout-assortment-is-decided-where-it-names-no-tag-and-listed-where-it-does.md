@@ -36,23 +36,30 @@ Tags); the game decides at spawn time. The Tags themselves are in the Archive, t
     `NOT` swaps `Met` and `Unmet` and keeps `Undecided`. Nothing in LIVE reaches `Unmet`; the rule
     follows from the two above and is there for a patch that adds such a Requirement.
 - **An `Unmet` assortment or group gives nothing.**
-- **An `Undecided` assortment or group is used and listed.** It contributes its first alternative as
-  ADR-0289 states, so that no export changes, and the Loadout of the Entity lists the issue
-  `assortment_requirement` with the group (or the assortment) and the GUID of the assortment. A
-  script that wants the exact picture of a spawn knows which groups the game might have left out.
-  The group is not dropped: the Archive does not show that the game would drop it, and dropping the
-  groups of a human NPC would leave the body bare more often than the game does.
+- **An `Undecided` assortment or group is used and noted, never an issue.** It contributes its
+  first alternative as ADR-0289 states, so that no export changes. The Loadout of the Entity gets
+  one note `assortment_requirement` per assortment GUID, with the undecided groups collected
+  (`LoadoutError::AssortmentRequirement`, listed by `EntityNode::notes`). A script that wants the
+  exact picture of a spawn knows which groups the game might have left out. The group is not
+  dropped: the Archive does not show that the game would drop it, and dropping the groups of a
+  human NPC would leave the body bare more often than the game does.
+- **A note is not an issue.** `issues` means what kept part of a Loadout from being read (the
+  catalog schema, `docs/cli-json.md`); an undecided Requirement keeps nothing from being read. So
+  the note stays out of `EntityNode::issues`, out of the catalog's `loadouts[].issues` (the
+  catalog shape is unchanged), out of the creature note `loadout_unreadable` of ADR-0289 and out of
+  every issue count. `LoadoutError::is_note` tells the two apart. `entity loadout` prints a note
+  as `note: …` and adds `notes` to the entity JSON only when it is not empty.
 - **The picks stay those of ADR-0289.** The alternative within a group is still the first; the
-  option to choose another is #954 and builds on the same group reading.
-- **The creature note is unchanged.** A creature lists the issues of its Loadout as
-  `loadout_unreadable` (ADR-0289); the creature assortments have no Requirement in LIVE, so no
-  creature gains a note.
+  option to choose another is #954. The assortment cache is keyed by GUID and holds the first
+  alternatives only, so a pick needs the pick in the key, or the cache must keep every
+  alternative.
 
 ## Consequences
 
-- The Entities of LIVE reach 371 `Undecided` groups; 538 Entities (every Entity with a generated
-  Loadout) list at least one `assortment_requirement`. The ports they fill are those of ADR-0289.
-- The new issue code is `assortment_requirement`, listed in `docs/cli-json.md` and among the
-  `issues` codes of the catalog's loadouts.
+- LIVE has Entities that note an undecided Requirement, among them the human NPC archetypes of
+  ADR-0289; their ports are those of ADR-0289. The census prints the counts of the Archive that was
+  read.
+- The note code `assortment_requirement` and the `notes` field are in `docs/cli-json.md`. The
+  catalog and its schema do not change.
 - The census counts the assortments, the groups with a Requirement by type, the tag Requirements
   that restrict nothing, and the undecided ones reached by an Entity.

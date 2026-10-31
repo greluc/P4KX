@@ -6,9 +6,9 @@ use std::sync::Arc;
 use p4kx_assembly::{ArchiveFiles, ChangeError, ChangedLoadout, LoadoutChanges, LoadoutResolver};
 use p4kx_extraction::{DataForge, Guid};
 
-use crate::EntryIndex;
 use crate::forge_cache::{ForgeSource, ReadFailure};
 use crate::model::describe;
+use crate::{EntryIndex, NoEntries};
 
 /// Why a Loadout cannot be resolved.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -23,6 +23,12 @@ pub enum ResolveFailure {
     Lost,
     /// The Loadout cannot be resolved, for the reason given.
     Failed(String),
+}
+
+impl From<NoEntries> for ResolveFailure {
+    fn from(error: NoEntries) -> Self {
+        Self::Failed(error.to_string())
+    }
 }
 
 /// Resolves the default Loadout of the Entity `guid` of `index` with `changes` applied, stopping
@@ -40,7 +46,7 @@ pub(crate) fn resolve(
 ) -> Result<ChangedLoadout, ResolveFailure> {
     let source = read_source(index)?;
     let forge = open_forge(&source)?;
-    let files = ArchiveFiles::new(index.archive());
+    let files = ArchiveFiles::new(index.entries_archive()?);
     let mut resolver = LoadoutResolver::new(&forge)
         .with_files(&files)
         .with_stop(stop)

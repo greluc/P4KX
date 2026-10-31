@@ -6,7 +6,7 @@ use std::sync::Arc;
 use std::sync::mpsc::{self, Receiver, TryRecvError};
 use std::thread;
 
-use p4kx_extraction::{ArchiveError, ArchiveKey, ArchiveKeyError};
+use p4kx_extraction::{Archive, ArchiveError, ArchiveKey, ArchiveKeyError};
 use p4kx_settings::KeyStore;
 
 use super::{Model, describe};
@@ -166,10 +166,14 @@ impl Model {
 
     /// Sets the key the Archives are opened with; `None` opens them without one.
     pub fn set_archive_key(&mut self, key: Option<ArchiveKey>) {
-        if let Some(browser) = &self.browser {
+        if let Some(archive) = self
+            .browser
+            .as_ref()
+            .and_then(|browser| browser.archive_index().archive())
+        {
             match &key {
-                Some(key) => browser.archive_index().archive().set_key(key.clone()),
-                None => browser.archive_index().archive().clear_key(),
+                Some(key) => archive.set_key(key.clone()),
+                None => archive.clear_key(),
             }
         }
         self.comparison.set_key(key.clone());
@@ -233,7 +237,8 @@ impl Model {
         let archive_asked = self
             .browser
             .as_ref()
-            .is_some_and(|browser| browser.archive_index().archive().take_key_request());
+            .and_then(|browser| browser.archive_index().archive())
+            .is_some_and(Archive::take_key_request);
         let comparison_asked = self.comparison.take_key_request();
         if !(archive_asked || comparison_asked) || self.key.declined || self.key.dialog.is_some() {
             return false;
@@ -273,6 +278,7 @@ impl Model {
             .browser
             .as_ref()
             .map(|browser| browser.shared_index().clone())
+            .filter(|index| index.archive().is_some())
         else {
             return self.take_key(key, &wake);
         };
@@ -282,9 +288,10 @@ impl Model {
         let spawned = thread::Builder::new()
             .name("key-check".to_owned())
             .spawn(move || {
-                let problem = match index.archive().verify_key(&checked) {
-                    Ok(_) => None,
-                    Err(ArchiveError::WrongKey { .. }) => Some(KeyProblem::Wrong),
+                let problem = match index.entries_archive().map(|a| a.verify_key(&checked)) {
+                    Ok(Ok(_)) => None,
+                    Ok(Err(ArchiveError::WrongKey { .. })) => Some(KeyProblem::Wrong),
+                    Ok(Err(error)) => Some(KeyProblem::Check(describe(&error))),
                     Err(error) => Some(KeyProblem::Check(describe(&error))),
                 };
                 if sender.send((checked, problem)).is_ok() {

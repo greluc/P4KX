@@ -45,7 +45,7 @@ fn ends_with_ignoring_case(text: &str, suffix: &str) -> bool {
 /// Lists the CHF files and XML Loadouts of the Archive of `index`, or `None` once `cancel` is set.
 pub(super) fn scan(index: &EntryIndex, cancel: &CancelToken) -> Option<Sources> {
     let mut sources = Sources::default();
-    for (at, entry) in index.archive().entries().iter().enumerate() {
+    for (at, entry) in index.archive()?.entries().iter().enumerate() {
         if at % 4096 == 0 && cancel.is_cancelled() {
             return None;
         }

@@ -8,7 +8,7 @@ use std::time::SystemTime;
 use p4kx_assembly::audio::{ArchiveAudio, AudioIndex};
 use p4kx_channels::ChannelKind;
 use p4kx_extraction::{
-    Archive, DataForge, EntryTree, LoadedDataForge, PathIndex, PathKeys, is_dataforge_file,
+    Archive, DataForge, DataForgeSource, EntryTree, PathIndex, PathKeys, is_dataforge_file,
 };
 
 use crate::container::Containers;
@@ -156,7 +156,7 @@ impl Opened {
     {
         let archive = self.archive.path().display().to_string();
         self.forge
-            .with(|| LoadedDataForge::load(&self.archive), archive, work)
+            .with(|| self.forge_source().load(), archive, work)
     }
 
     /// Returns the selection of the last Query run if it was of `query`.
@@ -171,7 +171,11 @@ impl Opened {
 
     /// Reads the DataForge if that has not happened yet, without running any work on it.
     pub(crate) fn load_dataforge(&self) -> Result<(), ToolError> {
-        self.forge.load(|| LoadedDataForge::load(&self.archive))
+        self.forge.load(|| self.forge_source().load())
+    }
+
+    const fn forge_source(&self) -> DataForgeSource<'_> {
+        DataForgeSource::Archive(&self.archive)
     }
 }
 

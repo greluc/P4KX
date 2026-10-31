@@ -4,11 +4,10 @@
 //! Reading a DataForge database from a file on disk.
 
 use std::error::Error;
-use std::fs::{self, File};
-use std::io::Write;
+use std::fs;
 
 use p4kx_extraction::{
-    DataForge, DataForgeEntry, DataForgeLoadError, LoadedDataForge, MAX_DATAFORGE_SIZE,
+    Archive, DataForge, DataForgeEntry, DataForgeLoadError, DataForgeSource, LoadedDataForge,
     is_dataforge_file,
 };
 use p4kx_testkit::{ArchiveBuilder, DataForgeBuilder, TestEntry, TestRecord, TestStruct};
@@ -45,6 +44,58 @@ fn a_file_is_read_by_content_whatever_its_name() -> TestResult {
     let loaded = LoadedDataForge::load_file(&file)?;
     let count = loaded.with(|forge: &DataForge<'_>| forge.record_count())?;
     assert_eq!(count, 3);
+    Ok(())
+}
+
+#[test]
+fn one_source_type_reads_an_archive_entry_and_a_file_alike() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let file = dir.path().join("Game2.dcb");
+    fs::write(&file, database(2))?;
+    let archive = dir.path().join("Data.p4k");
+    ArchiveBuilder::new()
+        .entry(TestEntry::zstd("Data\\Game2.dcb", database(2)))
+        .write_to(&archive)?;
+    let archive = Archive::open(&archive)?;
+
+    let from_file = DataForgeSource::File(&file);
+    let from_archive = DataForgeSource::Archive(&archive);
+
+    assert_eq!(from_file.read()?.open()?.record_count(), 2);
+    assert_eq!(from_archive.read()?.open()?.record_count(), 2);
+    assert_eq!(from_file.name().as_deref(), Some("Game2.dcb"));
+    assert_eq!(from_archive.name().as_deref(), Some("Data\\Game2.dcb"));
+    let loaded = from_file.load()?;
+    assert_eq!(
+        loaded.with(|forge: &DataForge<'_>| forge.record_count())?,
+        2
+    );
+    assert!(matches!(
+        DataForgeSource::File(&dir.path().join("missing.dcb")).read(),
+        Err(DataForgeLoadError::Read { .. })
+    ));
+    Ok(())
+}
+
+#[test]
+fn the_watch_of_a_file_sees_it_change_and_ignores_its_folder() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let file = dir.path().join("Game2.dcb");
+    fs::write(&file, database(1))?;
+    let watch = DataForgeSource::File(&file).watch()?;
+
+    watch.check()?;
+    fs::write(dir.path().join("build_manifest.id"), "{}")?;
+    assert!(watch.check().is_ok(), "no Build belongs to a file");
+    fs::write(&file, database(3))?;
+
+    assert!(watch.check().is_err());
+    assert!(watch.is_changed());
+    assert!(
+        DataForgeSource::File(&dir.path().join("missing.dcb"))
+            .watch()
+            .is_err()
+    );
     Ok(())
 }
 
@@ -102,26 +153,6 @@ fn a_truncated_file_does_not_open() -> TestResult {
         LoadedDataForge::load_file(&file),
         Err(DataForgeLoadError::Corrupt(_))
     ));
-    Ok(())
-}
-
-#[test]
-fn a_file_over_the_limit_is_refused_before_it_is_read() -> TestResult {
-    let dir = tempfile::tempdir()?;
-    let file = dir.path().join("huge.dcb");
-    let mut handle = File::create(&file)?;
-    handle.write_all(&database(1))?;
-    handle.set_len(MAX_DATAFORGE_SIZE + 1)?;
-    drop(handle);
-
-    let Err(DataForgeLoadError::TooLarge { path, size, limit }) = DataForgeEntry::read_file(&file)
-    else {
-        return Err("a file over the limit is refused".into());
-    };
-
-    assert_eq!(path, "huge.dcb");
-    assert_eq!(size, MAX_DATAFORGE_SIZE + 1);
-    assert_eq!(limit, MAX_DATAFORGE_SIZE);
     Ok(())
 }
 

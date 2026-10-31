@@ -26,6 +26,7 @@ mod dataforge;
 mod dataforge_convert;
 mod dataforge_file;
 mod dataforge_pick;
+mod dataforge_source;
 mod dependent;
 mod entry_content;
 mod entry_path;
@@ -120,6 +121,7 @@ pub use coverage::{
 };
 pub use dataforge::{DATAFORGE_ENTRIES, DataForgeEntry, DataForgeLoadError, MAX_DATAFORGE_SIZE};
 pub use dataforge_file::is_dataforge_file;
+pub use dataforge_source::DataForgeSource;
 pub use entry_content::{
     EntryBytes, EntryReadError, EntryText, MIN_TEXT_LEN, TextEncoding, find_entry, read_bytes,
     read_text,

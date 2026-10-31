@@ -32,11 +32,10 @@ DataForge Entry.
   would let it probe any file of the machine. The read DataForge and the selection of the last
   Query are kept per file version.
 - **Window.** The Archive menu offers **Open DataForge file…**; dropping a file or opening one
-  through **Open Archive…** works as well. The file opens as an Archive without Entries
-  (`Archive::stand_in`), so the Records, Query and Tags views use the one DataForge cache they
-  use for an Archive. The tabs that read Entries (Localisation, Entities, Sounds, Characters,
-  UI) are hidden and the Basetool catalog is unavailable for a file. The stand-in Archive is a
-  known interim seam, tracked by issue #878.
+  through **Open Archive…** works as well. The Records, Query and Tags views use the one
+  DataForge cache they use for an Archive. The tabs that read Entries are hidden and the
+  Basetool catalog is unavailable for a file. How the window holds a file without an Archive is
+  decided in ADR-0283.
 
 ## Reasons
 

@@ -39,7 +39,12 @@ impl WorkTab {
     pub const fn needs_entries(self) -> bool {
         matches!(
             self,
-            Self::Localization | Self::Entities | Self::Sounds | Self::Characters | Self::Ui
+            Self::Localization
+                | Self::Search
+                | Self::Entities
+                | Self::Sounds
+                | Self::Characters
+                | Self::Ui
         )
     }
 }

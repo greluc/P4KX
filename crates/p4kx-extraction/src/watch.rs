@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 use std::fs;
+use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Mutex, PoisonError};
@@ -49,6 +50,7 @@ struct Stamp {
 pub struct ArchiveWatch {
     path: PathBuf,
     opened: Stamp,
+    watches_build: bool,
     interval: Duration,
     last_check: Mutex<Option<Instant>>,
     changed: AtomicBool,
@@ -66,10 +68,33 @@ impl ArchiveWatch {
                 modified: archive.file_modified(),
                 build: archive.build().cloned(),
             },
+            watches_build: true,
             interval: DEFAULT_WATCH_INTERVAL,
             last_check: Mutex::new(None),
             changed: AtomicBool::new(false),
         }
+    }
+
+    /// Starts watching the plain file at `path`, such as a DataForge file, against its size and
+    /// modification time now; no Build belongs to it.
+    ///
+    /// # Errors
+    ///
+    /// Returns the error of looking at the file.
+    pub fn of_file(path: &Path) -> io::Result<Self> {
+        let metadata = fs::metadata(path)?;
+        Ok(Self {
+            path: path.to_path_buf(),
+            opened: Stamp {
+                len: metadata.len(),
+                modified: metadata.modified().ok(),
+                build: None,
+            },
+            watches_build: false,
+            interval: DEFAULT_WATCH_INTERVAL,
+            last_check: Mutex::new(None),
+            changed: AtomicBool::new(false),
+        })
     }
 
     /// Makes [`poll`](Self::poll) read the disk at most every `interval`.
@@ -157,10 +182,13 @@ impl ArchiveWatch {
 
     fn read_stamp(&self) -> Option<Stamp> {
         let metadata = fs::metadata(&self.path).ok()?;
-        let build = self
-            .path
-            .parent()
-            .and_then(|folder| Build::read_from(folder).ok().flatten());
+        let build = if self.watches_build {
+            self.path
+                .parent()
+                .and_then(|folder| Build::read_from(folder).ok().flatten())
+        } else {
+            None
+        };
         Some(Stamp {
             len: metadata.len(),
             modified: metadata.modified().ok(),

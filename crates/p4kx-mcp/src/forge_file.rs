@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::SystemTime;
 
-use p4kx_extraction::{DataForge, LoadedDataForge};
+use p4kx_extraction::{DataForge, DataForgeSource};
 
 use crate::archives::Opened;
 use crate::error::ToolError;
@@ -89,7 +89,7 @@ impl ForgeSource {
         match self {
             Self::Archive(opened) => opened.with_dataforge(work),
             Self::File(file) => file.forge.with(
-                || LoadedDataForge::load_file(&file.path),
+                || DataForgeSource::File(&file.path).load(),
                 file.path.display().to_string(),
                 work,
             ),
@@ -100,7 +100,7 @@ impl ForgeSource {
     pub(crate) fn load_dataforge(&self) -> Result<(), ToolError> {
         match self {
             Self::Archive(opened) => opened.load_dataforge(),
-            Self::File(file) => file.forge.load(|| LoadedDataForge::load_file(&file.path)),
+            Self::File(file) => file.forge.load(|| DataForgeSource::File(&file.path).load()),
         }
     }
 

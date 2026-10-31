@@ -255,7 +255,12 @@ impl Model {
             .spawn(move || {
                 p4kx_extraction::protect_archive_folder(&thread_path);
                 let index = if is_dataforge_file(&thread_path).unwrap_or(false) {
-                    Archive::stand_in(&thread_path).map(EntryIndex::build_dataforge_file)
+                    EntryIndex::build_dataforge_file(thread_path.clone()).map_err(|source| {
+                        ArchiveError::Io {
+                            path: thread_path.clone(),
+                            source,
+                        }
+                    })
                 } else {
                     Archive::open_with_key(&thread_path, key).map(EntryIndex::build)
                 };
@@ -297,8 +302,11 @@ impl Model {
                 let path = opening.path;
                 self.recent.push(std::path::absolute(&path).unwrap_or(path));
                 self.browser = Some(Browser::new(index));
-                if self.is_dataforge_file() && self.work_tab.needs_entries() {
-                    self.work_tab = WorkTab::Archive;
+                if self.is_dataforge_file() {
+                    self.preview_tab = PreviewTab::DataForge;
+                    if self.work_tab.needs_entries() {
+                        self.work_tab = WorkTab::Archive;
+                    }
                 }
                 self.apply_record_language();
                 self.stopped_by_change = false;

@@ -6,7 +6,9 @@ use p4kx_extraction::StructValue;
 use crate::blueprint::as_struct;
 use crate::contract_missions::{StandingLevel, StandingRequirement};
 use crate::guid_text::CatalogGuid;
+use crate::mission_giver::FactionLink;
 use crate::mission_layers::{items, one};
+use crate::mission_results::link;
 use crate::record_fields::{boolean, reference};
 
 const REPUTATION: &str = "ContractPrerequisite_Reputation";
@@ -53,6 +55,29 @@ impl Standing {
             ))
             .collect()
     }
+}
+
+/// Returns the faction of the first reputation prerequisite that is no exclusion, in the order of
+/// [`Standing::requirements_of`]: handler, contract, sub contract.
+pub(crate) fn required_faction<'f>(
+    handler: &StructValue<'f>,
+    contract: &StructValue<'f>,
+    sub: Option<&StructValue<'f>>,
+) -> Option<FactionLink<'f>> {
+    let availability = one(Some(handler), "defaultAvailability");
+    [
+        (availability, "prerequisites"),
+        (Some(contract), "additionalPrerequisites"),
+        (sub, "additionalPrerequisites"),
+    ]
+    .into_iter()
+    .flat_map(|(parent, field)| items(parent, field))
+    .filter_map(as_struct)
+    .filter(|prerequisite| {
+        prerequisite.type_name() == REPUTATION
+            && boolean(Some(prerequisite), "exclude") != Some(true)
+    })
+    .find_map(|prerequisite| link(prerequisite, "factionReputation"))
 }
 
 /// Reads the reputation prerequisites in the array field `field` of `parent`, stated at `level`.

@@ -11,6 +11,7 @@ mod real_archive_compression;
 mod real_archive_contract_cooldown_overrides;
 mod real_archive_contract_cooldowns;
 mod real_archive_contract_facts;
+mod real_archive_contract_gaps;
 mod real_archive_contracts;
 mod real_archive_crafters;
 mod real_archive_crafting;

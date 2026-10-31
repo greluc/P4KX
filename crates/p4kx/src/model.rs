@@ -7,7 +7,7 @@ use anyhow::Result;
 use p4kx_extraction::model::{LodSelection, MaterialReading, ModelError, PositionBox};
 use p4kx_extraction::{
     AnimationChoice, AnimationListing, AnimationSet, ConversionError, GltfError, ModelSource,
-    PathIndex,
+    PathIndex, TextureVerdicts,
 };
 
 use crate::cli_model::{ModelAction, ModelArgs, ModelFileSource};
@@ -60,6 +60,7 @@ fn open_listing(source: &ModelFileSource) -> Result<(ModelSource, AnimationListi
             LodSelection::All,
             PositionBox::default(),
             MaterialReading::Plain,
+            &TextureVerdicts::new(),
         )?;
         let listing = AnimationListing::from_archive(&index, entry, &source.animation_sources)?;
         return Ok((model, listing));

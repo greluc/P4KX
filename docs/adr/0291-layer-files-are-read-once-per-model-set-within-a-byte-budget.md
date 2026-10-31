@@ -22,7 +22,8 @@ the loads of several libraries, from several threads (`MaterialStatus::load_with
 its lock guards only the table of files, and each file is fetched and parsed outside it, once per
 key, through a `OnceLock`, so concurrent loads of different files do not wait for each other.
 `ArchiveModels` owns one for the Assembly, the GUI exports and the Blender package; it lives as long
-as that provider, one job. The cache starts over when it holds 1,024 files or 64 MiB of layer files:
+as that provider, one job; it also owns the one `TextureVerdicts`, the colour verdicts of the
+textures, under the same rule. The cache starts over when it holds 1,024 files or 64 MiB of layer files:
 the surfaces are copied from the file bytes, so the bytes bound its memory, and the file count
 bounds the table. A file skipped for the budget is never cached, so the next load tries it again.
 `LayerLimits` sets all four limits, for tests.

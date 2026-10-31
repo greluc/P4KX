@@ -6,7 +6,7 @@ use p4kx_extraction::model::{LodSelection, MaterialReading, PositionBox};
 use p4kx_extraction::{
     AnimationChoice, AnimationInfo, AnimationSet, BoneInfo, ChunkInfo, ChunkJson, ChunkSource,
     ConversionError, LibraryInfo, LodInfo, MaterialInfo, MeshInfo, ModelSource, NodeInfo,
-    UnreadInfo,
+    TextureVerdicts, UnreadInfo,
 };
 use serde::Serialize;
 
@@ -249,6 +249,7 @@ fn read(
         LodSelection::All,
         PositionBox::default(),
         MaterialReading::Plain,
+        &TextureVerdicts::new(),
     )
     .map_err(|error| converted(path, "a model", error))?;
     let animations = if with_animations {

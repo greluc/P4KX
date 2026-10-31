@@ -1,18 +1,17 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
 # SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-"""The glass family of the material mapping: Base Color and alpha (ADR-0100, ADR-0253, ADR-0258)."""
+"""The glass family of the material mapping: Base Color and tinted transparency (ADR-0258, ADR-0282)."""
 
 from __future__ import annotations
 
 from .graph_spec import GraphBuilder, Ref
 from .material_model import WHITE, Colour, MaterialDesc
 from .material_surface import (
-    GLASS_CLEAR_ALPHA,
+    GLASS_BSDF_SHARE,
     GLTF_COLOUR_ATTRIBUTE,
     TINT_STRENGTH,
     BuildContext,
-    luminance,
     reads_vertex_colours,
 )
 
@@ -44,27 +43,28 @@ class GlassSurface:
         vertex = Ref(node, "Color")
         return vertex if colour == WHITE else b.mix(vertex, colour, 1.0, blend="MULTIPLY")
 
-    def _glass_alpha(self, colour: Ref | Colour, opacity: Ref | float | None) -> Ref | float:
-        """Returns the alpha of glass: ``1 - (1 - GLASS_CLEAR_ALPHA) * luminance(colour)``.
+    def _glass_surface(self, bsdf: str, colour: Ref | Colour, opacity: Ref | float | None) -> Ref:
+        """Returns the glass shader: a tinted transparent surface with a share of the Principled BSDF.
 
-        EEVEE draws nothing behind a blended surface through Transmission, so the alpha lets
-        the scene through; the darker the tint, the more of the glass shows. Cycles stays
-        clear because its Transmission already does the same. ``opacity`` scales the result.
+        EEVEE draws nothing behind a blended surface through Transmission, but a Transparent BSDF
+        multiplies what is behind it by its colour, as the game's glass colour does. The mix is
+        ``GLASS_BSDF_SHARE`` of ``bsdf`` and the rest transparent in ``colour``, so dark glass
+        dims the scene behind it instead of hiding it. ``opacity`` fades the result to clear.
         """
         b = self.builder
-        spread = 1.0 - GLASS_CLEAR_ALPHA
-        alpha: Ref | float
-        if isinstance(colour, Ref):
-            grey = b.add("ShaderNodeRGBToBW")
-            b.link(colour, grey, "Color")
-            alpha = b.math("SUBTRACT", 1.0, b.math("MULTIPLY", Ref(grey, "Val"), spread), clamp=True)
-        else:
-            alpha = 1.0 - spread * luminance(colour)
+        tint = b.add("ShaderNodeBsdfTransparent")
+        b.put(tint, "Color", colour)
+        glass = b.add("ShaderNodeMixShader", inputs={"Fac": GLASS_BSDF_SHARE})
+        b.link(Ref(tint, "BSDF"), glass, 1)
+        b.link(Ref(bsdf, "BSDF"), glass, 2)
         if opacity is None:
-            return alpha
-        if isinstance(alpha, float) and isinstance(opacity, float):
-            return alpha * opacity
-        return b.math("MULTIPLY", opacity, alpha, clamp=True)
+            return Ref(glass, "Shader")
+        clear = b.add("ShaderNodeBsdfTransparent")
+        faded = b.add("ShaderNodeMixShader")
+        b.put(faded, "Fac", opacity)
+        b.link(Ref(clear, "BSDF"), faded, 1)
+        b.link(Ref(glass, "Shader"), faded, 2)
+        return Ref(faded, "Shader")
 
 
 __all__ = ["GlassSurface"]

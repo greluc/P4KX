@@ -73,6 +73,26 @@ fn shader_parameters_and_unknown_attributes_and_elements_are_kept() -> TestResul
 }
 
 #[test]
+fn a_public_colour_has_exactly_three_finite_components() -> TestResult {
+    let material = TestMtlMaterial::new("params")
+        .public_param("Colour", "0.1, 0.2, 0.3")
+        .public_param("Number", "0.5")
+        .public_param("Pair", "1,2")
+        .public_param("Four", "1,2,3,4")
+        .public_param("Infinite", "1,inf,3");
+
+    let library = parse(&TestMtl::single(&material))?;
+
+    let params = library.materials.first().ok_or("material")?;
+    assert_eq!(params.public_colour("colour"), Some([0.1, 0.2, 0.3]));
+    assert_eq!(params.public_param("Number"), Some([0.5, 0.0, 0.0]));
+    for name in ["Number", "Pair", "Four", "Infinite", "Missing"] {
+        assert_eq!(params.public_colour(name), None, "{name}");
+    }
+    Ok(())
+}
+
+#[test]
 fn a_texture_slot_keeps_its_attributes_and_modifier() -> TestResult {
     let material = TestMtlMaterial::new("tex").texture_with_mod(
         "TexSlot1",

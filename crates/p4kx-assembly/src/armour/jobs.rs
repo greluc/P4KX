@@ -132,6 +132,7 @@ pub(super) fn gather(
             .map(|note| piece_issue(piece, note_kind(note))),
     );
     let (path, material, palette) = match &piece.source {
+        Source::Body => return,
         Source::Failed(reason) => {
             let kind = IssueKind::PieceNotFound {
                 reason: reason.clone(),
@@ -248,6 +249,12 @@ pub(super) fn planned(
         .zip(shown)
         .filter_map(|(piece, shown)| shown.then_some(piece))
     {
+        if matches!(piece.source, Source::Body)
+            && let Some(body) = jobs.first_mut()
+        {
+            body.material.clone_from(&piece.material);
+            body.look.clone_from(&piece.look);
+        }
         gather(piece, variant, models, &mut jobs, issues);
     }
     if jobs.len() > max_parts {

@@ -50,6 +50,8 @@ pub(crate) enum Source {
         path: String,
         material: Option<String>,
     },
+    /// The default body, which the piece restyles and adds no skin to.
+    Body,
     /// Something that could not be turned into a piece, with the reason.
     Failed(String),
 }
@@ -209,6 +211,14 @@ impl Piece {
                 material,
             },
         )
+    }
+
+    /// Stands for the default body of the [`Armour`](super::Armour), so that the material library
+    /// and the [`Look`] given to it, see [`Piece::with_material`] and [`Piece::looking`], style
+    /// the body skin. It is no skin of its own and makes no part.
+    #[must_use]
+    pub fn body() -> Self {
+        Self::from_source("body".to_owned(), Source::Body)
     }
 
     /// Stands for a piece `name` that could not be found or read, because of `reason`.

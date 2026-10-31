@@ -78,6 +78,10 @@ fn material(
 }
 
 fn character() -> Result<Chf, Box<dyn Error>> {
+    character_with(Vec::new())
+}
+
+fn character_with(more: Vec<TestMaterial>) -> Result<Chf, Box<dyn Error>> {
     let items = vec![
         port("hair_itemport", DRESSED_HAIR, Vec::new())?,
         port("eyes_itemport", DRESSED_EYES, Vec::new())?,
@@ -87,7 +91,6 @@ fn character() -> Result<Chf, Box<dyn Error>> {
         port("hat_itemport", 0x999, Vec::new())?,
     ];
     let head = port("head_itemport", 0x900, items)?;
-    let float = |name: &str, value: f32| (name_hash(name), value.to_bits());
     let test = TestChf {
         body_type: MALE_BODY_TYPE,
         dna_hashes: Some((MALE_RIG_HASH, 0)),
@@ -101,43 +104,48 @@ fn character() -> Result<Chf, Box<dyn Error>> {
             })
             .collect(),
         ports: Some(port("body_itemport", 0x901, vec![head])?),
-        materials: vec![
-            material(
-                "head_itemport",
-                DRESSED_HEAD_MATERIAL,
-                "shader_head",
-                Vec::new(),
-                vec![colour(BODY_COLOR, [255, 0, 0, 255])],
-                Vec::new(),
-            )?,
-            material(
-                "eyes_itemport",
-                0,
-                "shader_eyeInner",
-                Vec::new(),
-                vec![colour(EYE_COLOR, [0, 0, 255, 255])],
-                Vec::new(),
-            )?,
-            material(
-                "hair_itemport",
-                0,
-                "hair_test_m",
-                vec![float("BaseMelanin", 1.0), float("DyeAmount", 1.0)],
-                vec![colour(HAIR_DYE_COLOR, [0, 255, 0, 255])],
-                vec![(4, stored(0x31)?)],
-            )?,
-            material(
-                "eyebrow_itemport",
-                DRESSED_UNKNOWN_MATERIAL,
-                "hair_test_m",
-                Vec::new(),
-                Vec::new(),
-                Vec::new(),
-            )?,
-        ],
+        materials: head_materials()?.into_iter().chain(more).collect(),
         ..TestChf::v8()
     };
     Ok(Chf::read(&test.to_bytes())?)
+}
+
+fn head_materials() -> Result<Vec<TestMaterial>, Box<dyn Error>> {
+    let float = |name: &str, value: f32| (name_hash(name), value.to_bits());
+    Ok(vec![
+        material(
+            "head_itemport",
+            DRESSED_HEAD_MATERIAL,
+            "shader_head",
+            Vec::new(),
+            vec![colour(BODY_COLOR, [255, 0, 0, 255])],
+            Vec::new(),
+        )?,
+        material(
+            "eyes_itemport",
+            0,
+            "shader_eyeInner",
+            Vec::new(),
+            vec![colour(EYE_COLOR, [0, 0, 255, 255])],
+            Vec::new(),
+        )?,
+        material(
+            "hair_itemport",
+            0,
+            "hair_test_m",
+            vec![float("BaseMelanin", 1.0), float("DyeAmount", 1.0)],
+            vec![colour(HAIR_DYE_COLOR, [0, 255, 0, 255])],
+            vec![(4, stored(0x31)?)],
+        )?,
+        material(
+            "eyebrow_itemport",
+            DRESSED_UNKNOWN_MATERIAL,
+            "hair_test_m",
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+        )?,
+    ])
 }
 
 fn archive_entries() -> Vec<TestEntry> {
@@ -158,6 +166,10 @@ struct Dressed {
 }
 
 fn dress(entries: Vec<TestEntry>) -> Result<Dressed, Box<dyn Error>> {
+    dress_character(entries, &character()?)
+}
+
+fn dress_character(entries: Vec<TestEntry>, chf: &Chf) -> Result<Dressed, Box<dyn Error>> {
     let fixture = fixture(entries)?;
     let archive = Archive::open(&fixture.path)?;
     let entry = DataForgeEntry::read(&archive)?;
@@ -169,7 +181,7 @@ fn dress(entries: Vec<TestEntry>) -> Result<Dressed, Box<dyn Error>> {
         1,
         "the lookup table lists one material"
     );
-    let head = Head::dressed(&character()?.character, &mut items)?;
+    let head = Head::dressed(&chf.character, &mut items)?;
     let models = ArchiveModels::new(&archive);
     let armour = Armour::build(
         head.variant(),
@@ -293,6 +305,60 @@ fn the_materials_take_the_skin_tone_the_iris_and_the_dye_of_the_character() -> T
         dressed.glb.document.skins().len(),
         1,
         "one skin for all pieces"
+    );
+    Ok(())
+}
+
+#[test]
+fn the_body_takes_the_base_material_and_skin_tone_the_character_chose_for_it() -> TestResult {
+    let body_choice = material(
+        "body_itemport",
+        DRESSED_HEAD_MATERIAL,
+        "shader_head",
+        Vec::new(),
+        vec![colour(BODY_COLOR, [0, 0, 255, 255])],
+        Vec::new(),
+    )?;
+    let dressed = dress_character(archive_entries(), &character_with(vec![body_choice])?)?;
+
+    let body = named(&dressed, "body")?;
+    let library = body
+        .materials()
+        .library()
+        .ok_or("the body has no library")?;
+    assert!(
+        library.materials.iter().all(|skin| near(
+            [skin.diffuse[0], skin.diffuse[1], skin.diffuse[2], 1.0],
+            [0.0, 0.0, 1.0]
+        )),
+        "every body skin takes the skin tone: {:?}",
+        library.materials
+    );
+    assert_eq!(dressed.armour.count(PartOrigin::Body), 1, "no second body");
+    assert_eq!(
+        dressed.armour.count(PartOrigin::Piece),
+        5,
+        "no part of its own"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_character_that_chose_nothing_for_its_body_keeps_the_default_body() -> TestResult {
+    let dressed = dress(archive_entries())?;
+
+    let body = named(&dressed, "body")?;
+    let library = body
+        .materials()
+        .library()
+        .ok_or("the body has no library")?;
+    assert!(
+        library.materials.iter().all(|skin| near(
+            [skin.diffuse[0], skin.diffuse[1], skin.diffuse[2], 1.0],
+            [0.5; 3]
+        )),
+        "{:?}",
+        library.materials
     );
     Ok(())
 }

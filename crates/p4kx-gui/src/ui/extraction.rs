@@ -170,7 +170,6 @@ fn choice_groups(
 ) -> (Option<Action>, bool) {
     let texts = model.texts();
     let mut action = None;
-    let mut exclusion_accepted = true;
     group_label(ui, &texts.get(T::ScopeHeading));
     if let ExtractionScope::Changes(side) = setup.scope() {
         comparison_extraction::scope(ui, model, side);
@@ -182,8 +181,8 @@ fn choice_groups(
                 setup.set_scope(scope);
             }
         }
-        exclusion_accepted = extraction_exclude::show(ui, texts, setup);
     }
+    let exclusion_accepted = extraction_exclude::show(ui, texts, setup);
     ui.add_space(MODAL_GROUP_GAP);
     group_label(ui, &texts.get(T::TargetHeading));
     for (kind, text) in [

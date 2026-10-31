@@ -101,8 +101,8 @@ pub(crate) fn search(
     (path, type_name): (Option<&str>, Option<&str>),
     page: Page,
 ) -> Result<RecordSearchResult, ToolError> {
-    let path = path.map(Filter::new);
-    let type_name = type_name.map(Filter::new);
+    let path = path.map(Filter::parse).transpose()?;
+    let type_name = type_name.map(Filter::parse).transpose()?;
     let matches: Vec<u32> = forge
         .path_order()
         .par_iter()

@@ -5,17 +5,14 @@ use std::io::{self, Write};
 use std::process::ExitCode;
 
 use anyhow::Result;
-use p4kx_extraction::{
-    Archive, ArchiveWatch, Entry, Filter, VerificationReport, VerifyOptions, verify,
-};
+use p4kx_extraction::{Archive, ArchiveWatch, Entry, VerificationReport, VerifyOptions, verify};
 use serde::Serialize;
 
 use crate::cli::VerifyArgs;
 use crate::extract;
 use crate::failure_report::{FailureJson, MismatchJson, reason, unreadable, write_mismatch};
-use crate::no_match::NoMatch;
 use crate::progress::ProgressLine;
-use crate::{exit, json};
+use crate::{exit, filter_pair, json};
 
 #[derive(Serialize)]
 struct ReportJson<'a> {
@@ -32,24 +29,8 @@ struct ReportJson<'a> {
 pub(crate) fn run(args: &VerifyArgs, as_json: bool) -> Result<ExitCode> {
     let archive = crate::key::open(&args.archive)?;
     crate::issues::warn(&archive)?;
-    let entries = selected(&archive, args.filter.as_deref())?;
+    let entries = filter_pair::verification(&archive, args.filter.as_deref(), &args.exclude)?;
     execute(&archive, &entries, as_json)
-}
-
-/// Returns the Entries of `archive` the Filter `text` matches, or all of them without a Filter.
-///
-/// # Errors
-///
-/// Returns [`NoMatch`] when the Filter matches none.
-pub(crate) fn selected<'a>(archive: &'a Archive, text: Option<&str>) -> Result<Vec<&'a Entry>> {
-    let Some(text) = text else {
-        return Ok(archive.entries().iter().collect());
-    };
-    let entries = Filter::new(text).select(archive);
-    if entries.is_empty() {
-        return Err(NoMatch::new(text).into());
-    }
-    Ok(entries)
 }
 
 /// Verifies `entries` of `archive`, which may be a container, and prints the report.

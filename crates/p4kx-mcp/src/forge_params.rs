@@ -33,10 +33,10 @@ pub(crate) struct RecordSearchParams {
     /// file such as `Game2.dcb`; omit it for the Archive the server was started with.
     pub(crate) archive: Option<String>,
     /// A Filter over the record path, e.g. `*/spaceships/*` or `aegs_avenger`; omit it for every
-    /// record path.
+    /// record path. At most 1024 bytes with at most 32 `*` and `?`, otherwise the call is an error.
     pub(crate) path: Option<String>,
     /// A Filter over the type name, e.g. `EntityClassDefinition` or `*Weapon*`; omit it for every
-    /// type.
+    /// type. At most 1024 bytes with at most 32 `*` and `?`, otherwise the call is an error.
     #[serde(rename = "type")]
     pub(crate) type_name: Option<String>,
     /// The `next_cursor` of the previous page; omit it for the first page.

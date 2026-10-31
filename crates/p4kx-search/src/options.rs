@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use p4kx_extraction::{Filter, Language};
+use p4kx_extraction::{Exclusion, Filter, Language};
 
 /// The most hits one source returns, whatever the options ask for.
 pub const MAX_LIMIT: usize = 10_000;
@@ -100,6 +100,9 @@ pub struct SearchOptions {
     /// Narrows the search: for Records the record path, for localisation the key, for Entries the
     /// path, with the rules of [`Filter`].
     pub filter: Option<Filter>,
+    /// Leaves out what [`filter`](Self::filter) would take: a Record, key or Entry whose path an
+    /// exclusion Filter matches is not searched.
+    pub exclusion: Exclusion,
     /// The languages of the localisation search; every language the Archive holds when empty.
     pub languages: Vec<Language>,
     /// The most hits one source reports, at most [`MAX_LIMIT`].
@@ -115,6 +118,7 @@ impl Default for SearchOptions {
         Self {
             sources: Sources::ALL,
             filter: None,
+            exclusion: Exclusion::default(),
             languages: Vec::new(),
             limit: DEFAULT_LIMIT,
             per_item: DEFAULT_PER_ITEM,
@@ -132,9 +136,12 @@ impl SearchOptions {
         self.per_item.max(1)
     }
 
+    /// Returns whether `text`, a record path or key, passes the Filter and no exclusion Filter
+    /// matches it.
     pub(crate) fn accepts(&self, text: &str) -> bool {
         self.filter
             .as_ref()
             .is_none_or(|filter| filter.matches(text))
+            && !self.exclusion.matches(text)
     }
 }

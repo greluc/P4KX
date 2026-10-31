@@ -130,7 +130,10 @@ impl RecordSearch {
     }
 
     fn start(&mut self, index: &Arc<RecordIndex>, wake: Wake) {
-        let filter = Filter::new(&self.text);
+        let Ok(filter) = Filter::parse(&self.text) else {
+            self.set_matches(Some(Vec::new()));
+            return;
+        };
         let cancelled = Arc::new(AtomicBool::new(false));
         let (sender, result) = mpsc::channel();
         let thread_index = Arc::clone(index);

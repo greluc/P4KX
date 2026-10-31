@@ -237,6 +237,11 @@ fn bad_cursors_and_oversized_filters_are_tool_errors() -> TestResult {
         message.contains("longer than"),
         "a capped filter: {message}"
     );
+    let message = server.error("search_entries", &json!({ "filter": "*a".repeat(40) }))?;
+    assert!(
+        message.contains("40 wildcards"),
+        "a Filter with too many wildcards: {message}"
+    );
     let message = server.error("list_entries", &json!({ "folder": "x".repeat(2000) }))?;
     assert!(
         message.contains("longer than"),

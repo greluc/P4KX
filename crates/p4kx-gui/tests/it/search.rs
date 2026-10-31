@@ -105,6 +105,23 @@ fn search_results_are_the_entries_p4kx_search_lists() -> TestResult {
 }
 
 #[test]
+fn filter_text_that_is_refused_selects_nothing() -> TestResult {
+    let (_folder, path) = archive()?;
+    let mut model = opened(&path)?;
+    let browser = model.browser_mut().ok_or("no Archive open")?;
+
+    for text in ["a".repeat(2000), "*a".repeat(40)] {
+        searched(browser, &text)?;
+        assert!(
+            browser.shown().is_empty(),
+            "{} bytes of Filter text show no Entry",
+            text.len()
+        );
+    }
+    Ok(())
+}
+
+#[test]
 fn a_search_covers_the_whole_archive_whatever_folder_was_selected() -> TestResult {
     let (_folder, path) = archive()?;
     let mut model = opened(&path)?;

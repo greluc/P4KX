@@ -50,7 +50,8 @@ pub(crate) struct SearchParams {
     /// A Channel name such as `LIVE`, or the absolute path of a `.p4k` file; omit it for the
     /// Archive the server was started with.
     pub(crate) archive: Option<String>,
-    /// The Filter, e.g. `*.xml`, `Data/Libs/*` or `defaultProfile`.
+    /// The Filter, e.g. `*.xml`, `Data/Libs/*` or `defaultProfile`; at most 1024 bytes with at
+    /// most 32 `*` and `?`, otherwise the call is an error.
     pub(crate) filter: String,
     /// Searches inside this container instead of the Archive: the Entry path of a container,
     /// or several joined by `::` for containers inside containers.

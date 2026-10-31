@@ -154,6 +154,18 @@ contradicts another, names an Entity that no Record or several Records match, or
 with the root Entity or an Entity the port lies below, exits with code 2 and prints the reason; a
 replacement whose Record cannot be read exits with code 5.
 
+`--loadout-pick <group>=<index>` (several times) takes another alternative than the first from a
+group of a generated default Loadout (`SItemPortLoadoutRandomGeneratedParams`, which the game
+picks at random), see [ADR-0309](adr/0309-the-alternative-of-a-generated-loadout-group-is-picked-by-index.md).
+The group is its `Group` name in the assortment, ignoring case, in every assortment that has it;
+indices count from 0. A bare `--loadout-pick <index>` takes it in every group that has it, and a
+named pick wins over it. Groups that are not picked keep their first alternative, so without the
+option nothing changes. An index beyond a named group is an `assortment` issue of the Entity and
+the group keeps its first alternative; a bare index beyond a group is no issue, and a group name
+no assortment has changes nothing. A pick that is no `<group>=<index>` or index exits with code 2.
+`entity glb` and `entity package` take the option too, and the MCP tool `entity_loadout` its
+`loadout_pick` parameter, a list of the same texts.
+
 An Entity that does not fit the port's item types, sub-types and sizes is attached all the same
 (ADR-0076): the command warns on stderr, exits with code 0, and lists the mismatch in
 `incompatible` (absent when empty): `{"port": "…", "entity": "…", "kind": "item_type" |
@@ -239,9 +251,10 @@ target: `reference` (the GUID) or `class_name`, the other `null`. The kinds are:
   the reason lists every candidate), `no_loadout_files` and `xml_loadout` (an XML Loadout or one
   it includes that is missing, corrupt, includes itself or nests deeper than 8 includes; what
   could be read is still listed), `assortment` (a loadout assortment of a generated default
-  Loadout is no assortment, names itself, directly or through another, or has a first alternative
-  that is no Loadout; the other assortments still apply; a generated Loadout resolves to the
-  first alternative of each group of its assortments, ADR-0289), and `vehicle_implementation` (the
+  Loadout is no assortment, names itself, directly or through another, or has a chosen
+  alternative that is no Loadout; a `--loadout-pick` index beyond its named group; the other
+  assortments still apply; a generated Loadout resolves to the first alternative of each group of
+  its assortments unless `--loadout-pick` chooses another, ADR-0289, ADR-0309), and `vehicle_implementation` (the
   implementation file is
   missing, corrupt or no `Vehicle` document, so `vehicle` is absent, or its Modification names a
   patch file that is missing (even when a fallback file is applied), corrupt, outside the implementation folder or too large to apply within the limits, a patch child or `id` that matches nothing in the base and has no base child of its name to replace, or no Modification of that name exists; the

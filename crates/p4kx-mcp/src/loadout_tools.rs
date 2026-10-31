@@ -46,6 +46,7 @@ impl Server {
                 &params.entity,
                 params.max_depth,
                 params.stop_at_docked_vehicles,
+                &params.loadout_pick,
             );
             let page = Page::new(&listing, params.cursor.as_deref(), params.limit)?;
             let held = Arc::clone(&opened);

@@ -5,14 +5,29 @@
 
 use std::sync::Arc;
 
-use p4kx_dataforge::{Guid, RecordTree, Value};
+use p4kx_dataforge::{Guid, RecordTree, StructValue, Value};
 
 use crate::LoadoutError;
 use crate::read::{as_struct, struct_items};
 use crate::resolver::{EntriesResult, LoadoutResolver};
-use crate::spec::{LoadoutSpec, read_loadout};
+use crate::spec::{LoadoutSpec, TargetSpec, read_loadout, reference_target};
 
 pub(crate) const RANDOM_GENERATED_LOADOUT: &str = "SItemPortLoadoutRandomGeneratedParams";
+
+/// Reads the assortments a random generated Loadout names; `None` when it names none.
+pub(crate) fn read_assortments(loadout: &StructValue<'_>) -> Option<LoadoutSpec> {
+    let Some(Value::Array(items)) = loadout.field("LoadoutAssortments") else {
+        return None;
+    };
+    let guids: Arc<[Guid]> = items
+        .iter()
+        .filter_map(|item| match reference_target(item) {
+            TargetSpec::Reference(guid) => Some(guid),
+            _ => None,
+        })
+        .collect();
+    (!guids.is_empty()).then_some(LoadoutSpec::Assortments(guids))
+}
 
 /// Returns the first alternative of every group of an assortment, in the order of the groups.
 ///

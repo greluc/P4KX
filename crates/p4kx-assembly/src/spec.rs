@@ -7,7 +7,7 @@ use std::sync::Arc;
 use p4kx_dataforge::{Guid, RecordTree, StructValue, Value, ValueError};
 
 use crate::armour::{ZoneList, read_zones};
-use crate::assortment::RANDOM_GENERATED_LOADOUT;
+use crate::assortment::{RANDOM_GENERATED_LOADOUT, read_assortments};
 use crate::merge::port_key;
 use crate::outfit_read::OutfitInfo;
 use crate::port::{PortDefinition, read_definition};
@@ -366,21 +366,6 @@ pub(crate) fn read_loadout(loadout: &StructValue<'_>, record: &Arc<str>) -> Opti
     ))
 }
 
-/// Reads the assortments a random generated Loadout names; `None` when it names none.
-fn read_assortments(loadout: &StructValue<'_>) -> Option<LoadoutSpec> {
-    let Some(Value::Array(items)) = loadout.field("LoadoutAssortments") else {
-        return None;
-    };
-    let guids: Arc<[Guid]> = items
-        .iter()
-        .filter_map(|item| match reference_target(item) {
-            TargetSpec::Reference(guid) => Some(guid),
-            _ => None,
-        })
-        .collect();
-    (!guids.is_empty()).then_some(LoadoutSpec::Assortments(guids))
-}
-
 fn read_entry(entry: &StructValue<'_>, record: &Arc<str>) -> EntrySpec {
     let reference = entry
         .field("entityClassReference")
@@ -398,7 +383,7 @@ fn read_entry(entry: &StructValue<'_>, record: &Arc<str>) -> EntrySpec {
     }
 }
 
-fn reference_target(value: &Value<'_>) -> TargetSpec {
+pub(crate) fn reference_target(value: &Value<'_>) -> TargetSpec {
     match value {
         Value::Reference(link) => TargetSpec::Reference(link.guid()),
         Value::Error(ValueError::DanglingReference { guid }) => TargetSpec::Reference(*guid),

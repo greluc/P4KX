@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use p4kx_character::{Dna, DnaMatrix, DnaRig, RigLogic};
-use p4kx_model::Model;
+use p4kx_model::{Bone, Model};
 
 /// Where the joints of a head rig are among the bones of its skin, and how far the Character's
 /// own joints sit from the base head's.
@@ -15,8 +15,34 @@ pub(super) struct Facial {
     pub(super) offsets: Vec<[f32; 3]>,
     /// The bone of the skin each joint of the rig is, in the rig's order.
     pub(super) joints: Vec<usize>,
-    /// The rig logic of the skin, which names the controls and blendshapes.
+    /// The rig logic of the head, which names the controls and blendshapes.
     pub(super) logic: RigLogic,
+    /// The bones of the skin with the bind poses of the head's own skeleton file, when it has
+    /// one: the skeleton the head is appended to takes these instead of the skin's.
+    pub(super) posed: Option<Vec<Bone>>,
+}
+
+/// Returns the bones of the first level of detail of `model`, those of a skeleton file without one.
+pub(super) fn bones_of(model: &Model) -> &[Bone] {
+    model
+        .lods
+        .first()
+        .map_or(model.bones.as_slice(), |lod| model.bones_of(lod))
+}
+
+/// Returns the bone of the first level of detail of `model` for each joint in `hashes`,
+/// `usize::MAX` for a joint the model lacks, and the number of bones.
+fn locate(model: &Model, hashes: &[u32]) -> (Vec<usize>, usize) {
+    let bones = bones_of(model);
+    let mut by_controller: HashMap<u32, usize> = HashMap::with_capacity(bones.len());
+    for (index, bone) in bones.iter().enumerate() {
+        by_controller.entry(bone.controller_id).or_insert(index);
+    }
+    let joints = hashes
+        .iter()
+        .map(|hash| by_controller.get(hash).copied().unwrap_or(usize::MAX))
+        .collect();
+    (joints, bones.len())
 }
 
 /// Matches the joints of the rig, which `logic` lists by the CRC-32 of their names, to the bones of
@@ -38,38 +64,51 @@ pub(super) fn facial(
             moves.len()
         ));
     }
-    let bones = model
-        .lods
-        .first()
-        .map_or(model.bones.as_slice(), |lod| model.bones_of(lod));
-    let mut by_controller: HashMap<u32, usize> = HashMap::with_capacity(bones.len());
-    for (index, bone) in bones.iter().enumerate() {
-        by_controller.entry(bone.controller_id).or_insert(index);
-    }
-    let mut offsets = vec![[0.0_f32; 3]; bones.len()];
-    let mut joints = Vec::with_capacity(hashes.len());
-    for (hash, offset) in hashes.iter().zip(moves) {
-        let bone = by_controller.get(hash).copied();
-        if let Some(slot) = bone.and_then(|bone| offsets.get_mut(bone)) {
+    let (joints, bones) = locate(model, hashes);
+    let mut offsets = vec![[0.0_f32; 3]; bones];
+    for (&bone, offset) in joints.iter().zip(moves) {
+        if let Some(slot) = offsets.get_mut(bone) {
             *slot = offset;
         }
-        joints.push(bone.unwrap_or(usize::MAX));
     }
     Ok(Facial {
         offsets,
         joints,
         logic: logic.clone(),
+        posed: None,
     })
+}
+
+/// Matches the joints of a story character's own head rig to the bones of `model`. The joints sit
+/// where `posed`, the bones with the poses of the head's skeleton file, puts them, or where the
+/// skin does without it, so no bone has an offset.
+pub(super) fn own_facial(model: &Model, logic: RigLogic, posed: Option<Vec<Bone>>) -> Facial {
+    let (joints, bones) = locate(model, logic.joint_hashes());
+    Facial {
+        offsets: vec![[0.0; 3]; bones],
+        joints,
+        logic,
+        posed,
+    }
+}
+
+/// Where the rig logic of a head comes from.
+#[derive(Debug, Clone)]
+pub(crate) enum FaceSource {
+    /// A head shaped by a Character's DNA: the DNA rig beside the skin mixes the delta records of
+    /// its stock heads.
+    Dna { rig: String, dna: Dna },
+    /// A story character's own head: its `.RigLogic` file holds the delta records.
+    Own,
 }
 
 /// How a head part of an [`Armour`](super::Armour) is tied to the rig that animates it.
 #[derive(Debug, Clone)]
 pub(crate) struct FaceLink {
-    pub(crate) rig: String,
-    pub(crate) dna: Dna,
+    pub(crate) source: FaceSource,
     pub(crate) joints: Vec<usize>,
     pub(crate) blendshapes: Vec<usize>,
-    /// The rig logic of the head skin, read once when the head is shaped.
+    /// The rig logic of the head, read once when the head is built.
     pub(crate) logic: RigLogic,
 }
 

@@ -287,7 +287,11 @@ The first argument of nearly every command is the path of a `Data.p4k` Archive, 
   `--materials textures` embeds the textures as PNG at the mip `--texture-mip <n>` picks (default
   `colours`), `--anim <name>` (or `all`) and `--anim-from <entry>` add animations, looked for first
   in the character's own folder `Animations/pu/<body>/<name>`, and `--anim-folder <folder>`
-  names the only folders to look in. The zones of the body that the worn clothing covers
+  names the only folders to look in. A story character's own head that has a `.RigLogic` file
+  (ADR-0281) gets its expressions as morph targets at LOD 0, read from the blendshapes of its
+  geometry: all of them, `--expression <name>` (repeatable) for some, `--no-expressions` for none;
+  its facial joints take the poses of its skeleton file and the face animations of its folder
+  move them. The zones of the body that the worn clothing covers
   (`SCItemClothingParams`, ADR-0140) are left out of the body skin, as the game does not draw
   them, and listed as `body_zones_hidden`; with `--materials textures`, layered materials such as the `LayerBlend_V2`
   clothing are drawn from the diffuse and normal maps of their layers blended by the blend mask

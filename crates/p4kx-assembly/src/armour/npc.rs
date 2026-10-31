@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use super::{BodyVariant, Piece, Wearable};
+use super::{BodyVariant, Expressions, Piece, Wearable};
 use crate::node_geometry::port_words;
 use crate::resolver::LoadoutResolver;
 use crate::{Attachment, EntityNode, PortNode};
@@ -45,6 +45,25 @@ impl NpcHead {
     #[must_use]
     pub fn pieces(&self) -> &[Piece] {
         &self.pieces
+    }
+
+    /// Returns the head with the expression blendshapes `expressions` asks for written as morph
+    /// targets of the piece named `head`, see [`Piece::with_expressions`]. A head without a
+    /// `.RigLogic` file of its own has none.
+    #[must_use]
+    pub fn with_expressions(mut self, expressions: &Expressions) -> Self {
+        self.pieces = self
+            .pieces
+            .into_iter()
+            .map(|piece| {
+                if piece.name() == "head" {
+                    piece.with_expressions(expressions.clone())
+                } else {
+                    piece
+                }
+            })
+            .collect();
+        self
     }
 }
 

@@ -70,6 +70,12 @@ and ADR-0098 need the DNA rig (`.dna`) of the head. The Archive ships none for E
 a bespoke head has a neutral face only and no face animation: bones of the body animations move
 it, the rest of the face stays as modelled.
 
+Amendment (#589, ADR-0281): the files do not hold the same data, and all three are read now. The
+skin's bone table has the stock head's facial joints and the skeleton file the character's own; the
+`.RigLogic` file holds the joint delta records of the head; the blendshapes are in the `BShapesGpu`
+chunk of the geometry file. A bespoke head has expressions and a face animation, which the two
+paragraphs above and the second consequence below said it had not.
+
 ## Hair
 
 The hair Entity `hair_02` has a material tree (`SMaterialNodeParams`) with a node per hair colour

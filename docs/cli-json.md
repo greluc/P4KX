@@ -610,6 +610,15 @@ message gives their count and the names of the first three, and `skipped` counts
 `face_animation_failed` (the rig of the face cannot be read, or gives a pose that is not finite,
 and the animation has no track for a bone) and `face_joints_failed` (see `p4kx chf glb`).
 
+`--expression NAME` (repeatable) and `--no-expressions` choose the expressions of the head a
+`--loadout` gives its character, as for `p4kx chf glb`: all of them by default at LOD 0, none at
+other levels. Only a story character's own head with a `.RigLogic` file has any (ADR-0281); a
+head without one stays neutral and these options do nothing for it. The Issue kinds of the
+expressions are `unknown_expression` (a named one the head lacks), `empty_expression` (a named
+one that moves no vertex) and `morphs_failed` (the geometry has no `BShapesGpu` chunk or does not
+fit the rig logic or the skin); the head is kept and the file is written. `face_joints_failed`
+covers an unreadable `.RigLogic` file and a skeleton file that does not match the skin.
+
 `pieces` counts the pieces: the `--piece` options and, with `--loadout`, the armour and clothing of
 the Loadout that were not replaced, including those that could not be resolved. `loadout` is
 `null` without `--loadout`, else it has the text given as `name`, the `source` of the Loadout

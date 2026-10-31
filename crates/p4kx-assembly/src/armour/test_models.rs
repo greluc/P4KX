@@ -12,8 +12,10 @@ pub(super) const HEAD: u16 = 2;
 /// The vertices of the test cube.
 pub(super) const VERTICES: usize = 24;
 
+/// The result of a test.
 pub(super) type TestResult<T = ()> = Result<T, Box<dyn std::error::Error>>;
 
+/// A bone named `name` below the bone `parent`, 10 cm above it.
 pub(super) fn bone(name: &str, parent: u16) -> TestBone {
     TestBone {
         name: name.to_owned(),
@@ -58,10 +60,25 @@ pub(super) fn read(source: &TestModel, stem: &str) -> TestResult<Model> {
     )?)
 }
 
-/// A head with a jaw bone, every vertex weighted to the jaw.
+/// A head with a jaw bone, every vertex weighted to the jaw, of two levels of detail.
 pub(super) fn head_with_jaw() -> TestResult<Model> {
     let extra = vec![bone("jaw", HEAD), bone("tooth", 3)];
-    read(&skin(extra, Some(3)), "head")
+    let source = skin(extra.clone(), Some(3)).with_lod(skin(extra, Some(3)));
+    read(&source, "head")
+}
+
+/// The head as it is read at `level`: its first level of detail is that level.
+pub(super) fn head_at(level: usize) -> TestResult<Model> {
+    let mut head = head_with_jaw()?;
+    head.lods.drain(..level);
+    Ok(head)
+}
+
+/// The hair as it is read at `level`: its first level of detail is that level.
+pub(super) fn hair_at(level: usize) -> TestResult<Model> {
+    let mut hair = hair()?;
+    hair.lods.drain(..level);
+    Ok(hair)
 }
 
 /// A hair of two levels of detail, every vertex weighted to the head bone.

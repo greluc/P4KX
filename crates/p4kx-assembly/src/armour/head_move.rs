@@ -62,9 +62,12 @@ pub(super) fn check_follows(parts: &mut [ArmourPart], issues: &mut Vec<Issue>) {
     }
 }
 
-/// Returns the meshes of the level of detail `model` was read at.
-pub(super) fn level_meshes(model: &Model) -> usize {
-    model.lods.first().map_or(0, |lod| lod.meshes.len())
+/// Returns the note that only the first mesh of `worn` follows the head's expressions, when `worn`
+/// has targets and several meshes at the level of detail it was read at.
+pub(super) fn first_mesh_note(worn: &Worn) -> Option<IssueKind> {
+    let meshes = worn.model.lods.first().map_or(0, |lod| lod.meshes.len());
+    (meshes > 1 && !worn.morphs.is_empty())
+        .then_some(IssueKind::FollowMorphsFirstMeshOnly { meshes })
 }
 
 /// Returns the first mesh of the level of detail `model` was read at.

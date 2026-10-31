@@ -12,15 +12,16 @@ use super::{bind, plan};
 use crate::IssueKind;
 use crate::armour::follow_blend::{HeadSkin, Unbound};
 use crate::armour::head_move::{HeadMove, followed};
-use crate::armour::test_models::{HEAD, VERTICES, bone, hair, head_with_jaw, read, skin};
+use crate::armour::test_models::{
+    HEAD, TestResult, VERTICES, bone, hair, head_with_jaw, read, skin,
+};
 
 fn names(bones: &[p4kx_model::Bone]) -> Vec<&str> {
     bones.iter().map(|bone| bone.name.as_str()).collect()
 }
 
 #[test]
-fn every_level_of_detail_is_bound_to_the_bones_its_vertices_use()
--> Result<(), Box<dyn std::error::Error>> {
+fn every_level_of_detail_is_bound_to_the_bones_its_vertices_use() -> TestResult {
     let head = head_with_jaw()?;
     let mesh = head
         .lods
@@ -58,8 +59,7 @@ fn every_level_of_detail_is_bound_to_the_bones_its_vertices_use()
 }
 
 #[test]
-fn the_parents_of_a_used_bone_join_it_and_the_unused_children_do_not()
--> Result<(), Box<dyn std::error::Error>> {
+fn the_parents_of_a_used_bone_join_it_and_the_unused_children_do_not() -> TestResult {
     let extra = vec![bone("neck_mid", HEAD), bone("jaw", 3), bone("tooth", 4)];
     let head = read(&skin(extra, Some(4)), "head")?;
     let mesh = head
@@ -92,7 +92,7 @@ fn the_parents_of_a_used_bone_join_it_and_the_unused_children_do_not()
 }
 
 #[test]
-fn a_head_without_weights_is_not_bound() -> Result<(), Box<dyn std::error::Error>> {
+fn a_head_without_weights_is_not_bound() -> TestResult {
     let head = read(&skin(vec![bone("jaw", HEAD)], None), "head")?;
     let mesh = head
         .lods
@@ -108,7 +108,7 @@ fn a_head_without_weights_is_not_bound() -> Result<(), Box<dyn std::error::Error
 }
 
 #[test]
-fn more_bones_than_joint_indices_are_refused() -> Result<(), Box<dyn std::error::Error>> {
+fn more_bones_than_joint_indices_are_refused() -> TestResult {
     let head = head_with_jaw()?;
     let template = head.bones.first().ok_or("a head bone")?;
     let many: Vec<_> = (0..70_000)
@@ -141,7 +141,7 @@ fn move_of(head: &Arc<Model>) -> HeadMove {
 
 #[test]
 fn a_head_that_cannot_be_followed_in_its_joints_is_reported_and_the_hair_keeps_its_bones()
--> Result<(), Box<dyn std::error::Error>> {
+-> TestResult {
     let head = Arc::new(read(&skin(vec![bone("jaw", HEAD)], None), "head")?);
     let hair = Arc::new(hair()?);
 
@@ -167,7 +167,7 @@ fn a_head_that_cannot_be_followed_in_its_joints_is_reported_and_the_hair_keeps_i
 }
 
 #[test]
-fn a_skinned_head_binds_the_hair_without_a_report() -> Result<(), Box<dyn std::error::Error>> {
+fn a_skinned_head_binds_the_hair_without_a_report() -> TestResult {
     let head = Arc::new(head_with_jaw()?);
     let hair = Arc::new(hair()?);
 

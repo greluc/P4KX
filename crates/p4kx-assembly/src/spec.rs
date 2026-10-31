@@ -7,7 +7,7 @@ use std::sync::Arc;
 use p4kx_dataforge::{Guid, RecordTree, StructValue, Value, ValueError};
 
 use crate::armour::{ZoneList, read_zones};
-use crate::assortment::{RANDOM_GENERATED_LOADOUT, read_assortments};
+use crate::assortment::read_assortments;
 use crate::merge::port_key;
 use crate::outfit_read::OutfitInfo;
 use crate::port::{PortDefinition, read_definition};
@@ -19,6 +19,7 @@ const DEFAULT_LOADOUT: &str = "SEntityComponentDefaultLoadoutParams";
 const PORT_CONTAINER: &str = "SItemPortContainerComponentParams";
 const XML_LOADOUT: &str = "SItemPortLoadoutXMLParams";
 const OUTFIT_LOADOUT: &str = "SItemPortLoadoutOutfitParams";
+const GENERATED_LOADOUT: &str = "SItemPortLoadoutRandomGeneratedParams";
 const VEHICLE_PARAMS: &str = "VehicleComponentParams";
 const ATTACHABLE: &str = "SAttachableComponentParams";
 const INVENTORY_CONTAINER: &str = "SCItemInventoryContainerComponentParams";
@@ -355,7 +356,7 @@ pub(crate) fn read_loadout(loadout: &StructValue<'_>, record: &Arc<str>) -> Opti
     if loadout.type_name() == OUTFIT_LOADOUT {
         return crate::outfit_read::read(loadout, record, false).loadout;
     }
-    if loadout.type_name() == RANDOM_GENERATED_LOADOUT {
+    if loadout.type_name() == GENERATED_LOADOUT {
         return read_assortments(loadout);
     }
     loadout.field("entries")?;

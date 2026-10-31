@@ -86,6 +86,15 @@ pub enum LoadoutError {
         /// Why it cannot be read.
         reason: String,
     },
+    /// A loadout assortment cannot be used: it names itself, is no assortment or has a first
+    /// alternative that is no Loadout. The other assortments still apply.
+    #[error("the loadout assortment {guid} cannot be used: {reason}")]
+    Assortment {
+        /// The GUID of the assortment Record.
+        guid: Guid,
+        /// Why it cannot be used.
+        reason: String,
+    },
     /// The vehicle implementation of an Entity, or its Modification, is not read in full or not
     /// applied as it names; what could be read is still kept.
     #[error("the vehicle implementation {path}: {reason}")]
@@ -114,6 +123,7 @@ impl LoadoutError {
             Self::TooManyPorts => "too_many_ports",
             Self::NoLoadoutFiles { .. } => "no_loadout_files",
             Self::XmlLoadout { .. } => "xml_loadout",
+            Self::Assortment { .. } => "assortment",
             Self::VehicleImplementation { .. } => "vehicle_implementation",
         }
     }

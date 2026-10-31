@@ -31,15 +31,33 @@ Creature base Entities (`libs/foundry/records/actor/actors/*`) whose root geomet
   Loadout is resolved.
 - **The first alternative of every group is taken**, the groups in order and the assortments in
   order, laid over each other like the layers of an outfit (`overlay`). The game's pick is
-  random; the first alternative is the deterministic default, so an export is reproducible. The
-  `Requirement` of an assortment or group is not evaluated.
-- **An assortment that is missing or cannot be read is a Loadout issue** of the Entity, and the
-  other assortments still apply.
+  random; the first alternative is the deterministic default, so an export is reproducible. A
+  pick option is deliberately not offered here: #954 tracks one. The `Requirement` of an
+  assortment or group is not evaluated: #955.
+- **The first alternative is not replaced by the next readable one.** A group without
+  alternatives gives nothing. A first alternative that is no Loadout is an `assortment` issue and
+  the group gives nothing; the later alternatives are not tried, so an export never silently
+  shows an alternative the default does not name.
+- **Assortments are read once per resolver and a cycle ends.** An assortment names assortments
+  through its alternatives; one that is used while it is being resolved, alone or through
+  another, is an `assortment` issue and is skipped. The other assortments still apply.
+- **An assortment that is missing (`dangling_reference`), cannot be read (`unreadable_record`) or
+  is no assortment (`assortment`) is a Loadout issue** of the Entity, and the other assortments
+  still apply. Without any usable assortment the Loadout is empty and carries the issues.
+- **Every kind of Entity reads it.** `read_loadout` is shared, and a generated Loadout is the
+  same data wherever it stands. The census `real_assortment_census.rs` over LIVE finds 538
+  actors (5 skeleton-rooted creatures, the rest human NPC archetypes; 523 get Entities attached)
+  and 9 corpse items (8 get Entities attached) with such a Loadout, and no other kind. Before,
+  their generated Loadout was ignored and their ports stayed empty, so their exports change
+  from an unclothed or empty body to the first alternative; that is the correct reading of the
+  Record, not a side effect.
 - **A creature whose Loadout could not be read lists why.** The Assembly of an Entity whose root
   geometry is a creature file (ADR-0275, `is_creature_path`) reports the issues of its own
   Loadout as `loadout_unreadable` on the root, with `skipped` false: `Aloprat` says that its XML
-  Loadout is not in the Archive. Other Entities are unchanged. Exit codes are those of ADR-0255:
-  the root geometry is present, so the export succeeds with an empty body.
+  Loadout is not in the Archive. It is limited to creatures because there an unread Loadout is
+  the reason for an empty scene; the many Entities of other kinds with a missing XML Loadout
+  would otherwise gain a note in every export. Exit codes are those of ADR-0255: the root
+  geometry is present, so the export succeeds with an empty body.
 - **The census counts them.** It prints the number of skeleton-rooted Entities that draw nothing
   with the codes of the issues that explain each, and the real-Archive test fails for one without
   a reason. The Entities are found by the census rule, not by name.

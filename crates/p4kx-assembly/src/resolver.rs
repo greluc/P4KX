@@ -6,6 +6,7 @@ use std::sync::{Arc, OnceLock};
 
 use p4kx_dataforge::{DataForge, Guid, Record, RecordTree, TagTree, TreeBuilder};
 
+use crate::assortment::Assorted;
 use crate::entities::is_entity;
 use crate::plan::Plan;
 use crate::spec::{EntitySpec, EntrySpec, LoadoutSpec, TargetSpec};
@@ -50,6 +51,8 @@ pub struct LoadoutResolver<'f> {
     pub(crate) vehicles: HashMap<String, VehicleResult>,
     pub(crate) landing: HashMap<Guid, Result<Arc<[LandingGear]>, LoadoutError>>,
     pub(crate) builder: TreeBuilder<'f>,
+    pub(crate) assortments: HashMap<Guid, Assorted>,
+    pub(crate) assorting: Vec<Guid>,
     pub(crate) stop_at_docked: bool,
     stop: Option<&'f (dyn Fn() -> bool + Sync)>,
     serial_reads: usize,
@@ -86,6 +89,8 @@ impl<'f> LoadoutResolver<'f> {
             vehicles: HashMap::new(),
             landing: HashMap::new(),
             builder: TreeBuilder::new(),
+            assortments: HashMap::new(),
+            assorting: Vec::new(),
             stop_at_docked: false,
             stop: None,
             serial_reads: 0,
@@ -311,7 +316,7 @@ impl<'f> LoadoutResolver<'f> {
             None => Ok(Entries::complete(Arc::from([]))),
             Some(LoadoutSpec::Manual(entries)) => Ok(Entries::complete(Arc::clone(entries))),
             Some(LoadoutSpec::Layered(layers)) => self.layered_entries(layers),
-            Some(LoadoutSpec::Assortments(guids)) => self.assortment_entries(guids),
+            Some(LoadoutSpec::Assortments(guids)) => Ok(self.assortment_entries(guids)),
             Some(LoadoutSpec::Xml(path)) => {
                 let Some(files) = self.files else {
                     return Err(LoadoutError::NoLoadoutFiles {

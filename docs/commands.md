@@ -108,6 +108,28 @@ The first argument of nearly every command is the path of a `Data.p4k` Archive, 
   or with more than 32 `*` and `?`, an empty or blank exclusion Filter and more than 64 of them are invalid
   input too.
   `--threads <n>` limits the worker threads (default one per logical processor); more than about four rarely help on one disk (docs/performance.md).
+- `p4kx convert <folder> --out <folder> [--filter <filter>] [--textures <outputs>] [--mip <level>] [--audio <format>] [--conflict <policy>] [--copy-other] [--threads <n>]`
+  converts a folder of files that were extracted earlier without conversion, as `p4kx extract
+  --convert` converts the same Entries (ADR-0272): CryXml (by content), a texture header
+  `<name>.dds` with its parts `<name>.dds.N` and alpha tail `<name>.dds.a`, `.wem` sounds, `.bnk`
+  soundbanks and one DataForge file, which becomes one Record XML file per Record. The
+  paths below the input folder act as Entry paths, the options are those of `extract`, the output
+  names follow the rule of ADR-0248, and `--conflict` defaults to `skip`. A header whose parts are
+  missing is reported as not converted and written unchanged. A file with nothing to convert is
+  counted as not converted and left out; `--copy-other` writes it unchanged. The DataForge is the
+  file at a path the game reads, `Data\Game2.dcb` before `Data\Game.dcb` (also `Game2.dcb` when
+  the folder is the `Data` folder), because a stale `Game.dcb` next to the current one must not
+  win by sorting order; without one, the first `.dcb` file by path that starts like a DataForge;
+  without one, the first file of any name that does. Every other DataForge file the rule found
+  is named on stderr as `left out` and in `dataforge_left_out` of the JSON report. `--filter` matches the relative paths with
+  the rules of `p4kx search`; one that matches no file is invalid input. Links (symbolic links and
+  junctions) in the input folder are never followed and are listed as failed, as are names that
+  are not UTF-8 or hold a separator. An output folder that is the input folder, lies inside it or
+  contains it, or lies inside a Star Citizen installation is invalid input (exit 2) and nothing is
+  written; an input that is no folder is too. Progress, Ctrl+C, `--json` and the exit codes are
+  those of `extract`; the JSON report of [`p4kx extract`](cli-json.md#p4kx-extract--json) adds
+  `not_converted`, the number of files left out, when it is not 0. The window offers **Convert
+  folder…** in the Archive menu with progress and cancel.
 - `p4kx info <archive>` prints the Channel, the Build (branch, version, change number, BuildId)
   from the `build_manifest.id` next to the Archive, and the number, encryption and sizes of its
   Entries, and the number of Entry issues (ADR-0025). An Archive without a readable manifest has

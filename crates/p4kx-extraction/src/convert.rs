@@ -3,11 +3,12 @@
 
 use std::io::{self, Read, Write};
 
-use p4kx_archive::{Checksum, Entry};
+use p4kx_archive::Checksum;
 use p4kx_cryxml::{self as cryxml, Format};
 
 use crate::ExtractionError;
 use crate::buffers::Buffers;
+use crate::source::SourceEntry;
 use crate::write::{Chunk, Destination, EntryWriter, Outcome, create_temporary, write_error};
 
 /// The number of bytes read from the start of an Entry to recognise `CryXml`.
@@ -54,7 +55,7 @@ impl EntryWriter<'_> {
     /// that under the Conflict policy, comparing an existing file with the XML.
     pub(crate) fn convert(
         &self,
-        entry: &Entry,
+        entry: &SourceEntry<'_>,
         reader: &mut impl Read,
         start: &[u8],
         buffers: &mut Buffers,

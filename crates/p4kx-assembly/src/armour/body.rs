@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
+use crate::path_match::starts_with_path;
+
 /// A body variant of the human Characters: the skeleton, the default body and the tag that
 /// selects the geometry of armour and clothing for it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -51,6 +53,24 @@ impl BodyVariant {
         }
     }
 
+    /// Returns the variant whose folder holds the model `path`, a path below `Data`.
+    #[must_use]
+    pub(crate) fn of_model_path(path: &str) -> Option<Self> {
+        Self::ALL
+            .into_iter()
+            .find(|variant| starts_with_path(path, variant.folder()))
+    }
+
+    /// Returns the folder below `Data` that holds the models of the body, with a trailing
+    /// separator.
+    #[must_use]
+    pub const fn folder(self) -> &'static str {
+        match self {
+            Self::Male => "Objects/Characters/Human/male_v7/",
+            Self::Female => "Objects/Characters/Human/female_v2/",
+        }
+    }
+
     /// Returns the skin of the default body, a path below `Data`.
     #[must_use]
     pub const fn skin(self) -> &'static str {
@@ -84,6 +104,33 @@ impl BodyVariant {
 #[cfg(test)]
 mod tests {
     use super::BodyVariant;
+
+    #[test]
+    fn the_skeleton_and_the_skin_lie_in_the_folder_of_the_body() {
+        for variant in BodyVariant::ALL {
+            assert!(
+                variant.skeleton().starts_with(variant.folder()),
+                "{variant:?}"
+            );
+            assert!(variant.skin().starts_with(variant.folder()), "{variant:?}");
+        }
+    }
+
+    #[test]
+    fn a_model_in_the_folder_of_a_body_names_that_body() {
+        assert_eq!(
+            BodyVariant::of_model_path("objects\\characters\\human\\female_v2\\body\\f_body.skin"),
+            Some(BodyVariant::Female)
+        );
+        assert_eq!(
+            BodyVariant::of_model_path("Objects/Characters/Human/male_v7/body/m_body.skin"),
+            Some(BodyVariant::Male)
+        );
+        assert_eq!(
+            BodyVariant::of_model_path("Objects/Characters/Creatures/x.skin"),
+            None
+        );
+    }
 
     #[test]
     fn a_code_finds_its_variant_whatever_the_case() {

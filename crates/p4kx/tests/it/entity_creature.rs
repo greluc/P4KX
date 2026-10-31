@@ -28,8 +28,11 @@ fn creature(geometry: &str) -> Vec<TestEntry> {
     vec![TestEntry::zstd("Data\\Game2.dcb", database.build())]
 }
 
-fn with_body(mut entries: Vec<TestEntry>) -> Vec<TestEntry> {
+/// A creature whose character definition names the skin `body.skin`, whose `.skinm` companion is
+/// `skinm` or absent.
+fn creature_with_skin(skinm: Option<Vec<u8>>) -> Vec<TestEntry> {
     let skin = TestModel::two_bone_skin();
+    let mut entries = creature("Objects/Test/creature.cdf");
     entries.push(TestEntry::stored(
         "Data\\Objects\\Test\\creature.cdf",
         DEFINITION.as_bytes().to_vec(),
@@ -38,11 +41,12 @@ fn with_body(mut entries: Vec<TestEntry>) -> Vec<TestEntry> {
         "Data\\Objects\\Test\\body.skin",
         skin.cgf(),
     ));
-    entries.push(TestEntry::stored(
-        "Data\\Objects\\Test\\body.skinm",
-        skin.cgfm(),
-    ));
+    entries.extend(skinm.map(|bytes| TestEntry::stored("Data\\Objects\\Test\\body.skinm", bytes)));
     entries
+}
+
+fn with_body() -> Vec<TestEntry> {
+    creature_with_skin(Some(TestModel::two_bone_skin().cgfm()))
 }
 
 struct Run {
@@ -83,7 +87,7 @@ fn issue_kinds<'a>(report: &'a Value, prefix: &str) -> Vec<(&'a str, bool)> {
 #[test]
 fn a_creature_without_its_skeleton_file_is_written_with_a_note() -> TestResult {
     let dir = tempfile::tempdir()?;
-    let archive = write_archive(dir.path(), with_body(creature("Objects/Test/creature.cdf")))?;
+    let archive = write_archive(dir.path(), with_body())?;
     let out = dir.path().join("creature.glb");
 
     let run = glb(&archive, &out, false)?;
@@ -112,7 +116,7 @@ fn a_creature_without_its_skeleton_file_is_written_with_a_note() -> TestResult {
 #[test]
 fn a_creature_without_its_skeleton_file_is_packaged_with_a_note() -> TestResult {
     let dir = tempfile::tempdir()?;
-    let archive = write_archive(dir.path(), with_body(creature("Objects/Test/creature.cdf")))?;
+    let archive = write_archive(dir.path(), with_body())?;
     let out = dir.path().join("package");
 
     let run = package(&archive, "TEST_Creature", &out, &[], true)?;
@@ -209,5 +213,94 @@ fn a_part_below_the_root_that_cannot_be_drawn_stays_an_issue() -> TestResult {
     assert_eq!(output.status.code(), Some(0));
     assert!(String::from_utf8(output.stdout)?.contains("skipped hardpoint_door"));
     check_glb(&std::fs::read(&out)?)?;
+    Ok(())
+}
+
+#[test]
+fn an_entity_whose_root_names_no_geometry_is_still_written() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let entity = TestEntity::new(0x1, "TEST_Creature", "entities/test_creature.xml");
+    let database = entity_schema(DataForgeBuilder::new()).record(entity.record());
+    let archive = write_archive(
+        dir.path(),
+        vec![TestEntry::zstd("Data\\Game2.dcb", database.build())],
+    )?;
+    let out = dir.path().join("empty.glb");
+
+    let run = glb(&archive, &out, true)?;
+
+    assert_eq!(run.code, Some(0), "{}", run.stderr);
+    let report: Value = serde_json::from_str(&run.stdout)?;
+    assert_eq!(
+        issue_kinds(&report, "no_geometry"),
+        [("no_geometry", false)]
+    );
+    check_glb(&std::fs::read(&out)?)?;
+
+    let package_out = dir.path().join("package");
+    let run = package(&archive, "TEST_Creature", &package_out, &[], false)?;
+    assert_eq!(run.code, Some(0), "{}", run.stderr);
+    assert!(package_out.join("scene.json").is_file());
+    Ok(())
+}
+
+#[test]
+fn a_character_definition_that_names_no_model_fails_with_exit_code_3() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let mut entries = creature("Objects/Test/creature.cdf");
+    entries.push(TestEntry::stored(
+        "Data\\Objects\\Test\\creature.cdf",
+        b"<CharacterDefinition/>".to_vec(),
+    ));
+    let archive = write_archive(dir.path(), entries)?;
+
+    assert_both_fail(dir.path(), &archive, 3, "creature.cdf")
+}
+
+#[test]
+fn a_skin_whose_skinm_companion_is_missing_fails_with_exit_code_3() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let archive = write_archive(dir.path(), creature_with_skin(None))?;
+
+    assert_both_fail(dir.path(), &archive, 3, "body.skinm")
+}
+
+#[test]
+fn a_skin_whose_skinm_companion_is_corrupt_fails_with_exit_code_3() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let corrupt = b"not a chunk file".to_vec();
+    let archive = write_archive(dir.path(), creature_with_skin(Some(corrupt)))?;
+
+    assert_both_fail(dir.path(), &archive, 3, "body.skinm")
+}
+
+#[test]
+fn a_failed_json_run_prints_the_error_on_stderr_and_nothing_on_stdout() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let archive = write_archive(dir.path(), creature("Objects/Test/rig.chr"))?;
+
+    let run = glb(&archive, &dir.path().join("out.glb"), true)?;
+    assert_eq!(run.code, Some(2), "{}", run.stderr);
+    assert_eq!(run.stdout, "");
+    assert!(
+        run.stderr.contains("Objects/Test/rig.chr does not exist"),
+        "{}",
+        run.stderr
+    );
+
+    let run = package(
+        &archive,
+        "TEST_Creature",
+        &dir.path().join("package"),
+        &[],
+        true,
+    )?;
+    assert_eq!(run.code, Some(2), "{}", run.stderr);
+    assert_eq!(run.stdout, "");
+    assert!(
+        run.stderr.contains("Objects/Test/rig.chr does not exist"),
+        "{}",
+        run.stderr
+    );
     Ok(())
 }

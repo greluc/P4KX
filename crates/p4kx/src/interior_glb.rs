@@ -14,7 +14,7 @@ use serde::Serialize;
 use thiserror::Error;
 
 use crate::cli_interior::{InteriorGlbArgs, InteriorMaterialsArg};
-use crate::entity_glb::IssueJson;
+use crate::entity_glb_json::IssueJson;
 use crate::json;
 use crate::query_table::one_line;
 

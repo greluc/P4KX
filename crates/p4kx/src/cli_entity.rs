@@ -79,13 +79,14 @@ pub(crate) enum EntityAction {
     /// Writes an Entity as one glTF 2.0 binary file (GLB): its geometry and the geometry of every
     /// Entity of its default Loadout, each placed at its port, as a node named after the port and
     /// the Entity below the node of the Entity it is attached to. Y up, in metres. Parts whose
-    /// Entity or geometry cannot be resolved are skipped and listed. With --exclude and
-    /// --replace the Loadout is an own configuration: excluded branches and the Entity a
-    /// replacement removes are not written. Reads every model once, in parallel. A docked vehicle
-    /// (a Merlin in a docking collar, say) is placed as one part, without the parts of its own
-    /// Loadout, unless --expand-docked-vehicles is given; a change to a port below such a docked
-    /// vehicle is not applied, is no error, and is warned about on stderr and listed as `ignored`
-    /// in the JSON.
+    /// Entity or geometry cannot be resolved are skipped and listed; when the geometry of the
+    /// Entity itself is missing (exit code 2) or cannot be read (exit code 3), nothing is written.
+    /// With --exclude and --replace the Loadout is an own configuration: excluded branches and
+    /// the Entity a replacement removes are not written. Reads every model once, in parallel. A
+    /// docked vehicle (a Merlin in a docking collar, say) is placed as one part, without the
+    /// parts of its own Loadout, unless --expand-docked-vehicles is given; a change to a port
+    /// below such a docked vehicle is not applied, is no error, and is warned about on stderr
+    /// and listed as `ignored` in the JSON.
     #[command(after_help = EXIT_CODES_HELP)]
     Glb(EntityGlbArgs),
     /// Writes an Entity as a Blender package, a folder that does not depend on Blender's file
@@ -94,10 +95,11 @@ pub(crate) enum EntityAction {
     /// (a model drawn with one material library and palette, however many nodes use it) and
     /// the textures of the materials as PNG files, each written once. The Loadout, parts, levels
     /// of detail and Loadout changes are those of `entity glb`, docked vehicles are never
-    /// expanded, and a change below one is not applied and warned about. The folder must not exist or must
-    /// hold an earlier package; it is written beside the target first and moved into place when
-    /// complete, so a failed or cancelled run leaves nothing behind. Y up, in metres. See
-    /// docs/blender-package.md.
+    /// expanded, and a change below one is not applied and warned about. As for `entity glb`, a
+    /// missing or unreadable geometry of the Entity itself fails the run (exit code 2 or 3). The
+    /// folder must not exist or must hold an earlier package; it is written beside the target
+    /// first and moved into place when complete, so a failed or cancelled run leaves nothing
+    /// behind. Y up, in metres. See docs/blender-package.md.
     #[command(after_help = EXIT_CODES_HELP)]
     Package(EntityPackageArgs),
 }

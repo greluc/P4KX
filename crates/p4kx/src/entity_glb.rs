@@ -1,137 +1,30 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use std::io::{self, BufWriter, Write};
+use std::io;
 use std::path::{Path, PathBuf};
 
 use anyhow::Result;
 use p4kx_assembly::{
-    ArchiveFiles, ArchiveModels, Assembly, AssemblyOptions, EntityNode, ForgePalettes, Issue,
-    LoadoutChanges, LoadoutResolver,
+    ArchiveFiles, ArchiveModels, Assembly, AssemblyOptions, ForgePalettes, LoadoutResolver,
 };
 use p4kx_extraction::{
     ConversionError, DataForgeEntry, GlbOptions, GlbSummary, GltfError, MaterialMode, is_same_file,
     write_replacing,
 };
-use serde::Serialize;
 use thiserror::Error;
 
 use crate::cli_entity::EntityGlbArgs;
 use crate::cli_entity::EntityMaterialsArg;
-use crate::entity_glb_body::{BodyJson, body_json, print_body};
-use crate::entity_glb_placements::{PlacementJson, placements_json};
-use crate::json;
-use crate::query_table::one_line;
+use crate::entity_glb_json::GlbReport;
+use crate::entity_glb_report::print_report;
 
 /// The output of `p4kx entity glb` is the Archive it reads.
 #[derive(Debug, Error)]
 #[error("{} is the Archive the Entity is read from", .0.display())]
 pub(crate) struct GlbOutputIsArchive(pub(crate) PathBuf);
 
-#[derive(Serialize)]
-struct GlbJson<'a> {
-    archive: String,
-    entity: &'a str,
-    guid: String,
-    out: String,
-    lod: u32,
-    parts: usize,
-    modelled_parts: usize,
-    hidden_parts: usize,
-    palettes: usize,
-    nodes: usize,
-    meshes: usize,
-    primitives: usize,
-    materials: usize,
-    textured_materials: usize,
-    textures: usize,
-    texture_pixels: u64,
-    texture_fallbacks: Vec<FallbackJson<'a>>,
-    default_material_ids: usize,
-    hidden_primitives: usize,
-    lod_fallbacks: usize,
-    shared_meshes: usize,
-    shared_materials: usize,
-    shared_textures: usize,
-    vertices: usize,
-    triangles: usize,
-    bytes: u64,
-    skipped: usize,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    interior: Option<InteriorJson>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    body: Option<BodyJson<'a>>,
-    #[serde(skip_serializing_if = "<[String]>::is_empty")]
-    ignored: &'a [String],
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    incompatible: Vec<crate::entity_ignored::IncompatibleJson<'a>>,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    excluded: Vec<&'a str>,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    replaced: Vec<ReplacedJson<'a>>,
-    placements: Vec<PlacementJson<'a>>,
-    issues: Vec<IssueJson<'a>>,
-}
-
-#[derive(Serialize)]
-struct InteriorJson {
-    containers: usize,
-    parts: usize,
-    model_parts: usize,
-    modelled_parts: usize,
-    lights: usize,
-}
-
-fn interior_json(assembly: &Assembly) -> Option<InteriorJson> {
-    assembly.interior().map(|interior| InteriorJson {
-        containers: interior.containers().len(),
-        parts: interior.parts(),
-        model_parts: interior.model_parts(),
-        modelled_parts: interior.modelled_parts(),
-        lights: interior.lights(),
-    })
-}
-
-#[derive(Serialize)]
-struct FallbackJson<'a> {
-    material: &'a str,
-    role: &'static str,
-    file: &'a str,
-    reason: &'a str,
-}
-
-#[derive(Serialize)]
-struct ReplacedJson<'a> {
-    port: &'a str,
-    entity: &'a str,
-}
-
-#[derive(Serialize)]
-pub(crate) struct IssueJson<'a> {
-    path: &'a str,
-    name: &'a str,
-    kind: &'static str,
-    skipped: bool,
-    reason: String,
-}
-
-impl<'a> From<&'a Issue> for IssueJson<'a> {
-    fn from(issue: &'a Issue) -> Self {
-        Self {
-            path: issue.path(),
-            name: issue.name(),
-            kind: issue.kind().code(),
-            skipped: issue.kind().skips(),
-            reason: issue.kind().to_string(),
-        }
-    }
-}
-
 /// Runs `p4kx entity glb`.
-#[expect(
-    clippy::too_many_lines,
-    reason = "the JSON report is one literal that names every field"
-)]
 pub(crate) fn run(args: &EntityGlbArgs, as_json: bool) -> Result<()> {
     if is_same_file(&args.out, &args.archive) {
         return Err(GlbOutputIsArchive(args.out.clone()).into());
@@ -161,79 +54,22 @@ pub(crate) fn run(args: &EntityGlbArgs, as_json: bool) -> Result<()> {
     };
     let summary = write(&assembly, &models, args)?;
     if as_json {
-        json::print(&GlbJson {
-            archive: json::path(archive.path()),
-            entity: tree.class_name(),
-            guid: tree.guid().to_string(),
-            out: json::path(&args.out),
-            lod: args.lod,
-            parts: assembly.parts().len(),
-            modelled_parts: assembly.modelled_parts(),
-            hidden_parts: assembly.hidden_parts(),
-            palettes: painted(&assembly),
-            nodes: summary.nodes,
-            meshes: summary.meshes,
-            primitives: summary.primitives,
-            materials: summary.materials,
-            textured_materials: summary.textured_materials,
-            textures: summary.textures,
-            texture_pixels: summary.texture_pixels,
-            texture_fallbacks: fallbacks_json(&summary),
-            default_material_ids: summary.default_material_ids,
-            hidden_primitives: summary.hidden_primitives,
-            lod_fallbacks: summary.lod_fallbacks,
-            shared_meshes: summary.shared_meshes,
-            shared_materials: summary.shared_materials,
-            shared_textures: summary.shared_textures,
-            vertices: summary.vertices,
-            triangles: summary.triangles,
-            bytes: summary.bytes,
-            skipped: assembly
-                .issues()
-                .iter()
-                .filter(|issue| issue.kind().skips())
-                .count(),
-            interior: interior_json(&assembly),
-            body: body_json(tree),
-            ignored: applied.ignored(),
-            incompatible: crate::entity_ignored::incompatible(&applied),
-            excluded: changes.exclusions().iter().map(String::as_str).collect(),
-            replaced: changes
-                .replacements()
-                .iter()
-                .map(|(port, entity)| ReplacedJson { port, entity })
-                .collect(),
-            placements: placements_json(&assembly),
-            issues: assembly.issues().iter().map(IssueJson::from).collect(),
-        })?;
-        return Ok(());
+        return GlbReport {
+            archive: archive.path(),
+            args,
+            tree,
+            assembly: &assembly,
+            summary: &summary,
+            applied: &applied,
+            changes: &changes,
+        }
+        .print();
     }
     let printed = print_report(&assembly, &summary, &args.out, tree, &changes);
     match printed {
         Err(error) if error.kind() != io::ErrorKind::BrokenPipe => Err(error.into()),
         _ => Ok(()),
     }
-}
-
-fn painted(assembly: &Assembly) -> usize {
-    assembly
-        .parts()
-        .iter()
-        .filter(|part| part.palette().is_some())
-        .count()
-}
-
-fn fallbacks_json(summary: &GlbSummary) -> Vec<FallbackJson<'_>> {
-    summary
-        .texture_fallbacks
-        .iter()
-        .map(|fallback| FallbackJson {
-            material: &fallback.material,
-            role: fallback.role.name(),
-            file: &fallback.file,
-            reason: &fallback.reason,
-        })
-        .collect()
 }
 
 fn write(
@@ -268,133 +104,4 @@ fn write(
                 source => ConversionError::Glb { file: name, source },
             })
     })?)
-}
-
-fn print_changes(out: &mut impl Write, changes: &LoadoutChanges) -> io::Result<()> {
-    for port in changes.exclusions() {
-        writeln!(out, "excluded {}", one_line(port))?;
-    }
-    for (port, entity) in changes.replacements() {
-        writeln!(out, "replaced {} by {}", one_line(port), one_line(entity))?;
-    }
-    Ok(())
-}
-
-fn print_hidden(out: &mut impl Write, assembly: &Assembly) -> io::Result<()> {
-    match assembly.hidden_parts() {
-        0 => Ok(()),
-        hidden => writeln!(out, "{hidden} parts hidden on ports flagged invisible"),
-    }
-}
-
-pub(crate) fn print_textures(out: &mut impl Write, summary: &GlbSummary) -> io::Result<()> {
-    if summary.textures > 0 || !summary.texture_fallbacks.is_empty() {
-        writeln!(
-            out,
-            "embedded {} images of {} pixels in {} of {} materials",
-            summary.textures, summary.texture_pixels, summary.textured_materials, summary.materials
-        )?;
-    }
-    for fallback in &summary.texture_fallbacks {
-        writeln!(
-            out,
-            "no {} texture {} for material {}: {}; the plain colour is used",
-            fallback.role,
-            one_line(&fallback.file),
-            one_line(&fallback.material),
-            one_line(&fallback.reason)
-        )?;
-    }
-    Ok(())
-}
-
-fn print_report(
-    assembly: &Assembly,
-    summary: &GlbSummary,
-    out: &Path,
-    tree: &EntityNode,
-    changes: &LoadoutChanges,
-) -> io::Result<()> {
-    let mut stdout = BufWriter::new(io::stdout().lock());
-    writeln!(
-        stdout,
-        "wrote {} of {}: {} parts ({} with models), {} nodes, {} meshes, {} primitives, {} materials, {} vertices, {} triangles, {} bytes",
-        out.display(),
-        one_line(tree.class_name()),
-        assembly.parts().len(),
-        assembly.modelled_parts(),
-        summary.nodes,
-        summary.meshes,
-        summary.primitives,
-        summary.materials,
-        summary.vertices,
-        summary.triangles,
-        summary.bytes
-    )?;
-    print_changes(&mut stdout, changes)?;
-    print_body(&mut stdout, tree)?;
-    print_hidden(&mut stdout, assembly)?;
-    if let Some(interior) = assembly.interior() {
-        writeln!(
-            stdout,
-            "Interior: {} object containers, {} parts ({} models, {} with geometry, {} lights)",
-            interior.containers().len(),
-            interior.parts(),
-            interior.model_parts(),
-            interior.modelled_parts(),
-            interior.lights()
-        )?;
-    }
-    let painted = painted(assembly);
-    if painted > 0 {
-        writeln!(stdout, "{painted} parts drawn with a tint palette")?;
-    }
-    print_textures(&mut stdout, summary)?;
-    if summary.lod_fallbacks > 0 {
-        writeln!(
-            stdout,
-            "{} models lack LOD{} and are written at the nearest lower level",
-            summary.lod_fallbacks,
-            assembly.lod()
-        )?;
-    }
-    if summary.shared_meshes + summary.shared_materials + summary.shared_textures > 0 {
-        writeln!(
-            stdout,
-            "shared {} meshes, {} materials and {} textures instead of writing them again",
-            summary.shared_meshes, summary.shared_materials, summary.shared_textures
-        )?;
-    }
-    if summary.hidden_primitives > 0 {
-        writeln!(
-            stdout,
-            "left out {} submeshes whose material draws nothing",
-            summary.hidden_primitives
-        )?;
-    }
-    print_issues(&mut stdout, assembly.issues())?;
-    stdout.flush()
-}
-
-/// Prints one line per issue: `skipped` for a part that is left out, `note` for the others.
-pub(crate) fn print_issues(out: &mut impl Write, issues: &[Issue]) -> io::Result<()> {
-    for issue in issues {
-        let what = if issue.kind().skips() {
-            "skipped"
-        } else {
-            "note"
-        };
-        let path = if issue.path().is_empty() {
-            issue.name().to_owned()
-        } else {
-            format!("{} ({})", issue.path(), issue.name())
-        };
-        writeln!(
-            out,
-            "{what} {}: {}",
-            one_line(&path),
-            one_line(&issue.kind().to_string())
-        )?;
-    }
-    Ok(())
 }

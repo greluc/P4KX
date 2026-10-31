@@ -20,7 +20,8 @@ use p4kx_settings::ModelMaterials;
 use serde::Serialize;
 
 use crate::cli_hologram::HologramArgs;
-use crate::entity_glb::{GlbOutputIsArchive, IssueJson};
+use crate::entity_glb::GlbOutputIsArchive;
+use crate::entity_glb_json::IssueJson;
 use crate::query_table::one_line;
 use crate::{exit, json};
 

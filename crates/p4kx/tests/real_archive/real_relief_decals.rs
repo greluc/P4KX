@@ -11,7 +11,7 @@ use std::error::Error;
 use std::path::Path;
 
 use p4kx_extraction::model::{GREY_PROBE_MIP, LayerCache, MAX_GREY_SATURATION, Material};
-use p4kx_extraction::{Archive, ModelSource, PathIndex, probe_saturation};
+use p4kx_extraction::{Archive, ModelSource, PathIndex, TextureVerdicts, probe_saturation};
 use p4kx_testkit::{real_archive_key, real_archive_path};
 
 type TestResult = Result<(), Box<dyn Error>>;
@@ -79,10 +79,16 @@ fn map_stem(file: &str) -> String {
 fn coloured_relief_candidates_are_drawn_and_grey_ones_are_hidden() -> TestResult {
     let archive = Archive::open_with_key(real_archive_path()?, Some(real_archive_key()?))?;
     let index = PathIndex::new(&archive);
+    let verdicts = TextureVerdicts::new();
     let mut judged: BTreeMap<Judged, usize> = BTreeMap::new();
     for (entry_path, library) in ship_libraries(&archive) {
-        let status =
-            ModelSource::material_library(&index, &entry_path, &library, &LayerCache::new());
+        let status = ModelSource::material_library(
+            &index,
+            &entry_path,
+            &library,
+            &LayerCache::new(),
+            &verdicts,
+        );
         for material in status
             .library()
             .iter()
@@ -127,9 +133,15 @@ fn the_grey_limit_lies_in_the_gap_between_grey_and_coloured_maps() -> TestResult
     let mut grey_most = 0.0_f32;
     let mut coloured_least = f32::MAX;
     let mut measured: HashSet<String> = HashSet::new();
+    let verdicts = TextureVerdicts::new();
     for (entry_path, library) in ship_libraries(&archive) {
-        let status =
-            ModelSource::material_library(&index, &entry_path, &library, &LayerCache::new());
+        let status = ModelSource::material_library(
+            &index,
+            &entry_path,
+            &library,
+            &LayerCache::new(),
+            &verdicts,
+        );
         for material in status
             .library()
             .iter()

@@ -10,7 +10,7 @@ use p4kx_extraction::model::{
 };
 use p4kx_extraction::{
     AnimationChoice, AnimationSet, Archive, ArchiveTextures, ConversionError, ModelSource,
-    PathIndex, archive_error_in,
+    PathIndex, TextureVerdicts, archive_error_in,
 };
 use thiserror::Error;
 
@@ -193,14 +193,17 @@ pub(crate) fn starts_with_path(path: &str, prefix: &str) -> bool {
     })
 }
 
-/// Reads models and material libraries from the Entries of an Archive below `Data`; the layer
-/// files of the libraries are fetched and parsed once for all of them.
+/// Reads models and material libraries from the Entries of an Archive below `Data`.
+///
+/// The layer files of the libraries are fetched and parsed once for all of them, and each texture
+/// is judged for its colour once.
 #[derive(Debug)]
 pub struct ArchiveModels<'a> {
     archive: &'a Archive,
     index: PathIndex<'a>,
     max_attachment_vertices: usize,
     layers: LayerCache,
+    verdicts: TextureVerdicts,
 }
 
 impl<'a> ArchiveModels<'a> {
@@ -212,6 +215,7 @@ impl<'a> ArchiveModels<'a> {
             index: PathIndex::new(archive),
             max_attachment_vertices: MAX_ASSEMBLY_VERTICES,
             layers: LayerCache::new(),
+            verdicts: TextureVerdicts::new(),
         }
     }
 
@@ -299,7 +303,7 @@ impl ModelProvider for ArchiveModels<'_> {
     }
 
     fn library(&self, entry: &str, name: &str) -> MaterialStatus {
-        ModelSource::material_library(&self.index, entry, name, &self.layers)
+        ModelSource::material_library(&self.index, entry, name, &self.layers, &self.verdicts)
     }
 
     fn file(&self, path: &str, limit: u64) -> Result<Vec<u8>, ModelFailure> {
@@ -347,6 +351,7 @@ impl ArchiveModels<'_> {
                 selection,
                 PositionBox::default(),
                 MaterialReading::Skipped,
+                &self.verdicts,
             )
         };
         let source = match read(LodSelection::AtMost(lod)) {

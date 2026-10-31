@@ -11,9 +11,9 @@ use std::time::SystemTime;
 use anyhow::{Context, Result};
 use p4kx_channels::channel_name;
 use p4kx_extraction::{
-    Archive, ArchiveWatch, AudioConversion, Build, CancelToken, ConflictPolicy, DataForgeEntry,
-    Entry, ExtractOptions, ExtractionReport, Progress, TextureConversion, create_default_target,
-    extract, select_entries,
+    Archive, ArchiveWatch, AudioConversion, Build, CancelToken, ConflictPolicy, Entry,
+    ExtractOptions, ExtractionReport, Progress, TextureConversion, create_default_target, extract,
+    select_entries,
 };
 
 use crate::cli::{AudioOutput, Conflict, ExtractArgs, TextureOutput};
@@ -105,7 +105,8 @@ pub(crate) fn execute(
     } else {
         print_report(&report, &target, settings.conflict, settings.verify).and_then(|()| {
             report.records().map_or(Ok(()), |records| {
-                let folder = records_folder(archive, &target);
+                let entry = report.records_entry().unwrap_or_default();
+                let folder = records_folder(entry, &target);
                 dcb_export::print_report(
                     &records.into(),
                     &folder,
@@ -142,7 +143,7 @@ pub(crate) fn cancel_on_interrupt() -> Result<CancelToken> {
     Ok(cancel)
 }
 
-const fn exit_code(report: &ExtractionReport) -> u8 {
+pub(crate) const fn exit_code(report: &ExtractionReport) -> u8 {
     if report.archive_changed() {
         exit::ARCHIVE_CHANGED
     } else if report.is_complete() {
@@ -152,18 +153,20 @@ const fn exit_code(report: &ExtractionReport) -> u8 {
     }
 }
 
-fn textures(args: &ExtractArgs) -> TextureConversion {
+/// Returns what a texture conversion writes for the `--textures` outputs and the `--mip` level.
+pub(crate) fn texture_conversion(outputs: &[TextureOutput], mip: u32) -> TextureConversion {
     TextureConversion {
-        merge: args.textures.contains(&TextureOutput::Merge),
-        png: args
-            .textures
-            .contains(&TextureOutput::Png)
-            .then_some(args.mip),
-        keep_raw: args.textures.contains(&TextureOutput::Raw),
+        merge: outputs.contains(&TextureOutput::Merge),
+        png: outputs.contains(&TextureOutput::Png).then_some(mip),
+        keep_raw: outputs.contains(&TextureOutput::Raw),
     }
 }
 
-const fn audio(output: AudioOutput) -> AudioConversion {
+fn textures(args: &ExtractArgs) -> TextureConversion {
+    texture_conversion(&args.textures, args.mip)
+}
+
+pub(crate) const fn audio(output: AudioOutput) -> AudioConversion {
     match output {
         AudioOutput::Ogg => AudioConversion::Ogg,
         AudioOutput::Wav => AudioConversion::Wav,
@@ -214,10 +217,9 @@ pub(crate) fn prepare_target(out: Option<&Path>, archive: Option<&Archive>) -> R
         .with_context(|| format!("cannot create a target folder in {}", parent.display()))
 }
 
-/// Returns the folder the Records of the converted DataForge Entry were written into: the folder
-/// of that Entry below `target`.
-fn records_folder(archive: &Archive, target: &Path) -> PathBuf {
-    let entry = DataForgeEntry::locate(archive).map_or("", Entry::path);
+/// Returns the folder the Records of the converted DataForge Entry `entry` were written into: the
+/// folder of that Entry below `target`.
+pub(crate) fn records_folder(entry: &str, target: &Path) -> PathBuf {
     entry
         .rsplit_once(['\\', '/'])
         .map_or_else(String::new, |(folder, _)| folder.replace('\\', "/"))

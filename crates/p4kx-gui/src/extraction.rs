@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 pub(crate) mod exclude;
+mod folder;
 mod job;
 mod summary;
 
@@ -15,6 +16,7 @@ use p4kx_settings::{ExtractionAudio, ExtractionTextures};
 use crate::ComparisonSide;
 use crate::installation::refusal_of;
 
+pub(crate) use folder::{FolderRequest, start_folder};
 pub use job::{Extraction, ExtractionStatus};
 pub(crate) use job::{Request, Source, start, target_naming};
 pub use summary::{ExtractionSummary, FailedEntry, RecordCounts};

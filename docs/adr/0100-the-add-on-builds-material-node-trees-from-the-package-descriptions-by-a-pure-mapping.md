@@ -30,7 +30,7 @@ ADR-0093 (its Specular IOR Level placeholder is replaced by the specular map rul
 | Family | Shaders | Surface |
 | --- | --- | --- |
 | surface | `HardSurface`, `Illum`, `Layer`, `LayerBlend`, `LayerBlend_V2`, `Simple` | Principled BSDF; layers when the description has them |
-| glass | `GlassPBR`, `Glass` | Principled with Transmission Weight 1, IOR 1.45, blended; the `glass` palette entry is the colour; with `PER_VERTEX_TINT` the colour is multiplied by the vertex colours (ADR-0253); the alpha is `1 - 0.85 * luminance(colour)` times the description's alpha, so EEVEE shows the scene behind it (ADR-0258) |
+| glass | `GlassPBR` | Principled with Transmission Weight 1, IOR 1.45, blended; the `glass` palette entry is the colour; with `PER_VERTEX_TINT` the colour is multiplied by the vertex colours (ADR-0253); the alpha is `1 - 0.85 * luminance(colour)` times the description's alpha, so EEVEE shows the scene behind it (ADR-0258) |
 | decal | `MeshDecal` | Principled, blended; a `$TintPaletteDecal` slot takes the palette's primary tint; `DecalDiffuseOpacity` scales the opacity |
 | hologram | `Hologram`, `HologramCIG` | Principled, the colour as emission (strength at least 1), blended |
 | nodraw | `NoDraw`, `NoDraw_Proxy`, `Proxy`, or the `no_draw` flag | Transparent BSDF |

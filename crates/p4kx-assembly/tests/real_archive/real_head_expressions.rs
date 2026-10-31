@@ -141,30 +141,54 @@ fn the_default_characters_get_their_expressions_as_named_morph_targets() -> Test
 
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
-fn the_rigs_of_the_lower_levels_have_no_expressions_and_the_shaped_head_stays() -> TestResult {
+#[expect(clippy::print_stdout, reason = "the counts are the measurement")]
+fn the_lower_levels_get_the_expressions_of_level_zero_carried_over() -> TestResult {
     let archive = Archive::open_with_key(real_archive_path()?, real_archive_key().ok())?;
     let models = ArchiveModels::new(&archive);
     let chf = Chf::read(&shipped(&archive, "masculinedefault.chf")?)?;
     let head = Head::from_character(&chf.character)?.with_expressions(&Expressions::All);
+    let build = |lod: u32| {
+        Armour::build(
+            BodyVariant::Male,
+            head.pieces(),
+            &models,
+            &AssemblyOptions::default().with_lod(lod),
+        )
+    };
+    let peak = |armour: &Armour| -> Result<f32, Box<dyn Error>> {
+        Ok(head_part(armour)?
+            .morphs()
+            .iter()
+            .flat_map(|morph| morph.deltas.iter().flatten())
+            .fold(0.0_f32, |peak, value| peak.max(value.abs())))
+    };
+    let base = build(0)?;
+    let (base_targets, base_peak) = (head_part(&base)?.morphs().len(), peak(&base)?);
 
-    let armour = Armour::build(
-        BodyVariant::Male,
-        head.pieces(),
-        &models,
-        &AssemblyOptions::default().with_lod(2),
-    )?;
-
-    assert_eq!(head_part(&armour)?.morphs().len(), 0);
-    let codes: Vec<&str> = armour
-        .issues()
-        .iter()
-        .map(|issue| issue.kind().code())
-        .collect();
-    assert!(codes.contains(&"morphs_failed"), "{codes:?}");
-    assert!(
-        !armour.issues().iter().any(|issue| issue.kind().skips()),
-        "{:?}",
-        armour.issues()
-    );
+    for level in 1..=3 {
+        let armour = build(level)?;
+        let part = head_part(&armour)?;
+        println!(
+            "LOD{level}: {} of {base_targets} targets, peak {} m against {base_peak} m",
+            part.morphs().len(),
+            peak(&armour)?
+        );
+        check_targets(&format!("LOD{level}"), part);
+        assert!(part.morphs().len() <= base_targets, "LOD{level}");
+        let ratio = peak(&armour)? / base_peak;
+        assert!((0.5..=1.5).contains(&ratio), "LOD{level}: {ratio}");
+        let codes: Vec<&str> = armour
+            .issues()
+            .iter()
+            .map(|issue| issue.kind().code())
+            .collect();
+        assert!(!codes.contains(&"morphs_failed"), "LOD{level}: {codes:?}");
+        assert!(
+            !armour.issues().iter().any(|issue| issue.kind().skips()),
+            "{:?}",
+            armour.issues()
+        );
+        check_glb_of("masculinedefault", &armour, level)?;
+    }
     Ok(())
 }

@@ -94,20 +94,17 @@ const fn origin_code(origin: PartOrigin) -> &'static str {
 pub(crate) struct ExpressionsNotMade(PathBuf);
 
 fn expressions_of(args: &ChfGlbArgs) -> Expressions {
-    expressions_choice(args.lod, &args.expressions, args.no_expressions)
+    expressions_choice(&args.expressions, args.no_expressions)
 }
 
-/// Returns the expressions the options ask for: none with `none`, those named, else all at LOD 0
-/// and none at the other levels, which have no expressions.
-pub(crate) fn expressions_choice(lod: u32, named: &[String], none: bool) -> Expressions {
+/// Returns the expressions the options ask for: none with `none`, those named, else all.
+pub(crate) fn expressions_choice(named: &[String], none: bool) -> Expressions {
     if none {
         Expressions::None
     } else if !named.is_empty() {
         Expressions::Only(named.to_vec())
-    } else if lod == 0 {
-        Expressions::All
     } else {
-        Expressions::None
+        Expressions::All
     }
 }
 

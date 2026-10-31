@@ -64,8 +64,8 @@ the character's own.
 ## What the export does
 
 `Armour::build` gives a head part of a bespoke skin named `<prefix>_head.skin` the face of
-`own_head`, at LOD 0 and when the Archive has the `.RigLogic` file; other heads and levels are
-unchanged:
+`own_head`, when the Archive has the `.RigLogic` file; other heads are unchanged. Below LOD 0 only
+the morph targets are made, carried over from level 0 (ADR-0293), and no joints:
 
 - the joints of the rig are the bones of the skin whose controller ID is the CRC-32 listed in the
   file; the head's bones join the body skeleton by name as before (ADR-0098), but with the bind
@@ -86,7 +86,7 @@ GLB is 7.3 MB, passes the checker and imports into Blender 5.2 with 403 bones, o
 shape key action.
 
 `p4kx armour glb` and `p4kx character package` write the expressions of a `--loadout`'s head like
-those of a CHF's: all at LOD 0, `--expression NAME` for some, `--no-expressions` for none. A failure
+those of a CHF's: all at every level, `--expression NAME` for some, `--no-expressions` for none. A failure
 is the issue `face_joints_failed` or `morphs_failed`, and the head is still written.
 
 ## What is not in it
@@ -94,7 +94,7 @@ is the issue `face_joints_failed` or `morphs_failed`, and the head is still writ
 - The order of the Euler angles and the side of the product (#627) are those of ADR-0098:
   `FaceRig::from_logic` shares them with the DNA path, so a decision on #627 changes both and
   nothing here makes it harder.
-- The attenuation of the blendshapes (slot 17 of a DNA rig) is not applied, as for the CHF heads.
+- The attenuation of the blendshapes (slot 17 of a DNA rig) is not applied, as for the CHF heads (ADR-0293).
 - The hair, brows and lashes of a story character do not follow the head's expressions: they are
   not pieces that follow the head (ADR-0200).
 - A head whose skin is not named `<prefix>_head.skin` and a head without a `.RigLogic` file keep the

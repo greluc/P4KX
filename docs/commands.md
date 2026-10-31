@@ -288,8 +288,8 @@ The first argument of nearly every command is the path of a `Data.p4k` Archive, 
   `colours`), `--anim <name>` (or `all`) and `--anim-from <entry>` add animations, looked for first
   in the character's own folder `Animations/pu/<body>/<name>`, and `--anim-folder <folder>`
   names the only folders to look in. A story character's own head that has a `.RigLogic` file
-  (ADR-0281) gets its expressions as morph targets at LOD 0, read from the blendshapes of its
-  geometry: all of them, `--expression <name>` (repeatable) for some, `--no-expressions` for none;
+  (ADR-0281) gets its expressions as morph targets, read from the blendshapes of its geometry at
+  LOD 0 and carried to the vertices of a lower level (ADR-0293): all of them, `--expression <name>` (repeatable) for some, `--no-expressions` for none;
   its facial joints take the poses of its skeleton file and the face animations of its folder
   move them. The zones of the body that the worn clothing covers
   (`SCItemClothingParams`, ADR-0140) are left out of the body skin, as the game does not draw

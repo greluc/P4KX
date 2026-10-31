@@ -12,6 +12,7 @@ use p4kx_model::{Bone, Model};
 
 use super::expressions::{Expressions, MAX_SKIN_LEN, Morphs, targets_of};
 use super::facial::{bones_of, own_facial};
+use super::lod_morphs::from_level_zero;
 use super::shape::{Outcome, outcome};
 use crate::{IssueKind, ModelFailure, ModelProvider};
 
@@ -163,19 +164,41 @@ fn morphs(
     Ok(targets_of(&shapes, logic, mesh, expressions))
 }
 
+/// Makes the morph targets of the head `model`, a level below 0, by carrying those of level 0.
+fn lower_morphs(
+    model: &Model,
+    skin: &str,
+    (logic, expressions): (&RigLogic, &Expressions),
+    models: &dyn ModelProvider,
+) -> Result<Morphs, String> {
+    let [mesh] = model
+        .lods
+        .first()
+        .map_or(&[][..], |lod| lod.meshes.as_slice())
+    else {
+        return Err("a head has exactly one mesh".to_owned());
+    };
+    from_level_zero(skin, models, (mesh, expressions), |base| {
+        let made = morphs(&base, skin, (logic, expressions), models)?;
+        Ok((base, made))
+    })
+}
+
 /// Returns what the own rig of the head `model`, whose skin is at `skin`, contributes.
 ///
 /// That is the joints of its face from the `.RigLogic` file, posed by the skeleton file beside the
 /// skin, and, for `expressions`, the blendshapes of its geometry as morph targets. A skeleton file
 /// that does not match the skin leaves the skin's poses and is listed as an issue. `None` for a
-/// head without a `.RigLogic` file and for a level of detail below 0, which has no rig.
+/// head without a `.RigLogic` file. A level of detail below 0 has no joints of its face, and its
+/// morph targets are those of level 0 carried over, see [`from_level_zero`].
 pub(super) fn own_head(
     model: &Model,
     skin: &str,
     expressions: &Expressions,
     models: &dyn ModelProvider,
 ) -> Option<Outcome> {
-    if model.lods.first()?.level != 0 {
+    let lower = model.lods.first()?.level != 0;
+    if lower && *expressions == Expressions::None {
         return None;
     }
     let path = logic_path(skin)?;
@@ -183,6 +206,12 @@ pub(super) fn own_head(
         Ok(found) => found?,
         Err(reason) => return Some(outcome(None, Some(Err(reason)))),
     };
+    if lower {
+        return Some(outcome(
+            Some(lower_morphs(model, skin, (&logic, expressions), models)),
+            None,
+        ));
+    }
     let made = (*expressions != Expressions::None)
         .then(|| morphs(model, skin, (&logic, expressions), models));
     let (posed, mismatch) = match posed_bones(model, skin, models) {

@@ -980,6 +980,10 @@ model-export-summary-unnamed-materials = { $count ->
     [one] Ein Eintrag der Materialbibliothek ist kein Material; dafür wird das Standardmaterial verwendet.
    *[other] { $number } Einträge der Materialbibliothek sind kein Material; dafür wird das Standardmaterial verwendet.
   }
+model-export-summary-missing-layers = { $count ->
+    [one] Eine Layer-Datei der Materialbibliothek fehlt oder ist nicht lesbar; ihre Materialien behalten die Farben der eigenen Datei.
+   *[other] { $number } Layer-Dateien der Materialbibliothek fehlen oder sind nicht lesbar; ihre Materialien behalten die Farben der eigenen Datei.
+  }
 model-export-summary-hidden = { $count ->
     [one] Ein Submesh wurde ausgelassen, weil sein Material nichts zeichnet.
    *[other] { $number } Submeshes wurden ausgelassen, weil ihr Material nichts zeichnet.

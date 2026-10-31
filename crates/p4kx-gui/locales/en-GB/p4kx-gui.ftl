@@ -980,6 +980,10 @@ model-export-summary-unnamed-materials = { $count ->
     [one] One entry of the material library is no material; the default material is used for it.
    *[other] { $number } entries of the material library are no material; the default material is used for them.
   }
+model-export-summary-missing-layers = { $count ->
+    [one] One layer file of the material library is missing or unreadable; its materials keep the colours of their own file.
+   *[other] { $number } layer files of the material library are missing or unreadable; their materials keep the colours of their own file.
+  }
 model-export-summary-hidden = { $count ->
     [one] One submesh was left out because its material draws nothing.
    *[other] { $number } submeshes were left out because their material draws nothing.

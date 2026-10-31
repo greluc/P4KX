@@ -49,6 +49,7 @@ mod model_info_animations;
 mod model_info_materials;
 mod model_observed;
 mod model_source;
+mod model_source_glb;
 mod model_textures;
 mod options;
 mod output_file;

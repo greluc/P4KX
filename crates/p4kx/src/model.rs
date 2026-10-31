@@ -54,11 +54,11 @@ fn open_listing(source: &ModelFileSource) -> Result<(ModelSource, AnimationListi
     if let Some(entry) = &source.entry {
         let archive = crate::key::open(&source.path)?;
         let index = PathIndex::new(&archive);
-        let model = ModelSource::from_index_with(&index, entry, LodSelection::All)?;
+        let model = ModelSource::from_index_plain_materials(&index, entry, LodSelection::All)?;
         let listing = AnimationListing::from_archive(&index, entry, &source.animation_sources)?;
         return Ok((model, listing));
     }
-    let model = ModelSource::from_file_with(&source.path, LodSelection::All)?;
+    let model = ModelSource::from_file_plain_materials(&source.path, LodSelection::All)?;
     let extra: Vec<PathBuf> = source.animation_sources.iter().map(PathBuf::from).collect();
     let listing = AnimationListing::from_disk(&source.path, &extra)?;
     Ok((model, listing))

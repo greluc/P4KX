@@ -5,6 +5,7 @@ use p4kx_chunks::{ChunkFile, ChunkType, Container, ivo};
 
 use crate::build::build;
 use crate::crch::build as build_crch;
+use crate::mtl_load::ModelMaterials;
 use crate::{
     Bone, CompanionResolver, Influences, MaterialStatus, ModelError, ModelIssue, PositionBox,
     Transform,
@@ -292,7 +293,7 @@ impl Model {
         companions: &mut dyn CompanionResolver,
         lods: LodSelection,
     ) -> Result<Self, ModelError> {
-        Self::read_selecting(name, file, companions, lods, true, PositionBox::default())
+        Self::read_with_box(name, file, companions, lods, PositionBox::default())
     }
 
     /// Reads the levels of detail `lods` like [`Self::read_with`], dequantising quantised vertex
@@ -309,53 +310,27 @@ impl Model {
         lods: LodSelection,
         position_box: PositionBox,
     ) -> Result<Self, ModelError> {
-        Self::read_selecting(name, file, companions, lods, true, position_box)
+        Self::read_selecting(
+            name,
+            file,
+            companions,
+            lods,
+            ModelMaterials::Drawn,
+            position_box,
+        )
     }
 
-    /// Reads the levels of detail `lods` of the model `file` like [`Self::read_with`], but leaves
-    /// the material library the model names unread: [`Self::materials`] is
-    /// [`MaterialStatus::Skipped`] and [`Self::material_library`] still holds the name, for a
-    /// caller that chooses and caches the library itself, see [`MaterialStatus::load`].
-    ///
-    /// # Errors
-    ///
-    /// As [`Self::read_with`].
-    pub fn read_without_materials<B: AsRef<[u8]>>(
+    pub(crate) fn read_selecting<B: AsRef<[u8]>>(
         name: &str,
         file: &ChunkFile<B>,
         companions: &mut dyn CompanionResolver,
         lods: LodSelection,
-    ) -> Result<Self, ModelError> {
-        Self::read_selecting(name, file, companions, lods, false, PositionBox::default())
-    }
-
-    /// Reads the model like [`Self::read_without_materials`], dequantising quantised vertex
-    /// positions with the box `position_box`, see [`Self::read_with_box`].
-    ///
-    /// # Errors
-    ///
-    /// As [`Self::read_with`].
-    pub fn read_without_materials_with_box<B: AsRef<[u8]>>(
-        name: &str,
-        file: &ChunkFile<B>,
-        companions: &mut dyn CompanionResolver,
-        lods: LodSelection,
-        position_box: PositionBox,
-    ) -> Result<Self, ModelError> {
-        Self::read_selecting(name, file, companions, lods, false, position_box)
-    }
-
-    fn read_selecting<B: AsRef<[u8]>>(
-        name: &str,
-        file: &ChunkFile<B>,
-        companions: &mut dyn CompanionResolver,
-        lods: LodSelection,
-        load_materials: bool,
+        materials: ModelMaterials,
         position_box: PositionBox,
     ) -> Result<Self, ModelError> {
         match file.container() {
-            Container::Ivo => build(name, file, companions, lods, load_materials, position_box),
-            Container::CrCh => build_crch(name, file, companions, lods, load_materials),
+            Container::Ivo => build(name, file, companions, lods, materials, position_box),
+            Container::CrCh => build_crch(name, file, companions, lods, materials),
         }
     }
 

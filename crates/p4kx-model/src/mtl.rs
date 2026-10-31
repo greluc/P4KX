@@ -253,7 +253,7 @@ pub struct MaterialLibrary {
     pub unknown_entries: usize,
     /// The paths of the layer files of the materials that are missing or unreadable, as the
     /// layers name them; their layers keep no [`LayerSurface`]. Set by
-    /// [`MaterialStatus::load`], empty after [`Self::parse`].
+    /// [`MaterialStatus::load`], empty after [`Self::parse`] and [`MaterialStatus::load_plain`].
     pub unresolved_layers: Vec<String>,
     /// The sub-materials in material ID order; one material when [`Self::single`].
     pub materials: Vec<Material>,
@@ -320,7 +320,25 @@ impl MaterialStatus {
     /// then below `Data`. `None` is [`Self::Unnamed`]. A library that is missing, unsafe to ask
     /// for or unreadable is a status, not a failure.
     pub fn load(name: Option<&str>, companions: &mut dyn crate::CompanionResolver) -> Self {
-        crate::mtl_load::load(name, companions)
+        Self::load_cached(name, companions, &mut crate::LayerCache::new())
+    }
+
+    /// Reads the library like [`Self::load`], taking the layer files from `cache` when it holds
+    /// them and leaving the ones it fetched there, so that the libraries of one model set share
+    /// each layer file.
+    pub fn load_cached(
+        name: Option<&str>,
+        companions: &mut dyn crate::CompanionResolver,
+        cache: &mut crate::LayerCache,
+    ) -> Self {
+        crate::mtl_load::load(name, companions, crate::mtl_load::Reading::Drawn(cache))
+    }
+
+    /// Reads the library like [`Self::load`] without the layer files and the diffuse maps, which
+    /// only a caller that draws needs: the layers keep no [`LayerSurface`] and
+    /// [`MaterialLibrary::unresolved_layers`] is empty.
+    pub fn load_plain(name: Option<&str>, companions: &mut dyn crate::CompanionResolver) -> Self {
+        crate::mtl_load::load(name, companions, crate::mtl_load::Reading::Plain)
     }
 
     /// Returns the library when it was read.

@@ -8,10 +8,10 @@ use crate::crch_mesh::{physics_slots, read_physics_mesh};
 use crate::crch_node::{CrchNode, read_nodes};
 use crate::error::failure;
 use crate::material::material_library;
-use crate::mtl_load::load;
+use crate::mtl_load::{ModelMaterials, load_for};
 use crate::{
-    CompanionResolver, CorruptChunk, Lod, LodSelection, MaterialStatus, Mesh, Model, ModelError,
-    ModelFile, ModelIssue, UnsupportedLayout,
+    CompanionResolver, CorruptChunk, Lod, LodSelection, Mesh, Model, ModelError, ModelFile,
+    ModelIssue, UnsupportedLayout,
 };
 
 const MESH_VERSION: u32 = 0x801;
@@ -26,7 +26,7 @@ pub(crate) fn build<B: AsRef<[u8]>>(
     file: &ChunkFile<B>,
     companions: &mut dyn CompanionResolver,
     selection: LodSelection,
-    load_materials: bool,
+    materials: ModelMaterials,
 ) -> Result<Model, ModelError> {
     let mut read = Vec::new();
     let crch_nodes = read_nodes(name, file, &mut read)?;
@@ -63,11 +63,7 @@ pub(crate) fn build<B: AsRef<[u8]>>(
         read.push((ModelFile::Model, index));
         material_library(file.chunk_data(index).unwrap_or_default())
     });
-    let materials = if load_materials {
-        load(library.as_deref(), companions)
-    } else {
-        MaterialStatus::Skipped
-    };
+    let materials = load_for(materials, library.as_deref(), companions);
     let mut nodes: Vec<_> = crch_nodes.into_iter().map(|crch| crch.node).collect();
     if nodes.is_empty() {
         nodes.push(root_node(name));

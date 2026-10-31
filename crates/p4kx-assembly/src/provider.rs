@@ -3,9 +3,9 @@
 
 use std::error::Error;
 use std::io::Read;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, PoisonError};
 
-use p4kx_extraction::model::{LodSelection, MaterialStatus, Model, ModelError};
+use p4kx_extraction::model::{LayerCache, LodSelection, MaterialStatus, Model, ModelError};
 use p4kx_extraction::{
     AnimationChoice, AnimationSet, Archive, ArchiveTextures, ConversionError, ModelSource,
     PathIndex, archive_error_in,
@@ -191,12 +191,14 @@ pub(crate) fn starts_with_path(path: &str, prefix: &str) -> bool {
     })
 }
 
-/// Reads models and material libraries from the Entries of an Archive below `Data`.
+/// Reads models and material libraries from the Entries of an Archive below `Data`; the layer
+/// files of the libraries are fetched and parsed once for all of them.
 #[derive(Debug)]
 pub struct ArchiveModels<'a> {
     archive: &'a Archive,
     index: PathIndex<'a>,
     max_attachment_vertices: usize,
+    layers: Mutex<LayerCache>,
 }
 
 impl<'a> ArchiveModels<'a> {
@@ -207,6 +209,7 @@ impl<'a> ArchiveModels<'a> {
             archive,
             index: PathIndex::new(archive),
             max_attachment_vertices: MAX_ASSEMBLY_VERTICES,
+            layers: Mutex::new(LayerCache::new()),
         }
     }
 
@@ -288,7 +291,8 @@ impl ModelProvider for ArchiveModels<'_> {
     }
 
     fn library(&self, entry: &str, name: &str) -> MaterialStatus {
-        ModelSource::material_library(&self.index, entry, name)
+        let mut layers = self.layers.lock().unwrap_or_else(PoisonError::into_inner);
+        ModelSource::material_library_cached(&self.index, entry, name, &mut layers)
     }
 
     fn file(&self, path: &str, limit: u64) -> Result<Vec<u8>, ModelFailure> {

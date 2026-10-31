@@ -193,7 +193,8 @@ fn worn(
     }
     Some(match head {
         Some(moved) if job.follows_head => {
-            let dressed = followed(&model, moved);
+            let mut dressed = followed(&model, moved);
+            issues.extend(dressed.kinds.drain(..).map(|kind| issue(job, kind)));
             let meshes = level_zero_meshes(&dressed.model);
             if meshes > 1 && !dressed.morphs.is_empty() {
                 issues.push(issue(job, IssueKind::FollowMorphsFirstMeshOnly { meshes }));
@@ -205,6 +206,7 @@ fn worn(
             morphs,
             face,
             follows: Vec::new(),
+            kinds: Vec::new(),
         },
     })
 }

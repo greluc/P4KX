@@ -11,9 +11,10 @@ import pytest
 
 from p4kx_importer import package
 from p4kx_importer.graph_groups import LAYER_BLEND, WEAR, group_spec
-from p4kx_importer.graph_spec import GraphSpec, Ref
+from p4kx_importer.graph_spec import GraphSpec, NodeSpec, Ref
 from p4kx_importer.material_graph import BuildContext, build_graph, family_of
 from p4kx_importer.material_model import parse_materials, parse_palettes
+from p4kx_importer.material_surface import GLASS_BSDF_SHARE
 from p4kx_importer.material_pairing import index_of, pair_by_index
 from synthetic_materials import description, entry, manifest_11, slot
 
@@ -299,11 +300,33 @@ def test_the_vertex_colour_node_names_the_attribute_the_gltf_import_writes() -> 
     assert graph.node(colours.key).props == {"layer_name": "Color"}
 
 
-def test_the_glass_shader_name_is_tinted_like_glasspbr() -> None:
-    graph = single([description("x0001", "Glass", gen_mask=["PER_VERTEX_TINT"])])
-    colours = graph.linked("bsdf", "Base Color")
-    assert colours is not None
-    assert graph.node(colours.key).kind == "ShaderNodeVertexColor"
+def test_the_package_statement_decides_whether_glass_reads_the_vertex_colours() -> None:
+    stated = single([description("x0001", "GlassPBR", gen_mask=["PER_VERTEX_TINT"], reads_vertex_colours=False)])
+    assert "ShaderNodeVertexColor" not in stated.kinds()
+    other = single([description("x0001", "GlassPBR", gen_mask=["NORMAL_MAP"], reads_vertex_colours=True)])
+    assert "ShaderNodeVertexColor" in other.kinds()
+
+
+def test_a_layered_surface_the_package_says_ignores_the_vertex_colours_is_not_blended() -> None:
+    layers = [{"name": "a", "material": "x0002"}, {"name": "b", "material": "x0002"}]
+    for stated, blended in ((False, False), (True, True)):
+        raw = [
+            description("x0001", "HardSurface", layers=layers, reads_vertex_colours=stated),
+            description("x0002", "Layer", diffuse=[0.3, 0.3, 0.3]),
+        ]
+        graph = single(raw)
+        assert ("ShaderNodeVertexColor" in graph.kinds()) is blended
+        assert (LAYER_BLEND in graph.groups()) is blended
+
+
+def test_a_package_before_1_4_keeps_the_earlier_vertex_colour_rule() -> None:
+    glass = single([description("x0001", "GlassPBR", gen_mask=["PER_VERTEX_TINT"])])
+    assert "ShaderNodeVertexColor" in glass.kinds()
+    clear = single([description("x0001", "GlassPBR", gen_mask=["NORMAL_MAP"])])
+    assert "ShaderNodeVertexColor" not in clear.kinds()
+    layers = [{"name": "a", "material": "x0002"}, {"name": "b", "material": "x0002"}]
+    surface = [description("x0001", "HardSurface", layers=layers), description("x0002", "Layer")]
+    assert "ShaderNodeVertexColor" in single(surface).kinds()
 
 
 def test_a_white_palette_glass_colour_with_the_flag_links_the_vertex_colours_alone() -> None:
@@ -344,42 +367,68 @@ def test_glass_tint_strength_fades_the_palette_colour_towards_white(
     assert graph.node("bsdf").inputs["Base Color"] == pytest.approx(colour)
 
 
-def test_clear_glass_lets_the_scene_through() -> None:
-    graph = single([description("x0001", "GlassPBR")])
-    assert graph.node("bsdf").inputs["Alpha"] == pytest.approx(0.15)
+def glass_mix(graph: GraphSpec) -> str:
+    """Returns the key of the Mix Shader that the output reads (no opacity fade)."""
+    surface = graph.linked("output", "Surface")
+    assert surface is not None and graph.node(surface.key).kind == "ShaderNodeMixShader"
+    return surface.key
+
+
+def tint_of(graph: GraphSpec, mix: str) -> NodeSpec:
+    """Returns the Transparent BSDF node that tints the glass of ``mix``."""
+    source = graph.linked(mix, 1)
+    assert source is not None and graph.node(source.key).kind == "ShaderNodeBsdfTransparent"
+    return graph.node(source.key)
+
+
+def test_glass_is_a_tinted_transparent_surface_with_a_share_of_the_principled_bsdf() -> None:
+    graph = single([description("x0001", "GlassPBR", diffuse=[0.5, 0.5, 0.5])])
+    mix = glass_mix(graph)
+    assert graph.node(mix).inputs["Fac"] == GLASS_BSDF_SHARE
+    assert tint_of(graph, mix).inputs["Color"] == (0.5, 0.5, 0.5)
+    assert graph.linked(mix, 2) == Ref("bsdf", "BSDF")
     assert graph.node("bsdf").inputs["Transmission Weight"] == 1.0
+    assert "Alpha" not in graph.node("bsdf").inputs
+    assert graph.alpha_mode == "blend"
 
 
-def test_tinted_glass_is_more_opaque_the_darker_its_colour() -> None:
+def test_dark_glass_differs_from_grey_glass_only_in_its_tint() -> None:
     dark = single([description("x0001", "GlassPBR", diffuse=[0.0, 0.0, 0.0])])
-    grey = single([description("x0001", "GlassPBR", diffuse=[0.5, 0.5, 0.5])])
-    assert dark.node("bsdf").inputs["Alpha"] == pytest.approx(1.0)
-    assert grey.node("bsdf").inputs["Alpha"] == pytest.approx(0.575)
+    grey = single([description("x0001", "GlassPBR", diffuse=[0.16, 0.16, 0.16])])
+    assert dark.node(glass_mix(dark)).inputs["Fac"] == grey.node(glass_mix(grey)).inputs["Fac"] == GLASS_BSDF_SHARE
+    assert tint_of(dark, glass_mix(dark)).inputs["Color"] != tint_of(grey, glass_mix(grey)).inputs["Color"]
 
 
-def test_palette_glass_colour_sets_the_alpha() -> None:
+def test_palette_glass_colour_tints_the_transparent_surface() -> None:
     graph = single([description("x0001", "GlassPBR", palette="glass")], palette=load().palettes["p0001"])
-    expected = 1.0 - 0.85 * (0.2126 * 0.2 + 0.7152 * 0.3 + 0.0722 * 0.4)
-    assert graph.node("bsdf").inputs["Alpha"] == pytest.approx(expected)
+    assert tint_of(graph, glass_mix(graph)).inputs["Color"] == (0.2, 0.3, 0.4)
 
 
-def test_per_vertex_tint_glass_derives_its_alpha_from_the_tinted_colour() -> None:
+def test_per_vertex_tint_glass_tints_the_transparent_surface_with_the_same_colour() -> None:
     graph = single([description("x0001", "GlassPBR", gen_mask=["PER_VERTEX_TINT"])])
     colours = graph.linked("bsdf", "Base Color")
-    alpha = graph.linked("bsdf", "Alpha")
-    assert colours is not None and alpha is not None
-    assert graph.node(alpha.key).props["operation"] == "SUBTRACT"
-    scaled = graph.linked(alpha.key, 1)
-    assert scaled is not None
-    assert graph.node(scaled.key).inputs[1] == pytest.approx(0.85)
-    grey = graph.linked(scaled.key, 0)
-    assert grey is not None and graph.node(grey.key).kind == "ShaderNodeRGBToBW"
-    assert graph.linked(grey.key, "Color") == colours
+    assert colours is not None
+    assert graph.linked(tint_of(graph, glass_mix(graph)).key, "Color") == colours
 
 
-def test_glass_opacity_scales_the_alpha() -> None:
+def test_a_coloured_per_vertex_tint_feeds_one_multiply_mix_to_both_glass_colours() -> None:
+    raw = description("x0001", "GlassPBR", gen_mask=["PER_VERTEX_TINT"], diffuse=[0.5, 0.25, 1.0])
+    graph = single([raw])
+    colours = graph.linked("bsdf", "Base Color")
+    assert colours is not None and graph.node(colours.key).props["blend_type"] == "MULTIPLY"
+    assert graph.node(colours.key).inputs["B"] == (0.5, 0.25, 1.0)
+    assert graph.linked(tint_of(graph, glass_mix(graph)).key, "Color") == colours
+
+
+def test_glass_opacity_fades_the_surface_to_clear() -> None:
     graph = single([description("x0001", "GlassPBR", opacity=0.5)])
-    assert graph.node("bsdf").inputs["Alpha"] == pytest.approx(0.075)
+    fade = graph.linked("output", "Surface")
+    assert fade is not None and graph.node(fade.key).inputs["Fac"] == pytest.approx(0.5)
+    clear = graph.linked(fade.key, 1)
+    assert clear is not None and graph.node(clear.key).kind == "ShaderNodeBsdfTransparent"
+    assert "Color" not in graph.node(clear.key).inputs
+    glass = graph.linked(fade.key, 2)
+    assert glass is not None and graph.node(glass.key).kind == "ShaderNodeMixShader"
 
 
 NODRAW_KINDS = {"ShaderNodeBsdfTransparent", "ShaderNodeOutputMaterial"}

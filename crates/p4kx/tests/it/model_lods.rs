@@ -9,7 +9,8 @@ use std::path::{Path, PathBuf};
 
 use assert_cmd::Command;
 use p4kx_testkit::{
-    ArchiveBuilder, CUBE_CAPS_MATERIAL, TestEntry, TestModel, TestNormals, TestSubmesh, check_glb,
+    ArchiveBuilder, CUBE_CAPS_MATERIAL, TestEntry, TestModel, TestMtl, TestMtlMaterial,
+    TestNormals, TestSubmesh, check_glb,
 };
 use serde_json::Value;
 
@@ -35,6 +36,14 @@ fn cube() -> TestModel {
         .with_lod(caps_only())
 }
 
+/// One material for every ID that reads the vertex colours, so `COLOR_0` is written.
+fn tinted_glass() -> Vec<u8> {
+    let glass = TestMtlMaterial::new("glass")
+        .shader("GlassPBR")
+        .string_gen_mask("%PER_VERTEX_TINT");
+    TestMtl::single(&glass).cryxml()
+}
+
 fn write_archive(folder: &Path) -> Result<PathBuf, Box<dyn Error>> {
     let path = folder.join("Data.p4k");
     let cube = cube();
@@ -51,6 +60,10 @@ fn write_archive(folder: &Path) -> Result<PathBuf, Box<dyn Error>> {
         .entry(TestEntry::zstd(
             "Data\\Objects\\Test\\cube_lod1.cgfm",
             cube.lod_cgfm(1).ok_or("LOD1 companion")?,
+        ))
+        .entry(TestEntry::zstd(
+            "Data\\Objects\\Test\\cube.mtl",
+            tinted_glass(),
         ))
         .write_to(&path)?;
     Ok(path)

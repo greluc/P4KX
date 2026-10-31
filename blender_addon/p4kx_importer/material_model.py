@@ -99,7 +99,11 @@ class Palette:
 
 @dataclass(frozen=True, slots=True)
 class MaterialDesc:
-    """The inputs of one game material, as the package describes them."""
+    """The inputs of one game material, as the package describes them.
+
+    ``stated_vertex_colours`` is the package's ``reads_vertex_colours`` (format 1.4), ``None`` in
+    an older package; read it through ``material_surface.reads_vertex_colours``.
+    """
 
     id: str
     name: str
@@ -120,6 +124,7 @@ class MaterialDesc:
     textures: tuple[TextureSlot, ...] = ()
     layers: tuple[Layer, ...] = ()
     parameters: dict[str, str] = field(default_factory=dict)
+    stated_vertex_colours: bool | None = None
 
     def slot(self, usage: str) -> TextureSlot | None:
         """Returns the first texture slot of ``usage`` that has a written texture."""
@@ -172,6 +177,7 @@ def _material(item: object) -> MaterialDesc | None:
         return None
     alpha_mode = item.get("alpha_mode")
     palette = item.get("palette")
+    stated = item.get("reads_vertex_colours")
     return MaterialDesc(
         id=material_id,
         name=_string(item.get("name")),
@@ -192,6 +198,7 @@ def _material(item: object) -> MaterialDesc | None:
         textures=tuple(s for s in map(_slot, _list(item.get("textures"))) if s is not None),
         layers=tuple(layer for layer in map(_layer, _list(item.get("layers"))) if layer),
         parameters=_parameters(item.get("parameters")),
+        stated_vertex_colours=stated if isinstance(stated, bool) else None,
     )
 
 

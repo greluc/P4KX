@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 use gltf_json as json;
-use p4kx_model::Animation;
+use p4kx_model::{Animation, Influences};
 
 use crate::animations::{AnimationPlan, Targets, plan as plan_animations};
 use crate::document::skeleton_written;
@@ -10,13 +10,41 @@ use crate::glb::{GlbOptions, GlbSummary};
 use crate::instance::Instance;
 use crate::layout::{Layout, Rigging};
 use crate::materials::Slot;
+use crate::skin::inverse_binds;
 use crate::texture_loader::TextureLoader;
 use crate::texture_plan::{PartSlots, TextureSet};
+
+/// The skeleton the skinned meshes of a document are weighted to: its inverse bind matrices and,
+/// per instance and mesh, the influences to write instead of the meshes' own.
+#[derive(Clone, Copy)]
+pub(crate) struct Skeletal<'m> {
+    pub(crate) binds: &'m [[f32; 16]],
+    pub(crate) influences: Option<&'m [Vec<Vec<Influences>>]>,
+}
+
+impl<'m> Skeletal<'m> {
+    /// Weights the meshes to `binds`, the skeleton of their own model, with their own influences.
+    pub(crate) const fn own(binds: &'m [[f32; 16]]) -> Self {
+        Self {
+            binds,
+            influences: None,
+        }
+    }
+}
+
+/// Returns the inverse bind matrices of the skeleton of a model that is written alone, if it has
+/// bones and a skinned mesh at its level of detail.
+pub(crate) fn own_binds(instance: &Instance<'_>) -> Option<Vec<[f32; 16]>> {
+    let lod = instance.lod?;
+    let bones = instance.model.bones_of(lod);
+    (!bones.is_empty() && lod.meshes.iter().any(|mesh| mesh.influences.is_some()))
+        .then(|| inverse_binds(bones))
+}
 
 pub(crate) fn plan_layout<'m>(
     instances: &[Instance<'m>],
     options: &GlbOptions,
-    binds: Option<&'m [[f32; 16]]>,
+    skeletal: Option<Skeletal<'m>>,
 ) -> Layout<'m> {
     let mut layout = Layout::new().limited(options.max_influences);
     let mut hidden = vec![0; instances.len()];
@@ -26,8 +54,10 @@ pub(crate) fn plan_layout<'m>(
         } else if let Some(lod) = instance.lod {
             let before = layout.hidden_primitives;
             let rigging = Rigging {
-                binds,
-                influences: None,
+                binds: skeletal.map(|skeletal| skeletal.binds),
+                influences: skeletal
+                    .and_then(|skeletal| skeletal.influences?.get(part))
+                    .map(Vec::as_slice),
                 morphs: &[],
             };
             layout.add_part(part, lod, options.vertex_colours, &instance.plan, rigging);

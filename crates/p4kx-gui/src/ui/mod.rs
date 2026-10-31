@@ -43,6 +43,7 @@ mod content_search;
 mod content_search_notes;
 mod content_search_rows;
 mod dataforge_summary;
+mod dialog;
 mod diff_rows;
 mod empty;
 mod entities;
@@ -57,6 +58,7 @@ mod extraction;
 mod extraction_exclude;
 mod extraction_outcome;
 mod field_rows;
+mod folder_conversion_outcome;
 mod game_running;
 mod hex_view;
 mod image_preview;
@@ -135,54 +137,14 @@ use egui::{CentralPanel, Panel, Rect, Ui, pos2};
 use crate::theme::desktop::{HEADER_HEIGHT, STATUS_HEIGHT};
 use crate::widgets::{frames, tab};
 
+pub use dialog::Dialog;
 pub use regions::{Regions, regions};
 
 const RESIZE_GAP: i8 = 6;
 use crate::{
-    CharacterText, ComparisonSide, ComparisonText, ContentSearchText, EntityText, LocalizationText,
-    Model, QueryExportFormat, QueryText, SoundsText, TagsText, Text, UiText, WorkTab,
+    CharacterText, ComparisonText, ContentSearchText, EntityText, LocalizationText, Model,
+    QueryText, SoundsText, TagsText, Text, UiText, WorkTab,
 };
-
-/// A dialog the host shows for the window.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Dialog {
-    /// Picks an Archive to open.
-    OpenArchive,
-    /// Picks a DataForge file such as `Game2.dcb` to open.
-    OpenDataForge,
-    /// Picks a folder to add as a manual entry.
-    AddFolder,
-    /// Picks an Archive to add as a manual entry.
-    AddArchive,
-    /// Picks the folder of an Extraction.
-    ExtractionFolder,
-    /// Picks the Archive of one side of the Comparison.
-    ComparisonArchive(ComparisonSide),
-    /// Picks the file the Comparison report is saved to.
-    ComparisonReport,
-    /// Picks the file the Query result is exported to.
-    QueryExport(QueryExportFormat),
-    /// Picks the folder of a Record export.
-    RecordExportFolder,
-    /// Picks the file the Basetool catalog is written to.
-    CatalogFile,
-    /// Picks the GLB file a model is exported to.
-    ModelFile,
-    /// Picks the GLB file an Entity is exported to.
-    AssemblyFile,
-    /// Picks the folder an Entity is exported to as a Blender package.
-    AssemblyPackage,
-    /// Picks the folder of a sound export.
-    SoundsFolder,
-    /// Picks the CHF file of a head.
-    CharacterChf,
-    /// Picks the GLB file a Character is exported to.
-    CharacterFile,
-    /// Picks the folder a Character is exported to as a Blender package.
-    CharacterPackage,
-    /// Picks the PNG or SVG file a UI picture is exported to.
-    UiFile,
-}
 
 /// What the window asks of its host after a frame.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]

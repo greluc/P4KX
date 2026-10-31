@@ -18,8 +18,8 @@ use crate::widgets::text::caps;
 use crate::widgets::toggle;
 use crate::{
     AboutText, ArchiveKeyText, AssemblyExportText, CatalogText, ExtractionScope, ExtractionText,
-    KeyReason, Language, Model, ModelExportText, RecordExportText, RecordLanguageText,
-    RecordTextChoice, Text, Texts,
+    FolderConversionText, KeyReason, Language, Model, ModelExportText, RecordExportText,
+    RecordLanguageText, RecordTextChoice, Text, Texts,
 };
 
 /// Shows the header: the brand and the menus.
@@ -195,6 +195,13 @@ fn archive_menu(ui: &mut Ui, model: &Model, requests: &mut Requests) -> Option<P
             if ui.button(entry(&texts.get(text))).clicked() {
                 requests.dialog = Some(dialog);
             }
+        }
+        let convert = Button::new(entry(&texts.get(FolderConversionText::Action)));
+        if ui
+            .add_enabled(model.folder_conversion_available(), convert)
+            .clicked()
+        {
+            requests.dialog = Some(Dialog::ConversionInput);
         }
         ui.menu_button(entry(&texts.get(Text::MenuRecent)), |ui| {
             dropdown(ui);

@@ -60,6 +60,7 @@ fn sample_args() -> Vec<(&'static str, FluentValue<'static>)> {
         ("unclassified", "4".into()),
         ("failed", "0".into()),
         ("cancelled", "0".into()),
+        ("left", "2".into()),
         ("written", "3".into()),
         ("errors", "1".into()),
         ("erroneous", "1".into()),

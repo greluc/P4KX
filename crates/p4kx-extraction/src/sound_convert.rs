@@ -5,13 +5,13 @@ use std::io::Write;
 use std::path::Path;
 use std::sync::atomic::AtomicU64;
 
-use p4kx_archive::Entry;
 use p4kx_audio::{AudioError, Codec, MediaClass, Wem};
 
 use crate::buffers::Buffers;
 use crate::entry_path::relative_path;
 use crate::extract::Ended;
 use crate::sound_job::sound_role;
+use crate::source::SourceEntry;
 use crate::texture_convert::Step;
 use crate::texture_job::Indexed;
 use crate::write::{Destination, EntryWriter, Outcome};
@@ -92,7 +92,7 @@ impl EntryWriter<'_> {
         limit: u64,
         convert: impl FnOnce(
             &Self,
-            &Entry,
+            &SourceEntry<'_>,
             &mut Buffers,
             &AtomicU64,
         ) -> Result<Converted, ExtractionError>,
@@ -137,7 +137,7 @@ impl EntryWriter<'_> {
     /// returns `false` once the run is to stop.
     pub(crate) fn read_sound(
         &self,
-        entry: &Entry,
+        entry: &SourceEntry<'_>,
         buffers: &mut Buffers,
         credited: &AtomicU64,
     ) -> Result<bool, ExtractionError> {
@@ -154,7 +154,7 @@ impl EntryWriter<'_> {
     /// codec only the sound tells.
     pub(crate) fn try_write_sound(
         &self,
-        entry: &Entry,
+        entry: &SourceEntry<'_>,
         buffers: &mut Buffers,
         credited: &AtomicU64,
     ) -> Result<Converted, ExtractionError> {

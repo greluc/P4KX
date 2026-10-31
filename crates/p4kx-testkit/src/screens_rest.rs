@@ -66,8 +66,19 @@ pub(crate) fn rest_structs() -> Vec<TestStruct> {
             .field("isTrue", TestType::Single)
             .field("isFalse", TestType::Single)
             .field("input", operation_input()),
+        operation("StringFromBooleanCanvas")
+            .field(
+                "isTrue",
+                TestType::ReferenceTo("BuildingBlocks_Canvas".to_owned()),
+            )
+            .field(
+                "isFalse",
+                TestType::ReferenceTo("BuildingBlocks_Canvas".to_owned()),
+            )
+            .field("input", operation_input()),
         field_operation("BooleanField"),
         field_operation("NumberField"),
+        field_operation("StringField"),
         TestStruct::new("BindingsOperations_AudioEvent").parent(OPERATION),
         TestStruct::new("BuildingBlocks_ComponentParameterInput"),
         parameter("Boolean", TestType::Bool),
@@ -137,6 +148,10 @@ pub enum TestOp {
     NumField(&'static str, &'static str, &'static str),
     /// The text of the widget, which the text operation sets.
     TextOf(&'static str, &'static str),
+    /// The canvas Record `guid` when the boolean operation holds, else the canvas Record `other`.
+    CanvasFromBool(&'static str, u128, u128),
+    /// The `CanvasReferenceRecord` of the canvas widget, which the canvas operation sets.
+    CanvasField(&'static str, &'static str),
 }
 
 fn input(name: &str) -> TestValue {
@@ -205,6 +220,15 @@ impl TestOp {
             Self::BoolField(widget, name, source) => field("Boolean", widget, name, source),
             Self::NumField(widget, name, source) => field("Number", widget, name, source),
             Self::TextOf(widget, source) => field("Localized", widget, "Text", source),
+            Self::CanvasFromBool(source, on, off) => {
+                TestInstance::new("BuildingBlocks_BindingsStringFromBooleanCanvas")
+                    .value("isTrue", TestValue::Reference(*on))
+                    .value("isFalse", TestValue::Reference(*off))
+                    .value("input", input(source))
+            }
+            Self::CanvasField(widget, source) => {
+                field("String", widget, "CanvasReferenceRecord", source)
+            }
         }
     }
 }

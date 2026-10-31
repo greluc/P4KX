@@ -12,6 +12,7 @@ mod real_armour_sets;
 mod real_assembly;
 mod real_assembly_textures;
 mod real_assembly_verification;
+mod real_assortment_census;
 mod real_audio;
 mod real_body_zones;
 mod real_bone_attachments;

@@ -237,7 +237,10 @@ target: `reference` (the GUID) or `class_name`, the other `null`. The kinds are:
   Entities have the class name the entry names; the first in definition order is attached and
   the reason lists every candidate), `no_loadout_files` and `xml_loadout` (an XML Loadout or one
   it includes that is missing, corrupt, includes itself or nests deeper than 8 includes; what
-  could be read is still listed), and `vehicle_implementation` (the implementation file is
+  could be read is still listed), `assortment` (a loadout assortment of a generated default
+  Loadout is no assortment, names itself, directly or through another, or has a first alternative
+  that is no Loadout; the other assortments still apply; a generated Loadout resolves to the
+  first alternative of each group of its assortments, ADR-0289), and `vehicle_implementation` (the implementation file is
   missing, corrupt or no `Vehicle` document, so `vehicle` is absent, or its Modification names a
   patch file that is missing (even when a fallback file is applied), corrupt, outside the implementation folder or too large to apply within the limits, a patch child or `id` that matches nothing in the base and has no base child of its name to replace, or no Modification of that name exists; the
   implementation without the patch is still listed). A landing system that refers to a Record that does not exist or cannot be read gives `dangling_reference` or `unreadable_record` among the issues.
@@ -364,6 +367,9 @@ attachment that cannot be read, are not drawn; reported once per definition, `sk
 `skeleton_missing` and `skeleton_unreadable` (the skeleton file, `Model File`, of a character
 definition is not in the Archive, is larger than 16 MiB or cannot be read as a model; the skin
 is still the part's model; reported once per definition, `skipped` is false),
+`loadout_unreadable` (the Loadout of a creature, an Entity whose root geometry is a character file
+below `Objects/Characters` outside `Human`, cannot be read in full, such as an XML Loadout the
+Archive lacks, so its body port stays empty; reported on the root, `skipped` is false, ADR-0289),
 `material_library` (the library is missing or unreadable; the part is
 drawn with the default material; reported once per library, for the first part that draws with
 it), `palette` (a tint palette the Entity or its library names

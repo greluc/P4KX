@@ -80,6 +80,7 @@ mod cdf_bone;
 mod changes;
 mod chf_names;
 mod compat;
+mod creature_rig;
 mod entities;
 mod entity_interior;
 mod error;

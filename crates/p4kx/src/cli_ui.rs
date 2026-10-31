@@ -81,7 +81,9 @@ pub(crate) enum UiAction {
         /// e.g. `--var powerstate=1` for a ship that is powered on; every variable is zero at
         /// rest, so the MFD of a cold ship draws nothing. A name is the last segment of the path
         /// a binding reads (`powerstate` for `/seatdashboard/powerstate`), or the whole path when
-        /// it holds a `/`. Repeatable, at most 64; the last setting of a name wins and case is
+        /// it holds a `/`. `CANVAS::NAME=VALUE` limits a setting to the canvas whose Record name
+        /// is CANVAS (`mapdisplaymaster::isradar=1`); canvases of the same name are not told
+        /// apart. Repeatable, at most 64; the last setting of a name wins and case is
         /// ignored. The value is read as a boolean (`true`, `false` or a number), a number or a
         /// text, as the binding takes it. A name that no canvas of the screen reads is reported,
         /// and the variables in force are listed in the report.

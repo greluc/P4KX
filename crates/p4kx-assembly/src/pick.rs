@@ -3,6 +3,9 @@
 
 //! The alternative an export takes from each group of a generated Loadout.
 
+use std::collections::HashSet;
+use std::fmt;
+
 use crate::ChangeError;
 
 /// The alternative to take from the groups of the assortments of a generated Loadout.
@@ -10,8 +13,8 @@ use crate::ChangeError;
 /// The game picks one alternative per group at random; without a pick a group gives its first
 /// alternative. Indices count from 0, so index 0 is the first alternative. A group is named by
 /// its `Group` field in the assortment, matched ignoring ASCII case, in whichever assortment it
-/// occurs; a pick of a group that no assortment of the Loadout has changes nothing.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+/// occurs. A named pick of a group that no group of the resolved Loadout has is an issue of it.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
 pub struct LoadoutPicks {
     every: Option<usize>,
     groups: Vec<(String, usize)>,
@@ -70,13 +73,13 @@ impl LoadoutPicks {
         match text.split_once('=') {
             Some((group, index)) => {
                 let group = group.trim();
-                let index = index.trim().parse().map_err(|_| invalid())?;
+                let index = parse_index(index).ok_or_else(invalid)?;
                 if group.is_empty() {
                     return Err(invalid());
                 }
                 Ok(self.group(group, index))
             }
-            None => Ok(self.every(text.trim().parse().map_err(|_| invalid())?)),
+            None => Ok(self.every(parse_index(text).ok_or_else(invalid)?)),
         }
     }
 
@@ -111,6 +114,34 @@ impl LoadoutPicks {
         &self.groups
     }
 
+    /// Returns the same picks with the group names in lower case and sorted, so that picks that
+    /// choose the same alternatives compare and hash alike.
+    #[must_use]
+    pub fn normalised(&self) -> Self {
+        let mut groups: Vec<(String, usize)> = self
+            .groups
+            .iter()
+            .map(|(name, index)| (name.to_ascii_lowercase(), *index))
+            .collect();
+        groups.sort();
+        Self {
+            every: self.every,
+            groups,
+        }
+    }
+
+    /// Returns the named picks whose group is not among `seen`, the lower-case names of the
+    /// groups of the resolved Loadout, as `(group, index)` in the order given.
+    pub(crate) fn unseen<'a>(
+        &'a self,
+        seen: &'a HashSet<String>,
+    ) -> impl Iterator<Item = (&'a str, usize)> {
+        self.groups
+            .iter()
+            .filter(|(name, _)| !seen.contains(&name.to_ascii_lowercase()))
+            .map(|(name, index)| (name.as_str(), *index))
+    }
+
     /// Returns what the picks say about `group`; a named pick wins over the pick of every group.
     pub(crate) fn choice(&self, group: &str) -> Choice {
         self.groups
@@ -122,9 +153,76 @@ impl LoadoutPicks {
     }
 }
 
+/// Reads an index: ASCII digits only, so no sign, that fits `usize`.
+fn parse_index(text: &str) -> Option<usize> {
+    let text = text.trim();
+    if text.is_empty() || !text.bytes().all(|byte| byte.is_ascii_digit()) {
+        return None;
+    }
+    text.parse().ok()
+}
+
+/// Writes the picks in the form [`LoadoutPicks::from_list`] reads: the index of every group
+/// first, then the named picks, separated by commas.
+impl fmt::Display for LoadoutPicks {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let every = self.every.map(|index| index.to_string());
+        let named = self
+            .groups
+            .iter()
+            .map(|(name, index)| format!("{name}={index}"));
+        let parts: Vec<String> = every.into_iter().chain(named).collect();
+        f.write_str(&parts.join(", "))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn an_index_is_digits_only_and_must_fit() {
+        for text in [
+            "Body=+1",
+            "+1",
+            "Body=-1",
+            "Body=99999999999999999999999",
+            "Body=1.5",
+        ] {
+            assert!(LoadoutPicks::new().add_text(text).is_err(), "{text:?}");
+        }
+        assert_eq!(
+            LoadoutPicks::new().add_text("Body = 2"),
+            Ok(LoadoutPicks::new().group("Body", 2)),
+            "blanks around the name and the index are trimmed"
+        );
+        assert_eq!(
+            LoadoutPicks::new().add_text("Body=99999999999"),
+            Ok(LoadoutPicks::new().group("Body", 99_999_999_999))
+        );
+    }
+
+    #[test]
+    fn the_display_form_reads_back_and_normalising_ignores_case_and_order() {
+        let picks = LoadoutPicks::new()
+            .group("Eggs", 1)
+            .group("Body", 2)
+            .every(3);
+
+        assert_eq!(picks.to_string(), "3, Eggs=1, Body=2");
+        assert_eq!(
+            LoadoutPicks::from_list(&picks.to_string()),
+            Ok(picks.clone())
+        );
+        assert_eq!(
+            picks.normalised(),
+            LoadoutPicks::new()
+                .group("BODY", 2)
+                .group("eggs", 1)
+                .every(3)
+                .normalised()
+        );
+    }
 
     #[test]
     fn text_is_a_group_pick_or_a_bare_index() {

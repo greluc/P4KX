@@ -31,7 +31,16 @@ fn install() -> TestResult<Install> {
     .record(assortment_record(
         ASSORTMENT,
         "beast",
-        &[("Body", vec![body("Body_Red"), body("Body_Blue")])],
+        &[
+            ("Body", vec![body("Body_Red"), body("Body_Blue")]),
+            (
+                "Eggs",
+                vec![TestLoadout::Manual(vec![TestLoadoutEntry::class(
+                    "Egg_ItemPort",
+                    "Body_Red",
+                )])],
+            ),
+        ],
     ));
     Install::new(vec![TestEntry::zstd("Data/Game2.dcb", forge.build())])
 }
@@ -97,5 +106,94 @@ fn a_malformed_pick_is_an_error() -> TestResult {
     )?;
 
     assert!(error.contains("Body"), "{error}");
+    Ok(())
+}
+
+#[test]
+fn a_named_group_the_loadout_lacks_is_an_issue_and_a_bare_index_beyond_all_is_not() -> TestResult {
+    let install = install()?;
+    let mut server = install.serve(&["--archive", "LIVE"])?;
+
+    let typo = server.ok(
+        "entity_loadout",
+        &json!({ "entity": "Beast", "loadout_pick": ["Bodyy=1"] }),
+    )?;
+    let bare = server.ok(
+        "entity_loadout",
+        &json!({ "entity": "Beast", "loadout_pick": ["9"] }),
+    )?;
+
+    assert_eq!(typo["entity"]["issues"][0]["kind"], "assortment");
+    assert!(
+        typo["entity"]["issues"][0]["reason"]
+            .as_str()
+            .is_some_and(|reason| reason.contains("Bodyy=1")),
+        "{typo}"
+    );
+    assert_eq!(body_class(&typo), Some("Body_Red"));
+    assert_eq!(bare["entity"]["issue_count"], 0, "{bare}");
+    Ok(())
+}
+
+#[test]
+fn a_record_that_is_no_entity_stays_a_loadout_error_with_picks() -> TestResult {
+    let install = install()?;
+    let mut server = install.serve(&["--archive", "LIVE"])?;
+    let assortment = "00000000-0000-0000-0000-000000000100";
+
+    let plain = server.error("entity_loadout", &json!({ "entity": assortment }))?;
+    let picked = server.error(
+        "entity_loadout",
+        &json!({ "entity": assortment, "loadout_pick": ["Body=1"] }),
+    )?;
+
+    assert_eq!(plain, picked, "the pick does not change the error");
+    assert!(!picked.contains("picks are not valid"), "{picked}");
+    Ok(())
+}
+
+#[test]
+fn a_cursor_of_other_picks_is_rejected() -> TestResult {
+    let install = install()?;
+    let mut server = install.serve(&["--archive", "LIVE"])?;
+    let first = server.ok(
+        "entity_loadout",
+        &json!({ "entity": "Beast", "limit": 1, "loadout_pick": ["Body=1", "Eggs=0"] }),
+    )?;
+    let cursor = first["next_cursor"].as_str().ok_or("no next page")?;
+
+    let same_picks_other_form = server.ok(
+        "entity_loadout",
+        &json!({ "entity": "Beast", "limit": 1, "cursor": cursor,
+                 "loadout_pick": ["eggs=0, body=1"] }),
+    )?;
+    let error = server.error(
+        "entity_loadout",
+        &json!({ "entity": "Beast", "limit": 1, "cursor": cursor, "loadout_pick": ["Body=0"] }),
+    )?;
+
+    assert!(same_picks_other_form["ports"].is_array());
+    assert!(error.contains("cursor"), "{error}");
+    Ok(())
+}
+
+#[test]
+fn the_number_and_length_of_picks_are_capped() -> TestResult {
+    let install = install()?;
+    let mut server = install.serve(&["--archive", "LIVE"])?;
+    let many: Vec<String> = (0..65).map(|index| format!("G{index}=0")).collect();
+    let long = format!("{}=1", "g".repeat(300));
+
+    let too_many = server.error(
+        "entity_loadout",
+        &json!({ "entity": "Beast", "loadout_pick": many }),
+    )?;
+    let too_long = server.error(
+        "entity_loadout",
+        &json!({ "entity": "Beast", "loadout_pick": [long] }),
+    )?;
+
+    assert!(too_many.contains("at most 64"), "{too_many}");
+    assert!(too_long.contains("loadout_pick"), "{too_long}");
     Ok(())
 }

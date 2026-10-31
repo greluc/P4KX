@@ -47,7 +47,8 @@ pub(crate) struct LoadoutParams {
     pub(crate) stop_at_docked_vehicles: Option<bool>,
     /// Alternatives of the groups of generated default Loadouts (creatures, NPCs) to take instead
     /// of the first, each `<group>=<index>` such as `Body=2`, or a bare `<index>` for every group
-    /// that has it; indices count from 0. An index beyond a named group is an issue of the
+    /// that has it; indices count from 0. Several picks may share a text, separated by commas.
+    /// An index beyond a named group, and a named group the Loadout lacks, is an issue of the
     /// Entity and the group keeps its first alternative.
     pub(crate) loadout_pick: Option<Vec<String>>,
     /// The `next_cursor` of the previous page; omit it for the first page.
@@ -193,19 +194,19 @@ pub(crate) fn resolve(
 ) -> Result<LoadoutResult, ToolError> {
     let stop_at_docked = params.stop_at_docked_vehicles == Some(true);
     let picks = picks_of(params.loadout_pick.as_deref().unwrap_or_default())?;
-    let tree =
-        opened
-            .loadouts()
-            .get_or_resolve(&params.entity, (stop_at_docked, &picks), || {
-                let files = ArchiveFiles::new(opened.archive());
-                let mut resolver = LoadoutResolver::new(forge).with_files(&files);
-                if stop_at_docked {
-                    resolver = resolver.stopping_at_docked_vehicles();
-                }
-                let record = resolver.entities().find(&params.entity)?;
-                let changes = LoadoutChanges::new().with_picks(picks.clone());
-                Ok(resolver.resolve_with(&record, &changes)?)
-            })?;
+    let key = picks.normalised();
+    let tree = opened
+        .loadouts()
+        .get_or_resolve(&params.entity, (stop_at_docked, &key), || {
+            let files = ArchiveFiles::new(opened.archive());
+            let mut resolver = LoadoutResolver::new(forge).with_files(&files);
+            if stop_at_docked {
+                resolver = resolver.stopping_at_docked_vehicles();
+            }
+            let record = resolver.entities().find(&params.entity)?;
+            let changes = LoadoutChanges::new().with_picks(picks.clone());
+            Ok(resolver.resolve_with(&record, &changes)?)
+        })?;
     let max_depth = usize::try_from(
         params
             .max_depth
@@ -245,7 +246,8 @@ pub(crate) fn resolve(
     Ok(result)
 }
 
-/// Reads the picks of a call: each text `<group>=<index>` or a bare `<index>`.
+/// Reads the picks of a call: each text `<group>=<index>` or a bare `<index>`, several to a text
+/// separated by commas.
 pub(crate) fn picks_of(texts: &[String]) -> Result<LoadoutPicks, ToolError> {
     if texts.len() > MAX_PICKS {
         return Err(ToolError::Refused(format!(
@@ -256,9 +258,7 @@ pub(crate) fn picks_of(texts: &[String]) -> Result<LoadoutPicks, ToolError> {
     for text in texts {
         capped("loadout_pick", text, MAX_TEXT_CHARS)?;
     }
-    Ok(texts
-        .iter()
-        .try_fold(LoadoutPicks::new(), |picks, text| picks.add_text(text))?)
+    Ok(LoadoutPicks::from_list(&texts.join(","))?)
 }
 
 fn depth(path: &str) -> usize {

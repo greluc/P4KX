@@ -58,6 +58,7 @@ impl AssemblyExportSetup {
             container: Vec::new(),
             name: name.to_owned(),
             changes: changes.clone(),
+            picks_text: changes.picks().to_string(),
             interior: settings.interior,
             has_interior,
             ..Self::with_settings(settings)

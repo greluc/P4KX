@@ -118,12 +118,47 @@ fn a_pick_of_the_first_alternative_is_no_issue() -> TestResult {
 }
 
 #[test]
-fn a_pick_of_a_group_the_assortment_lacks_changes_nothing() -> TestResult {
-    let with = picked(LoadoutPicks::new().group("Wings", 5))?;
+fn a_named_pick_of_a_group_the_loadout_lacks_is_an_issue_that_names_it() -> TestResult {
+    let with = picked(LoadoutPicks::new().group("Bodyy", 2).group("egg", 1))?;
     let without = picked(LoadoutPicks::new())?;
 
-    assert!(with.issues().is_empty(), "issues: {:?}", with.issues());
-    assert_eq!(attached(&with), attached(&without));
+    assert_eq!(
+        kinds(&with),
+        ["assortment"],
+        "the known group egg is no issue"
+    );
+    let issue = with.issues()[0].to_string();
+    assert!(issue.contains("Bodyy=2"), "{issue}");
+    assert_eq!(
+        attached(&with)[0],
+        pair("Body_ItemPort", "Body_Red"),
+        "the export is not changed by the typo"
+    );
+    assert_eq!(attached(&with).len(), attached(&without).len());
+    Ok(())
+}
+
+#[test]
+fn a_bare_index_beyond_every_group_is_no_issue() -> TestResult {
+    let tree = picked(LoadoutPicks::new().every(9))?;
+
+    assert!(tree.issues().is_empty(), "issues: {:?}", tree.issues());
+    assert_eq!(
+        attached(&tree),
+        [
+            pair("Body_ItemPort", "Body_Red"),
+            pair("Egg_ItemPort", "Egg")
+        ]
+    );
+    Ok(())
+}
+
+#[test]
+fn a_huge_named_index_is_out_of_range_not_a_failure() -> TestResult {
+    let tree = picked(LoadoutPicks::new().group("Body", usize::MAX))?;
+
+    assert_eq!(kinds(&tree), ["assortment"]);
+    assert_eq!(attached(&tree)[0], pair("Body_ItemPort", "Body_Red"));
     Ok(())
 }
 

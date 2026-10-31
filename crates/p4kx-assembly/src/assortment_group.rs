@@ -22,32 +22,21 @@ impl Group {
         Self { name, alternatives }
     }
 
+    /// Returns the name of the group.
+    pub(crate) fn name(&self) -> &str {
+        &self.name
+    }
+
     /// Returns the Loadout of the alternative `picks` choose, or `None` when the group gives
-    /// nothing. An index beyond the group (named) is an issue of the assortment `guid` and the
-    /// first alternative is used; so is an alternative that is no Loadout.
+    /// nothing: it has no alternatives, or the chosen one is no Loadout, which is an issue of the
+    /// assortment `guid`.
     pub(crate) fn chosen(
         &self,
         picks: &LoadoutPicks,
         guid: Guid,
         issues: &mut Vec<LoadoutError>,
     ) -> Option<LoadoutSpec> {
-        let name = &self.name;
-        let count = self.alternatives.len();
-        let index = match picks.choice(name) {
-            Choice::Named(index) if index > 0 && index >= count => {
-                issues.push(LoadoutError::Assortment {
-                    guid,
-                    reason: format!(
-                        "the pick {index} of the group {name} is beyond its {count} \
-                         alternatives; the first is used"
-                    ),
-                });
-                0
-            }
-            Choice::Named(index) => index,
-            Choice::Every(index) if index < count => index,
-            Choice::Every(_) | Choice::First => 0,
-        };
+        let index = self.index(picks, guid, issues);
         let alternative = self.alternatives.get(index)?;
         if alternative.is_none() {
             let which = if index == 0 {
@@ -57,9 +46,31 @@ impl Group {
             };
             issues.push(LoadoutError::Assortment {
                 guid,
-                reason: format!("{which} of the group {name} is no Loadout"),
+                reason: format!("{which} of the group {} is no Loadout", self.name),
             });
         }
         alternative.clone()
+    }
+
+    /// Returns the index of the alternative `picks` choose. A named index beyond the group is an
+    /// issue of the assortment `guid` and gives 0; a bare index beyond it gives 0 silently.
+    fn index(&self, picks: &LoadoutPicks, guid: Guid, issues: &mut Vec<LoadoutError>) -> usize {
+        let count = self.alternatives.len();
+        match picks.choice(&self.name) {
+            Choice::Named(index) if index > 0 && index >= count => {
+                issues.push(LoadoutError::Assortment {
+                    guid,
+                    reason: format!(
+                        "the pick {index} of the group {} is beyond its {count} \
+                         alternatives; the first is used",
+                        self.name
+                    ),
+                });
+                0
+            }
+            Choice::Named(index) => index,
+            Choice::Every(index) if index < count => index,
+            Choice::Every(_) | Choice::First => 0,
+        }
     }
 }

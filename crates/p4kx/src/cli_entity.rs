@@ -40,9 +40,10 @@ pub(crate) struct LoadoutChangeArgs {
     /// NPC's, which the game picks at random) than the first, as `<group>=<index>`, e.g.
     /// `Body=2`; the group is its name in the assortment, ignoring case. A bare `<index>` takes
     /// it in every group that has it. Indices count from 0 (the first alternative). An index
-    /// beyond a named group is a Loadout issue and the group keeps its first alternative. May be
-    /// given several times.
-    #[arg(long, value_name = "GROUP=INDEX")]
+    /// beyond a named group, and a named group the Loadout does not have, is a Loadout issue and
+    /// the group keeps its first alternative. Several picks are separated by commas or given as
+    /// several options.
+    #[arg(long, value_name = "GROUP=INDEX", value_delimiter = ',')]
     pub(crate) loadout_pick: Vec<String>,
 }
 

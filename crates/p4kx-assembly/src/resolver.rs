@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, OnceLock};
 
 use p4kx_dataforge::{DataForge, Guid, Record, RecordTree, TagTree, TreeBuilder};
@@ -55,6 +55,8 @@ pub struct LoadoutResolver<'f> {
     pub(crate) assortments: HashMap<Guid, Assorted>,
     pub(crate) assorting: Vec<Guid>,
     pub(crate) picks: LoadoutPicks,
+    /// Lower-case names of the assortment groups met while resolving with picks.
+    pub(crate) seen_groups: HashSet<String>,
     pub(crate) stop_at_docked: bool,
     stop: Option<&'f (dyn Fn() -> bool + Sync)>,
     serial_reads: usize,
@@ -94,6 +96,7 @@ impl<'f> LoadoutResolver<'f> {
             assortments: HashMap::new(),
             assorting: Vec::new(),
             picks: LoadoutPicks::new(),
+            seen_groups: HashSet::new(),
             stop_at_docked: false,
             stop: None,
             serial_reads: 0,
@@ -227,6 +230,7 @@ impl<'f> LoadoutResolver<'f> {
         changes: &LoadoutChanges,
     ) -> Result<ChangedLoadout, ChangeError> {
         self.picks = changes.picks().clone();
+        self.seen_groups.clear();
         let plan = if changes.has_no_port_changes() {
             None
         } else {
@@ -241,6 +245,7 @@ impl<'f> LoadoutResolver<'f> {
         walk.cancellable = true;
         let mut node = self.node(spec, None, &mut walk);
         self.dress_body(&mut node);
+        node.issues.extend(self.unknown_picks());
         let (ignored, mismatches) = match walk.plan.take() {
             Some(plan) => plan.finish()?,
             None => (Vec::new(), Vec::new()),

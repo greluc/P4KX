@@ -4,6 +4,7 @@
 //! Loadouts generated from `SLoadoutAssortment` Records: the alternative of each group whose
 //! Requirement is not known to fail, the first unless [`LoadoutPicks`] choose another.
 
+use std::collections::HashSet;
 use std::sync::Arc;
 
 use p4kx_dataforge::{Guid, Record, StructValue, TreeBuilder, Value};
@@ -36,10 +37,17 @@ impl Assorted {
         }
     }
 
-    /// Returns the Loadouts to lay over each other, one per group in order, and adds to `issues`
-    /// what keeps part of the assortment from being used.
-    fn layers(&self, picks: &LoadoutPicks, issues: &mut Vec<LoadoutError>) -> Vec<LoadoutSpec> {
+    /// Returns the Loadouts to lay over each other, one per group in order, adds to `issues`
+    /// what keeps part of the assortment from being used and to `seen` the lower-case names of
+    /// its groups.
+    fn layers(
+        &self,
+        picks: &LoadoutPicks,
+        seen: &mut HashSet<String>,
+        issues: &mut Vec<LoadoutError>,
+    ) -> Vec<LoadoutSpec> {
         issues.extend(self.issues.iter().cloned());
+        seen.extend(self.groups.iter().map(|g| g.name().to_ascii_lowercase()));
         self.groups
             .iter()
             .filter_map(|group| group.chosen(picks, self.guid, issues))
@@ -147,6 +155,17 @@ fn read_assorted<'f>(builder: &mut TreeBuilder<'f>, record: &Record<'f>) -> Asso
 }
 
 impl LoadoutResolver<'_> {
+    /// Returns an issue for each named pick whose group no assortment met while resolving has.
+    pub(crate) fn unknown_picks(&self) -> Vec<LoadoutError> {
+        self.picks
+            .unseen(&self.seen_groups)
+            .map(|(group, index)| LoadoutError::UnknownPick {
+                group: group.to_owned(),
+                index,
+            })
+            .collect()
+    }
+
     /// Returns the assortment `guid` with every alternative, read once per resolver.
     fn assorted(&mut self, guid: Guid) -> Result<Assorted, LoadoutError> {
         if let Some(assorted) = self.assortments.get(&guid) {
@@ -183,7 +202,7 @@ impl LoadoutResolver<'_> {
             }
             match self.assorted(guid) {
                 Ok(assorted) => {
-                    layers.extend(assorted.layers(&self.picks, &mut issues));
+                    layers.extend(assorted.layers(&self.picks, &mut self.seen_groups, &mut issues));
                     resolving.push(guid);
                 }
                 Err(error) => issues.push(error),

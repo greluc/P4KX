@@ -412,21 +412,19 @@
     },
     "CargoFillType": {
       "description": "How a cargo manifest shares the capacity among its resources.",
-      "oneOf": [
+      "type": "string",
+      "x-values": [
         {
-          "const": "even",
           "description": "`CargoFillCapacityValue_Even`: the capacity is split evenly.",
-          "type": "string"
+          "value": "even"
         },
         {
-          "const": "random",
           "description": "`CargoFillCapacityValue_Random`: the split is random.",
-          "type": "string"
+          "value": "random"
         },
         {
-          "const": "custom",
           "description": "`CargoFillCapacityValue_Custom`: every resource states its own share.",
-          "type": "string"
+          "value": "custom"
         }
       ]
     },
@@ -556,16 +554,15 @@
     },
     "CargoSpawnKind": {
       "description": "What a spawn rule of a cargo manifest lists.",
-      "oneOf": [
+      "type": "string",
+      "x-values": [
         {
-          "const": "entities",
           "description": "`CargoSpawnEntityDef`: entities.",
-          "type": "string"
+          "value": "entities"
         },
         {
-          "const": "resources",
           "description": "`CargoSpawnResourceDef`: resources.",
-          "type": "string"
+          "value": "resources"
         }
       ]
     },
@@ -2228,26 +2225,23 @@
     },
     "FactLayer": {
       "description": "The level that states a value of a contract; the variants run from the nearest level to the\nfarthest.",
-      "oneOf": [
+      "type": "string",
+      "x-values": [
         {
-          "const": "subContract",
           "description": "The parameter overrides of the sub contract.",
-          "type": "string"
+          "value": "subContract"
         },
         {
-          "const": "contract",
           "description": "The parameter overrides of the contract.",
-          "type": "string"
+          "value": "contract"
         },
         {
-          "const": "handler",
           "description": "The parameter overrides or the `defaultAvailability` of the handler.",
-          "type": "string"
+          "value": "handler"
         },
         {
-          "const": "template",
           "description": "The `ContractTemplate` Record.",
-          "type": "string"
+          "value": "template"
         }
       ]
     },
@@ -2988,26 +2982,23 @@
     },
     "HaulingItemKind": {
       "description": "What a hauling item stands for.",
-      "oneOf": [
+      "type": "string",
+      "x-values": [
         {
-          "const": "resource",
           "description": "A commodity in SCU (`…_Resource`, `…_ResourceUnlimitedDropOff`).",
-          "type": "string"
+          "value": "resource"
         },
         {
-          "const": "entityClass",
           "description": "A number of one entity class (`…_EntityClass`).",
-          "type": "string"
+          "value": "entityClass"
         },
         {
-          "const": "entityClasses",
           "description": "A number of entities out of a list (`…_EntityClasses`).",
-          "type": "string"
+          "value": "entityClasses"
         },
         {
-          "const": "missionItem",
           "description": "A mission item the game creates for the mission (`HaulingOrderContent_MissionItem`).",
-          "type": "string"
+          "value": "missionItem"
         }
       ]
     },
@@ -3061,36 +3052,31 @@
     },
     "HaulingSource": {
       "description": "The level of the contract that states a hauling order. Of the property levels the nearest one\nwins per `variableName`; the objective orders are those of the template, else of the broker\nentry.",
-      "oneOf": [
+      "type": "string",
+      "x-values": [
         {
-          "const": "subContract",
           "description": "A hauling orders property in the overrides of the sub contract.",
-          "type": "string"
+          "value": "subContract"
         },
         {
-          "const": "contract",
           "description": "A hauling orders property in the overrides of the contract.",
-          "type": "string"
+          "value": "contract"
         },
         {
-          "const": "handler",
           "description": "A hauling orders property in the parameters of the handler.",
-          "type": "string"
+          "value": "handler"
         },
         {
-          "const": "template",
           "description": "A hauling orders property in the `contractProperties` of the template.",
-          "type": "string"
+          "value": "template"
         },
         {
-          "const": "templateObjective",
           "description": "An order of a hauling objective of the template.",
-          "type": "string"
+          "value": "templateObjective"
         },
         {
-          "const": "brokerObjective",
           "description": "An order of a hauling objective of the `MissionBrokerEntry`.",
-          "type": "string"
+          "value": "brokerObjective"
         }
       ]
     },
@@ -4532,16 +4518,15 @@
     },
     "LocationCount": {
       "description": "Whether a location property holds one location or several.",
-      "oneOf": [
+      "type": "string",
+      "x-values": [
         {
-          "const": "one",
           "description": "`MissionPropertyValue_Location`.",
-          "type": "string"
+          "value": "one"
         },
         {
-          "const": "many",
           "description": "`MissionPropertyValue_Locations`.",
-          "type": "string"
+          "value": "many"
         }
       ]
     },
@@ -8265,26 +8250,23 @@
     },
     "SpawnLevel": {
       "description": "The level of a contract that states a property or a prerequisite.",
-      "oneOf": [
+      "type": "string",
+      "x-values": [
         {
-          "const": "subContract",
           "description": "The overrides of the sub contract.",
-          "type": "string"
+          "value": "subContract"
         },
         {
-          "const": "contract",
           "description": "The overrides of the contract.",
-          "type": "string"
+          "value": "contract"
         },
         {
-          "const": "handler",
           "description": "The `contractParams` of the handler.",
-          "type": "string"
+          "value": "handler"
         },
         {
-          "const": "template",
           "description": "The `contractProperties` of the `ContractTemplate`.",
-          "type": "string"
+          "value": "template"
         }
       ]
     },
@@ -8393,21 +8375,19 @@
     },
     "StandingLevel": {
       "description": "The level at which a prerequisite is stated.",
-      "oneOf": [
+      "type": "string",
+      "x-values": [
         {
-          "const": "handler",
           "description": "The `defaultAvailability` of the handler.",
-          "type": "string"
+          "value": "handler"
         },
         {
-          "const": "contract",
           "description": "The `additionalPrerequisites` of the contract.",
-          "type": "string"
+          "value": "contract"
         },
         {
-          "const": "subContract",
           "description": "The `additionalPrerequisites` of the sub contract.",
-          "type": "string"
+          "value": "subContract"
         }
       ]
     },

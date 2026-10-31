@@ -121,6 +121,7 @@ pub(crate) struct ContractEntry<'a> {
 /// The level at which a prerequisite is stated.
 #[derive(Debug, Clone, Copy, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
+#[schemars(transform = crate::closed_set::closed_string_set)]
 pub(crate) enum StandingLevel {
     /// The `defaultAvailability` of the handler.
     Handler,

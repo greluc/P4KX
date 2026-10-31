@@ -24,7 +24,9 @@ The rule is ADR-0054 (amending ADR-0002):
   selection or the ordering of an existing kind; the meaning of `completeness` stays.
 - **A new value in an existing closed value set is additive,** e.g. a new playability value or a
   new `itemClass`. A reader maps an unknown value to `null`. The schema documents such a set but
-  keeps the type a string, so an older schema accepts the new value.
+  keeps the type a string, so an older schema accepts the new value. A set derived from a Rust
+  enum lists its known values in the `x-values` annotation of the definition (`value` and
+  `description` per entry); a schema test rejects any `enum` or `oneOf` of constants.
 - **Loadouts (#393), paints, item stats and the starmap are kinds of the one catalog;** the size is
   handled by compression (`.json.zst`), not by a second Export. The Basetool accepts `.json`,
   `.json.gz` and `.json.zst`; the 64 MB limit applies to the compressed upload, the decompressed
@@ -75,6 +77,18 @@ Basetool's logged-in members; the Basetool keeps them, `displayType` and the con
 from third parties. Every such field carries
 `"x-gameText": true` in the JSON Schema, and no other field does; a test checks this.
 Every game text is trimmed of leading and trailing white space; see Texts.
+
+A closed value set that the schema derives from a Rust enum is a definition of `"type": "string"`
+with the known values in `x-values`, one `{"value", "description"}` entry per value (`description`
+only where the value has one), e.g. for `FactLayer`:
+
+```json
+{"type": "string", "x-values": [{"value": "subContract", "description": "The parameter overrides of the sub contract."}, {"value": "contract"}]}
+```
+
+`x-values` documents the set; it does not validate. A reader treats a value it does not know as
+additive: it maps it to `null` or ignores it. A schema test rejects any `enum` or any `oneOf` or
+`anyOf` of constants.
 
 ```powershell
 p4kx catalog <archive> --out basetool-catalog.json [--filter <filter>] [--exported-at <seconds>]

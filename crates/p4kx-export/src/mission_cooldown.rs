@@ -8,7 +8,7 @@ use serde::Serialize;
 use crate::contract::every_field_required;
 use crate::contract_facts::FactLayer;
 use crate::mission_facts::{Levels, at, stated};
-use crate::mission_layers::one;
+use crate::mission_layers::{Layer, one};
 use crate::record_fields::{boolean, single};
 
 const HAS_PERSONAL: &str = "HasPersonalCooldown";
@@ -19,7 +19,7 @@ const ABANDONED_TIME_VARIATION: &str = "AbandonedCooldownTimeVariation";
 
 /// The cooldown fields of a handler's `defaultAvailability`, as stored: the base the parameter
 /// overrides of the contract levels are laid over.
-#[derive(Debug, Clone, Copy, Default, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub(crate) struct CooldownDefaults {
     has_personal: Option<bool>,
     personal_time: Option<f32>,
@@ -43,7 +43,7 @@ impl CooldownDefaults {
 }
 
 /// The level that states each cooldown field of an entry; `null` for a field no level states.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, JsonSchema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 #[schemars(transform = every_field_required)]
 pub(crate) struct CooldownLayers {
@@ -63,7 +63,7 @@ pub(crate) struct CooldownLayers {
 /// contract and the handler that overrides the parameter of the same name (case is ignored), else
 /// from the handler's `defaultAvailability`; a field no level states is `null`. The values are as
 /// stored; the Archive does not state their unit.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, JsonSchema)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 #[schemars(transform = every_field_required)]
 pub(crate) struct ContractCooldown {
@@ -75,7 +75,7 @@ pub(crate) struct ContractCooldown {
     /// Whether the contract has a personal cooldown (`hasPersonalCooldown`), `null` when absent.
     pub(crate) has_personal_cooldown: Option<bool>,
     /// The `personalCooldownTime`, as stored; `null` when absent. The Archive does not state the
-    /// unit; the value range (up to 2880) fits minutes.
+    /// unit; the value range (up to 2880 in a handler, 10080 in a contract override) fits minutes.
     pub(crate) personal_cooldown_time: Option<f32>,
     /// The `personalCooldownTimeVariation`, as stored, in the unit of `personalCooldownTime`;
     /// `null` when absent.
@@ -88,12 +88,22 @@ pub(crate) struct ContractCooldown {
     pub(crate) abandoned_cooldown_time_variation: Option<f32>,
 }
 
+/// Returns the integer override `name` of `layer` as a float: the game states the cooldown times
+/// as integer overrides (`ContractIntParamType`) and has no float override array.
+#[expect(
+    clippy::cast_precision_loss,
+    reason = "a catalog number is a 32-bit float; larger integers lose their low digits"
+)]
+fn widened(layer: &Layer<'_>, name: &str) -> Option<f32> {
+    layer.int_param(name).map(|value| value as f32)
+}
+
 impl ContractCooldown {
     /// Resolves the cooldown of the entry with the layers `levels` over `defaults`.
     pub(crate) fn resolve(defaults: &CooldownDefaults, levels: &Levels<'_, '_>) -> Self {
         let handler = |value: Option<f32>| value.map(|value| at(value, FactLayer::Handler));
         let time = |name: &str, base: Option<f32>| {
-            stated(levels, |layer| layer.number_param(name), handler(base))
+            stated(levels, |layer| widened(layer, name), handler(base))
         };
         let has_personal = stated(
             levels,

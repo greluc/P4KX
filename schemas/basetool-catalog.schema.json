@@ -1343,7 +1343,7 @@
           "description": "Parameter `OnceOnly`; base: `onceOnly` of the handler's `defaultAvailability`."
         },
         "personalCooldownTime": {
-          "description": "The `personalCooldownTime`, as stored; `null` when absent. The Archive does not state the\nunit; the value range (up to 2880) fits minutes.",
+          "description": "The `personalCooldownTime`, as stored; `null` when absent. The Archive does not state the\nunit; the value range (up to 2880 in a handler, 10080 in a contract override) fits minutes.",
           "format": "float",
           "type": [
             "number",

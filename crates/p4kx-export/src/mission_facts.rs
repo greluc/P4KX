@@ -137,6 +137,7 @@ impl SharedFacts {
     }
 }
 
+/// Returns `value` stated by `layer`.
 pub(crate) const fn at<T>(value: T, layer: FactLayer) -> Stated<T> {
     Stated { value, layer }
 }

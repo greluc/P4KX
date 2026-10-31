@@ -63,14 +63,14 @@ fn a_contract_override_wins_and_names_the_contract_as_the_layer() -> TestResult 
 }
 
 #[test]
-fn a_float_override_of_a_sub_contract_matches_the_name_without_regard_to_case() -> TestResult {
+fn a_sub_contract_override_matches_the_name_without_regard_to_case() -> TestResult {
     let catalog = catalog()?;
     assert_fields(
         entry(&catalog, OVERRIDDEN, Some(SUB))?,
         &json!({
             "cooldownLayer": "subContract",
             "hasPersonalCooldown": false,
-            "personalCooldownTime": 7.5,
+            "personalCooldownTime": 7.0,
             "abandonedCooldownTime": 15.0,
             "cooldownLayers": {
                 "hasPersonalCooldown": "contract",

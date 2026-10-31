@@ -43,14 +43,6 @@ fn number(param: &str, value: i32) -> TestValue {
     )
 }
 
-fn float(param: &str, value: f32) -> TestValue {
-    TestValue::Struct(
-        TestInstance::new("ContractFloatParam")
-            .value("param", TestValue::text(param))
-            .value("value", TestValue::Single(value)),
-    )
-}
-
 fn overrides(bools: Vec<TestValue>, ints: Vec<TestValue>) -> TestValue {
     TestValue::Struct(
         TestInstance::new("ContractParamOverrides")
@@ -141,8 +133,8 @@ fn contracts() -> Vec<TestValue> {
                             TestValue::Array(vec![flag("canbeshared", false)]),
                         )
                         .value(
-                            "floatParamOverrides",
-                            TestValue::Array(vec![float("personalcooldowntime", 7.5)]),
+                            "intParamOverrides",
+                            TestValue::Array(vec![number("personalcooldowntime", 7)]),
                         )
                         .value(
                             "additionalPrerequisites",
@@ -242,9 +234,9 @@ fn template() -> TestRecord {
         TestValue::Struct(TestInstance::new("ContractClass_Contract").value(
             "additionalParams",
             TestValue::Array(vec![TestValue::Struct(
-                TestInstance::new("ActiveContractSettings")
-                    .value("canBeShared", TestValue::Bool(true)),
-            )]),
+                    TestInstance::new("ActiveContractSettings")
+                        .value("canBeShared", TestValue::Bool(true)),
+                )]),
         )),
     )
 }

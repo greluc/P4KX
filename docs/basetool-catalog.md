@@ -1225,16 +1225,16 @@ range.
 contracts, and the contracts carry the cooldowns. Each of the five fields resolves like the contract
 facts: the nearest of the sub contract, the contract and the handler that overrides the parameter
 of the same name (`HasPersonalCooldown`, `PersonalCooldownTime`, `PersonalCooldownTimeVariation`,
-`AbandonedCooldownTime`, `AbandonedCooldownTimeVariation`; case is ignored; a bool, integer or float
-override), else the `defaultAvailability` of the handler (`ContractGeneratorHandler_*`, all handler
-types). The overrides are partial, so one entry can take its fields from different levels:
-`cooldownLayers` names the level of each, and `cooldownLayer` is the nearest of them, `null` when no
-level states any. On LIVE 4.10, 215 entries take a field from the contract's overrides, 6 from
-the sub contract's, and 4,954 from the handler alone; the overrides are integers. The
-numbers are as stored, in floating point. The Archive does not state their unit: no
-type, attribute or game text shows it. The range (`personalCooldownTime` up to 2880,
-`abandonedCooldownTime` up to 60 on the `Career` handlers) fits minutes, 2880 being 48 hours, but
-that is a reading, not a fact of the Archive. On LIVE 4.10 all 5,175 entries state a cooldown.
+`AbandonedCooldownTime`, `AbandonedCooldownTimeVariation`; case is ignored; the game states the
+times as integer overrides and the flag as a bool override), else the `defaultAvailability` of the
+handler (`ContractGeneratorHandler_*`, all handler types). The overrides are partial, so one entry
+can take its fields from different levels: `cooldownLayers` names the level of each, and
+`cooldownLayer` is the nearest of them, `null` when no level states any. On LIVE 4.10, 215 entries
+take a field from the contract's overrides, 6 from the sub contract's, and 4,954 from the handler
+alone. The numbers are as stored, in floating point. The Archive does not state their unit: no
+type, attribute or game text shows it. The range (`personalCooldownTime` up to 2880 in a handler
+and 10080 in a contract override, `abandonedCooldownTime` up to 60 at every level) fits minutes,
+2880 being 48 hours and 10080 a week, but that is a reading, not a fact of the Archive. On LIVE 4.10 all 5,175 entries state a cooldown.
 
 **Contract facts (ADR-0263).** `timeToComplete` and `buyInAmount` are numbers as stored. Each of
 the other eight values is `{value, layer}`: the first level that states it, nearest first. A

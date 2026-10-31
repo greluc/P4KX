@@ -153,6 +153,48 @@ fn a_cargo_grid_outside_every_room_is_a_misfit_when_another_grid_is_inside() {
 }
 
 #[test]
+fn a_cargo_grid_outside_every_room_is_a_misfit_whichever_grid_comes_first() {
+    let lost = fit(
+        &[room_at(10.0)],
+        vec![
+            hardpoint(HardpointKind::CargoGrid, [0.0, -10.0, 1.0]),
+            hardpoint(HardpointKind::CargoGrid, [0.0, 10.0, 1.0]),
+        ],
+    );
+
+    assert_eq!(
+        lost.misfits(TOLERANCE),
+        [Misfit::CargoGridOutsideRooms { grid: 0 }]
+    );
+}
+
+#[test]
+fn a_lone_cargo_grid_near_a_room_but_not_inside_it_does_not_start_the_check() {
+    let near = fit(
+        &[room_at(10.0)],
+        vec![hardpoint(HardpointKind::CargoGrid, [0.0, 12.3, 1.0])],
+    );
+
+    assert_eq!(near.misfits(TOLERANCE), []);
+    assert_eq!(near.misfits(0.1), []);
+}
+
+#[test]
+fn the_cargo_grids_of_a_docked_ship_are_not_checked() {
+    let mut docked = hardpoint(HardpointKind::CargoGrid, [0.0, -10.0, 1.0]);
+    docked.vehicle = "collar/attach".to_owned();
+    let ship = fit(
+        &[room_at(10.0)],
+        vec![
+            hardpoint(HardpointKind::CargoGrid, [0.0, 10.0, 1.0]),
+            docked,
+        ],
+    );
+
+    assert_eq!(ship.misfits(TOLERANCE), []);
+}
+
+#[test]
 fn a_ship_whose_cargo_grids_all_lie_outside_every_room_is_not_checked() {
     let open = fit(
         &[room_at(10.0)],

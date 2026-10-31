@@ -14,12 +14,14 @@ pub const HULL_SLACK: f32 = 1.0;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum Misfit {
-    /// The flight controller of the root vehicle lies in no container.
+    /// The flight controller of the root vehicle lies farther than the tolerance from every static
+    /// model of every container.
     ControllerOutsideRooms {
         /// The controller, an index into the hardpoints.
         controller: usize,
     },
-    /// A cargo grid lies in no container although other cargo grids of the ship do.
+    /// A cargo grid of the root vehicle lies farther than the tolerance from every static model
+    /// although another grid of it lies inside one.
     CargoGridOutsideRooms {
         /// The cargo grid, an index into the hardpoints.
         grid: usize,
@@ -39,11 +41,12 @@ impl InteriorFit {
     /// Returns the rules the placement breaks, `tolerance` metres being how far a hardpoint may
     /// lie outside a model box and still count as in it:
     ///
-    /// - the flight controller of the root vehicle lies in a container; a docked ship's controller
-    ///   sits at that ship's origin and is not checked;
-    /// - when some cargo grid lies inside a model box of a container, every cargo grid lies in one
-    ///   within `tolerance`: a ship none of whose grids lies inside carries its cargo outside any
-    ///   room (the open struts of the Hull C, 0.96 m or more from every model) and is not checked;
+    /// - the flight controller of the root vehicle lies within `tolerance` of a static model; a
+    ///   docked ship's controller sits at that ship's origin and is not checked;
+    /// - when some cargo grid of the root vehicle lies inside a static model, every one lies within
+    ///   `tolerance` of one: a ship none of whose grids lies inside carries its cargo outside any
+    ///   room (the open struts of the Hull C, 0.96 m or more from every model) and is not checked,
+    ///   whatever the tolerance;
     /// - the room models of every container of the root Entity lie within [`HULL_SLACK`] of the
     ///   box of the root Entity's model (containers of attached Entities, such as a docked ship,
     ///   are left out), so a section moved along the hull out of it is caught even when every
@@ -88,14 +91,18 @@ impl InteriorFit {
             .collect()
     }
 
+    /// The cargo grids of the root vehicle farther than `tolerance` from every static model, when
+    /// at least one of them lies inside one. Whether the ship is checked at all does not depend on
+    /// `tolerance`.
     fn cargo_grids_outside(&self, tolerance: f32) -> Vec<Misfit> {
-        let any_held = self
-            .indexed(HardpointKind::CargoGrid)
-            .any(|(_, fit)| fit.is_within(0.0));
-        if !any_held {
+        let root_grids = || {
+            self.indexed(HardpointKind::CargoGrid)
+                .filter(|(_, fit)| fit.hardpoint.vehicle.is_empty())
+        };
+        if !root_grids().any(|(_, fit)| fit.is_inside()) {
             return Vec::new();
         }
-        self.indexed(HardpointKind::CargoGrid)
+        root_grids()
             .filter(|(_, fit)| !fit.is_within(tolerance))
             .map(|(grid, _)| Misfit::CargoGridOutsideRooms { grid })
             .collect()

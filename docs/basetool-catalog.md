@@ -78,6 +78,18 @@ from third parties. Every such field carries
 `"x-gameText": true` in the JSON Schema, and no other field does; a test checks this.
 Every game text is trimmed of leading and trailing white space; see Texts.
 
+A closed value set that the schema derives from a Rust enum is a definition of `"type": "string"`
+with the known values in `x-values`, one `{"value", "description"}` entry per value (`description`
+only where the value has one), e.g. for `FactLayer`:
+
+```json
+{"type": "string", "x-values": [{"value": "subContract", "description": "The parameter overrides of the sub contract."}, {"value": "contract"}]}
+```
+
+`x-values` documents the set; it does not validate. A reader treats a value it does not know as
+additive: it maps it to `null` or ignores it. A schema test rejects any `enum` or any `oneOf` or
+`anyOf` of constants.
+
 ```powershell
 p4kx catalog <archive> --out basetool-catalog.json [--filter <filter>] [--exported-at <seconds>]
 p4kx catalog <archive> --out basetool-catalog.json.zst

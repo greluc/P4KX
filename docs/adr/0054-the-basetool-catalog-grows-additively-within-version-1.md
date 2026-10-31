@@ -31,7 +31,8 @@ release adapts it, even when the import does not use the addition.
 - **A new value in an existing closed value set is additive.** Example: a new playability value
   from #392, or a new `itemClass`. A reader maps an unknown value to `null`. The schema therefore
   documents such a set but keeps the type a string, never a JSON Schema `enum` or `oneOf` of
-  constants, so an older schema accepts the new value; `itemClass` is such a string.
+  constants, so an older schema accepts the new value; `itemClass` is such a string. The known
+  values are listed in the `x-values` annotation of the definition.
 - **Loadouts (#393), paints, item stats and the starmap are kinds of the one catalog;** the size is
   handled by compression (`.json.zst`), not by a second Export. One upload, one import run, one
   `completeness`, one Build, and GUID references stay closed within one file. The Basetool accepts

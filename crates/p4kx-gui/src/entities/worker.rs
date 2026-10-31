@@ -117,7 +117,11 @@ fn serve(
     if flags.closed() {
         return;
     }
-    let files = ArchiveFiles::new(index.archive());
+    let archive = match index.entries_archive() {
+        Ok(archive) => archive,
+        Err(error) => return refuse(requests, &error.into(), wake),
+    };
+    let files = ArchiveFiles::new(archive);
     let entities = Arc::new(Entities::new(&forge));
     if flags.closed() {
         return;

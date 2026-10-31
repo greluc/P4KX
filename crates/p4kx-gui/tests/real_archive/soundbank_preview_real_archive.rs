@@ -58,12 +58,13 @@ fn decoding(browser: &Browser) -> bool {
 /// Returns the ids of the soundbanks that embed a WEM with a readable header: most soundbanks
 /// of a real Archive embed none, their sounds are loose WEM Entries.
 fn banks_with_sounds(index: &EntryIndex) -> Result<Vec<u32>, Box<dyn Error>> {
+    let archive = index.entries_archive()?;
     let mut banks = Vec::new();
     for id in 0..u32::try_from(index.len())? {
         let Some(entry) = index.entry(id).filter(|entry| is_bank_path(entry.path())) else {
             continue;
         };
-        let Ok(bank) = Bank::from_archive(index.archive(), entry.path()) else {
+        let Ok(bank) = Bank::from_archive(archive, entry.path()) else {
             continue;
         };
         if bank.soundbank().wems().any(|wem| wem.parse().is_ok()) {

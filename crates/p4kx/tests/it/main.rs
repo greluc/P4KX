@@ -9,6 +9,7 @@ mod archive_key;
 mod armour_glb;
 mod armour_loadout;
 mod armour_npc;
+mod armour_npc_face;
 mod audio;
 mod audio_adpcm;
 mod audio_loop;

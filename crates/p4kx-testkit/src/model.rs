@@ -85,6 +85,7 @@ pub struct TestModel {
     pub(crate) node_details: Vec<NodeDetails>,
     lods: Vec<Self>,
     extra_chunks: Vec<(u32, Vec<u8>)>,
+    geometry_chunks: Vec<(u32, Vec<u8>)>,
     single_file: bool,
     helpers_only: bool,
 }
@@ -120,6 +121,7 @@ impl TestModel {
             node_details: Vec::new(),
             lods: Vec::new(),
             extra_chunks: Vec::new(),
+            geometry_chunks: Vec::new(),
             single_file: false,
             helpers_only: false,
         }
@@ -261,6 +263,13 @@ impl TestModel {
         self
     }
 
+    /// Adds a chunk of type `type_id` to the `.cgfm` geometry companion, after the mesh.
+    #[must_use]
+    pub fn with_geometry_chunk(mut self, type_id: u32, data: impl Into<Vec<u8>>) -> Self {
+        self.geometry_chunks.push((type_id, data.into()));
+        self
+    }
+
     /// Writes the mesh into the `.cgf` itself, so the model needs no geometry companion.
     #[must_use]
     pub const fn single_file(mut self) -> Self {
@@ -306,10 +315,11 @@ impl TestModel {
     /// Returns the bytes of the `.cgfm` geometry companion.
     #[must_use]
     pub fn cgfm(&self) -> Vec<u8> {
-        TestChunkFile::ivo()
-            .chunk(SKIN_2, IVO_VERSION, skin_chunk(self))
-            .chunk(TERMINATOR, IVO_VERSION, [0; 16])
-            .bytes()
+        let mut file = TestChunkFile::ivo().chunk(SKIN_2, IVO_VERSION, skin_chunk(self));
+        for (type_id, data) in &self.geometry_chunks {
+            file = file.chunk(*type_id, IVO_VERSION, data.clone());
+        }
+        file.chunk(TERMINATOR, IVO_VERSION, [0; 16]).bytes()
     }
 
     /// Returns the bytes of the `_lod<level>.cgf` file, or `None` without that level: a

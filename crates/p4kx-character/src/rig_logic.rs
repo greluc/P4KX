@@ -4,6 +4,8 @@
 use thiserror::Error;
 
 use crate::rig_bytes::{u16_at, u64_at};
+use crate::rig_logic_deltas::{Bounds, LogicDeltas};
+use crate::{DeltaRecords, DeltaSet};
 
 /// The 8 bytes a rig starts with; in the `RigLogic` chunk of a head skin they follow a `u64` with
 /// the length of the rig.
@@ -61,13 +63,16 @@ pub enum RigLogicError {
 /// The rig has named controls, then correctives that fire when up to five of the controls are
 /// active together; the blendshape numbers of the DNA rig's expression morphs run over both in
 /// this order. The chunk also lists the joints the rig moves, by the CRC-32 of their names, in the
-/// order of the joints of the DNA rig.
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// order of the joints of the DNA rig. A rig also holds, for its own head, the delta records that
+/// move the joints (see [`FaceRig::from_logic`](crate::FaceRig::from_logic)); a story character's
+/// `.RigLogic` file has them for a head no DNA rig is shipped for.
+#[derive(Debug, Clone, PartialEq)]
 pub struct RigLogic {
     names: Vec<String>,
     hashes: Vec<(u32, usize)>,
     correctives: Vec<[u8; ROW_LEN]>,
     joints: Vec<u32>,
+    deltas: Option<LogicDeltas>,
 }
 
 impl RigLogic {
@@ -122,11 +127,17 @@ impl RigLogic {
             return Err(RigLogicError::Malformed("the hash table is missing"));
         }
         let hashes = control_hashes(section(chunk, HASHES_SLOT)?, &names)?;
+        let bounds = Bounds {
+            joints: joints.len(),
+            blendshapes: names.len() + rows.len(),
+        };
+        let deltas = LogicDeltas::read(chunk, |slot| section(chunk, slot), &bounds)?;
         Ok(Self {
             names,
             hashes,
             correctives: rows,
             joints,
+            deltas,
         })
     }
 
@@ -146,6 +157,26 @@ impl RigLogic {
     #[must_use]
     pub fn joint_hashes(&self) -> &[u32] {
         &self.joints
+    }
+
+    /// Returns whether the rig carries the delta records that move its joints.
+    #[must_use]
+    pub const fn has_joint_deltas(&self) -> bool {
+        self.deltas.is_some()
+    }
+
+    /// Returns the delta records of `set` that move the joints of the rig, in the layout of the
+    /// records of a DNA rig; `None` when the rig carries none.
+    #[must_use]
+    pub fn joint_records(&self, set: DeltaSet) -> Option<DeltaRecords<'_>> {
+        self.deltas.as_ref().map(|deltas| deltas.set(set).records())
+    }
+
+    /// Returns the value of one step of a coefficient of the records of `set`, see
+    /// [`VariantHeader::step`](crate::VariantHeader::step); `None` when the rig carries no delta records.
+    #[must_use]
+    pub fn joint_step(&self, set: DeltaSet) -> Option<f64> {
+        self.deltas.as_ref().map(|deltas| deltas.set(set).step())
     }
 
     /// Returns the activation of every blendshape for the values of the controls: the controls

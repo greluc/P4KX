@@ -110,6 +110,38 @@ fn a_stencil_decal_with_a_diffuse_map_is_drawn_by_it() -> TestResult {
 }
 
 #[test]
+fn a_diffuse_map_that_cannot_be_drawn_leaves_a_stencil_decal_fully_transparent() -> TestResult {
+    for (name, file) in [
+        ("missing", "Objects/Test/lost_diff.tif"),
+        ("unsafe", "../Objects/Test/both_diff.tif"),
+    ] {
+        let broken = decal(name)
+            .texture("TexSlot1", file)
+            .texture("TexSlot7", STENCIL_FILE);
+
+        let (glb, _) = export(
+            &[plain("unused"), plain("caps"), broken],
+            &stub()?,
+            &textured(),
+        )?;
+
+        let decal = material(&glb, name)?;
+        assert!(
+            decal
+                .pbr_metallic_roughness()
+                .base_color_texture()
+                .is_none(),
+            "{name}"
+        );
+        assert!(
+            decal.pbr_metallic_roughness().base_color_factor()[3].abs() < f32::EPSILON,
+            "{name} is no solid quad"
+        );
+    }
+    Ok(())
+}
+
+#[test]
 fn a_stencil_map_that_cannot_be_drawn_leaves_a_fully_transparent_decal() -> TestResult {
     for (name, file) in [
         ("missing", "Objects/Test/lost_stencil.tif"),

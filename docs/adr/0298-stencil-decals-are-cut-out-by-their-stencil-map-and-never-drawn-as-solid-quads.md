@@ -38,12 +38,13 @@ package and the add-on alike. A decal drawn by its diffuse map keeps its own col
 factor is the stencil colour, and the alpha factor is the material's opacity times `StencilOpacity`
 (0 stays 0). `Shading::colour` takes the stencil colour, so the viewers draw the same.
 
-**A stencil map that cannot be drawn.** A path `canonical()` refuses, a missing file and a file that
-does not decode all leave the decal without a base colour image. Like a hair cap, the material then
-has an alpha factor of 0 (blended): it is fully transparent, never a solid quad in the stencil
-colour. The primitives stay in the GLB (the decision needs the load, which comes after the geometry
-plan), and so does the colours mode, which loads no image, leave a stencil decal invisible. The
-failure is reported as a texture fallback as before.
+**A map that cannot be drawn.** A path `canonical()` refuses, a missing file and a file that does
+not decode all leave the decal without a base colour image, whether it is drawn by its stencil map
+or by its diffuse map. Like a hair cap, every stencil decal then has an alpha factor of 0 (blended):
+it is fully transparent, never a solid quad. This agrees with the package, which states such a
+decal as not drawn. The primitives stay in the GLB (the decision needs the load, which comes after
+the geometry plan), and so does the colours mode, which loads no image, leave a stencil decal
+invisible. The failure is reported as a texture fallback as before.
 
 **The package and the add-on.** The package states `stencil` (`drawn`, `colour`, `opacity`) per
 stencil decal. `drawn` is the final decision, made after the textures are written

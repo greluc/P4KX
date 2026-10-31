@@ -59,9 +59,9 @@ pub(crate) fn uses_alpha(material: &Material) -> bool {
     alpha_of(material).0 != AlphaMode::Opaque
 }
 
-/// Returns whether the shape of `material` is the alpha of its base colour image: a hair cap and a
-/// stencil decal with a stencil map. Without that image they are fully transparent, never an
-/// opaque shell or a solid quad.
+/// Returns whether the shape of `material` is the alpha of its base colour image: a hair cap and
+/// any stencil decal, drawn by its stencil map or by its diffuse map. Without that image they are
+/// fully transparent, never an opaque shell or a solid quad.
 pub(crate) fn is_cut_out_by_base_image(material: &Material) -> bool {
-    material.is_hair_cap() || material.stencil_texture().is_some()
+    material.is_hair_cap() || material.is_stencil_decal()
 }

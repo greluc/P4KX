@@ -21,7 +21,7 @@ use stop::Observed;
 
 use super::{AssemblyExportForm, AssemblyExportSummary};
 use crate::model::describe;
-use crate::{EntryIndex, ModelExportFailure};
+use crate::{EntryIndex, ModelExportFailure, NoEntries};
 
 /// What an Export as GLB writes the scene of.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -178,6 +178,12 @@ enum State {
     Finished(Box<AssemblyExportSummary>),
     Cancelled,
     Failed(ModelExportFailure),
+}
+
+impl From<NoEntries> for Ended {
+    fn from(error: NoEntries) -> Self {
+        Self::Failed(error.into())
+    }
 }
 
 impl std::fmt::Debug for Ended {

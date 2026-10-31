@@ -8,8 +8,8 @@ use p4kx_blender::{CharacterScene, write_character_package};
 use p4kx_extraction::{AnimationSet, CancelToken, ConversionError, GlbSummary};
 
 use super::export::{CharacterExportSummary, Ended, Request};
-use crate::EntryIndex;
 use crate::assembly_export::{PartIssue, StoppableTextures, failure_of, info_of, package_failure};
+use crate::{EntryIndex, NoEntries};
 
 /// Reads the animations of the animation folders of the Character: the folder of the story
 /// character of its Loadout first, then those of its body.
@@ -35,7 +35,10 @@ fn clips(models: &ArchiveModels<'_>, request: &Request) -> Result<AnimationSet, 
 /// request asks for them, the animations of its animation folders, read here so that a Cancel
 /// stops before the package is written.
 pub(super) fn write(index: &EntryIndex, request: &Request, cancel: &CancelToken) -> Ended {
-    let models = ArchiveModels::new(index.archive());
+    let Ok(archive) = index.entries_archive() else {
+        return NoEntries.into();
+    };
+    let models = ArchiveModels::new(archive);
     let found = if request.animations {
         match clips(&models, request) {
             Ok(found) => found,
@@ -62,7 +65,7 @@ pub(super) fn write(index: &EntryIndex, request: &Request, cancel: &CancelToken)
         request.origin.chf.as_deref(),
         request.origin.loadout.as_deref(),
     );
-    let info = info_of(index.archive(), &LoadoutChanges::default());
+    let info = info_of(index, &LoadoutChanges::default());
     let written = write_character_package(
         &scene,
         &textures,

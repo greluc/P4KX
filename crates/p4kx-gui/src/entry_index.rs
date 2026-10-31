@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
+mod backing;
 mod containers;
+mod file;
 
+pub use backing::NoEntries;
 pub(crate) use containers::is_container;
 
 use std::sync::OnceLock;
@@ -15,6 +18,7 @@ use p4kx_extraction::{
 };
 use rayon::prelude::*;
 
+use self::backing::Backing;
 use crate::TextLanguage;
 use crate::entry_groups::EntryGroups;
 use crate::forge_cache::ForgeCache;
@@ -27,7 +31,7 @@ use crate::text_cache::TextCache;
 /// below it form one contiguous id range.
 #[derive(Debug)]
 pub struct EntryIndex {
-    archive: Archive,
+    backing: Backing,
     watch: ArchiveWatch,
     tree: EntryTree,
     orders: SortOrders,
@@ -41,26 +45,9 @@ pub struct EntryIndex {
     text_languages: Vec<TextLanguage>,
     texts: TextCache,
     channel: ChannelKind,
-    dataforge_file: bool,
 }
 
 impl EntryIndex {
-    /// Builds the index of the stand-in Archive of a DataForge file, [`Archive::stand_in`]: no
-    /// Entries, and the DataForge is read from the file itself.
-    #[must_use]
-    pub fn build_dataforge_file(archive: Archive) -> Self {
-        Self {
-            dataforge_file: true,
-            ..Self::build(archive)
-        }
-    }
-
-    /// Returns whether this index stands for a DataForge file instead of an Archive.
-    #[must_use]
-    pub const fn is_dataforge_file(&self) -> bool {
-        self.dataforge_file
-    }
-
     /// Builds the index of `archive`; this sorts every Entry several times and belongs on a
     /// background thread for large Archives.
     #[must_use]
@@ -96,7 +83,7 @@ impl EntryIndex {
         Self {
             channel: ChannelKind::of_archive(archive.path()),
             watch: ArchiveWatch::new(&archive),
-            archive,
+            backing: Backing::Archive(Box::new(archive)),
             tree,
             orders,
             containers,
@@ -108,7 +95,6 @@ impl EntryIndex {
             paths: OnceLock::new(),
             text_languages,
             texts: TextCache::default(),
-            dataforge_file: false,
         }
     }
 
@@ -145,32 +131,24 @@ impl EntryIndex {
     /// file name of a DataForge file; `None` when there is no DataForge.
     #[must_use]
     pub fn dataforge_name(&self) -> Option<String> {
-        if self.dataforge_file {
-            return self
-                .archive
-                .path()
-                .file_name()
-                .map(|name| name.to_string_lossy().into_owned());
-        }
-        self.dataforge_entry().map(|entry| entry.path().to_owned())
+        self.forge_source().name()
     }
 
     /// Returns the size of DataForge after decompression: that of its Entry, or of the file; `0`
     /// when there is no DataForge.
     #[must_use]
     pub fn dataforge_size(&self) -> u64 {
-        if self.dataforge_file {
-            return self.archive.file_len();
-        }
-        self.dataforge_entry().map_or(0, Entry::uncompressed_size)
+        self.backing
+            .file_len()
+            .unwrap_or_else(|| self.dataforge_entry().map_or(0, Entry::uncompressed_size))
     }
 
     /// Returns the Entry DataForge is read from, `Data\Game2.dcb` or `Data\Game.dcb`, or `None`
     /// when the Archive holds neither.
     #[must_use]
     pub fn dataforge_entry(&self) -> Option<&Entry> {
-        self.dataforge
-            .and_then(|position| self.archive.entries().get(position))
+        let position = self.dataforge?;
+        self.archive()?.entries().get(position)
     }
 
     /// Returns the one DataForge cache of the Archive.
@@ -178,12 +156,15 @@ impl EntryIndex {
         &self.forge
     }
 
-    /// Returns the lookup of Entries by path over the Archive; the path hashes are built on the
-    /// first call and shared by every later one.
-    pub(crate) fn path_index(&self) -> PathIndex<'_> {
-        self.paths
-            .get_or_init(|| PathKeys::new(&self.archive))
-            .index(&self.archive)
+    /// Returns the lookup of Entries by path over the Archive, or `None` for a DataForge file;
+    /// the path hashes are built on the first call and shared by every later one.
+    pub(crate) fn path_index(&self) -> Option<PathIndex<'_>> {
+        let archive = self.archive()?;
+        Some(
+            self.paths
+                .get_or_init(|| PathKeys::new(archive))
+                .index(archive),
+        )
     }
 
     /// Returns the one cache of the localisation texts of the Archive.
@@ -203,12 +184,6 @@ impl EntryIndex {
     #[must_use]
     pub fn text_loads(&self) -> usize {
         self.texts.loads()
-    }
-
-    /// Returns the Archive.
-    #[must_use]
-    pub const fn archive(&self) -> &Archive {
-        &self.archive
     }
 
     /// Returns the folder tree of the Archive.
@@ -284,7 +259,7 @@ impl EntryIndex {
     /// `None` when there is none.
     #[must_use]
     pub fn id_of_path(&self, path: &str) -> Option<u32> {
-        let position = self.path_index().position(path)?;
+        let position = self.path_index()?.position(path)?;
         self.id_of
             .get(position)
             .copied()
@@ -294,7 +269,7 @@ impl EntryIndex {
     /// Returns the Entry with id `id`, or `None` when there is none.
     #[must_use]
     pub fn entry(&self, id: u32) -> Option<&Entry> {
-        self.tree.entry(&self.archive, id)
+        self.tree.entry(self.archive()?, id)
     }
 
     /// Returns the file name of the Entry with id `id`, empty when there is none.

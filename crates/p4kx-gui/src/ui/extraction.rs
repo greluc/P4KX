@@ -376,13 +376,15 @@ pub(super) fn foot(
 }
 
 pub(super) fn new_folder_name(model: &Model, scope: ExtractionScope) -> String {
-    let archive = match scope {
-        ExtractionScope::Changes(side) => comparison_extraction::archive(model, side),
-        _ => model
-            .browser()
-            .map(|browser| browser.archive_index().archive()),
-    };
-    let (channel, build) = archive.map(target_naming).unwrap_or_default();
+    let (channel, build) = match scope {
+        ExtractionScope::Changes(side) => comparison_extraction::archive(model, side)
+            .map(|archive| target_naming(archive.path(), archive.build())),
+        _ => model.browser().map(|browser| {
+            let index = browser.archive_index();
+            target_naming(index.path(), index.build_of_archive())
+        }),
+    }
+    .unwrap_or_default();
     default_target_name(channel.as_deref(), build, SystemTime::now())
 }
 

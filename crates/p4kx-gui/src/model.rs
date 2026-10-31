@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use std::sync::mpsc::{self, Receiver, TryRecvError};
 use std::thread;
 
-use p4kx_extraction::{Archive, ArchiveError, is_dataforge_file};
+use p4kx_extraction::ArchiveError;
 use p4kx_settings::{ExtractionAudio, ExtractionTextures, RecentArchives};
 
 use self::folder_conversion_control::FolderConversionState;
@@ -23,6 +23,7 @@ mod extraction_control;
 mod folder_conversion_control;
 mod game_watch;
 mod model_export_control;
+mod opening;
 mod record_export_control;
 mod record_text;
 mod sounds_control;
@@ -40,6 +41,7 @@ pub(crate) use describe::describe;
 pub use game_watch::GAME_CHECK_INTERVAL;
 use game_watch::GameWatch;
 use model_export_control::ModelExportState;
+use opening::open_index;
 use record_export_control::RecordExportState;
 use update::UpdateState;
 pub use work_tab::WorkTab;
@@ -253,13 +255,7 @@ impl Model {
         let spawned = thread::Builder::new()
             .name("open-archive".to_owned())
             .spawn(move || {
-                p4kx_extraction::protect_archive_folder(&thread_path);
-                let index = if is_dataforge_file(&thread_path).unwrap_or(false) {
-                    Archive::stand_in(&thread_path).map(EntryIndex::build_dataforge_file)
-                } else {
-                    Archive::open_with_key(&thread_path, key).map(EntryIndex::build)
-                };
-                if sender.send(index).is_ok() {
+                if sender.send(open_index(&thread_path, key)).is_ok() {
                     wake();
                 }
             });
@@ -297,8 +293,11 @@ impl Model {
                 let path = opening.path;
                 self.recent.push(std::path::absolute(&path).unwrap_or(path));
                 self.browser = Some(Browser::new(index));
-                if self.is_dataforge_file() && self.work_tab.needs_entries() {
-                    self.work_tab = WorkTab::Archive;
+                if self.is_dataforge_file() {
+                    self.preview_tab = PreviewTab::DataForge;
+                    if self.work_tab.needs_entries() {
+                        self.work_tab = WorkTab::Archive;
+                    }
                 }
                 self.apply_record_language();
                 self.stopped_by_change = false;

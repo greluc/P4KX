@@ -275,7 +275,9 @@ fn load(index: &EntryIndex, id: u32, stop: &CancelToken, send: &impl Fn(Event)) 
     if index.watch().check().is_err() {
         return send(Event::ArchiveChanged);
     }
-    let paths = index.path_index();
+    let Some(paths) = index.path_index() else {
+        return send(Event::Failed(None));
+    };
     if let Some(size) = oversized_file(&paths, entry) {
         return send(Event::FileTooLarge(size));
     }

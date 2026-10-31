@@ -17,7 +17,7 @@ use crate::assembly_export::{AssemblyExportForm, AssemblyExportSummary};
 use crate::entities::{ResolveFailure, resolve};
 use crate::forge_cache::ReadFailure;
 use crate::model::describe;
-use crate::{EntryIndex, ModelExportFailure, PortMismatch};
+use crate::{EntryIndex, ModelExportFailure, NoEntries, PortMismatch};
 
 pub(super) fn run(
     index: &EntryIndex,
@@ -91,7 +91,10 @@ fn entity(
     shared.enter(AssemblyExportStage::Reading);
     #[cfg(feature = "test-hooks")]
     request.pause.wait(|| cancel.is_cancelled());
-    let archive_models = ArchiveModels::new(index.archive());
+    let Ok(archive) = index.entries_archive() else {
+        return NoEntries.into();
+    };
+    let archive_models = ArchiveModels::new(archive);
     let assembly = match assembled(
         index,
         (&tree, interior),
@@ -209,16 +212,10 @@ fn interior_of(
     (lod, classes): (u32, &InteriorForge<'_>),
     state: (&CancelToken, &Shared),
 ) -> Result<EntityInterior, Ended> {
+    let archive = index.entries_archive().map_err(Ended::from)?;
     let options = InteriorOptions::default().with_lod(lod);
     with_watch(state, |watch| {
-        EntityInterior::build_with(
-            index.archive(),
-            assembly,
-            tree,
-            &options,
-            watch,
-            Some(classes),
-        )
+        EntityInterior::build_with(archive, assembly, tree, &options, watch, Some(classes))
     })
     .map_err(|error| interior_ended(index, state.0, error))
 }
@@ -274,9 +271,10 @@ fn container(
         Ok(opened) => opened,
         Err(failure) => return Ended::Failed(failure),
     };
-    let layers: Vec<&Archive> = std::iter::once(index.archive())
-        .chain(opened.iter())
-        .collect();
+    let Ok(archive) = index.entries_archive() else {
+        return NoEntries.into();
+    };
+    let layers: Vec<&Archive> = std::iter::once(archive).chain(opened.iter()).collect();
     let entry = chain.last().map_or("", String::as_str);
     let interior = match container_interior(index, (&layers, entry), request.lod, (cancel, shared))
     {
@@ -290,7 +288,7 @@ fn container(
         return Ended::Failed(ModelExportFailure::ArchiveChanged);
     }
     shared.enter(AssemblyExportStage::Writing);
-    let archive_models = ArchiveModels::new(index.archive());
+    let archive_models = ArchiveModels::new(archive);
     if request.form == AssemblyExportForm::Package {
         return package::write_interior(index, request, &interior, (&archive_models, cancel));
     }
@@ -320,11 +318,12 @@ fn container(
 
 /// Opens the containers of `chain` one inside the other, the first from the Archive.
 fn open_chain(index: &EntryIndex, chain: &[String]) -> Result<Vec<Archive>, ModelExportFailure> {
+    let archive = index.entries_archive()?;
     let mut opened: Vec<Archive> = Vec::with_capacity(chain.len());
     for path in chain {
         let next = match opened.last() {
             Some(current) => open_in(index, current, &PathIndex::new(current), path)?,
-            None => open_in(index, index.archive(), &index.path_index(), path)?,
+            None => open_in(index, archive, &index.path_index().ok_or(NoEntries)?, path)?,
         };
         opened.push(next);
     }

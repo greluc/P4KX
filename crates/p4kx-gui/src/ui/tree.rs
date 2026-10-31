@@ -168,7 +168,6 @@ fn show_row(
 fn archive_name(browser: &Browser) -> String {
     browser
         .archive_index()
-        .archive()
         .path()
         .file_name()
         .map_or_else(String::new, |name| name.to_string_lossy().into_owned())

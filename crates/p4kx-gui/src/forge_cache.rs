@@ -5,8 +5,8 @@ use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, PoisonError};
 use std::thread;
 
+use p4kx_extraction::DataForgeLoadError;
 use p4kx_extraction::query::QuerySchema;
-use p4kx_extraction::{DataForgeEntry, DataForgeLoadError};
 
 use crate::EntryIndex;
 use crate::model::describe;
@@ -108,12 +108,7 @@ impl ForgeCache {
         let changed = |error| ReadFailure::ArchiveChanged(describe(&error));
         index.watch().check().map_err(changed)?;
         reading();
-        let read = if index.is_dataforge_file() {
-            DataForgeEntry::read_file_until(index.archive().path(), stop)
-        } else {
-            DataForgeEntry::read_until(index.archive(), stop)
-        };
-        let entry = match read {
+        let entry = match index.forge_source().read_until(stop) {
             Ok(entry) => entry,
             Err(DataForgeLoadError::Cancelled) => return Ok(None),
             Err(error) => return Err(ReadFailure::Unreadable(describe(&error))),

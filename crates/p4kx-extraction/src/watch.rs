@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 use std::fs;
+use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Mutex, PoisonError};
@@ -34,10 +35,43 @@ impl ArchiveChanged {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
-struct Stamp {
+/// What identifies a version of a file on disk: its size and modification time.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct FileStamp {
     len: u64,
     modified: Option<SystemTime>,
+}
+
+impl FileStamp {
+    /// Returns the stamp of the file at `path` as it is now.
+    ///
+    /// # Errors
+    ///
+    /// Returns the error of looking at the file.
+    pub fn of(path: &Path) -> io::Result<Self> {
+        let metadata = fs::metadata(path)?;
+        Ok(Self {
+            len: metadata.len(),
+            modified: metadata.modified().ok(),
+        })
+    }
+
+    /// Returns the size of the file in bytes.
+    #[must_use]
+    pub const fn size(&self) -> u64 {
+        self.len
+    }
+
+    /// Returns the modification time, or `None` when the platform gives none.
+    #[must_use]
+    pub const fn modified(&self) -> Option<SystemTime> {
+        self.modified
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+struct Stamp {
+    file: FileStamp,
     build: Option<Build>,
 }
 
@@ -49,6 +83,7 @@ struct Stamp {
 pub struct ArchiveWatch {
     path: PathBuf,
     opened: Stamp,
+    watches_build: bool,
     interval: Duration,
     last_check: Mutex<Option<Instant>>,
     changed: AtomicBool,
@@ -62,14 +97,37 @@ impl ArchiveWatch {
         Self {
             path: archive.path().to_path_buf(),
             opened: Stamp {
-                len: archive.file_len(),
-                modified: archive.file_modified(),
+                file: FileStamp {
+                    len: archive.file_len(),
+                    modified: archive.file_modified(),
+                },
                 build: archive.build().cloned(),
             },
+            watches_build: true,
             interval: DEFAULT_WATCH_INTERVAL,
             last_check: Mutex::new(None),
             changed: AtomicBool::new(false),
         }
+    }
+
+    /// Starts watching the plain file at `path`, such as a DataForge file, against its size and
+    /// modification time now; no Build belongs to it.
+    ///
+    /// # Errors
+    ///
+    /// Returns the error of looking at the file.
+    pub fn of_file(path: &Path) -> io::Result<Self> {
+        Ok(Self {
+            path: path.to_path_buf(),
+            opened: Stamp {
+                file: FileStamp::of(path)?,
+                build: None,
+            },
+            watches_build: false,
+            interval: DEFAULT_WATCH_INTERVAL,
+            last_check: Mutex::new(None),
+            changed: AtomicBool::new(false),
+        })
     }
 
     /// Makes [`poll`](Self::poll) read the disk at most every `interval`.
@@ -128,10 +186,7 @@ impl ArchiveWatch {
     /// than a full check; returns whether a change was seen now or before.
     pub(crate) fn file_changed(&self) -> bool {
         if !self.is_changed() {
-            let unchanged = fs::metadata(&self.path).is_ok_and(|metadata| {
-                metadata.len() == self.opened.len
-                    && metadata.modified().ok() == self.opened.modified
-            });
+            let unchanged = FileStamp::of(&self.path).is_ok_and(|now| now == self.opened.file);
             if !unchanged {
                 self.changed.store(true, Ordering::Relaxed);
             }
@@ -156,15 +211,14 @@ impl ArchiveWatch {
     }
 
     fn read_stamp(&self) -> Option<Stamp> {
-        let metadata = fs::metadata(&self.path).ok()?;
-        let build = self
-            .path
-            .parent()
-            .and_then(|folder| Build::read_from(folder).ok().flatten());
-        Some(Stamp {
-            len: metadata.len(),
-            modified: metadata.modified().ok(),
-            build,
-        })
+        let file = FileStamp::of(&self.path).ok()?;
+        let build = if self.watches_build {
+            self.path
+                .parent()
+                .and_then(|folder| Build::read_from(folder).ok().flatten())
+        } else {
+            None
+        };
+        Some(Stamp { file, build })
     }
 }

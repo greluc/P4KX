@@ -8,8 +8,8 @@ use std::thread;
 
 use super::filter::{Needle, matching};
 use super::table::LocalizationTable;
-use crate::EntryIndex;
 use crate::model::describe;
+use crate::{EntryIndex, NoEntries};
 
 /// How reading the localisation table ended.
 #[derive(Debug)]
@@ -58,7 +58,10 @@ fn read(index: &EntryIndex) -> Outcome {
     if index.watch().check().is_err() {
         return Outcome::ArchiveChanged;
     }
-    let table = match LocalizationTable::read(index.archive()) {
+    let Ok(archive) = index.entries_archive() else {
+        return Outcome::Failed(Some(NoEntries.to_string()));
+    };
+    let table = match LocalizationTable::read(archive) {
         Ok(table) => table,
         Err(error) => return Outcome::Failed(Some(describe(&error))),
     };

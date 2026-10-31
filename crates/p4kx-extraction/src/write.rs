@@ -80,14 +80,13 @@ pub(crate) struct EntryWriter<'a> {
     pub(crate) tracker: &'a Tracker<'a>,
 }
 
-impl<'a> EntryWriter<'a> {
+impl EntryWriter<'_> {
     /// Opens the data of `entry`, checked against its directory checksum when the run verifies.
-    pub(crate) fn open_entry(
+    pub(crate) fn open_entry<'e>(
         &self,
-        entry: &SourceEntry<'_>,
-    ) -> Result<SourceReader<'a>, ExtractionError> {
-        let source: &'a dyn EntrySource = self.source;
-        source.open(entry, self.verify)
+        entry: &SourceEntry<'e>,
+    ) -> Result<SourceReader<'e>, ExtractionError> {
+        entry.open(self.verify)
     }
 }
 
@@ -207,12 +206,12 @@ impl EntryWriter<'_> {
 
     /// Opens `entry` and reads its first bytes into `prefix`; returns the reader and how many
     /// bytes were read, or `None` once the run is to stop.
-    fn open_sniffed(
+    fn open_sniffed<'e>(
         &self,
-        entry: &SourceEntry<'_>,
+        entry: &SourceEntry<'e>,
         prefix: &mut [u8; PEEK_LEN],
         written: &mut u64,
-    ) -> Result<Option<(SourceReader<'_>, usize)>, ExtractionError> {
+    ) -> Result<Option<(SourceReader<'e>, usize)>, ExtractionError> {
         let mut reader = self.open_entry(entry)?;
         Ok(self
             .peek(&mut reader, prefix, written)?

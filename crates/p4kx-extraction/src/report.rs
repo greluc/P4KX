@@ -174,6 +174,7 @@ pub struct ExtractionReport {
     pub(crate) archive_changed: bool,
     pub(crate) records: Option<RecordExportReport>,
     pub(crate) records_entry: Option<String>,
+    pub(crate) dataforge_left_out: Vec<String>,
 }
 
 impl ExtractionReport {
@@ -237,6 +238,14 @@ impl ExtractionReport {
     #[must_use]
     pub const fn archive_changed(&self) -> bool {
         self.archive_changed
+    }
+
+    /// Returns the paths of the DataForge files of a folder that a Conversion did not convert
+    /// because it converted another one; they are counted in [`not_converted`](Self::not_converted)
+    /// or copied.
+    #[must_use]
+    pub fn dataforge_left_out(&self) -> &[String] {
+        &self.dataforge_left_out
     }
 
     /// Returns the path of the DataForge Entry whose Records a Conversion wrote, or `None` when

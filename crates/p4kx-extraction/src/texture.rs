@@ -64,11 +64,11 @@ impl<'a> Texture<'a> {
         alpha: Option<Parts<'a>>,
     ) -> Result<Self, ConversionError> {
         let (name, header_size, header) = match &parts {
-            Parts::Source { source, header, .. } => {
+            Parts::Source { header, .. } => {
                 let name = header.path().to_owned();
                 let size = header.uncompressed_size();
-                let reader = source
-                    .open(header, false)
+                let reader = header
+                    .open(false)
                     .map_err(|error| conversion_error(error, &name))?;
                 (name.clone(), size, parse_start(reader, &name)?)
             }
@@ -300,13 +300,8 @@ impl<'a> Texture<'a> {
     /// Opens the header's data from its start.
     pub(crate) fn open_header(&self) -> Result<PartReader<'_>, ConversionError> {
         match &self.parts {
-            Parts::Source {
-                source,
-                header,
-                verify,
-                ..
-            } => source
-                .open(header, *verify)
+            Parts::Source { header, verify, .. } => header
+                .open(*verify)
                 .map(PartReader::Source)
                 .map_err(|error| conversion_error(error, header.path())),
             Parts::Files { header, .. } => File::open(header)

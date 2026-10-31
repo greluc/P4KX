@@ -5,7 +5,8 @@ use std::path::PathBuf;
 use std::sync::{Mutex, PoisonError};
 
 use p4kx_extraction::{
-    CancelToken, ConflictPolicy, ExtractOptions, FolderSource, Progress, convert_folder,
+    CancelToken, ConflictPolicy, ExtractOptions, FolderError, FolderSource, Progress,
+    convert_folder,
 };
 use p4kx_settings::{ExtractionAudio, ExtractionTextures};
 
@@ -40,11 +41,24 @@ pub(crate) fn start_folder(request: FolderRequest, wake: impl Fn() + Send + 'sta
 }
 
 fn run(request: &FolderRequest, cancel: &CancelToken, progress: &Mutex<Progress>) -> RunResult {
-    let source =
-        FolderSource::scan(&request.input, Some(cancel)).map_err(|error| describe(&error))?;
+    let source = match FolderSource::scan(&request.input, Some(cancel)) {
+        Ok(source) => source,
+        Err(FolderError::Cancelled) => {
+            return Ok(ExtractionSummary::cancelled_scan(
+                request.output.clone(),
+                &request.input,
+            ));
+        }
+        Err(error) => return Err(describe(&error)),
+    };
     let on_progress = |now: Progress| {
         *progress.lock().unwrap_or_else(PoisonError::into_inner) = now;
     };
+    on_progress(Progress {
+        entries_total: source.len(),
+        bytes_total: source.total_size(),
+        ..Progress::default()
+    });
     let options = ExtractOptions {
         policy: ConflictPolicy::Skip,
         convert: true,

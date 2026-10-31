@@ -112,12 +112,16 @@ The first argument of nearly every command is the path of a `Data.p4k` Archive, 
   converts a folder of files that were extracted earlier without conversion, as `p4kx extract
   --convert` converts the same Entries (ADR-0272): CryXml (by content), a texture header
   `<name>.dds` with its parts `<name>.dds.N` and alpha tail `<name>.dds.a`, `.wem` sounds, `.bnk`
-  soundbanks and a DataForge file (by content), which becomes one Record XML file per Record. The
+  soundbanks and one DataForge file, which becomes one Record XML file per Record. The
   paths below the input folder act as Entry paths, the options are those of `extract`, the output
   names follow the rule of ADR-0248, and `--conflict` defaults to `skip`. A header whose parts are
   missing is reported as not converted and written unchanged. A file with nothing to convert is
-  counted as not converted and left out; `--copy-other` writes it unchanged. With several
-  DataForge files only the first by path is converted. `--filter` matches the relative paths with
+  counted as not converted and left out; `--copy-other` writes it unchanged. The DataForge is the
+  file at a path the game reads, `Data\Game2.dcb` before `Data\Game.dcb` (also `Game2.dcb` when
+  the folder is the `Data` folder), because a stale `Game.dcb` next to the current one must not
+  win by sorting order; without one, the first `.dcb` file by path that starts like a DataForge;
+  without one, the first file of any name that does. Every other DataForge file the rule found
+  is named on stderr as `left out` and in `dataforge_left_out` of the JSON report. `--filter` matches the relative paths with
   the rules of `p4kx search`; one that matches no file is invalid input. Links (symbolic links and
   junctions) in the input folder are never followed and are listed as failed, as are names that
   are not UTF-8 or hold a separator. An output folder that is the input folder, lies inside it or

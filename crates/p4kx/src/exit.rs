@@ -131,10 +131,10 @@ pub(crate) const EXIT_CODES_HELP: &str = "Exit codes:
      too large to read into memory, or with unreadable Entry data, also a socpak container that
      cannot be opened, a --diff Entry that cannot be read or holds corrupt CryXml, a global.ini of the
      catalog that is corrupt or cannot be read, a defaultProfile.xml that is no XML, is too large
-     or cannot be read, a prefab library that cannot be read, or the skeleton of a body variant
+     or cannot be read, a prefab library that cannot be read, the skeleton of a body variant
      (armour glb) that is missing or unreadable, or the input folder of convert that cannot be
-     read; a missing texture, sound, soundbank, chunk file,
-     UI movie file, model or geometry companion is 2
+     read or holds too many files; a missing texture, sound, soundbank, chunk file, UI movie
+     file, model or geometry companion is 2
   4  the Archive changed on disk while it was open, e.g. updated by the RSI Launcher; the
      Extraction stopped, and Entries written before may be stale
   5  the DataForge cannot be read: the Archive holds none, its version is not supported or it
@@ -263,7 +263,7 @@ fn is_unreadable_folder(error: &anyhow::Error) -> bool {
         error.downcast_ref::<FolderError>(),
         Some(
             FolderError::Read { .. }
-                | FolderError::TooManyFiles { .. }
+                | FolderError::TooManyEntries { .. }
                 | FolderError::TooDeep { .. }
         )
     )

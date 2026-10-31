@@ -9,6 +9,8 @@ use std::thread;
 use p4kx_extraction::{Archive, ArchiveError, is_dataforge_file};
 use p4kx_settings::{ExtractionAudio, ExtractionTextures, RecentArchives};
 
+use self::folder_conversion_control::FolderConversionState;
+
 mod archive_change;
 mod archive_key;
 mod assembly_export_control;
@@ -16,6 +18,7 @@ mod audio_control;
 mod catalog_control;
 mod characters_control;
 mod content_navigation;
+mod describe;
 mod extraction_control;
 mod folder_conversion_control;
 mod game_watch;
@@ -33,6 +36,7 @@ pub use archive_key::{KeyDialog, KeyProblem, KeyReason};
 use assembly_export_control::AssemblyState;
 use catalog_control::CatalogState;
 use content_navigation::PendingHit;
+pub(crate) use describe::describe;
 pub use game_watch::GAME_CHECK_INTERVAL;
 use game_watch::GameWatch;
 use model_export_control::ModelExportState;
@@ -83,7 +87,7 @@ pub struct Model {
     extraction_audio: ExtractionAudio,
     extraction_setup: Option<ExtractionSetup>,
     extraction: Option<Extraction>,
-    conversion_input: Option<PathBuf>,
+    folder_conversion: FolderConversionState,
     update: UpdateState,
     work_tab: WorkTab,
     comparison: ComparisonTab,
@@ -166,7 +170,7 @@ impl Model {
             extraction_audio: ExtractionAudio::default(),
             extraction_setup: None,
             extraction: None,
-            conversion_input: None,
+            folder_conversion: FolderConversionState::default(),
             update: UpdateState::default(),
             work_tab: WorkTab::default(),
             comparison: ComparisonTab::default(),
@@ -387,16 +391,4 @@ impl Model {
             reason: Some(describe(error)),
         });
     }
-}
-
-/// Returns `error` and its causes, joined by colons.
-pub(crate) fn describe(error: &dyn Error) -> String {
-    let mut reason = error.to_string();
-    let mut source = error.source();
-    while let Some(cause) = source {
-        reason.push_str(": ");
-        reason.push_str(&cause.to_string());
-        source = cause.source();
-    }
-    reason
 }

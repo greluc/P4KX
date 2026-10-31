@@ -281,9 +281,10 @@ fn a_link_in_the_input_folder_is_not_followed() -> TestResult {
     let outside = fixture.folder("outside");
     fs::create_dir(&outside)?;
     fs::write(outside.join("secret.xml"), ship())?;
-    if !link(&outside, &raw.join("Data").join("linked")) {
-        return Ok(());
-    }
+    assert!(
+        link(&outside, &raw.join("Data").join("linked")),
+        "a link can be created"
+    );
 
     let report = fixture.convert(&raw, "out", None, true)?;
 

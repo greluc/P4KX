@@ -28,6 +28,8 @@ pub(crate) struct ReportJson<'a> {
     cancelled: &'a [String],
     #[serde(skip_serializing_if = "is_zero")]
     not_converted: usize,
+    #[serde(skip_serializing_if = "<[String]>::is_empty")]
+    dataforge_left_out: &'a [String],
     archive_changed: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     records: Option<RecordsJson<'a>>,
@@ -68,6 +70,7 @@ pub(crate) fn report_json<'a>(
             .map(|_| failures_json(report.unconverted(), false)),
         cancelled: report.cancelled(),
         not_converted: report.not_converted(),
+        dataforge_left_out: report.dataforge_left_out(),
         archive_changed: report.archive_changed(),
         records: report.records().map(|records| RecordsJson {
             exported: records.written(),
@@ -107,25 +110,7 @@ pub(crate) fn print_report(
     conflict: Conflict,
     verify: bool,
 ) -> io::Result<()> {
-    let mut err = io::stderr().lock();
-    for failure in report.failures() {
-        if failure.checksum_mismatch().is_some() {
-            write_mismatch(&mut err, failure)?;
-        } else {
-            writeln!(err, "failed {}: {}", failure.path(), reason(failure))?;
-        }
-    }
-    if let Some(records) = report.records() {
-        write_renamed(&mut err, records.renamed())?;
-    }
-    for unconverted in report.unconverted() {
-        writeln!(
-            err,
-            "not converted {}: {}",
-            unconverted.path(),
-            reason(unconverted)
-        )?;
-    }
+    write_errors(&mut io::stderr().lock(), report)?;
     let mut out = io::stdout().lock();
     let kept = if conflict == Conflict::IfChanged {
         "unchanged"
@@ -165,4 +150,30 @@ pub(crate) fn print_report(
         report.cancelled().len(),
         target.display()
     )
+}
+
+/// Writes the failed, not converted and left-out files of `report` to `err`.
+fn write_errors(err: &mut impl Write, report: &ExtractionReport) -> io::Result<()> {
+    for failure in report.failures() {
+        if failure.checksum_mismatch().is_some() {
+            write_mismatch(err, failure)?;
+        } else {
+            writeln!(err, "failed {}: {}", failure.path(), reason(failure))?;
+        }
+    }
+    if let Some(records) = report.records() {
+        write_renamed(err, records.renamed())?;
+    }
+    for unconverted in report.unconverted() {
+        writeln!(
+            err,
+            "not converted {}: {}",
+            unconverted.path(),
+            reason(unconverted)
+        )?;
+    }
+    for path in report.dataforge_left_out() {
+        writeln!(err, "left out {path}: another DataForge file was converted")?;
+    }
+    Ok(())
 }

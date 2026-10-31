@@ -65,6 +65,14 @@ pub struct ExtractionSummary {
 }
 
 impl ExtractionSummary {
+    /// Returns the outcome of a conversion cancelled while its input folder was read: nothing
+    /// was written, and the input folder is the one thing listed as cancelled.
+    pub(crate) fn cancelled_scan(target: PathBuf, input: &Path) -> Self {
+        let mut summary = Self::new(target, &ExtractionReport::default());
+        summary.cancelled = vec![input.display().to_string()];
+        summary
+    }
+
     pub(crate) fn new(target: PathBuf, report: &ExtractionReport) -> Self {
         Self {
             target,

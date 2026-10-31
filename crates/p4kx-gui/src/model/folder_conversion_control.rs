@@ -7,6 +7,13 @@ use super::Model;
 use crate::Extraction;
 use crate::extraction::{FolderRequest, start_folder};
 
+/// The conversion of a folder as far as the window has asked for it: the input folder that
+/// waits for its output folder.
+#[derive(Debug, Default)]
+pub(super) struct FolderConversionState {
+    input: Option<PathBuf>,
+}
+
 impl Model {
     /// Returns whether a folder of files can be converted: no Extraction or conversion runs.
     #[must_use]
@@ -19,14 +26,14 @@ impl Model {
     pub fn begin_folder_conversion(&mut self, input: PathBuf) {
         if self.folder_conversion_available() {
             self.extraction = None;
-            self.conversion_input = Some(input);
+            self.folder_conversion.input = Some(input);
         }
     }
 
     /// Returns the input folder waiting for its output folder, or `None` when none waits.
     #[must_use]
     pub fn conversion_input(&self) -> Option<&Path> {
-        self.conversion_input.as_deref()
+        self.folder_conversion.input.as_deref()
     }
 
     /// Starts converting the remembered input folder into `output` on a background thread, with
@@ -39,7 +46,7 @@ impl Model {
         output: PathBuf,
         wake: impl Fn() + Send + 'static,
     ) -> bool {
-        let Some(input) = self.conversion_input.take() else {
+        let Some(input) = self.folder_conversion.input.take() else {
             return false;
         };
         if !self.folder_conversion_available() {

@@ -4,18 +4,18 @@
 //! A folder of files on disk as the source of a Conversion.
 
 use std::fs::{self, File};
-use std::io;
+use std::io::{self, Read};
 use std::path::{Path, PathBuf};
 
-use p4kx_dataforge::SNIFF_LEN;
 use rayon::prelude::*;
 use thiserror::Error;
 
-use crate::source::{EntrySource, Handle, SourceEntry, SourceReader};
-use crate::{CancelToken, EntryFailure, ExtractionError, Filter, is_dataforge_file};
+use crate::source::{EntrySource, SourceEntry, SourceReader};
+use crate::{CancelToken, EntryFailure, ExtractionError, Filter};
 
-/// The most files [`FolderSource::scan`] lists.
-pub const MAX_FOLDER_FILES: usize = 1 << 22;
+/// The most files, folders and rejected names [`FolderSource::scan`] visits; it bounds the memory
+/// of the listing, of the rejected names and of the folders waiting to be read.
+pub const MAX_FOLDER_ENTRIES: usize = 1 << 22;
 /// The deepest nesting of folders [`FolderSource::scan`] descends into.
 pub const MAX_FOLDER_DEPTH: usize = 128;
 
@@ -40,6 +40,9 @@ pub enum FolderFileError {
     /// The size of the file differs from the one when the folder was read.
     #[error("the file changed after the folder was read")]
     Changed,
+    /// The file resolves to a place outside the input folder when it is opened.
+    #[error("the file lies outside the input folder")]
+    Outside,
 }
 
 /// Why an input folder cannot be converted.
@@ -57,9 +60,9 @@ pub enum FolderError {
     /// The input path is no folder.
     #[error("{} is not a folder", .0.display())]
     NotAFolder(PathBuf),
-    /// The folder holds more than [`MAX_FOLDER_FILES`] files.
-    #[error("the folder holds more than {limit} files")]
-    TooManyFiles {
+    /// The folder holds more than [`MAX_FOLDER_ENTRIES`] files, folders and rejected names.
+    #[error("the folder holds more than {limit} files and folders")]
+    TooManyEntries {
         /// The limit.
         limit: usize,
     },
@@ -85,12 +88,18 @@ pub enum FolderError {
     Cancelled,
 }
 
+/// One file of a folder: its path below the folder with `\`, its size when listed and where it
+/// is on disk.
 #[derive(Debug)]
 struct FolderFile {
     path: String,
     size: u64,
     disk: PathBuf,
 }
+
+/// A folder still to be read: where it is, the path of its files up to it, ending in `\`, and how
+/// deep it lies.
+type Pending = (PathBuf, String, usize);
 
 /// The files below an input folder, listed once, with the paths below it using `\`.
 ///
@@ -100,6 +109,7 @@ pub struct FolderSource {
     root: PathBuf,
     files: Vec<FolderFile>,
     rejected: Vec<(String, FolderFileError)>,
+    visited: usize,
 }
 
 impl FolderSource {
@@ -109,7 +119,7 @@ impl FolderSource {
     /// # Errors
     ///
     /// Returns [`FolderError::NotAFolder`] when `root` is no folder, [`FolderError::Read`] when
-    /// it cannot be read, [`FolderError::TooManyFiles`] and [`FolderError::TooDeep`] beyond the
+    /// it cannot be read, [`FolderError::TooManyEntries`] and [`FolderError::TooDeep`] beyond the
     /// limits, and [`FolderError::Cancelled`].
     pub fn scan(root: &Path, cancel: Option<&CancelToken>) -> Result<Self, FolderError> {
         let read = |source| FolderError::Read {
@@ -124,13 +134,14 @@ impl FolderSource {
             root,
             files: Vec::new(),
             rejected: Vec::new(),
+            visited: 0,
         };
         let mut pending = vec![(source.root.clone(), String::new(), 0)];
         while let Some((folder, prefix, depth)) = pending.pop() {
             if cancel.is_some_and(CancelToken::is_cancelled) {
                 return Err(FolderError::Cancelled);
             }
-            source.list(&folder, &prefix, depth, &mut pending)?;
+            source.list(&folder, (&prefix, depth), &mut pending)?;
         }
         source.files.sort_unstable_by(|a, b| a.path.cmp(&b.path));
         Ok(source)
@@ -154,6 +165,12 @@ impl FolderSource {
         self.files.is_empty()
     }
 
+    /// Returns the sizes of the listed files added up.
+    #[must_use]
+    pub fn total_size(&self) -> u64 {
+        self.files.iter().map(|file| file.size).sum()
+    }
+
     /// Returns the files and folders that were not listed, with the path below the folder and
     /// the reason.
     #[must_use]
@@ -167,7 +184,7 @@ impl FolderSource {
             .iter()
             .enumerate()
             .filter(|(_, file)| filter.is_none_or(|filter| filter.matches(&file.path)))
-            .map(|(index, file)| entry(index, file))
+            .map(|(index, file)| self.entry(index, file))
             .collect()
     }
 
@@ -188,20 +205,25 @@ impl FolderSource {
         })
     }
 
+    /// Returns the file `file` at `index` as an entry of this source.
+    fn entry<'s>(&'s self, index: usize, file: &'s FolderFile) -> SourceEntry<'s> {
+        SourceEntry::new(self, (&file.path, file.size), index)
+    }
+
+    /// Lists the folder `folder`, whose files have the path `prefix` in front and which lies
+    /// `depth` levels down: files go to the listing, folders to `pending`, everything else to the
+    /// rejected names.
     fn list(
         &mut self,
         folder: &Path,
-        prefix: &str,
-        depth: usize,
-        pending: &mut Vec<(PathBuf, String, usize)>,
+        (prefix, depth): (&str, usize),
+        pending: &mut Vec<Pending>,
     ) -> Result<(), FolderError> {
+        let shown = prefix.trim_end_matches('\\');
         let entries = match fs::read_dir(folder) {
             Ok(entries) => entries,
             Err(error) if depth > 0 => {
-                self.reject(
-                    prefix.trim_end_matches('\\'),
-                    FolderFileError::Unreadable(error.kind()),
-                );
+                self.reject(shown, FolderFileError::Unreadable(error.kind()));
                 return Ok(());
             }
             Err(source) => {
@@ -212,13 +234,11 @@ impl FolderSource {
             }
         };
         for item in entries {
+            self.visit()?;
             let item = match item {
                 Ok(item) => item,
                 Err(error) => {
-                    self.reject(
-                        prefix.trim_end_matches('\\'),
-                        FolderFileError::Unreadable(error.kind()),
-                    );
+                    self.reject(shown, FolderFileError::Unreadable(error.kind()));
                     continue;
                 }
             };
@@ -249,7 +269,7 @@ impl FolderSource {
                 }
                 pending.push((item.path(), format!("{path}\\"), depth + 1));
             } else if kind.is_file() {
-                self.add(&item, path)?;
+                self.add(&item, path);
             } else {
                 self.reject(&path, FolderFileError::Special);
             }
@@ -257,12 +277,19 @@ impl FolderSource {
         Ok(())
     }
 
-    fn add(&mut self, item: &fs::DirEntry, path: String) -> Result<(), FolderError> {
-        if self.files.len() >= MAX_FOLDER_FILES {
-            return Err(FolderError::TooManyFiles {
-                limit: MAX_FOLDER_FILES,
+    /// Counts one more visited file, folder or rejected name against [`MAX_FOLDER_ENTRIES`].
+    const fn visit(&mut self) -> Result<(), FolderError> {
+        self.visited += 1;
+        if self.visited > MAX_FOLDER_ENTRIES {
+            return Err(FolderError::TooManyEntries {
+                limit: MAX_FOLDER_ENTRIES,
             });
         }
+        Ok(())
+    }
+
+    /// Lists the file `item` as `path`, or rejects it when its size cannot be read.
+    fn add(&mut self, item: &fs::DirEntry, path: String) {
         match item.metadata() {
             Ok(metadata) => self.files.push(FolderFile {
                 path,
@@ -271,41 +298,45 @@ impl FolderSource {
             }),
             Err(error) => self.reject(&path, FolderFileError::Unreadable(error.kind())),
         }
-        Ok(())
     }
 
+    /// Records that `path` is not listed, for `reason`; the visit that found it is already
+    /// counted.
     fn reject(&mut self, path: &str, reason: FolderFileError) {
         self.rejected.push((path.to_owned(), reason));
     }
 }
 
-fn entry(index: usize, file: &FolderFile) -> SourceEntry<'_> {
-    SourceEntry::file(&file.path, file.size, index, &file.disk)
-}
-
 impl EntrySource for FolderSource {
-    fn open(
-        &self,
-        entry: &SourceEntry<'_>,
-        _verify: bool,
-    ) -> Result<SourceReader<'_>, ExtractionError> {
-        let Handle::File(path) = entry.handle() else {
-            return Err(ExtractionError::Read(io::Error::new(
-                io::ErrorKind::InvalidInput,
-                "the file is not a file of this folder",
-            )));
-        };
+    fn open(&self, index: usize, _verify: bool) -> Result<SourceReader<'_>, ExtractionError> {
+        let file = self.files.get(index).ok_or_else(|| {
+            ExtractionError::Read(io::Error::new(
+                io::ErrorKind::NotFound,
+                "the folder has no file at that position",
+            ))
+        })?;
         let unreadable =
             |error: io::Error| ExtractionError::Folder(FolderFileError::Unreadable(error.kind()));
-        if fs::symlink_metadata(path).map_err(unreadable)?.is_symlink() {
+        if fs::symlink_metadata(&file.disk)
+            .map_err(unreadable)?
+            .is_symlink()
+        {
             return Err(FolderFileError::Link.into());
         }
-        let file = File::open(path).map_err(unreadable)?;
-        let metadata = file.metadata().map_err(unreadable)?;
-        if !metadata.is_file() || metadata.len() != entry.uncompressed_size() {
+        let opened = File::open(&file.disk).map_err(unreadable)?;
+        let metadata = opened.metadata().map_err(unreadable)?;
+        if !metadata.is_file() || metadata.len() != file.size {
             return Err(FolderFileError::Changed.into());
         }
-        Ok(Box::new(file))
+        let resolved = fs::canonicalize(&file.disk).map_err(unreadable)?;
+        if !resolved.starts_with(&self.root) {
+            return Err(FolderFileError::Outside.into());
+        }
+        Ok(Box::new(opened.take(file.size)))
+    }
+
+    fn checksum(&self, _index: usize) -> Option<p4kx_archive::Checksum> {
+        None
     }
 
     fn raw_path(&self, _index: usize) -> Option<&[u8]> {
@@ -321,20 +352,7 @@ impl EntrySource for FolderSource {
             .par_iter()
             .enumerate()
             .filter(|(_, file)| wanted(&file.path))
-            .map(|(index, file)| entry(index, file))
+            .map(|(index, file)| self.entry(index, file))
             .collect()
-    }
-
-    fn dataforge_position(&self, entries: &[SourceEntry<'_>]) -> Option<usize> {
-        entries
-            .par_iter()
-            .enumerate()
-            .filter(|(_, entry)| entry.uncompressed_size() >= SNIFF_LEN as u64)
-            .filter(|(_, entry)| match entry.handle() {
-                Handle::File(path) => is_dataforge_file(path).unwrap_or(false),
-                Handle::Archive(_) => false,
-            })
-            .map(|(position, _)| position)
-            .min()
     }
 }

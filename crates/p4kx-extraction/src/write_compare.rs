@@ -1,7 +1,11 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
+//! The comparison of a file to write with the file already in the target, under the Conflict
+//! policy.
+
 use std::fs::{File, Metadata};
+use std::io::{self, Read};
 use std::path::Path;
 
 use p4kx_archive::{Checksum, ChecksumHasher};
@@ -30,17 +34,8 @@ impl EntryWriter<'_> {
             return Ok(Some(unused));
         }
         let mut reader = self.open_entry(entry)?;
-        let mut hasher = ChecksumHasher::of_kind(unused);
-        loop {
-            match self
-                .read_chunk(&mut reader, chunk)
-                .map_err(ExtractionError::read)?
-            {
-                Chunk::Data(count) => hasher.update(chunk.get(..count).unwrap_or_default()),
-                Chunk::End => return Ok(Some(hasher.finish())),
-                Chunk::Cancelled => return Ok(None),
-            }
-        }
+        self.hash_stream(&mut reader, ChecksumHasher::of_kind(unused), chunk)
+            .map_err(ExtractionError::read)
     }
 
     /// Decides whether the file of `destination` is written, comparing an existing file under
@@ -78,15 +73,24 @@ impl EntryWriter<'_> {
     fn file_checksum(
         &self,
         path: &Path,
-        mut hasher: ChecksumHasher,
+        hasher: ChecksumHasher,
         buffer: &mut [u8],
     ) -> Result<Option<Checksum>, ExtractionError> {
         let mut file = File::open(path).map_err(|source| read_existing_error(path, source))?;
+        self.hash_stream(&mut file, hasher, buffer)
+            .map_err(|source| read_existing_error(path, source))
+    }
+
+    /// Feeds `reader` to `hasher` through `buffer` and returns the checksum, or `None` once the
+    /// run is to stop.
+    fn hash_stream(
+        &self,
+        reader: &mut impl Read,
+        mut hasher: ChecksumHasher,
+        buffer: &mut [u8],
+    ) -> io::Result<Option<Checksum>> {
         loop {
-            match self
-                .read_chunk(&mut file, buffer)
-                .map_err(|source| read_existing_error(path, source))?
-            {
+            match self.read_chunk(reader, buffer)? {
                 Chunk::Data(count) => hasher.update(buffer.get(..count).unwrap_or_default()),
                 Chunk::End => return Ok(Some(hasher.finish())),
                 Chunk::Cancelled => return Ok(None),

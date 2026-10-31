@@ -166,3 +166,22 @@ fn an_input_that_is_no_folder_is_invalid_input() -> TestResult {
         .code(2);
     Ok(())
 }
+
+#[test]
+fn a_run_cancelled_before_the_folder_is_read_writes_nothing_and_ends_with_code_1() -> TestResult {
+    let fixture = fixture()?;
+    let raw = fixture.extract("raw", false)?;
+    let out = fixture.dir.path().join("out");
+
+    p4kx()?
+        .arg("convert")
+        .arg(&raw)
+        .arg("--out")
+        .arg(&out)
+        .args(["--cancel-after", "0"])
+        .assert()
+        .code(1);
+
+    assert!(!out.exists(), "nothing was created");
+    Ok(())
+}

@@ -7,7 +7,8 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
-use crate::extract::extract_files;
+use crate::dataforge_pick::by_name_then_content;
+use crate::extract::{Rules, extract_files};
 use crate::{ExtractOptions, ExtractionReport, Filter, FolderError, FolderSource};
 
 /// Converts the files of `source` whose path matches `filter`, or all of them, into the folder
@@ -44,7 +45,11 @@ pub fn convert_folder(
         ..*options
     };
     let entries = source.select(filter);
-    let mut report = extract_files(source, &entries, target, &options, copy_other);
+    let rules = Rules {
+        copy_other,
+        pick: &by_name_then_content,
+    };
+    let mut report = extract_files(source, &entries, target, &options, &rules);
     report.failures.splice(0..0, source.rejected_failures());
     Ok(report)
 }

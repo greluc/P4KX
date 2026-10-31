@@ -220,21 +220,19 @@ impl EntryWriter<'_> {
     fn open_source<'j>(&'j self, job: &'j TextureJob<'_>) -> Result<Source<'j>, ExtractionError> {
         let (_, header) = job.header;
         let colour = Parts::Source {
-            source: self.source,
-            header: header.clone(),
+            header: *header,
             parts: job.parts.clone(),
             verify: self.verify,
         };
         let alpha = job.alpha_header.as_ref().map(|alpha_header| Parts::Source {
-            source: self.source,
-            header: alpha_header.clone(),
+            header: *alpha_header,
             parts: job.alpha_parts.clone(),
             verify: self.verify,
         });
         if self.verify {
-            self.verify_header(header)?;
+            Self::verify_header(header)?;
             if let Some(alpha_header) = &job.alpha_header {
-                self.verify_header(alpha_header)?;
+                Self::verify_header(alpha_header)?;
             }
         }
         let texture = Texture::from_parts(colour, alpha).map_err(ExtractionError::Texture)?;
@@ -243,16 +241,15 @@ impl EntryWriter<'_> {
 
     /// Reads a header Entry to its end through the verified reader, since a Conversion parses
     /// only a prefix of it.
-    fn verify_header(&self, header: &SourceEntry<'_>) -> Result<(), ExtractionError> {
+    fn verify_header(header: &SourceEntry<'_>) -> Result<(), ExtractionError> {
         let fail = |source: io::Error| {
             ExtractionError::Texture(ConversionError::Read {
                 path: PathBuf::from(header.path()),
                 source,
             })
         };
-        let mut reader = self
-            .source
-            .open(header, true)
+        let mut reader = header
+            .open(true)
             .map_err(|error| fail(io::Error::other(error)))?;
         io::copy(&mut reader, &mut io::sink())
             .map(drop)

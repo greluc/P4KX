@@ -5,7 +5,9 @@ use std::io;
 use std::process::ExitCode;
 
 use anyhow::Result;
-use p4kx_extraction::{ExtractOptions, Filter, FolderSource, Progress, convert_folder};
+use p4kx_extraction::{
+    ExtractOptions, ExtractionReport, Filter, FolderSource, Progress, convert_folder,
+};
 
 use crate::cli::ConvertArgs;
 use crate::dcb_export;
@@ -23,6 +25,9 @@ pub(crate) fn run(args: &ConvertArgs, as_json: bool) -> Result<ExitCode> {
     let filter = args.filter.as_deref().map(Filter::parse).transpose()?;
     crate::guard::ensure_writable(&args.out)?;
     let cancel = cancel_on_interrupt()?;
+    if args.cancel_after == Some(0) {
+        cancel.cancel();
+    }
     let source = FolderSource::scan(&args.folder, Some(&cancel))?;
     if let (Some(filter), Some(text)) = (&filter, &args.filter)
         && source.count_matching(filter) == 0
@@ -57,25 +62,27 @@ pub(crate) fn run(args: &ConvertArgs, as_json: bool) -> Result<ExitCode> {
         &options,
     )?;
     line.finish();
-    let printed = if as_json {
-        json::print(&report_json(&report, &args.out, false))
-    } else {
-        print_report(&report, &args.out, args.conflict, false).and_then(|()| {
-            report.records().map_or(Ok(()), |records| {
-                let entry = report.records_entry().unwrap_or_default();
-                dcb_export::print_report(
-                    &records.into(),
-                    &records_folder(entry, &args.out),
-                    args.conflict,
-                    p4kx_export::RecordForm::Ndjson,
-                )
-            })
-        })
-    };
-    if let Err(error) = printed
+    if let Err(error) = print(&report, args, as_json)
         && error.kind() != io::ErrorKind::BrokenPipe
     {
         return Err(error.into());
     }
     Ok(ExitCode::from(exit_code(&report)))
+}
+
+/// Prints the report of the conversion as JSON or as text, with the Records it wrote.
+fn print(report: &ExtractionReport, args: &ConvertArgs, as_json: bool) -> io::Result<()> {
+    if as_json {
+        return json::print(&report_json(report, &args.out, false));
+    }
+    print_report(report, &args.out, args.conflict, false)?;
+    report.records().map_or(Ok(()), |records| {
+        let entry = report.records_entry().unwrap_or_default();
+        dcb_export::print_report(
+            &records.into(),
+            &records_folder(entry, &args.out),
+            args.conflict,
+            p4kx_export::RecordForm::Ndjson,
+        )
+    })
 }

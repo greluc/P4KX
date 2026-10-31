@@ -22,7 +22,6 @@ const MAX_PROBED_PARTS: u32 = 32;
 pub(crate) enum Parts<'a> {
     /// Files of a source, by part number.
     Source {
-        source: &'a dyn EntrySource,
         header: SourceEntry<'a>,
         parts: BTreeMap<u32, SourceEntry<'a>>,
         verify: bool,
@@ -74,7 +73,7 @@ impl<'a> Parts<'a> {
         let find = |wanted: Role| {
             found
                 .iter()
-                .find_map(|(role, entry)| (*role == wanted).then(|| entry.clone()))
+                .find_map(|(role, entry)| (*role == wanted).then_some(*entry))
         };
         let parts_of = |alpha: bool| {
             let mut parts = BTreeMap::new();
@@ -82,7 +81,7 @@ impl<'a> Parts<'a> {
                 if let Role::Part { index, alpha: is } = *role
                     && is == alpha
                 {
-                    parts.entry(index).or_insert_with(|| entry.clone());
+                    parts.entry(index).or_insert(*entry);
                 }
             }
             parts
@@ -96,7 +95,6 @@ impl<'a> Parts<'a> {
             None
         } else {
             find(Role::AlphaHeader).map(|header| Self::Source {
-                source,
                 header,
                 parts: parts_of(true),
                 verify: false,
@@ -104,7 +102,6 @@ impl<'a> Parts<'a> {
         };
         Some(Found {
             colour: Self::Source {
-                source,
                 header,
                 parts: parts_of(is_alpha),
                 verify: false,
@@ -118,21 +115,21 @@ impl<'a> Parts<'a> {
     /// treated as [`Parts::in_archive`] treats it.
     pub(crate) fn in_index(index: &PathIndex<'a>, path: &str) -> Option<Found<'a>> {
         let (base, is_alpha) = split_alpha(path);
-        let source: &'a dyn EntrySource = index.archive();
+        let archive = index.archive();
         let header = index
             .find(&if is_alpha {
                 format!("{base}.{ALPHA_SUFFIX}")
             } else {
                 base.to_owned()
             })
-            .map(SourceEntry::of_archive)?;
+            .map(|entry| SourceEntry::of_archive(archive, entry))?;
         let parts_of = |suffix: &str| {
             let mut parts = BTreeMap::new();
             for number in 1..=MAX_PROBED_PARTS {
                 let Some(part) = index.find(&format!("{base}.{number}{suffix}")) else {
                     break;
                 };
-                parts.insert(number, SourceEntry::of_archive(part));
+                parts.insert(number, SourceEntry::of_archive(archive, part));
             }
             parts
         };
@@ -143,15 +140,13 @@ impl<'a> Parts<'a> {
             index
                 .find(&format!("{base}.{ALPHA_SUFFIX}"))
                 .map(|alpha| Self::Source {
-                    source,
-                    header: SourceEntry::of_archive(alpha),
+                    header: SourceEntry::of_archive(archive, alpha),
                     parts: parts_of(ALPHA_SUFFIX),
                     verify: false,
                 })
         };
         Some(Found {
             colour: Self::Source {
-                source,
                 header,
                 parts: parts_of(colour_suffix),
                 verify: false,
@@ -229,17 +224,12 @@ impl SiblingReader for Parts<'_> {
 
     fn open_part(&self, index: u32) -> io::Result<Self::Part<'_>> {
         match self {
-            Self::Source {
-                source,
-                parts,
-                verify,
-                ..
-            } => {
+            Self::Source { parts, verify, .. } => {
                 let entry = parts
                     .get(&index)
                     .ok_or_else(|| io::Error::from(io::ErrorKind::NotFound))?;
-                source
-                    .open(entry, *verify)
+                entry
+                    .open(*verify)
                     .map(PartReader::Source)
                     .map_err(io::Error::other)
             }

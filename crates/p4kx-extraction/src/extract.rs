@@ -6,6 +6,7 @@ use std::path::Path;
 use p4kx_archive::{Archive, Entry};
 
 use crate::buffers::Buffers;
+use crate::dataforge_pick::{DataForgePick, Pick, located};
 use crate::dependent::Collisions;
 use crate::sound_job::mark_sounds;
 use crate::sound_workers::{run_parallel, within};
@@ -79,23 +80,34 @@ pub fn extract(
 ) -> ExtractionReport {
     let files: Vec<SourceEntry<'_>> = entries
         .iter()
-        .map(|entry| SourceEntry::of_archive(entry))
+        .map(|entry| SourceEntry::of_archive(archive, entry))
         .collect();
-    extract_files(archive, &files, target, options, true)
+    let rules = Rules {
+        copy_other: true,
+        pick: &|entries, stop| located(archive, entries, stop),
+    };
+    extract_files(archive, &files, target, options, &rules)
 }
 
-/// Runs an Extraction of `entries` of `source` like [`extract`]; with `copy_other` off, a file
-/// that Conversion leaves unchanged is not written but counted in
-/// [`ExtractionReport::not_converted`].
+/// What differs between an Extraction of an Archive and a Conversion of a folder.
+pub(crate) struct Rules<'p> {
+    /// Whether a file that Conversion leaves unchanged is written too; without it such a file is
+    /// not written but counted in [`ExtractionReport::not_converted`].
+    pub(crate) copy_other: bool,
+    /// How the DataForge to convert is chosen among the files.
+    pub(crate) pick: Pick<'p>,
+}
+
+/// Runs an Extraction of `entries` of `source` like [`extract`], as `rules` say.
 pub(crate) fn extract_files(
     source: &dyn EntrySource,
     entries: &[SourceEntry<'_>],
     target: &Path,
     options: &ExtractOptions<'_>,
-    copy_other: bool,
+    rules: &Rules<'_>,
 ) -> ExtractionReport {
     let Some(threads) = options.threads else {
-        return run(source, entries, target, options, None, copy_other);
+        return run(source, entries, target, options, None, rules);
     };
     let limit = std::thread::available_parallelism().map_or(1, std::num::NonZero::get);
     let pool = rayon::ThreadPoolBuilder::new()
@@ -103,7 +115,7 @@ pub(crate) fn extract_files(
         .thread_name(|number| format!("p4kx-extract-{number}"))
         .build();
     match pool {
-        Ok(pool) => run(source, entries, target, options, Some(&pool), copy_other),
+        Ok(pool) => run(source, entries, target, options, Some(&pool), rules),
         Err(error) => ExtractionReport {
             failures: entries
                 .iter()
@@ -124,7 +136,7 @@ fn run(
     target: &Path,
     options: &ExtractOptions<'_>,
     pool: Option<&rayon::ThreadPool>,
-    copy_other: bool,
+    rules: &Rules<'_>,
 ) -> ExtractionReport {
     if let Some(report) = not_started(entries, target, options) {
         return report;
@@ -136,16 +148,18 @@ fn run(
         target: &absolute,
         policy: options.policy,
         convert: options.convert,
-        copy_other,
+        copy_other: rules.copy_other,
         textures: options.textures,
         audio: options.audio,
         verify: options.verify,
         tracker: &tracker,
     };
-    let dataforge = options
-        .convert
-        .then(|| source.dataforge_position(entries))
-        .flatten();
+    let found = if options.convert {
+        within(pool, || (rules.pick)(entries, &|| tracker.should_stop()))
+    } else {
+        DataForgePick::default()
+    };
+    let dataforge = found.position;
     let (independent, dependent) =
         split_dependent(within(pool, || items(source, entries, options, dataforge)));
     let run = |buffers: &mut Buffers, item: Item<'_>| {
@@ -174,6 +188,12 @@ fn run(
     report.records_entry = dataforge
         .and_then(|index| entries.get(index))
         .map(|entry| entry.path().to_owned());
+    report.dataforge_left_out = found
+        .left_out
+        .iter()
+        .filter_map(|&position| entries.get(position))
+        .map(|entry| entry.path().to_owned())
+        .collect();
     report.archive_changed = options.watch.is_some_and(|watch| watch.check().is_err());
     report
 }

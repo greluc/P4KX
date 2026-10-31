@@ -2081,7 +2081,8 @@ file that is corrupt or not supported, an `--anim-from` one included, with 3.
 ```
 
 `p4kx convert … --json` prints the same report and, when it is not 0, `"not_converted": 2`, the
-number of files left out because they have nothing to convert (without `--copy-other`); `skipped`,
+number of files left out because they have nothing to convert (without `--copy-other`), and
+`"dataforge_left_out": ["Data\\Game.dcb"]`, the other DataForge files it found; `skipped`,
 `failed` and `cancelled` name paths below the input folder.
 
 With `--convert` the report also holds `"converted": 1`, the number of Entries written converted

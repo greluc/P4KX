@@ -52,11 +52,11 @@ fn port(
     })
 }
 
-const fn colour(name: u32, rgba: [u8; 4]) -> (u32, [u8; 4]) {
+pub(crate) const fn colour(name: u32, rgba: [u8; 4]) -> (u32, [u8; 4]) {
     (name, rgba)
 }
 
-fn material(
+pub(crate) fn material(
     port: &str,
     base: u128,
     sub: &str,
@@ -81,7 +81,7 @@ fn character() -> Result<Chf, Box<dyn Error>> {
     character_with(Vec::new())
 }
 
-fn character_with(more: Vec<TestMaterial>) -> Result<Chf, Box<dyn Error>> {
+pub(crate) fn character_with(more: Vec<TestMaterial>) -> Result<Chf, Box<dyn Error>> {
     let items = vec![
         port("hair_itemport", DRESSED_HAIR, Vec::new())?,
         port("eyes_itemport", DRESSED_EYES, Vec::new())?,
@@ -148,7 +148,7 @@ fn head_materials() -> Result<Vec<TestMaterial>, Box<dyn Error>> {
     ])
 }
 
-fn archive_entries() -> Vec<TestEntry> {
+pub(crate) fn archive_entries() -> Vec<TestEntry> {
     let rig = head_rig(HEAD_VERTICES, MALE_RIG_HASH).build();
     let mut entries = dressed_entries(Some(rig));
     let texture = SplitDds::new(TestTextureFormat::LegacyBgra8, 4, 4).mips(1);
@@ -159,8 +159,8 @@ fn archive_entries() -> Vec<TestEntry> {
     entries
 }
 
-struct Dressed {
-    armour: Armour,
+pub(crate) struct Dressed {
+    pub(crate) armour: Armour,
     glb: p4kx_testkit::CheckedGlb,
     summary: p4kx_gltf::GlbSummary,
 }
@@ -169,7 +169,10 @@ fn dress(entries: Vec<TestEntry>) -> Result<Dressed, Box<dyn Error>> {
     dress_character(entries, &character()?)
 }
 
-fn dress_character(entries: Vec<TestEntry>, chf: &Chf) -> Result<Dressed, Box<dyn Error>> {
+pub(crate) fn dress_character(
+    entries: Vec<TestEntry>,
+    chf: &Chf,
+) -> Result<Dressed, Box<dyn Error>> {
     let fixture = fixture(entries)?;
     let archive = Archive::open(&fixture.path)?;
     let entry = DataForgeEntry::read(&archive)?;
@@ -199,7 +202,10 @@ fn dress_character(entries: Vec<TestEntry>, chf: &Chf) -> Result<Dressed, Box<dy
     })
 }
 
-fn named<'a>(dressed: &'a Dressed, name: &str) -> Result<&'a ArmourPart, Box<dyn Error>> {
+pub(crate) fn named<'a>(
+    dressed: &'a Dressed,
+    name: &str,
+) -> Result<&'a ArmourPart, Box<dyn Error>> {
     Ok(dressed
         .armour
         .parts()
@@ -223,7 +229,7 @@ fn factor(dressed: &Dressed, name: &str) -> Result<([f32; 4], bool, AlphaMode), 
     ))
 }
 
-fn near(found: [f32; 4], wanted: [f32; 3]) -> bool {
+pub(crate) fn near(found: [f32; 4], wanted: [f32; 3]) -> bool {
     found
         .iter()
         .zip(wanted)
@@ -305,60 +311,6 @@ fn the_materials_take_the_skin_tone_the_iris_and_the_dye_of_the_character() -> T
         dressed.glb.document.skins().len(),
         1,
         "one skin for all pieces"
-    );
-    Ok(())
-}
-
-#[test]
-fn the_body_takes_the_base_material_and_skin_tone_the_character_chose_for_it() -> TestResult {
-    let body_choice = material(
-        "body_itemport",
-        DRESSED_HEAD_MATERIAL,
-        "shader_head",
-        Vec::new(),
-        vec![colour(BODY_COLOR, [0, 0, 255, 255])],
-        Vec::new(),
-    )?;
-    let dressed = dress_character(archive_entries(), &character_with(vec![body_choice])?)?;
-
-    let body = named(&dressed, "body")?;
-    let library = body
-        .materials()
-        .library()
-        .ok_or("the body has no library")?;
-    assert!(
-        library.materials.iter().all(|skin| near(
-            [skin.diffuse[0], skin.diffuse[1], skin.diffuse[2], 1.0],
-            [0.0, 0.0, 1.0]
-        )),
-        "every body skin takes the skin tone: {:?}",
-        library.materials
-    );
-    assert_eq!(dressed.armour.count(PartOrigin::Body), 1, "no second body");
-    assert_eq!(
-        dressed.armour.count(PartOrigin::Piece),
-        5,
-        "no part of its own"
-    );
-    Ok(())
-}
-
-#[test]
-fn a_character_that_chose_nothing_for_its_body_keeps_the_default_body() -> TestResult {
-    let dressed = dress(archive_entries())?;
-
-    let body = named(&dressed, "body")?;
-    let library = body
-        .materials()
-        .library()
-        .ok_or("the body has no library")?;
-    assert!(
-        library.materials.iter().all(|skin| near(
-            [skin.diffuse[0], skin.diffuse[1], skin.diffuse[2], 1.0],
-            [0.5; 3]
-        )),
-        "{:?}",
-        library.materials
     );
     Ok(())
 }

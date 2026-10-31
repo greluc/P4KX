@@ -215,7 +215,8 @@ impl Piece {
 
     /// Stands for the default body of the [`Armour`](super::Armour), so that the material library
     /// and the [`Look`] given to it, see [`Piece::with_material`] and [`Piece::looking`], style
-    /// the body skin. It is no skin of its own and makes no part.
+    /// the body skin. It is no skin of its own and makes no part; when several are worn, only the
+    /// first restyles the body and the others are ignored.
     #[must_use]
     pub fn body() -> Self {
         Self::from_source("body".to_owned(), Source::Body)

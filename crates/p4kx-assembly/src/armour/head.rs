@@ -150,7 +150,7 @@ impl Head {
 
     /// Returns the pieces to wear on the body: the shaped head, and with [`Head::dressed`] its
     /// teeth, the items of the Character's head port and, if the Character chose one, the
-    /// [`Piece::body`] that styles its body.
+    /// [`Piece::body`] (adds no skin) that styles its body.
     #[must_use]
     pub fn pieces(&self) -> &[Piece] {
         &self.pieces

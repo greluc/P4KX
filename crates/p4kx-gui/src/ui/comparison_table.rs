@@ -8,7 +8,8 @@ use egui::{Frame, Galley, Id, Margin, Ui, vec2};
 use super::comparison_extraction;
 use super::comparison_list::{self, ListAction};
 use super::comparison_lists;
-use super::search::{eyebrow, filter_field, filter_problem};
+use super::filter_text::filter_problem;
+use super::search::{eyebrow, filter_field};
 use super::{Dialog, Requests};
 use crate::theme::desktop::{SEARCH_WIDTH, TOOLBAR_PADDING};
 use crate::theme::palette;
@@ -188,8 +189,14 @@ fn rows(ui: &mut Ui, model: &Model, cache: &mut ToolbarCache, saving: bool) -> P
         if let Some(shown) = cache.shown.clone() {
             ui.label(shown);
         }
-        pressed.save =
-            button::button(ui, Kind::Ghost, Size::Normal, &cache.save, !saving).clicked();
+        pressed.save = button::button(
+            ui,
+            Kind::Ghost,
+            Size::Normal,
+            &cache.save,
+            !saving && problem.is_none(),
+        )
+        .clicked();
     });
     if !inline && entries {
         ui.horizontal(|ui| {

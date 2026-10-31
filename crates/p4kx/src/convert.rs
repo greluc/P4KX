@@ -6,8 +6,7 @@ use std::process::ExitCode;
 
 use anyhow::Result;
 use p4kx_extraction::{
-    Exclusion, ExtractOptions, ExtractionReport, Filter, FolderSource, Progress,
-    convert_folder_excluding,
+    Exclusion, ExtractOptions, ExtractionReport, Filter, FolderSource, Progress, convert_folder,
 };
 
 use crate::cli::ConvertArgs;
@@ -16,9 +15,8 @@ use crate::extract::{
     audio, cancel_on_interrupt, exit_code, policy, records_folder, texture_conversion,
 };
 use crate::extract_report::{print_report, report_json};
-use crate::filter_pair::{self, ExcludedAll};
+use crate::filter_pair;
 use crate::json;
-use crate::no_match::NoMatch;
 use crate::progress::ProgressLine;
 
 /// Converts the files of the input folder into the output folder, showing progress and stopping
@@ -32,8 +30,12 @@ pub(crate) fn run(args: &ConvertArgs, as_json: bool) -> Result<ExitCode> {
         cancel.cancel();
     }
     let source = FolderSource::scan(&args.folder, Some(&cancel))?;
-    let selection = (filter.as_ref(), &exclusion);
-    check_selection(&source, selection, args.filter.as_deref())?;
+    let selection = source.select(filter.as_ref(), &exclusion);
+    if filter.is_some() || !exclusion.is_empty() {
+        let text = args.filter.as_deref().unwrap_or("*");
+        filter_pair::require(text, selection.matched(), selection.len())?;
+    }
+    filter_pair::note_excluded_parts(selection.excluded_parts(), "the Conversion");
     let line = ProgressLine::new();
     let on_progress = |progress: Progress| {
         if args
@@ -54,8 +56,7 @@ pub(crate) fn run(args: &ConvertArgs, as_json: bool) -> Result<ExitCode> {
         progress: Some(&on_progress),
         ..ExtractOptions::default()
     };
-    let report =
-        convert_folder_excluding(&source, selection, args.copy_other, &args.out, &options)?;
+    let report = convert_folder(&source, &selection, args.copy_other, &args.out, &options)?;
     line.finish();
     if let Err(error) = print(&report, args, as_json)
         && error.kind() != io::ErrorKind::BrokenPipe
@@ -63,34 +64,6 @@ pub(crate) fn run(args: &ConvertArgs, as_json: bool) -> Result<ExitCode> {
         return Err(error.into());
     }
     Ok(ExitCode::from(exit_code(&report)))
-}
-
-/// Refuses a Filter pair that selects no file and notes the excluded parts of textures that stay.
-///
-/// Without a Filter and without exclusion Filters every file is selected, even none.
-///
-/// # Errors
-///
-/// Returns [`NoMatch`] when the Filter `text` matches no file and [`ExcludedAll`] when the
-/// exclusion Filters leave out all it matches; the message names `*` when there is no Filter.
-fn check_selection(
-    source: &FolderSource,
-    selection: (Option<&Filter>, &Exclusion),
-    text: Option<&str>,
-) -> Result<()> {
-    let (filter, exclusion) = selection;
-    let counts = source.count_selected(filter, exclusion);
-    if filter.is_some() || !exclusion.is_empty() {
-        let text = text.unwrap_or("*");
-        if counts.matched == 0 {
-            return Err(NoMatch::new(text).into());
-        }
-        if counts.kept == 0 {
-            return Err(ExcludedAll::new(text, counts.matched).into());
-        }
-    }
-    filter_pair::note_excluded_parts(counts.parts_of_kept_textures, "the Conversion");
-    Ok(())
 }
 
 /// Prints the report of the conversion as JSON or as text, with the Records it wrote.

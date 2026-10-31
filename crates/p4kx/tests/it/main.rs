@@ -80,6 +80,7 @@ mod extract_convert;
 mod extract_convert_dataforge;
 mod extract_exclude;
 mod extract_textures;
+mod filter_bounds;
 mod grep;
 mod info;
 mod interior_glb;

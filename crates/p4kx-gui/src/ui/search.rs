@@ -3,9 +3,8 @@
 
 use egui::{Align, Frame, Id, Layout, Margin, Rect, TextEdit, Ui, pos2, vec2};
 
-use p4kx_extraction::Filter;
-
-use super::{extraction, extraction_exclude, wrapped_actions};
+use super::filter_text::filter_problem;
+use super::{extraction, wrapped_actions};
 use crate::theme::desktop::{
     ICON, SEARCH_ICON_INSET, SEARCH_PADDING_LEFT, SEARCH_WIDTH, TOOLBAR_PADDING,
 };
@@ -14,7 +13,7 @@ use crate::theme::tokens::{FS_2XS, FS_BODY, TOUCH_TARGET, TRACKING_OVERLINE, Wei
 use crate::widgets::frames::px;
 use crate::widgets::text::{caps, hairline_below, plain};
 use crate::widgets::{field, indicator, tab};
-use crate::{Model, Text, Texts};
+use crate::{Model, Text};
 
 /// The Filters the quick-filter chips apply.
 const QUICK_FILTERS: [&str; 5] = ["*.xml", "*.dds", "*.dcb", "Game2.dcb", "aurora"];
@@ -85,14 +84,6 @@ pub(super) fn eyebrow(text: &str) -> egui::RichText {
 
 pub(super) fn field(ui: &mut Ui, text: &mut String, hint: &str, label: Id) -> bool {
     field_response(ui, text, hint, label).changed()
-}
-
-/// Returns why the Filter `text` of a search field is refused, in words, or `None` when it is
-/// accepted.
-pub(super) fn filter_problem(texts: &Texts, text: &str) -> Option<String> {
-    Filter::parse(text)
-        .err()
-        .map(|problem| extraction_exclude::problem_text(texts, &problem))
 }
 
 /// Shows the search field of a Filter like [`field`]; with a `problem` the frame is that of an

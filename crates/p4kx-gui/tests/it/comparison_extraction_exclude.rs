@@ -58,6 +58,23 @@ fn textures() -> Result<Pair, Box<dyn Error>> {
 }
 
 #[test]
+fn filter_text_that_is_refused_selects_no_change_and_saves_no_report() -> TestResult {
+    let pair = pair()?;
+    let report = pair.dir.path().join("report.json");
+
+    for text in ["a".repeat(2000), "*a".repeat(40)] {
+        let mut model = compared(&pair, &text)?;
+        let view = model.comparison_mut().view_mut().ok_or("no view")?;
+        assert_eq!(view.change_count(ComparisonSide::New), 0, "no change");
+        assert!(view.shown().is_empty(), "nothing shown");
+        view.save_report(report.clone(), || {});
+        assert!(view.report_status().is_none(), "no report started");
+    }
+    assert!(!report.exists(), "no report written");
+    Ok(())
+}
+
+#[test]
 fn the_exclusion_leaves_matching_changes_out() -> TestResult {
     let pair = pair()?;
     let mut model = compared(&pair, "")?;

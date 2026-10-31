@@ -226,7 +226,7 @@ impl RecordExportSetup {
     /// wildcards.
     #[must_use]
     pub fn filter_error(&self) -> Option<FilterError> {
-        Filter::parse(&self.filter).err()
+        Filter::check(&self.filter).err()
     }
 
     pub(crate) fn request(&self) -> Option<Request> {

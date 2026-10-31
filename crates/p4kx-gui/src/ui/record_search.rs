@@ -6,8 +6,9 @@ use fluent_bundle::FluentValue;
 
 use super::dataforge_summary::message;
 use super::extraction;
+use super::filter_text::filter_problem;
 use super::record_results::{self, Laid, Note};
-use super::search::{filter_field, filter_problem};
+use super::search::filter_field;
 use super::wrapped_actions;
 use crate::texts::RecordSearchText;
 use crate::theme::desktop::{SEARCH_WIDTH, SPINNER_INLINE, TOOLBAR_PADDING};

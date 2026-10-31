@@ -11,7 +11,7 @@ use rayon::prelude::*;
 use thiserror::Error;
 
 use crate::source::{EntrySource, SourceEntry, SourceReader};
-use crate::{CancelToken, EntryFailure, Exclusion, ExtractionError, Filter, LeftOut};
+use crate::{CancelToken, EntryFailure, Exclusion, ExtractionError, Filter};
 
 /// The most files, folders and rejected names [`FolderSource::scan`] visits; it bounds the memory
 /// of the listing, of the rejected names and of the folders waiting to be read.
@@ -45,15 +45,41 @@ pub enum FolderFileError {
     Outside,
 }
 
-/// How many files of a folder a Filter matches and an exclusion leaves out of them.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct FolderCounts {
-    /// The files the Filter matches.
-    pub matched: usize,
-    /// The files that remain after the exclusion.
-    pub kept: usize,
-    /// The left-out part files of textures whose header remains; a Conversion still reads them.
-    pub parts_of_kept_textures: usize,
+/// The files of a folder that a Filter matches and an exclusion leaves in.
+///
+/// It lists files of the [`FolderSource`] that made it.
+#[derive(Debug, Clone)]
+pub struct FolderSelection<'a> {
+    pub(crate) entries: Vec<SourceEntry<'a>>,
+    matched: usize,
+    excluded_parts: usize,
+}
+
+impl FolderSelection<'_> {
+    /// Returns how many files the Filter matched.
+    #[must_use]
+    pub const fn matched(&self) -> usize {
+        self.matched
+    }
+
+    /// Returns how many files remain after the exclusion.
+    #[must_use]
+    pub const fn len(&self) -> usize {
+        self.entries.len()
+    }
+
+    /// Returns whether no file remains.
+    #[must_use]
+    pub const fn is_empty(&self) -> bool {
+        self.entries.is_empty()
+    }
+
+    /// Returns how many part files of textures whose header remains the exclusion left out; a
+    /// Conversion still reads them.
+    #[must_use]
+    pub const fn excluded_parts(&self) -> usize {
+        self.excluded_parts
+    }
 }
 
 /// Why an input folder cannot be converted.
@@ -191,11 +217,8 @@ impl FolderSource {
 
     /// Returns the files whose path matches `filter`, or every file, without those `exclusion`
     /// leaves out, in path order.
-    pub(crate) fn select(
-        &self,
-        filter: Option<&Filter>,
-        exclusion: &Exclusion,
-    ) -> LeftOut<SourceEntry<'_>> {
+    #[must_use]
+    pub fn select(&self, filter: Option<&Filter>, exclusion: &Exclusion) -> FolderSelection<'_> {
         let matching: Vec<SourceEntry<'_>> = self
             .files
             .iter()
@@ -203,17 +226,11 @@ impl FolderSource {
             .filter(|(_, file)| filter.is_none_or(|filter| filter.matches(&file.path)))
             .map(|(index, file)| self.entry(index, file))
             .collect();
-        exclusion.leave_out(matching, |entry: &SourceEntry<'_>| entry.path())
-    }
-
-    /// Returns how many files `filter` matches and how many of them `exclusion` leaves out.
-    #[must_use]
-    pub fn count_selected(&self, filter: Option<&Filter>, exclusion: &Exclusion) -> FolderCounts {
-        let left = self.select(filter, exclusion);
-        FolderCounts {
+        let left = exclusion.leave_out(matching, |entry: &SourceEntry<'_>| entry.path());
+        FolderSelection {
             matched: left.kept.len().saturating_add(left.removed),
-            kept: left.kept.len(),
-            parts_of_kept_textures: left.parts_of_kept_textures.len(),
+            excluded_parts: left.parts_of_kept_textures.len(),
+            entries: left.kept,
         }
     }
 

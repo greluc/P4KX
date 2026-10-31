@@ -7,7 +7,7 @@ use p4kx_export::{FLAT_CSV_FILE, FLAT_NDJSON_FILE, NDJSON_FILE};
 use super::extraction::{
     POLICIES, folder_field, foot, group_label, new_folder_name, number, refusal_notice,
 };
-use super::extraction_exclude;
+use super::filter_text::problem_text;
 use super::search::filter_field;
 use super::{Dialog, Requests, regions};
 use crate::theme::desktop::MODAL_GROUP_GAP;
@@ -182,7 +182,7 @@ fn records(ui: &mut Ui, texts: &Texts, setup: &mut RecordExportSetup) {
     }
     let problem = setup
         .filter_error()
-        .map(|problem| extraction_exclude::problem_text(texts, &problem));
+        .map(|problem| problem_text(texts, &problem));
     let hint = texts.get(T::FilterHint);
     if filter_field(
         ui,

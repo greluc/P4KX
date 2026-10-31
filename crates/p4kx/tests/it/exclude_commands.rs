@@ -149,51 +149,38 @@ fn grep_leaves_out_what_an_exclude_matches() -> TestResult {
     Ok(())
 }
 
-/// Returns `p4kx <command> <archive>` with what the command needs besides its Filter option.
-fn needing(command: &str, archive: &Path, dir: &Path) -> Result<Command, Box<dyn Error>> {
-    let mut run = p4kx()?;
-    run.arg(command).arg(archive);
-    match command {
-        "grep" => {
-            run.arg("gladius");
-        }
-        "compare" => {
-            run.arg(archive);
-        }
-        "catalog" => {
-            run.arg("--out").arg(dir.join("catalog.json"));
-        }
-        _ => {}
-    }
-    Ok(run)
-}
-
 #[test]
-fn filter_text_that_is_too_long_or_too_wild_is_invalid_input_everywhere() -> TestResult {
+fn socpak_extract_takes_an_exclude_without_a_filter() -> TestResult {
     let dir = tempfile::tempdir()?;
-    let archive = archive(dir.path())?;
-    let long = "a".repeat(2000);
-    let wild = "*a".repeat(40);
+    let container = TestContainer::new()
+        .entry(TestEntry::stored("room\\good.xml", "<Good/>"))
+        .entry(TestEntry::stored("room\\bad.xml", "<Bad/>"));
+    let archive = dir.path().join("Data.p4k");
+    ArchiveBuilder::new()
+        .entry(TestEntry::stored("Data\\room.socpak", container.build()))
+        .write_to(&archive)?;
+    let out = dir.path().join("out");
 
-    for (command, option) in [
-        ("grep", "--filter"),
-        ("grep", "--exclude"),
-        ("verify", "--filter"),
-        ("verify", "--exclude"),
-        ("compare", "--filter"),
-        ("catalog", "--filter"),
-    ] {
-        needing(command, &archive, dir.path())?
-            .args([option, &long])
-            .assert()
-            .code(2)
-            .stderr(predicate::str::contains("2000 bytes long"));
-        needing(command, &archive, dir.path())?
-            .args([option, &wild])
-            .assert()
-            .code(2)
-            .stderr(predicate::str::contains("40 wildcards"));
-    }
+    p4kx()?
+        .args(["socpak", "extract"])
+        .arg(&archive)
+        .arg("Data\\room.socpak")
+        .args(["--exclude", "bad", "--out"])
+        .arg(&out)
+        .assert()
+        .code(0);
+    assert_eq!(names(&out)?, BTreeSet::from(["room/good.xml".to_owned()]));
+    p4kx()?
+        .args(["socpak", "extract"])
+        .arg(&archive)
+        .arg("Data\\room.socpak")
+        .args(["--exclude", "room", "--out"])
+        .arg(dir.path().join("none"))
+        .assert()
+        .code(2)
+        .stderr(predicate::str::contains(
+            "leave out all 2 Entries that * matches",
+        ));
     Ok(())
 }
 

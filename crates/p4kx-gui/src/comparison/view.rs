@@ -253,12 +253,19 @@ impl ComparisonView {
 
     /// Writes the JSON report of the shown changes to `path` on a background thread, the same
     /// report `p4kx compare --report` writes with the current Filter; `wake` is called from that
-    /// thread once it ended. Nothing starts while a report is being saved.
+    /// thread once it ended. Nothing starts while a report is being saved or while the Filter text
+    /// is refused.
     pub fn save_report(&mut self, path: PathBuf, wake: impl Fn() + Send + 'static) {
         if self.is_saving() {
             return;
         }
-        let filter = (!self.filter_text.is_empty()).then(|| Filter::new(&self.filter_text));
+        let filter = if self.filter_text.is_empty() {
+            None
+        } else if let Ok(filter) = Filter::parse(&self.filter_text) {
+            Some(filter)
+        } else {
+            return;
+        };
         self.report = Some(report::start(&self.comparison, filter, path, wake));
     }
 

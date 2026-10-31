@@ -78,22 +78,20 @@ pub(crate) fn run(args: &SocpakArgs, as_json: bool) -> Result<ExitCode> {
 }
 
 /// Returns the Entries of `container` that `p4kx socpak extract` writes: those the Filter `text`
-/// matches without those `exclude` matches, or all of them without a Filter; with `convert`,
-/// notes the excluded parts of textures that stay.
+/// matches, or all of them without a Filter, without those `exclude` matches; with `convert`,
+/// notes the excluded parts of textures that stay. Exclusion Filters without a Filter act on all
+/// Entries, the glob `*`.
 fn extracted<'a>(
     container: &'a Archive,
     text: Option<&str>,
     exclude: &[String],
     convert: bool,
 ) -> Result<Vec<&'a Entry>> {
-    let Some(text) = text else {
-        return Ok(container.entries().iter().collect());
-    };
-    let selected = filter_pair::extraction(container, text, exclude)?;
-    if convert {
-        filter_pair::note_excluded_parts(selected.excluded_parts.len(), "--convert");
+    match text {
+        Some(text) => filter_pair::extracting(container, text, exclude, convert),
+        None if exclude.is_empty() => Ok(container.entries().iter().collect()),
+        None => filter_pair::extracting(container, "*", exclude, convert),
     }
-    Ok(selected.entries)
 }
 
 /// Opens the Archive and every container of the chain in turn; returns the last container and

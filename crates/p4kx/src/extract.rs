@@ -188,11 +188,7 @@ fn requested_entries<'a>(args: &ExtractArgs, archive: &'a Archive) -> Result<Vec
     let Some(text) = &args.filter else {
         return Ok(select_entries(archive, &args.entries)?);
     };
-    let selected = filter_pair::extraction(archive, text, &args.exclude)?;
-    if args.convert {
-        filter_pair::note_excluded_parts(selected.excluded_parts.len(), "--convert");
-    }
-    Ok(selected.entries)
+    filter_pair::extracting(archive, text, &args.exclude, args.convert)
 }
 
 /// Creates the target folder `out`, or a new default target folder in the current directory,

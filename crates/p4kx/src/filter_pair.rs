@@ -41,6 +41,42 @@ impl ExcludedAll {
     }
 }
 
+/// Refuses a selection of `kept` of `matched` files or Entries that is empty.
+///
+/// # Errors
+///
+/// Returns [`NoMatch`] when the Filter `text` matched none and [`ExcludedAll`] when the exclusion
+/// Filters left out all it matched.
+pub(crate) fn require(text: &str, matched: usize, kept: usize) -> Result<()> {
+    if matched == 0 {
+        Err(NoMatch::new(text).into())
+    } else if kept == 0 {
+        Err(ExcludedAll::new(text, matched).into())
+    } else {
+        Ok(())
+    }
+}
+
+/// Returns the Entries of `archive` that the Filter `text` matches without those `exclude`
+/// matches, as [`extraction`] does, and with `convert` notes on stderr the excluded parts of
+/// textures that stay, which the Conversion reads all the same.
+///
+/// # Errors
+///
+/// As [`extraction`].
+pub(crate) fn extracting<'a>(
+    archive: &'a Archive,
+    text: &str,
+    exclude: &[String],
+    convert: bool,
+) -> Result<Vec<&'a Entry>> {
+    let selected = extraction(archive, text, exclude)?;
+    if convert {
+        note_excluded_parts(selected.excluded_parts.len(), "--convert");
+    }
+    Ok(selected.entries)
+}
+
 /// The Entries a Filter pair selects.
 pub(crate) struct Selected<'a> {
     /// The selected Entries in Archive order.
@@ -126,12 +162,10 @@ fn narrow<'a>(
     exclusion: &Exclusion,
     required: bool,
 ) -> Result<Selected<'a>> {
-    if found.is_empty() && required {
-        return Err(NoMatch::new(text).into());
-    }
+    let matched = found.len();
     let left = exclusion.leave_out(found, |entry: &&'a Entry| -> &'a str { entry.path() });
-    if left.kept.is_empty() && required {
-        return Err(ExcludedAll::new(text, left.removed).into());
+    if required {
+        require(text, matched, left.kept.len())?;
     }
     Ok(Selected {
         entries: left.kept,

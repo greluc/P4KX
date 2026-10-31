@@ -288,7 +288,7 @@ impl Server {
     }
 
     #[tool(
-        description = "Search the Entries of an Archive by path. A filter with * or ? is a glob over the whole path (* also matches separators); any other filter matches anywhere in the path. Case and separator kind do not matter. container searches inside a socpak container instead. The content may be forwarded by the client to third parties; game texts and media must not be redistributed.",
+        description = "Search the Entries of an Archive by path. A filter with * or ? is a glob over the whole path (* also matches separators); any other filter matches anywhere in the path. Case and separator kind do not matter. A filter is at most 1024 bytes with at most 32 * and ?, otherwise the call is an error. container searches inside a socpak container instead. The content may be forwarded by the client to third parties; game texts and media must not be redistributed.",
         output_schema = rmcp::handler::server::tool::schema_for_output::<SearchResult>(),
         annotations(
             title = "Search Entries",

@@ -31,24 +31,23 @@ The first argument of nearly every command is the path of a `Data.p4k` Archive, 
   these limits as invalid input (exit 2), and the MCP tools answer with a tool error.
 - `p4kx grep <archive> <text> [--in records,loc,entries] [--filter <filter>] [--exclude <filter>]
   [--lang <language>,…] [--limit <n>] [--per-item <n>] [--format table|json]` finds a text in the
-  contents: in the string,
-  localisation key and enum values of all Records (with the field path), in the texts of each
-  language's `global.ini` and in the lines of text and CryXml Entries (CryXml converted to XML
-  first). It matches part of a word and ignores case, so `Gladi` finds `AEGS_Gladius`. Nothing is
-  indexed or stored: each search scans in parallel and streams, in a second or two on LIVE.
-  Results are bounded (`--limit` per source, `--per-item` per Record or Entry) and say whether more
-  exist; Entries with binary data, above `--max-entry-size` or encrypted without the Archive key
-  are skipped and counted on stderr ([docs/cli-json.md](cli-json.md)). `--exclude`, repeatable,
-  leaves out every Record, localisation key and Entry whose record path, key or path an exclusion
-  Filter matches, with the rules of `search`; it also works without `--filter`. The window
-  searches the same way in its *Search* tab.
+  contents: in the string, localisation key and enum values of all Records (with the field path),
+  in the texts of each language's `global.ini` and in the lines of text and CryXml Entries (CryXml
+  converted to XML first). It matches part of a word and ignores case, so `Gladi` finds
+  `AEGS_Gladius`. Nothing is indexed or stored: each search scans in parallel and streams, in a
+  second or two on LIVE. Results are bounded (`--limit` per source, `--per-item` per Record or
+  Entry) and say whether more exist; Entries with binary data, above `--max-entry-size` or
+  encrypted without the Archive key are skipped and counted on stderr
+  ([docs/cli-json.md](cli-json.md)). `--exclude`, repeatable, leaves out every Record,
+  localisation key and Entry whose record path, key or path an exclusion Filter matches, with the
+  rules of `search`; it also works without `--filter`. The window searches the same way in its
+  *Search* tab.
 - `p4kx verify <archive> [--filter <filter>] [--exclude <filter>]` checks the data of every Entry
   (or those the Filter matches, without those a repeatable `--exclude` matches, with the rules of
   `search`; a selection they leave empty is invalid input, exit 2) against the CRC-32C the Archive
-  directory states, in parallel and without writing
-  anything, and prints every mismatch with the stored and the computed value; an Entry that
-  cannot be read is reported as failed. The checksum is computed while the data streams past, so
-  a run needs one read and decode of the Archive (timings in [docs/verify.md](verify.md)).
+  directory states, in parallel and without writing anything, and prints every mismatch with the
+  stored and the computed value; an Entry that cannot be read is reported as failed. The checksum
+  is computed while the data streams past, so a run needs one read and decode of the Archive (timings in [docs/verify.md](verify.md)).
   Exit code 1 when an Entry mismatches or fails. `p4kx extract --verify` does the same for each
   Entry while it is written: a mismatching Entry is not written, and the summary counts it
   (`mismatched` in `--json`). `p4kx socpak verify <archive> <container…>` and `socpak extract
@@ -570,12 +569,14 @@ The first argument of nearly every command is the path of a `Data.p4k` Archive, 
 - `p4kx socpak list <archive> <container…>` lists the Entries of a socpak container in the
   columns of `list`, read from the Archive without extracting the container first; each further
   path names a container inside the one before. `p4kx socpak extract <archive> <container…>
-  [--filter <filter> [--exclude <filter>]] [--out <folder>] [--conflict <policy>] [--convert]`
-  writes its Entries, or those the Filter matches without those `--exclude` matches, with the rules
-  of `extract`; `p4kx socpak verify <archive> <container…> [--filter <filter>] [--exclude
-  <filter>]` selects the same way. `if-changed` compares with the CRC-32 containers store. Containers nest at most 8 deep; a container whose Entries overlap, whose
-  stored sizes disagree or which declares more than 2048 times its stored size for an Entry is
-  refused, as are compressed containers that together decode to more than 512 MiB along one chain. A container that cannot be
+  [--filter <filter>] [--exclude <filter>] [--out <folder>] [--conflict <policy>] [--convert]`
+  writes its Entries, or those the Filter matches, without those `--exclude` matches, with the
+  rules of `extract`; `--exclude` alone leaves out of all Entries, and a pair that leaves nothing is
+  invalid input. `p4kx socpak verify <archive> <container…> [--filter <filter>] [--exclude
+  <filter>]` selects the same way. `if-changed` compares with the CRC-32 containers store.
+  Containers nest at most 8 deep; a container whose Entries overlap, whose stored sizes disagree or
+  which declares more than 2048 times its stored size for an Entry is refused, as are compressed
+  containers that together decode to more than 512 MiB along one chain. A container that cannot be
   opened fails with exit code 3 and an error naming its Entry.
 - `p4kx chunks list <archive> <entry>` prints the chunk table of a CryEngine chunk file (`.cgf`,
   `.cga`, `.skin`, `.chr`, their geometry companions, `.caf`, `.dba`) in the `#ivo` or `CrCh`

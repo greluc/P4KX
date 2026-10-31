@@ -9,11 +9,14 @@ use std::path::{Path, PathBuf};
 
 use crate::dataforge_pick::by_name_then_content;
 use crate::extract::{Rules, extract_files};
-use crate::{Exclusion, ExtractOptions, ExtractionReport, Filter, FolderError, FolderSource};
+use crate::{ExtractOptions, ExtractionReport, FolderError, FolderSelection, FolderSource};
 
-/// Converts the files of `source` whose path matches `filter`, or all of them, into the folder
-/// `target` with the same relative paths, as `extract` with Conversion on writes the same
+/// Converts the files of `selection`, made by [`FolderSource::select`] from `source`, into the
+/// folder `target` with the same relative paths, as `extract` with Conversion on writes the same
 /// Entries.
+///
+/// A texture whose header the selection's exclusion matched is left out with its parts; a part it
+/// matched alone is not written, but a texture whose header remains is still built from it.
 ///
 /// A file Conversion has nothing to do with is counted in
 /// [`ExtractionReport::not_converted`], or with `copy_other` written unchanged. The files and
@@ -27,32 +30,7 @@ use crate::{Exclusion, ExtractOptions, ExtractionReport, Filter, FolderError, Fo
 /// and [`FolderError::Read`] when `target` cannot be created; nothing is written then.
 pub fn convert_folder(
     source: &FolderSource,
-    filter: Option<&Filter>,
-    copy_other: bool,
-    target: &Path,
-    options: &ExtractOptions<'_>,
-) -> Result<ExtractionReport, FolderError> {
-    convert_folder_excluding(
-        source,
-        (filter, &Exclusion::default()),
-        copy_other,
-        target,
-        options,
-    )
-}
-
-/// Converts the files of `source` whose path matches the Filter of `selection` without those its
-/// exclusion leaves out, as [`convert_folder`] does.
-///
-/// A texture whose header the exclusion matches is left out with its parts; a part it matches
-/// alone is not written, but a texture whose header remains is still built from it.
-///
-/// # Errors
-///
-/// As [`convert_folder`].
-pub fn convert_folder_excluding(
-    source: &FolderSource,
-    selection: (Option<&Filter>, &Exclusion),
+    selection: &FolderSelection<'_>,
     copy_other: bool,
     target: &Path,
     options: &ExtractOptions<'_>,
@@ -69,13 +47,12 @@ pub fn convert_folder_excluding(
         watch: None,
         ..*options
     };
-    let (filter, exclusion) = selection;
-    let entries = source.select(filter, exclusion).kept;
+    let entries = &selection.entries;
     let rules = Rules {
         copy_other,
         pick: &by_name_then_content,
     };
-    let mut report = extract_files(source, &entries, target, &options, &rules);
+    let mut report = extract_files(source, entries, target, &options, &rules);
     report.failures.splice(0..0, source.rejected_failures());
     Ok(report)
 }

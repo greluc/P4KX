@@ -3,32 +3,15 @@
 
 use std::sync::Arc;
 
-use super::deadline::arm;
-use super::{
-    Adapters, AssemblyDraw, Colours, Frame, Look, Offscreen, OffscreenError, Shading, Subject,
-};
+use super::probe::{self, Probe};
+use super::{Adapters, AssemblyDraw, Colours, Frame, Look, OffscreenError, Shading, Subject};
 use crate::assembly::synthetic::ship;
 use crate::{Camera, DrawList};
 
 const SIZE: [u32; 2] = [96, 64];
 
-#[expect(
-    clippy::print_stderr,
-    reason = "tells the test run why a test checked nothing"
-)]
-pub(super) fn open(test: &str) -> Option<Offscreen> {
-    arm(test);
-    match Offscreen::new(Adapters::Software) {
-        Ok(offscreen) => Some(offscreen),
-        Err(error) => {
-            assert!(
-                std::env::var_os("P4KX_REQUIRE_SOFTWARE_ADAPTER").is_none(),
-                "{test}: an adapter is required: {error}"
-            );
-            eprintln!("{test}: {error}, nothing checked");
-            None
-        }
-    }
+pub(super) fn open(test: &str) -> Option<Probe> {
+    probe::open(test, Adapters::Software)
 }
 
 #[expect(

@@ -116,6 +116,7 @@ mod test_jpeg;
 mod test_key;
 mod timing;
 mod vorbis;
+pub mod watchdog;
 mod wem;
 
 pub use animation::{TestAnimation, TestTrack};

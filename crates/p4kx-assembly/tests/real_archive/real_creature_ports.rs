@@ -15,6 +15,7 @@ use p4kx_assembly::{
 };
 use p4kx_extraction::{Archive, DataForgeEntry};
 use p4kx_gltf::GlbOptions;
+use p4kx_model::Model;
 use p4kx_testkit::{check_glb, real_archive_key, real_archive_path};
 
 type TestResult = Result<(), Box<dyn Error>>;
@@ -34,9 +35,39 @@ fn skeleton_bones(assembly: &Assembly) -> HashSet<String> {
         .unwrap_or_default()
 }
 
-/// Asserts that no helper the skeleton holds is listed as missing, and returns a line per item
-/// port of a skin that is anchored to a bone of the skeleton.
-fn check(assembly: &Assembly, class: &str) -> Vec<String> {
+/// The Kopion variants of LIVE that wear a collar.
+const MIN_COLLARS: usize = 5;
+
+/// The helper of the tongue port of the Quasigrazer, which no skeleton holds.
+const TONGUE_HELPER: &str = "Tongue_Attach_Point";
+
+/// What the census rule found in the Assemblies of the creatures.
+#[derive(Default)]
+struct Found {
+    creatures: usize,
+    /// A line per item port of a skin the skin's own model did not resolve and the skeleton did.
+    anchored: Vec<String>,
+    /// Whether a creature lists the tongue helper as not found.
+    tongue_listed: bool,
+}
+
+/// Returns whether `model` has a node or a bone named `name`, ignoring ASCII case.
+fn holds(model: &Model, name: &str) -> bool {
+    let bones = model
+        .lods
+        .first()
+        .map_or(model.bones.as_slice(), |lod| model.bones_of(lod));
+    model
+        .nodes
+        .iter()
+        .map(|node| node.name.as_str())
+        .chain(bones.iter().map(|bone| bone.name.as_str()))
+        .any(|held| held.eq_ignore_ascii_case(name))
+}
+
+/// Asserts that no helper the skeleton holds is listed as missing, and records the item ports of
+/// skins that are anchored to a bone of the skeleton by the fallback.
+fn check(assembly: &Assembly, class: &str, found: &mut Found) {
     let bones = skeleton_bones(assembly);
     for issue in assembly.issues() {
         if let IssueKind::HelperNotFound { helper } = issue.kind() {
@@ -45,23 +76,23 @@ fn check(assembly: &Assembly, class: &str) -> Vec<String> {
                 "{class}: {} lists {helper}, a bone of its skeleton",
                 issue.path()
             );
+            found.tongue_listed |= helper.eq_ignore_ascii_case(TONGUE_HELPER);
         }
     }
-    assembly
-        .parts()
-        .iter()
-        .filter(|part| {
-            part.parent()
-                .and_then(|parent| assembly.parts().get(parent))
-                .is_some_and(|parent| parent.placement() == &Placement::Skin)
-        })
-        .filter_map(|part| match part.placement() {
-            Placement::Helper(helper) if bones.contains(&helper.to_ascii_lowercase()) => {
-                Some(format!("{class}: {} at {helper}", part.path()))
-            }
-            _ => None,
-        })
-        .collect()
+    let parts = assembly.parts();
+    for part in parts {
+        let Some(parent) = part.parent().and_then(|parent| parts.get(parent)) else {
+            continue;
+        };
+        if let (Placement::Skin, Placement::Helper(helper)) = (parent.placement(), part.placement())
+            && bones.contains(&helper.to_ascii_lowercase())
+            && !parent.model().is_some_and(|skin| holds(skin, helper))
+        {
+            found
+                .anchored
+                .push(format!("{class}: {} at {helper}", part.path()));
+        }
+    }
 }
 
 #[test]
@@ -76,7 +107,7 @@ fn a_helper_the_creature_skeleton_holds_is_never_listed_as_missing() -> TestResu
     let mut resolver = LoadoutResolver::new(&forge)
         .with_files(&files)
         .stopping_at_docked_vehicles();
-    let (mut creatures, mut anchored) = (0_usize, Vec::new());
+    let mut found = Found::default();
     for record in forge
         .records()
         .filter(|record| record.type_name().is_ok_and(|name| name == ENTITY_TYPE))
@@ -95,16 +126,28 @@ fn a_helper_the_creature_skeleton_holds_is_never_listed_as_missing() -> TestResu
         let mut bytes = Vec::new();
         assembly.write_glb(&GlbOptions::default(), &mut bytes)?;
         check_glb(&bytes).map_err(|error| format!("{}: {error}", tree.class_name()))?;
-        creatures += 1;
-        anchored.extend(check(&assembly, tree.class_name()));
+        found.creatures += 1;
+        check(&assembly, tree.class_name(), &mut found);
     }
     println!(
-        "{creatures} creature Entities, {} item ports of skins anchored to a bone",
-        anchored.len()
+        "{} creature Entities, {} item ports of skins anchored to a bone",
+        found.creatures,
+        found.anchored.len()
     );
-    for line in &anchored {
+    for line in &found.anchored {
         println!("    {line}");
     }
-    assert!(!anchored.is_empty(), "no item port of a skin found a bone");
+    assert!(
+        found.anchored.len() >= MIN_COLLARS,
+        "the Kopion collars are anchored: {:?}",
+        found.anchored
+    );
+    for line in &found.anchored {
+        assert!(
+            line.to_ascii_lowercase().starts_with("kopion_") && line.contains("/Collar_ItemPort"),
+            "{line}: not a Kopion collar"
+        );
+    }
+    assert!(found.tongue_listed, "the tongue helper stays a listed note");
     Ok(())
 }

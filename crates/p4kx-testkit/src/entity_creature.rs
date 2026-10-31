@@ -3,7 +3,7 @@
 
 use crate::{
     DataForgeBuilder, TestBone, TestEntity, TestEntry, TestLoadout, TestLoadoutEntry, TestModel,
-    TestPort, TestSkeleton, entity_schema,
+    TestNode, TestPort, TestSkeleton, entity_schema, model_cube::cube_nodes,
 };
 
 /// A creature whose root geometry is a skeleton file (`.chr`) with the bones `pelvis`, `root`
@@ -29,6 +29,10 @@ pub const CREATURE_COLLARED: &str = "Test_Creature_Collared";
 
 /// Like [`CREATURE_COLLARED`], but the helper of the collar port is no bone of the skeleton.
 pub const CREATURE_COLLAR_LOST: &str = "Test_Creature_CollarLost";
+
+/// Like [`CREATURE_COLLARED`], but the skin has a node named like the collar port as well; the bone
+/// its helper names still decides.
+pub const CREATURE_COLLAR_NODED: &str = "Test_Creature_CollarNoded";
 
 /// A rigged Entity outside the characters folder, a prop with a skeleton file and the same skin.
 pub const RIGGED_PROP: &str = "Test_Rigged_Prop";
@@ -123,7 +127,7 @@ fn database() -> DataForgeBuilder {
 
 /// Returns the creatures [`CREATURE_COLLARED`] and [`CREATURE_COLLAR_LOST`] with the skins that
 /// hold the collar port, whose helper is the bone `pelvis` and the name `nowhere`.
-fn collar_entities() -> [TestEntity; 4] {
+fn collar_entities() -> [TestEntity; 6] {
     let creature = |id, class: &str, skin: &str| {
         TestEntity::new(id, class, format!("entities/{class}.xml"))
             .geometry(format!("{FOLDER}/creature_skel.chr"), None)
@@ -134,17 +138,35 @@ fn collar_entities() -> [TestEntity; 4] {
                 ])),
             ]))
     };
-    let skin = |id, class: &str, helper: &str| {
+    let skin = |id, class: &str, file: &str, helper: &str| {
         TestEntity::new(id, class, format!("entities/{class}.xml"))
-            .geometry(format!("{FOLDER}/creature.skin"), None)
+            .geometry(format!("{FOLDER}/{file}"), None)
             .port(TestPort::new("Collar_ItemPort").helper(helper, [0.0; 3], [0.0; 3]))
     };
     [
         creature(0x7, CREATURE_COLLARED, "Test_Creature_Collar_Skin"),
         creature(0x8, CREATURE_COLLAR_LOST, "Test_Creature_Lost_Skin"),
-        skin(0x12, "Test_Creature_Collar_Skin", "pelvis"),
-        skin(0x13, "Test_Creature_Lost_Skin", "nowhere"),
+        creature(0x9, CREATURE_COLLAR_NODED, "Test_Creature_Noded_Skin"),
+        skin(0x12, "Test_Creature_Collar_Skin", "creature.skin", "pelvis"),
+        skin(0x13, "Test_Creature_Lost_Skin", "creature.skin", "nowhere"),
+        skin(0x14, "Test_Creature_Noded_Skin", "noded.skin", "pelvis"),
     ]
+}
+
+/// Returns the two-bone skin with a helper node named like the collar port, away from the origin.
+fn noded_skin() -> TestModel {
+    let mut nodes = cube_nodes();
+    nodes.push(TestNode {
+        name: "Collar_ItemPort".to_owned(),
+        parent: Some(0),
+        local: [
+            [1.0, 0.0, 0.0, 5.0],
+            [0.0, 1.0, 0.0, 0.0],
+            [0.0, 0.0, 1.0, 0.0],
+        ],
+        kind: 3,
+    });
+    TestModel::two_bone_skin().with_nodes(nodes)
 }
 
 /// Returns the Entries of a synthetic Archive that holds creatures with a skeleton and a skin.
@@ -188,6 +210,8 @@ pub fn creature_entries() -> Vec<TestEntry> {
         TestEntry::stored(r"Data\Objects\Test\horn.cgfm", horn.cgfm()),
         entry("creature.skin", skin.cgf()),
         entry("creature.skinm", skin.cgfm()),
+        entry("noded.skin", noded_skin().cgf()),
+        entry("noded.skinm", noded_skin().cgfm()),
         entry(
             "definition.cdf",
             definition("creature_skel.chr").into_bytes(),

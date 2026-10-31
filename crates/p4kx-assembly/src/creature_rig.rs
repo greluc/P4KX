@@ -9,7 +9,7 @@ use std::sync::Arc;
 use p4kx_model::{Bone, BoneMatch, Model, Transform};
 
 use crate::geometry::is_creature_path;
-use crate::placement::bone_transform;
+use crate::placement::bone_pose;
 use crate::{Issue, IssueKind, Part, Placement};
 
 /// Returns the bones of the root part's model at the level `level` of detail, or `None` when the
@@ -32,7 +32,7 @@ pub(crate) fn skeleton_of<'a>(
 
 /// Returns the model of the root part when it is a creature whose skeleton file is present, the
 /// model whose bones the skins and the item ports of the skins are bound to.
-pub(crate) fn rig_model<'a>(parts: &'a [Part], issues: &[Issue]) -> Option<&'a Arc<Model>> {
+fn rig_model<'a>(parts: &'a [Part], issues: &[Issue]) -> Option<&'a Arc<Model>> {
     let root = parts.first()?;
     if !root.geometry.as_deref().is_some_and(is_creature_path)
         || issues.iter().any(|issue| {
@@ -48,18 +48,18 @@ pub(crate) fn rig_model<'a>(parts: &'a [Part], issues: &[Issue]) -> Option<&'a A
     root.model.as_ref()
 }
 
-/// Anchors the item port of a skin part to the bone `helper` of the creature skeleton `rig`: the
-/// bind pose of the bone in the space of `parent`, a skin part, which has no such bone of its own.
+/// Anchors the item port of a skin part to the bone `helper` of the creature skeleton `bones`
+/// (from [`skeleton_of`]): the bind pose of the bone in the space of `parent`, a skin part.
 /// Returns `None` when `parent` is no skin part or the skeleton lacks the bone.
 pub(crate) fn skin_port_anchor(
-    rig: &Model,
+    bones: &[Bone],
     parent: &Part,
     helper: &str,
 ) -> Option<(Placement, Transform)> {
     if parent.placement != Placement::Skin {
         return None;
     }
-    let pose = bone_transform(rig, helper)?;
+    let pose = bone_pose(bones, helper)?;
     let transform = parent.world.inverse()?.then(&pose);
     Some((Placement::Helper(helper.to_owned()), transform))
 }

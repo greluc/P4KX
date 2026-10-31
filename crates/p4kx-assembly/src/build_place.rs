@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use p4kx_model::{Model, Transform};
+use p4kx_model::{Bone, Model, Transform};
 
 use crate::build::issue;
 use crate::build_models::Loaded;
@@ -18,13 +18,13 @@ pub(crate) fn under_skin(draft: &Draft<'_>, parts: &[Part]) -> bool {
         .is_some_and(|parent| parent.placement == Placement::Skin)
 }
 
-/// Returns the transform of a part to its parent's and how it was found. `rig` is the model of a
-/// creature root whose skeleton the item ports of its skins anchor to.
+/// Returns the transform of a part to its parent's and how it was found. `rig` is the skeleton of a
+/// creature root that the item ports of its skins anchor to.
 pub(crate) fn place(
     draft: &Draft<'_>,
     parts: &[Part],
     model: Option<&Loaded>,
-    rig: Option<&Model>,
+    rig: Option<&[Bone]>,
     issues: &mut Vec<Issue>,
 ) -> (Transform, Placement) {
     let mut unreported = Vec::new();
@@ -51,7 +51,7 @@ pub(crate) fn place(
         .map(PortTransform::helper)
         .filter(|helper| !helper.is_empty());
     let (mut placement, mut base) = anchor(parent.model(), helper, port);
-    if placement == Placement::Origin
+    if !matches!(placement, Placement::Helper(_))
         && let Some((found, transform)) = rig
             .zip(helper)
             .and_then(|(rig, helper)| creature_rig::skin_port_anchor(rig, parent, helper))

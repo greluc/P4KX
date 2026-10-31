@@ -85,21 +85,50 @@ of them). In the census the smallest room model has 0.251 and the largest droppe
 raises no false alarm. Taking all models instead gives false alarms from stray models of the
 Carrack and the Idris beyond the hull.
 
-`InteriorFit::misfits` applies three rules, with 0.5 m of slack in the real-Archive tests:
+`InteriorFit::misfits` applies three rules (`tolerance` is how far a hardpoint may lie outside a
+model box; the Constellation and Cutlass tests use 0.5 m, the census 1 m):
 
-- the flight controller of the root vehicle and its pilot seat lie in the same container (a docked
-  ship's flight controller sits at that ship's origin, below its cockpit, so only the root
-  vehicle's is checked);
-- every cargo grid lies in a container that holds no flight controller and no pilot seat;
+- the flight controller of the root vehicle lies in a container, within the tolerance of a static
+  model (`ControllerOutsideRooms`; a docked ship's flight controller sits at that ship's origin,
+  below its cockpit, so only the root vehicle's is checked);
+- when some cargo grid lies inside a static model, every cargo grid lies within the tolerance of
+  one (`CargoGridOutsideRooms`); a ship none of whose grids lies inside a model carries its cargo
+  outside any room and is not checked;
 - the room models of each container of the root Entity lie within `HULL_SLACK` (1 m) of the box of
   the root Entity's model (`RoomOutsideHull`); containers of attached Entities, such as the
   Caterpillar command module, lie outside the hull by design and are left out. In the census no
   root container protrudes at all.
 
-The tests also keep every door and every animated part within the slack of a model. The
-Constellation and the Cutlass hold all of this; the other census ships break the first two rules
-in places, which this ADR does not claim to settle (those rules were only ever validated on the
-Constellation and the Cutlass).
+The Constellation and Cutlass tests also keep every door and every animated part within the
+slack of a model. The census test asserts that no rule fires on any of the 15 census ships that
+the Archive holds (the 600i is not found).
+
+**Census of the controller and cargo rules (LIVE, 15 ships).** The first version of these rules
+(the controller and its pilot seat in one container; every cargo grid in a container without
+cockpit hardpoints) held only on the Constellation and the Cutlass. The measurements that
+replaced them:
+
+- Root controllers lie 0.00 to 0.13 m from a static model on 13 ships, 0.29 m on the Starlifter C2
+  (at the origin) and 0.87 m on the Starfarer (outside its bridge container). The rule therefore
+  needs a tolerance of 1 m on the census; the margin to the Starfarer is 0.13 m, a cut in a
+  continuum.
+- A controller does not always sit in the cockpit room, so the controller and the seat nearest to
+  it are not a pair: the Starfarer and Starlifter C2 pair it with a copilot seat, the Carrack with
+  a drone seat. The pair rule is dropped, and no rule names a pilot seat, so `pilot_seats` is
+  removed.
+- Controller rooms also hold cargo on the Caterpillar, 890 Jump, Carrack, Idris and Redeemer, so
+  a cargo room free of cockpit hardpoints does not exist there. The rule of a separate cargo room
+  is dropped.
+- Cargo grids lie 0.00 to 0.06 m from a static model on 14 ships and inside one on every one of
+  them. The Hull C's 16 strut grids lie 0.96 to 4.25 m from every model and none inside: its
+  cargo is carried on open struts. Hence the all-or-nothing rule above: a ship with any grid
+  inside a model is checked for all its grids, a ship with none is not. A single misplaced cargo
+  room of such a ship, or of one with one grid, is therefore only caught as far as the hull rule
+  catches it.
+- Doors and animated parts (Idris, Starlifter C2, Caterpillar command module, Carrack cargo pods,
+  Corsair, Polaris and others, 0.5 to 10.6 m from every model of their container, or in a
+  container with no static model) break any rule on the census and are checked on the
+  Constellation and the Cutlass only.
 
 **Limit.** `InteriorFit::new_displaced` moves one container in the world. Moved 3 m forwards, the
 Cutlass cockpit container still holds the controller and every seat in the box of all its
@@ -122,8 +151,8 @@ is applied.
 Two other rules tried on the census were dropped: a connected group of abutting
 containers (real ships have gaps of 1 to 11 m between sections) and containers' volume ratio as
 the room test (above). Synthetic ships show the checks fail for a cockpit room moved away and for
-a cargo grid in the cockpit room. The cockpit-split and cargo-room rules break on most other
-census ships (issue #936).
+a controller whose room moved away and for a cargo grid that lies in no room while another does;
+a cargo grid in the cockpit room is no misfit.
 
 ## Open points
 

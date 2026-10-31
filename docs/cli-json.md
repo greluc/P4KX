@@ -278,8 +278,8 @@ attachments and the Interior that the Archive lacks, that cannot be read or that
 budget ([ADR-0291](adr/0291-layer-files-are-read-once-per-model-set-within-a-byte-budget.md)); the
 materials that name them keep the colours of their own file. A library lists a file once per
 `Submtl` it takes, as the Export as GLB summary counts it. Across libraries, spellings of one path
-that differ in case or in `\` and `/` are one file, which counts as often as its most frequent
-library lists it. Each library lists at most 256 files, so the number is a lower bound.
+that differ in case, in `\` and `/`, in a leading `Data/` or in the `.mtl` extension are one file,
+which counts as often as its most frequent library lists it. Each library lists at most 256 files, so the number is a lower bound.
 `first_unresolved_layer` is the first such path, as the layer names it; it is absent when
 `unresolved_layers` is 0 (the example shows the case without any).
 

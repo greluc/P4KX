@@ -19,11 +19,15 @@ fn status(unresolved: &[&str]) -> Result<MaterialStatus, Box<dyn Error>> {
 
 #[test]
 fn spellings_of_one_path_across_libraries_are_one_file() -> TestResult {
-    let statuses = [status(&["A\\b.mtl"])?, status(&["a/B.mtl"])?];
+    let statuses = [
+        status(&["A\\b.mtl"])?,
+        status(&["a/B.mtl"])?,
+        status(&["Data\\a\\b"])?,
+    ];
 
     let all = UnresolvedLayers::of(&statuses);
 
-    assert_eq!(all.count(), 1);
+    assert_eq!(all.count(), 1, "also with Data/ and without .mtl");
     assert_eq!(all.first(), Some("A\\b.mtl"), "the first spelling is kept");
     Ok(())
 }

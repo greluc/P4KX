@@ -6,14 +6,16 @@
 use std::collections::HashMap;
 
 use crate::MaterialStatus;
+use crate::mtl_load::request_path;
 
 /// The layer files missing, unreadable or over the load budget across the material libraries of
 /// one scene, see the field
 /// [`MaterialLibrary::unresolved_layers`](crate::MaterialLibrary::unresolved_layers).
 ///
 /// A library lists one entry per layer file and `Submtl`, so a single library counts as the Export
-/// as GLB summary does. Across libraries, spellings of one path that differ in case or in `\` and
-/// `/` are one file, which counts as often as its most frequent library lists it. The count is a
+/// as GLB summary does. Across libraries, spellings of one path that differ in case, in `\` and
+/// `/`, in a leading `Data/` or in the `.mtl` extension are one file, as for the layer cache; it
+/// counts as often as its most frequent library lists it. The count is a
 /// lower bound, because each library lists at most [`MAX_LAYER_FILES`](crate::MAX_LAYER_FILES)
 /// entries.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -53,7 +55,9 @@ impl<'a> Extend<&'a MaterialStatus> for UnresolvedLayers {
                 if self.first.is_none() {
                     self.first = Some(path.clone());
                 }
-                let key = path.replace('\\', "/").to_ascii_lowercase();
+                let key = request_path(path)
+                    .unwrap_or_else(|| path.replace('\\', "/"))
+                    .to_ascii_lowercase();
                 *listed.entry(key).or_default() += 1;
             }
             for (key, times) in listed {

@@ -15,10 +15,11 @@ use p4kx_extraction::model::MaterialStatus;
 use p4kx_extraction::{CancelToken, Guid};
 
 use crate::assembly_export::{Stoppable, failure_of};
-use crate::forge_cache::ReadFailure;
+use crate::forge_cache::ForgeSource;
 use crate::model::describe;
 use crate::{
-    EntryIndex, ModelExportFailure, MorphSpan, Scene, SceneError, ViewProgress, ViewStage,
+    EntryIndex, ModelExportFailure, MorphSpan, NoEntries, Scene, SceneError, ViewProgress,
+    ViewStage,
 };
 
 /// What the Armour of the Character builder is built from.
@@ -46,6 +47,12 @@ pub(super) enum Ended {
     Cancelled,
     Empty,
     Failed(ModelExportFailure),
+}
+
+impl From<NoEntries> for Ended {
+    fn from(error: NoEntries) -> Self {
+        Self::Failed(error.into())
+    }
 }
 
 #[derive(Debug, Default)]
@@ -146,6 +153,17 @@ fn worn(
     Ok((pieces, replaced, npc_folder))
 }
 
+/// Returns the DataForge of `index`, or why the build ends without it.
+fn read_forge(index: &EntryIndex) -> Result<Arc<ForgeSource>, Ended> {
+    if index.watch().check().is_err() {
+        return Err(Ended::Failed(ModelExportFailure::ArchiveChanged));
+    }
+    index
+        .forge()
+        .read(index, || {})
+        .map_err(|failure| Ended::Failed(failure.into_export()))
+}
+
 /// Builds the Armour of `request` from `index` and flattens it into a scene.
 pub(super) fn run(
     index: &EntryIndex,
@@ -153,21 +171,18 @@ pub(super) fn run(
     cancel: &CancelToken,
     shared: &Shared,
 ) -> Ended {
-    if index.watch().check().is_err() {
-        return Ended::Failed(ModelExportFailure::ArchiveChanged);
-    }
-    let source = match index.forge().read(index, || {}) {
+    let source = match read_forge(index) {
         Ok(source) => source,
-        Err(ReadFailure::ArchiveChanged(_)) => {
-            return Ended::Failed(ModelExportFailure::ArchiveChanged);
-        }
-        Err(ReadFailure::Unreadable(reason)) => return failed(reason),
+        Err(ended) => return ended,
     };
     let forge = match source.entry.open() {
         Ok(forge) => forge,
         Err(error) => return failed(describe(&error)),
     };
-    let files = ArchiveFiles::new(index.archive());
+    let Ok(archive) = index.entries_archive() else {
+        return NoEntries.into();
+    };
+    let files = ArchiveFiles::new(archive);
     let (pieces, replaced, npc_folder) = match worn(&forge, &files, request) {
         Ok(worn) => worn,
         Err(reason) => return failed(reason),
@@ -175,7 +190,7 @@ pub(super) fn run(
     if cancel.is_cancelled() {
         return Ended::Cancelled;
     }
-    let archive_models = ArchiveModels::new(index.archive());
+    let archive_models = ArchiveModels::new(archive);
     let stoppable = Stoppable {
         models: &archive_models,
         cancel,

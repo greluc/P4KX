@@ -7,7 +7,7 @@ use p4kx_blender::{
     write_interior_package, write_package,
 };
 use p4kx_channels::channel_name;
-use p4kx_extraction::{Archive, CancelToken, WriteRefused};
+use p4kx_extraction::{CancelToken, WriteRefused};
 
 use super::run::failure_of;
 use super::stop::{Stoppable, StoppableTextures};
@@ -29,7 +29,7 @@ pub(super) fn write(
         textures: &loader,
         cancel,
     };
-    let info = info_of(index.archive(), changes);
+    let info = info_of(index, changes);
     let written = write_package(
         assembly,
         &provider,
@@ -62,7 +62,7 @@ pub(super) fn write_interior(
         textures: &loader,
         cancel,
     };
-    let info = info_of(index.archive(), &LoadoutChanges::default());
+    let info = info_of(index, &LoadoutChanges::default());
     let written = write_interior_package(
         &InteriorScene::new(&request.name, interior),
         &provider,
@@ -126,9 +126,9 @@ fn verdict(error: PackageError, cancelled: bool) -> Verdict {
     }
 }
 
-pub(crate) fn info_of(archive: &Archive, changes: &LoadoutChanges) -> PackageInfo {
+pub(crate) fn info_of(index: &EntryIndex, changes: &LoadoutChanges) -> PackageInfo {
     let patches = crate::public_patches::current();
-    let build = archive.build().map(|build| BuildInfo {
+    let build = index.build_of_archive().map(|build| BuildInfo {
         branch: build.branch().to_owned(),
         version: build.version().to_owned(),
         public_patch: patches.of(build).map(str::to_owned),
@@ -143,7 +143,7 @@ pub(crate) fn info_of(archive: &Archive, changes: &LoadoutChanges) -> PackageInf
             entity: entity.clone(),
         })
         .collect();
-    PackageInfo::new(channel_name(archive.path()), build)
+    PackageInfo::new(channel_name(index.path()), build)
         .with_changes(changes.exclusions().to_vec(), replace)
 }
 

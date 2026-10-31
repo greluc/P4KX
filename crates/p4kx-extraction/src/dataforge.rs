@@ -181,8 +181,21 @@ impl DataForgeLoadError {
 
 /// Returns [`DataForgeLoadError::TooLarge`] when `size` exceeds [`MAX_DATAFORGE_SIZE`].
 pub(crate) fn check_size(path: &str, size: u64) -> Result<(), DataForgeLoadError> {
-    if size > MAX_DATAFORGE_SIZE {
-        return Err(too_large(path.to_owned(), size));
+    check_size_within(path, size, MAX_DATAFORGE_SIZE)
+}
+
+/// Returns [`DataForgeLoadError::TooLarge`] when `size` exceeds `limit`.
+pub(crate) fn check_size_within(
+    path: &str,
+    size: u64,
+    limit: u64,
+) -> Result<(), DataForgeLoadError> {
+    if size > limit {
+        return Err(DataForgeLoadError::TooLarge {
+            path: path.to_owned(),
+            size,
+            limit,
+        });
     }
     Ok(())
 }
@@ -204,4 +217,22 @@ fn same_path(left: &str, right: &str) -> bool {
         }
     };
     left.len() == right.len() && left.bytes().map(key).eq(right.bytes().map(key))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_limit_of_a_read_is_two_gibibytes_and_is_reported() {
+        assert_eq!(MAX_DATAFORGE_SIZE, 2 << 30);
+        assert!(check_size("a", MAX_DATAFORGE_SIZE).is_ok());
+        assert!(matches!(
+            check_size("a", MAX_DATAFORGE_SIZE + 1),
+            Err(DataForgeLoadError::TooLarge {
+                limit: MAX_DATAFORGE_SIZE,
+                ..
+            })
+        ));
+    }
 }

@@ -32,7 +32,8 @@ pub(super) fn read_whole(
     }
     let failed = |error: &dyn std::error::Error| Unreadable::Failed(Some(describe(error)));
     let reader = index
-        .archive()
+        .entries_archive()
+        .map_err(|error| failed(&error))?
         .open_entry(entry)
         .map_err(|error| failed(&error))?;
     let capacity = usize::try_from(entry.uncompressed_size()).unwrap_or(0);

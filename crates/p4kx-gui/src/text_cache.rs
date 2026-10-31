@@ -72,8 +72,11 @@ impl TextCache {
         let changed = |_| TextFailure::ArchiveChanged;
         index.watch().check().map_err(changed)?;
         let unreadable = |error: &dyn std::error::Error| TextFailure::Unreadable(describe(error));
-        let files = LocalizationSet::read(index.archive(), &[language])
+        let archive = index
+            .entries_archive()
             .map_err(|error| unreadable(&error))?;
+        let files =
+            LocalizationSet::read(archive, &[language]).map_err(|error| unreadable(&error))?;
         let set = files
             .index()
             .map_err(|error| unreadable(&error))?

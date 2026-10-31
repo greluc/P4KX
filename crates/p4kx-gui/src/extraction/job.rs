@@ -37,11 +37,11 @@ pub(crate) enum Source {
 }
 
 impl Source {
-    /// Returns the Archive the Entries are read from.
-    pub(crate) fn archive(&self) -> &Archive {
+    /// Returns the path of the Archive file the Entries are read from.
+    pub(crate) fn path(&self) -> &Path {
         match self {
-            Self::Index { index, .. } => index.archive(),
-            Self::Changes(selection) => selection.archive(),
+            Self::Index { index, .. } => index.path(),
+            Self::Changes(selection) => selection.archive().path(),
         }
     }
 
@@ -188,18 +188,18 @@ fn ended(outcome: Option<RunResult>) -> State {
 }
 
 /// Returns the Channel name and the Build version a new target folder is named after.
-pub(crate) fn target_naming(archive: &Archive) -> (Option<String>, Option<&str>) {
-    (
-        channel_name(archive.path()),
-        archive.build().map(Build::version),
-    )
+pub(crate) fn target_naming<'a>(
+    archive: &Path,
+    build: Option<&'a Build>,
+) -> (Option<String>, Option<&'a str>) {
+    (channel_name(archive), build.map(Build::version))
 }
 
 /// Starts writing the Entries of `request` on a background thread, calling `wake` from it once
 /// the Extraction ended.
 pub(crate) fn start(request: Request, wake: impl Fn() + Send + 'static) -> Extraction {
     let origin = Origin {
-        archive: request.source.archive().path().to_path_buf(),
+        archive: request.source.path().to_path_buf(),
         folder: request.folder.clone(),
         comparison_side: matches!(request.source, Source::Changes(_)),
         folder_conversion: false,
@@ -263,8 +263,9 @@ fn run(request: &Request, cancel: &CancelToken, progress: &Mutex<Progress>) -> R
             let mut ids = ids.clone();
             ids.sort_unstable();
             let entries: Vec<_> = ids.iter().filter_map(|&id| index.entry(id)).collect();
+            let archive = index.entries_archive().map_err(|error| describe(&error))?;
             write(
-                (index.archive(), &entries, index.watch()),
+                (archive, &entries, index.watch()),
                 request,
                 cancel,
                 progress,
@@ -317,7 +318,7 @@ fn prepare_target(archive: &Archive, request: &Request) -> io::Result<PathBuf> {
             Ok(request.folder.clone())
         }
         TargetKind::NewFolder => {
-            let (channel, build) = target_naming(archive);
+            let (channel, build) = target_naming(archive.path(), archive.build());
             create_default_target(
                 &request.folder,
                 channel.as_deref(),

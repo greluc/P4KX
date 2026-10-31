@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use p4kx_model::{Model, Transform, chained_world_poses};
+use p4kx_model::{Bone, Model, Transform, chained_world_poses};
 
 /// Returns the transform of a port's offset from its helper: the rotation `rotation` in degrees,
 /// about X first, then Y, then Z, and the translation `position` in metres.
@@ -64,6 +64,12 @@ pub(crate) fn bone_transform(model: &Model, name: &str) -> Option<Transform> {
         .lods
         .first()
         .map_or(model.bones.as_slice(), |lod| model.bones_of(lod));
+    bone_pose(bones, name)
+}
+
+/// Returns the bind pose of the bone of `bones` named `name`, ignoring ASCII case, in the space of
+/// the skeleton, or `None` when there is no such bone or its pose is not finite.
+pub(crate) fn bone_pose(bones: &[Bone], name: &str) -> Option<Transform> {
     let at = bones
         .iter()
         .position(|bone| bone.name.eq_ignore_ascii_case(name))?;

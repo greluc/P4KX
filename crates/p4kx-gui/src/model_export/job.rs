@@ -15,8 +15,8 @@ use p4kx_extraction::{
 use p4kx_settings::ModelMaterials;
 
 use super::{ModelExportFailure, ModelExportSummary};
-use crate::EntryIndex;
 use crate::model::describe;
+use crate::{EntryIndex, NoEntries};
 
 /// What an Export as GLB writes and where.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -116,6 +116,12 @@ enum State {
     Finished(Box<ModelExportSummary>),
     Cancelled,
     Failed(ModelExportFailure),
+}
+
+impl From<NoEntries> for Ended {
+    fn from(error: NoEntries) -> Self {
+        Self::Failed(error.into())
+    }
 }
 
 impl std::fmt::Debug for Ended {
@@ -253,7 +259,9 @@ pub(crate) fn start(
 }
 
 fn run(index: &EntryIndex, request: &Request, cancel: &CancelToken, shared: &Shared) -> Ended {
-    let paths = index.path_index();
+    let Some(paths) = index.path_index() else {
+        return NoEntries.into();
+    };
     let read = match read(index, &paths, request, cancel) {
         Ok(read) => read,
         Err(ended) => return ended,

@@ -58,13 +58,13 @@ pub(super) fn read(
     deliver: impl FnOnce(ReadResult) -> bool,
     wake: &dyn Fn(),
 ) {
-    let Some(entry) = index.entry(id) else {
+    let (Some(archive), Some(entry)) = (index.archive(), index.entry(id)) else {
         if deliver(Err(Unread::Failed(None))) {
             wake();
         }
         return;
     };
-    let mut reader = match index.archive().open_entry(entry) {
+    let mut reader = match archive.open_entry(entry) {
         Ok(reader) => reader,
         Err(error) => {
             let unread = if index.watch().check().is_err() {

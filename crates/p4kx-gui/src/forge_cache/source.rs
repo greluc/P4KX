@@ -12,6 +12,7 @@ use p4kx_extraction::TagTree;
 use p4kx_extraction::query::QuerySchema;
 use p4kx_extraction::{DataForgeEntry, MAX_INDEXED_REFERENCES, ReferenceIndex};
 
+use crate::ModelExportFailure;
 use crate::model::describe;
 
 /// How often a consumer waiting for its turn to read DataForge or to build an index looks at its
@@ -210,6 +211,14 @@ impl ReadFailure {
     pub(crate) fn into_reason(self) -> String {
         match self {
             Self::ArchiveChanged(reason) | Self::Unreadable(reason) => reason,
+        }
+    }
+
+    /// Returns the failure of an export that could not read the DataForge.
+    pub(crate) fn into_export(self) -> ModelExportFailure {
+        match self {
+            Self::ArchiveChanged(_) => ModelExportFailure::ArchiveChanged,
+            Self::Unreadable(reason) => ModelExportFailure::Failed(reason),
         }
     }
 }

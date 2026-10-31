@@ -300,7 +300,7 @@ fn prepare_target(index: &EntryIndex, request: &Request) -> io::Result<PathBuf> 
             Ok(request.folder.clone())
         }
         TargetKind::NewFolder => {
-            let (channel, build) = target_naming(index.archive());
+            let (channel, build) = target_naming(index.path(), index.build_of_archive());
             create_default_target(
                 &request.folder,
                 channel.as_deref(),

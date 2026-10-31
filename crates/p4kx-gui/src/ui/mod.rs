@@ -165,7 +165,7 @@ pub fn show(ui: &mut Ui, model: &mut Model) -> Requests {
         settings_changed: model.poll() && model.browser().is_some() && model.failure().is_none(),
         ..Requests::default()
     };
-    poll_background(model);
+    poll_background(ui, model);
     release_assembly(ui, model);
     poll_search(ui, model);
     if let Some(path) = dropped_file(ui) {
@@ -222,6 +222,17 @@ pub fn show(ui: &mut Ui, model: &mut Model) -> Requests {
     requests
 }
 
+/// Starts reading the DataForge of an open DataForge file, which is what the window shows of it.
+fn load_file_records(ui: &Ui, model: &mut Model) {
+    if !model.is_dataforge_file() {
+        return;
+    }
+    let ctx = ui.ctx().clone();
+    if let Some(browser) = model.browser_mut() {
+        browser.load_records(move || ctx.request_repaint());
+    }
+}
+
 /// Frees the Assembly buffers on the graphics device once no Assembly is on screen: another tab
 /// is shown, or the selection or the Archive changed.
 fn release_assembly(ui: &Ui, model: &Model) {
@@ -245,7 +256,8 @@ fn poll_search(ui: &Ui, model: &mut Model) {
     model.apply_pending_hit(move || ctx.request_repaint());
 }
 
-fn poll_background(model: &mut Model) {
+fn poll_background(ui: &Ui, model: &mut Model) {
+    load_file_records(ui, model);
     if let Some(browser) = model.browser_mut() {
         browser.poll();
     }

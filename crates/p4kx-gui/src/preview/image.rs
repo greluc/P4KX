@@ -307,7 +307,7 @@ impl Worker<'_> {
     }
 
     fn run(&self, id: u32, wake: &impl Fn()) {
-        let Some(entry) = self.index.entry(id) else {
+        let (Some(archive), Some(entry)) = (self.index.archive(), self.index.entry(id)) else {
             self.send(Event::Failed(None), wake);
             return;
         };
@@ -315,7 +315,7 @@ impl Worker<'_> {
             self.send(Event::ArchiveChanged, wake);
             return;
         }
-        let texture = match Texture::from_archive(self.index.archive(), entry.path()) {
+        let texture = match Texture::from_archive(archive, entry.path()) {
             Ok(texture) => texture,
             Err(error) => {
                 self.send(Event::Failed(Some(describe(&error))), wake);

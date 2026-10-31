@@ -43,7 +43,7 @@ impl Model {
         let Some(browser) = &self.browser else {
             return;
         };
-        let path = browser.archive_index().archive().path().to_path_buf();
+        let path = browser.archive_index().path().to_path_buf();
         self.open(path, wake);
     }
 
@@ -55,7 +55,7 @@ impl Model {
         if compare(watch).is_ok() {
             return false;
         }
-        let path = browser.archive_index().archive().path().to_path_buf();
+        let path = browser.archive_index().path().to_path_buf();
         browser.archive_index().forge().clear();
         browser.archive_index().texts().clear();
         browser.drop_records();

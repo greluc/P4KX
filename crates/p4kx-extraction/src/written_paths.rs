@@ -5,11 +5,10 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::sync::{Mutex, PoisonError};
 
-use p4kx_archive::Entry;
-
 use crate::ExtractionError;
 use crate::extract::{Ended, EntryEnded};
 use crate::portable_name::fold;
+use crate::source::SourceEntry;
 use crate::write::{EntryWriter, Outcome};
 
 /// The files an Extraction has put in place, by their path folded to lower case, so an Entry whose
@@ -64,7 +63,7 @@ fn parents(key: &str) -> impl Iterator<Item = &str> {
 impl EntryWriter<'_> {
     /// Records the files of the Entries of `ended` that were put in place or kept, so a later
     /// Entry of the run that collides with one is reported.
-    pub(crate) fn record_written(&self, entries: &[&Entry], ended: &Ended) {
+    pub(crate) fn record_written(&self, entries: &[SourceEntry<'_>], ended: &Ended) {
         for (position, _, outcome) in ended_entries(ended) {
             let Some(entry) = entries.get(*position) else {
                 continue;
@@ -83,7 +82,7 @@ impl EntryWriter<'_> {
     pub(crate) fn case_collision(
         &self,
         relative: &Path,
-        entry: &Entry,
+        entry: &SourceEntry<'_>,
     ) -> Result<(), ExtractionError> {
         self.tracker
             .written
@@ -91,10 +90,9 @@ impl EntryWriter<'_> {
             .map_or(Ok(()), |earlier| {
                 Err(ExtractionError::CaseCollision {
                     earlier: self
-                        .archive
-                        .entries()
-                        .get(earlier)
-                        .map(|entry| entry.path().to_owned())
+                        .source
+                        .path_of(earlier)
+                        .map(str::to_owned)
                         .unwrap_or_default(),
                 })
             })

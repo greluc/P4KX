@@ -3,13 +3,12 @@
 
 use std::io;
 use std::path::PathBuf;
-use std::ptr;
 
-use p4kx_archive::Entry;
 use p4kx_texture::TextureError;
 
 use crate::buffers::Buffers;
 use crate::extract::Ended;
+use crate::source::SourceEntry;
 use crate::texture_job::TextureJob;
 use crate::texture_outputs::Counted;
 use crate::texture_parts::Parts;
@@ -54,10 +53,13 @@ impl Done {
     }
 
     /// Returns whether a merged file holds the path of `entry`, so its raw data is not written.
-    fn holds_path_of(&self, job: &TextureJob<'_>, entry: &Entry) -> bool {
+    fn holds_path_of(&self, job: &TextureJob<'_>, entry: &SourceEntry<'_>) -> bool {
         let in_place = |step: Option<Step>| matches!(step, Some(Step::Written | Step::Kept));
-        (ptr::eq(job.header.1, entry) && in_place(self.merged))
-            || (job.alpha_header.is_some_and(|tail| ptr::eq(tail, entry))
+        (job.header.1.index() == entry.index() && in_place(self.merged))
+            || (job
+                .alpha_header
+                .as_ref()
+                .is_some_and(|tail| tail.index() == entry.index())
                 && in_place(self.merged_tail))
     }
 
@@ -72,12 +74,12 @@ impl Done {
 /// The texture being converted, with its alpha tail, its header Entry and its number of parts.
 pub(crate) struct Source<'j> {
     pub(crate) texture: Texture<'j>,
-    pub(crate) header: &'j Entry,
+    pub(crate) header: &'j SourceEntry<'j>,
     pub(crate) part_count: u32,
 }
 
 impl<'j> Source<'j> {
-    fn new(texture: Texture<'j>, header: &'j Entry) -> Result<Self, ExtractionError> {
+    fn new(texture: Texture<'j>, header: &'j SourceEntry<'j>) -> Result<Self, ExtractionError> {
         let part_count = texture.part_count().map_err(|error| {
             ExtractionError::Texture(ConversionError::of_texture(texture.name(), error))
         })?;
@@ -202,7 +204,7 @@ impl EntryWriter<'_> {
         buffers: &mut Buffers,
         done: &mut Done,
     ) -> Result<(), ExtractionError> {
-        let (true, Some(tail_header)) = (self.textures.merge, job.alpha_header) else {
+        let (true, Some(tail_header)) = (self.textures.merge, job.alpha_header.as_ref()) else {
             return Ok(());
         };
         let Some(tail) = source.texture.alpha_tail() else {
@@ -217,21 +219,21 @@ impl EntryWriter<'_> {
 
     fn open_source<'j>(&'j self, job: &'j TextureJob<'_>) -> Result<Source<'j>, ExtractionError> {
         let (_, header) = job.header;
-        let colour = Parts::Archive {
-            archive: self.archive,
-            header,
+        let colour = Parts::Source {
+            source: self.source,
+            header: header.clone(),
             parts: job.parts.clone(),
             verify: self.verify,
         };
-        let alpha = job.alpha_header.map(|alpha_header| Parts::Archive {
-            archive: self.archive,
-            header: alpha_header,
+        let alpha = job.alpha_header.as_ref().map(|alpha_header| Parts::Source {
+            source: self.source,
+            header: alpha_header.clone(),
             parts: job.alpha_parts.clone(),
             verify: self.verify,
         });
         if self.verify {
             self.verify_header(header)?;
-            if let Some(alpha_header) = job.alpha_header {
+            if let Some(alpha_header) = &job.alpha_header {
                 self.verify_header(alpha_header)?;
             }
         }
@@ -241,7 +243,7 @@ impl EntryWriter<'_> {
 
     /// Reads a header Entry to its end through the verified reader, since a Conversion parses
     /// only a prefix of it.
-    fn verify_header(&self, header: &Entry) -> Result<(), ExtractionError> {
+    fn verify_header(&self, header: &SourceEntry<'_>) -> Result<(), ExtractionError> {
         let fail = |source: io::Error| {
             ExtractionError::Texture(ConversionError::Read {
                 path: PathBuf::from(header.path()),
@@ -249,8 +251,8 @@ impl EntryWriter<'_> {
             })
         };
         let mut reader = self
-            .archive
-            .open_entry_verified(header)
+            .source
+            .open(header, true)
             .map_err(|error| fail(io::Error::other(error)))?;
         io::copy(&mut reader, &mut io::sink())
             .map(drop)

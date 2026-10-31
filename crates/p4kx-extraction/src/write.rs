@@ -9,12 +9,13 @@ use std::path::{Path, PathBuf};
 use std::process;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use p4kx_archive::{Archive, ArchiveError, Checksum, ChecksumHasher, Entry, EntryReader};
+use p4kx_archive::{Checksum, ChecksumHasher};
 
 use crate::buffers::Buffers;
 use crate::convert::{PEEK_LEN, is_cryxml};
 use crate::entry_path::{escaped_raw_path, relative_path};
 use crate::portable_name::check_path_length;
+use crate::source::{EntrySource, SourceEntry, SourceReader};
 use crate::tracker::Tracker;
 use crate::{AudioConversion, ConflictPolicy, ExtractionError, TextureConversion};
 
@@ -64,9 +65,9 @@ impl Destination {
     }
 }
 
-/// Writes Entries of one Archive below one target folder under one Conflict policy.
+/// Writes the files of one source below one target folder under one Conflict policy.
 pub(crate) struct EntryWriter<'a> {
-    pub(crate) archive: &'a Archive,
+    pub(crate) source: &'a dyn EntrySource,
     pub(crate) target: &'a Path,
     pub(crate) policy: ConflictPolicy,
     pub(crate) convert: bool,
@@ -78,12 +79,12 @@ pub(crate) struct EntryWriter<'a> {
 
 impl<'a> EntryWriter<'a> {
     /// Opens the data of `entry`, checked against its directory checksum when the run verifies.
-    pub(crate) fn open_entry(&self, entry: &Entry) -> Result<EntryReader<'a>, ArchiveError> {
-        if self.verify {
-            self.archive.open_entry_verified(entry)
-        } else {
-            self.archive.open_entry(entry)
-        }
+    pub(crate) fn open_entry(
+        &self,
+        entry: &SourceEntry<'_>,
+    ) -> Result<SourceReader<'a>, ExtractionError> {
+        let source: &'a dyn EntrySource = self.source;
+        source.open(entry, self.verify)
     }
 }
 
@@ -91,16 +92,21 @@ impl EntryWriter<'_> {
     /// Writes `entry`, using `buffers` for its data, and reports its end to the tracker.
     ///
     /// An Entry that failed because the watched Archive changed counts as cancelled.
-    pub(crate) fn write(&self, entry: &Entry, buffers: &mut Buffers) -> Outcome {
+    pub(crate) fn write(&self, entry: &SourceEntry<'_>, buffers: &mut Buffers) -> Outcome {
         self.write_entry(entry, buffers, self.convert)
     }
 
     /// Writes `entry` unchanged, even with Conversion on, and reports its end to the tracker.
-    pub(crate) fn write_raw(&self, entry: &Entry, buffers: &mut Buffers) -> Outcome {
+    pub(crate) fn write_raw(&self, entry: &SourceEntry<'_>, buffers: &mut Buffers) -> Outcome {
         self.write_entry(entry, buffers, false)
     }
 
-    fn write_entry(&self, entry: &Entry, buffers: &mut Buffers, convert: bool) -> Outcome {
+    fn write_entry(
+        &self,
+        entry: &SourceEntry<'_>,
+        buffers: &mut Buffers,
+        convert: bool,
+    ) -> Outcome {
         let mut written = 0;
         let outcome = match self.try_write(entry, buffers, convert, &mut written) {
             Ok(outcome) => outcome,
@@ -114,7 +120,7 @@ impl EntryWriter<'_> {
 
     fn try_write(
         &self,
-        entry: &Entry,
+        entry: &SourceEntry<'_>,
         buffers: &mut Buffers,
         convert: bool,
         written: &mut u64,
@@ -142,7 +148,10 @@ impl EntryWriter<'_> {
         } else {
             None
         };
-        let expected = || (entry.uncompressed_size(), entry.checksum());
+        let Some(checksum) = self.stated_checksum(entry, &destination, &mut buffers.chunk)? else {
+            return Ok(Outcome::Cancelled);
+        };
+        let expected = || (entry.uncompressed_size(), checksum);
         if let Some(outcome) = self.decide(&destination, expected, &mut buffers.chunk)? {
             return Ok(outcome);
         }
@@ -167,25 +176,63 @@ impl EntryWriter<'_> {
         self.put_in_place(&temporary, &destination.file, copied, Outcome::Written)
     }
 
+    /// Returns the checksum `decide` compares an existing file at `destination` with: the one the
+    /// source states, or for a file of a folder the CRC-32C of its data, read only when the
+    /// Conflict policy compares; `None` once the run is to stop.
+    fn stated_checksum(
+        &self,
+        entry: &SourceEntry<'_>,
+        destination: &Destination,
+        chunk: &mut [u8],
+    ) -> Result<Option<Checksum>, ExtractionError> {
+        let unused = Checksum::Crc32c(0);
+        if let Some(stated) = entry.checksum() {
+            return Ok(Some(stated));
+        }
+        let compares = self.policy == ConflictPolicy::IfChanged
+            && destination.existing.as_ref().is_some_and(Metadata::is_file);
+        if !compares {
+            return Ok(Some(unused));
+        }
+        let mut reader = self.open_entry(entry)?;
+        let mut hasher = ChecksumHasher::of_kind(unused);
+        loop {
+            match self
+                .read_chunk(&mut reader, chunk)
+                .map_err(ExtractionError::read)?
+            {
+                Chunk::Data(count) => hasher.update(chunk.get(..count).unwrap_or_default()),
+                Chunk::End => return Ok(Some(hasher.finish())),
+                Chunk::Cancelled => return Ok(None),
+            }
+        }
+    }
+
     /// Returns the path `entry` is named by on disk: its path, or for an Entry whose stored path
     /// is not UTF-8 the stored bytes with invalid ones escaped, which differs between Entries
     /// whose lossy paths are equal.
-    pub(crate) fn disk_name<'a>(&self, entry: &'a Entry) -> Cow<'a, str> {
-        self.archive.raw_path(entry.index()).map_or_else(
+    pub(crate) fn disk_name<'a>(&self, entry: &'a SourceEntry<'_>) -> Cow<'a, str> {
+        self.source.raw_path(entry.index()).map_or_else(
             || Cow::Borrowed(entry.path()),
             |raw| Cow::Owned(escaped_raw_path(raw)),
         )
     }
 
     /// Returns the path below the target `entry` is written to, or why it is not written.
-    pub(crate) fn relative_path(&self, entry: &Entry) -> Result<PathBuf, ExtractionError> {
+    pub(crate) fn relative_path(
+        &self,
+        entry: &SourceEntry<'_>,
+    ) -> Result<PathBuf, ExtractionError> {
         relative_path(&self.disk_name(entry))
     }
 
     /// Creates the folder of `entry` below the target and returns where its file goes; fails when
     /// the path is no valid name, too long for Windows or Linux, or collides ignoring case with a
     /// file an earlier Entry of the run wrote.
-    pub(crate) fn destination(&self, entry: &Entry) -> Result<Destination, ExtractionError> {
+    pub(crate) fn destination(
+        &self,
+        entry: &SourceEntry<'_>,
+    ) -> Result<Destination, ExtractionError> {
         let relative = self.relative_path(entry)?;
         check_path_length(&self.target.join(&relative))?;
         self.case_collision(&relative, entry)?;

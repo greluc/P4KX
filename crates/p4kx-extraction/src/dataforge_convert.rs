@@ -4,13 +4,13 @@
 use std::io::{self, Read};
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use p4kx_archive::Entry;
 use p4kx_dataforge::{Annotations, DataForge, Record, RecordXml};
 
 use crate::buffers::Buffers;
 use crate::record_export::{RecordRun, write_records};
 use crate::record_files::RecordFiles;
 use crate::record_format::RecordFileFormat;
+use crate::source::SourceEntry;
 use crate::write::{Chunk, EntryWriter, Outcome};
 use crate::{ExtractionError, MAX_DATAFORGE_SIZE, RecordExportReport};
 
@@ -26,7 +26,7 @@ impl EntryWriter<'_> {
     /// written before stay.
     pub(crate) fn write_dataforge(
         &self,
-        entry: &Entry,
+        entry: &SourceEntry<'_>,
         buffers: &mut Buffers,
     ) -> (Outcome, Option<RecordExportReport>) {
         let credited = AtomicU64::new(0);
@@ -42,7 +42,7 @@ impl EntryWriter<'_> {
 
     fn try_write_dataforge(
         &self,
-        entry: &Entry,
+        entry: &SourceEntry<'_>,
         buffers: &mut Buffers,
         credited: &AtomicU64,
     ) -> Result<(Outcome, Option<RecordExportReport>), ExtractionError> {

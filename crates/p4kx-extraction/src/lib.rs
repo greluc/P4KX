@@ -67,6 +67,7 @@ mod sound_job;
 mod sound_output;
 mod sound_workers;
 mod soundbank_convert;
+mod source;
 mod target;
 pub mod text_line;
 mod text_window;

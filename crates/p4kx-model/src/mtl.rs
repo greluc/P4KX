@@ -3,7 +3,10 @@
 
 use crate::mtl_parse::parse_library;
 use crate::mtl_raw::Attributes;
-use crate::{MaterialError, MaterialLayer, PaletteSlot, RawElement};
+use crate::{
+    CompanionResolver, LayerCache, MaterialError, MaterialLayer, MaterialReading, PaletteSlot,
+    RawElement,
+};
 
 /// The most sub-materials a material library may hold; the engine allows 128.
 pub const MAX_SUB_MATERIALS: usize = 1024;
@@ -253,7 +256,7 @@ pub struct MaterialLibrary {
     pub unknown_entries: usize,
     /// The paths of the layer files of the materials that are missing or unreadable, as the
     /// layers name them; their layers keep no [`LayerSurface`]. Set by
-    /// [`MaterialStatus::load`], empty after [`Self::parse`].
+    /// [`MaterialStatus::load`], empty after [`Self::parse`] and a plain read.
     pub unresolved_layers: Vec<String>,
     /// The sub-materials in material ID order; one material when [`Self::single`].
     pub materials: Vec<Material>,
@@ -319,8 +322,22 @@ impl MaterialStatus {
     /// the library its `MtlName` chunk names: a bare name is looked for beside the model first,
     /// then below `Data`. `None` is [`Self::Unnamed`]. A library that is missing, unsafe to ask
     /// for or unreadable is a status, not a failure.
-    pub fn load(name: Option<&str>, companions: &mut dyn crate::CompanionResolver) -> Self {
-        crate::mtl_load::load(name, companions)
+    pub fn load(name: Option<&str>, companions: &mut dyn CompanionResolver) -> Self {
+        Self::load_with(name, companions, MaterialReading::Drawn, &LayerCache::new())
+    }
+
+    /// Reads the library like [`Self::load`] as `reading` says: [`MaterialReading::Plain`] leaves
+    /// out the layer files and the diffuse maps that only a caller that draws needs, and
+    /// [`MaterialReading::Skipped`] reads nothing. The layer files of a drawn read come from
+    /// `cache` when it holds them and stay there, so that the libraries of one model set share
+    /// each file.
+    pub fn load_with(
+        name: Option<&str>,
+        companions: &mut dyn CompanionResolver,
+        reading: MaterialReading,
+        cache: &LayerCache,
+    ) -> Self {
+        crate::mtl_load::load(name, companions, reading, cache)
     }
 
     /// Returns the library when it was read.

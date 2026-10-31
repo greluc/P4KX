@@ -9,13 +9,14 @@ use std::io::Read;
 use std::path::Path;
 use std::time::Instant;
 
-use p4kx_assembly::character::Chf;
+use p4kx_assembly::character::{BODY_COLOR, Chf, skin_attachment};
 use p4kx_assembly::{
     ArchiveModels, Armour, ArmourPart, AssemblyOptions, Expressions, ForgeItems, Head,
-    LoadoutResolver, PartOrigin,
+    LoadoutResolver, ModelProvider, PartOrigin,
 };
 use p4kx_extraction::{Archive, DataForgeEntry};
 use p4kx_gltf::{GlbOptions, MaterialMode};
+use p4kx_model::srgb8_to_linear;
 use p4kx_testkit::{check_glb, real_archive_key, real_archive_path};
 
 type TestResult = Result<(), Box<dyn Error>>;
@@ -232,5 +233,169 @@ fn the_hair_of_the_default_characters_follows_their_expressions() -> TestResult 
             bare_glb.len() / 1024
         );
     }
+    Ok(())
+}
+
+fn skin_tone(chf: &Chf, port: &str) -> Option<[u8; 4]> {
+    let hash = skin_attachment(port);
+    chf.character
+        .materials
+        .iter()
+        .find(|choice| choice.attachment == hash)?
+        .sub_materials
+        .iter()
+        .flat_map(|sub| &sub.colors)
+        .find(|colour| colour.name == BODY_COLOR)
+        .map(|colour| colour.rgba)
+}
+
+#[test]
+#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
+fn the_body_of_a_default_character_has_the_skin_tone_of_its_head() -> TestResult {
+    let archive = Archive::open_with_key(real_archive_path()?, real_archive_key().ok())?;
+    let entry = DataForgeEntry::read(&archive)?;
+    let forge = entry.open()?;
+    let models = ArchiveModels::new(&archive);
+    let mut resolver = LoadoutResolver::new(&forge);
+    let mut items = ForgeItems::new(&mut resolver);
+    for name in DEFAULTS {
+        let file = archive
+            .entries()
+            .iter()
+            .find(|entry| entry.path().to_ascii_lowercase().ends_with(name))
+            .ok_or_else(|| format!("the Archive ships no {name}"))?;
+        let mut bytes = Vec::new();
+        archive.open_entry(file)?.read_to_end(&mut bytes)?;
+        let chf = Chf::read(&bytes)?;
+        let tone = skin_tone(&chf, "body_itemport").ok_or("no body skin tone")?;
+        assert_eq!(skin_tone(&chf, "head_itemport"), Some(tone), "{name}");
+
+        let head = Head::dressed(&chf.character, &mut items)?;
+        let armour = Armour::build(
+            head.variant(),
+            head.pieces(),
+            &models,
+            &AssemblyOptions::default(),
+        )?;
+        let body = armour
+            .parts()
+            .iter()
+            .find(|part| part.origin() == PartOrigin::Body)
+            .ok_or("no body")?;
+        let library = body.materials().library().ok_or("no body library")?;
+        let wanted = [tone[0], tone[1], tone[2]].map(srgb8_to_linear);
+        let mut skins = 0;
+        for skin in library
+            .materials
+            .iter()
+            .filter(|skin| skin.shader.eq_ignore_ascii_case("HumanSkin_V2"))
+        {
+            let average = skin
+                .public_param("SourceAverageColor")
+                .ok_or("no average")?;
+            let scale: Vec<f32> = (0..3)
+                .map(|channel| skin.diffuse[channel] * average[channel] / wanted[channel])
+                .collect();
+            let (low, high) = scale
+                .iter()
+                .fold((f32::MAX, f32::MIN), |(low, high), value| {
+                    (low.min(*value), high.max(*value))
+                });
+            assert!(high / low < 1.01, "{name} {}: {scale:?}", skin.name);
+            skins += 1;
+        }
+        assert!(skins >= 2, "{name}: {skins} body skins");
+    }
+    Ok(())
+}
+
+/// Returns the distance from `at` to the nearest of `points`.
+fn nearest(points: &[[f32; 3]], at: [f32; 3]) -> f32 {
+    points
+        .iter()
+        .map(|point| {
+            point
+                .iter()
+                .zip(&at)
+                .map(|(from, to)| (from - to).powi(2))
+                .sum::<f32>()
+        })
+        .fold(f32::MAX, f32::min)
+        .sqrt()
+}
+
+/// Returns by how much, at most, a beard vertex of `armour` is farther from the shaped head than
+/// the same vertex of the unshaped skins is from the unshaped head; `None` without head or beard.
+fn beard_gap_growth(
+    armour: &Armour,
+    models: &ArchiveModels<'_>,
+) -> Result<Option<f32>, Box<dyn Error>> {
+    let part = |name: &str| armour.parts().iter().find(|part| part.name() == name);
+    let (Some(head), Some(beard)) = (part("head"), part("beard_itemport")) else {
+        return Ok(None);
+    };
+    let positions = |model: &p4kx_model::Model| {
+        model
+            .lods
+            .first()
+            .and_then(|lod| lod.meshes.first())
+            .map(|mesh| mesh.positions.clone())
+            .ok_or("a model without a mesh")
+    };
+    let raw_head = positions(&models.model(head.file(), 0)?.model)?;
+    let raw_beard = positions(&models.model(beard.file(), 0)?.model)?;
+    let (head, beard) = (positions(head.model())?, positions(beard.model())?);
+    Ok(Some(
+        raw_beard
+            .iter()
+            .zip(&beard)
+            .map(|(raw, shaped)| nearest(&head, *shaped) - nearest(&raw_head, *raw))
+            .fold(0.0_f32, f32::max),
+    ))
+}
+
+#[test]
+#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
+#[expect(clippy::print_stdout, reason = "the distances are the measurement")]
+fn the_beards_of_the_shipped_characters_stay_within_a_few_millimetres_of_the_head_they_follow()
+-> TestResult {
+    let archive = Archive::open_with_key(real_archive_path()?, real_archive_key().ok())?;
+    let entry = DataForgeEntry::read(&archive)?;
+    let forge = entry.open()?;
+    let models = ArchiveModels::new(&archive);
+    let mut resolver = LoadoutResolver::new(&forge);
+    let mut items = ForgeItems::new(&mut resolver);
+    let (mut beards, mut worst) = (0_usize, 0.0_f32);
+    for file in archive.entries() {
+        let path = file.path().to_ascii_lowercase();
+        let is_chf = Path::new(&path)
+            .extension()
+            .is_some_and(|extension| extension == "chf");
+        if !is_chf || !path.contains(SHIPPED) {
+            continue;
+        }
+        let mut bytes = Vec::new();
+        archive.open_entry(file)?.read_to_end(&mut bytes)?;
+        let Ok(head) = Chf::read(&bytes)
+            .map_err(Box::<dyn Error>::from)
+            .and_then(|chf| Ok(Head::dressed(&chf.character, &mut items)?))
+        else {
+            continue;
+        };
+        let armour = Armour::build(
+            head.variant(),
+            head.pieces(),
+            &models,
+            &AssemblyOptions::default(),
+        )?;
+        let Some(growth) = beard_gap_growth(&armour, &models)? else {
+            continue;
+        };
+        println!("{path}: the beard's gap to the head grows by {growth:.4} m at most");
+        worst = worst.max(growth);
+        beards += 1;
+    }
+    assert!(beards >= 10, "{beards} shipped beards");
+    assert!(worst < 0.008, "the beards drift {worst} m from the head");
     Ok(())
 }

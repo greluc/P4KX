@@ -76,8 +76,8 @@ blendshape has is `unknown_expression`. `p4kx chf glb` writes all expressions at
 `--expression NAME` (repeatable) and `--no-expressions`. Failures that leave the shaped head
 untouched are `morphs_failed`: the skin has no `RigLogic` chunk, its names do not fit the rig, or the
 rig has no expression morphs. The command exits with code 1 after writing the file. The rigs of
-the lower levels of detail (`_lod1.dna` …) have no slot 19, so LOD 1 and up are written without
-expressions unless some are named.
+the lower levels of detail (`_lod1.dna` …) have no slot 19; their heads get the targets of level 0
+carried over (ADR-0293).
 
 ## What is not in it
 
@@ -90,14 +90,13 @@ amplitude of the targets is millimetres (`CTL_expressions blinkL` moves 702 vert
 2.5 mm). The body skeleton has none of the facial joints (ADR-0084), so the export has the
 correctives only, and the Character's own joint positions (`DnaRig::neutral_joint_offsets`) do not
 change anything in a static export. Evaluating the rig into weights and joint motion over time, and
-the facial skeleton it needs, belong to the face animation (#154); the follow-up issue #533 lists
-the facial joints, the comparison with `BShapesGpu` and the lower levels of detail. Slot 17 of the rig, which
+the facial skeleton it needs, belong to the face animation (#154). Slot 17 of the rig, which
 StarBreaker uses to attenuate the blendshapes of the skin's `BShapesGpu` per vertex, is not applied
-here; the cells of slot 19 are used as they are, and the comparison with the `BShapesGpu` chunk
-(`0x57A38888`) of the head's `.skinm` is not made.
+here; the cells of slot 19 are used as they are.
 
 Amendment (#589): the `BShapesGpu` layout and its comparison with the cells of the base head of the
-DNA rig are in ADR-0281; they agree within one quantisation step.
+DNA rig are in ADR-0281; they agree within one quantisation step. Amendment (#533): ADR-0293 records
+why slot 17 stays unapplied and how the lower levels get their targets.
 
 ## Considered options
 

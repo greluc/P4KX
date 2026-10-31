@@ -8,7 +8,7 @@
 use std::error::Error;
 use std::path::Path;
 
-use p4kx_extraction::model::Material;
+use p4kx_extraction::model::{LayerCache, Material};
 use p4kx_extraction::{Archive, ModelSource, PathIndex};
 use p4kx_testkit::{real_archive_key, real_archive_path};
 
@@ -47,7 +47,8 @@ fn runtime_decals_are_hidden_and_screens_are_drawn() -> TestResult {
         else {
             continue;
         };
-        let status = ModelSource::material_library(&index, entry.path(), &library);
+        let status =
+            ModelSource::material_library(&index, entry.path(), &library, &LayerCache::new());
         for material in status
             .library()
             .iter()

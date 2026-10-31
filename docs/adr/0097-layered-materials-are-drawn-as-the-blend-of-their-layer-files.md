@@ -70,6 +70,10 @@ textures, `UVTiling`, the blend masks) stays undrawn and is the follow-up of #54
 diffuse colour is 1 because a texture carries it are drawn white or in their tint, not in the
 texture's colour. Dark paints stay dark where the palette or tint says so.
 
+## Amendment (issue #561)
+
+How many layer files are read, what is kept of them and who reads them is decided by ADR-0291.
+
 ## Amendment (issue #551)
 
 The layers' diffuse and normal maps, their tiling and the blend map of the material are drawn in

@@ -17,6 +17,8 @@ use p4kx_extraction::{Archive, Entry, ModelSource, PathIndex};
 use p4kx_testkit::real_archive_path;
 use rayon::prelude::*;
 
+use crate::without_materials::without_materials;
+
 type TestResult = Result<(), Box<dyn Error>>;
 
 const SHIPS: &str = "objects\\spaceships\\ships\\";
@@ -100,7 +102,7 @@ impl NodeTally {
 
 fn tally_model(index: &PathIndex<'_>, path: &str) -> NodeTally {
     let mut tally = NodeTally::default();
-    let source = match ModelSource::from_index_without_materials(index, path, LodSelection::All) {
+    let source = match without_materials(index, path, LodSelection::All) {
         Ok(source) => source,
         Err(error) => {
             tally.failures.push(format!("{path}: {error:?}"));
@@ -235,12 +237,11 @@ fn a_missing_level_falls_back_to_the_base_meshes_and_an_existing_one_does_not() 
     let mut with_level = 0_u32;
     for entry in sample(&archive, is_ship_model, SHIP_SAMPLE) {
         let path = entry.path();
-        let base = ModelSource::from_index_without_materials(&index, path, LodSelection::Only(0))?;
+        let base = without_materials(&index, path, LodSelection::Only(0))?;
         let Some(base_lod) = base.model().lods.first() else {
             continue;
         };
-        let lenient =
-            ModelSource::from_index_without_materials(&index, path, LodSelection::OnlyOrBase(14))?;
+        let lenient = without_materials(&index, path, LodSelection::OnlyOrBase(14))?;
         let model = lenient.model();
         let [lod] = model.lods.as_slice() else {
             return Err(format!("{path}: {} levels", model.lods.len()).into());
@@ -262,11 +263,7 @@ fn a_missing_level_falls_back_to_the_base_meshes_and_an_existing_one_does_not() 
             &path[path.len() - 3..]
         );
         if index.find(&lod1).is_some() {
-            let one = ModelSource::from_index_without_materials(
-                &index,
-                path,
-                LodSelection::OnlyOrBase(1),
-            )?;
+            let one = without_materials(&index, path, LodSelection::OnlyOrBase(1))?;
             assert!(
                 one.model().issues.is_empty(),
                 "{path}: {:?}",

@@ -4,17 +4,12 @@
 use std::path::{Path, PathBuf};
 
 use p4kx_archive::Archive;
-use p4kx_gltf::{GlbOptions, GlbSummary, GltfError, TextureLoader};
-use p4kx_model::{LodSelection, MaterialStatus, Model, PositionBox};
+use p4kx_model::{LayerCache, LodSelection, MaterialReading, MaterialStatus, Model, PositionBox};
 
+use crate::ConversionError;
 use crate::chunk_source::ChunkSource;
 use crate::model_companions::{ArchiveCompanions, DiskCompanions};
-use crate::model_observed::{Observed, is_cancelled};
-use crate::model_textures::ArchiveTextures;
-use crate::output_file::{write_error, write_replacing};
 use crate::path_index::PathIndex;
-use crate::texture_parts::is_same_file;
-use crate::{AnimationSet, CancelToken, ConversionError};
 
 /// A model read from a chunk file Entry of an Archive or from a file on disk, with the
 /// companions next to it.
@@ -51,7 +46,7 @@ impl ModelSource {
         path: &str,
         lods: LodSelection,
     ) -> Result<Self, ConversionError> {
-        Self::from_index_selecting(index, path, lods, true, PositionBox::default())
+        Self::from_index_with_box(index, path, lods, PositionBox::default())
     }
 
     /// Reads the levels of detail `lods` of the model Entry at `path` like
@@ -67,67 +62,36 @@ impl ModelSource {
         lods: LodSelection,
         position_box: PositionBox,
     ) -> Result<Self, ConversionError> {
-        Self::from_index_selecting(index, path, lods, true, position_box)
+        Self::from_index_reading(index, path, lods, position_box, MaterialReading::Drawn)
     }
 
-    /// Reads only the levels of detail `lods` of the model Entry at `path` without its material
-    /// library, see [`Model::read_without_materials`]; for a caller that chooses and caches the
-    /// libraries itself, see [`Self::material_library`].
+    /// Reads the model like [`Self::from_index_with_box`], reading the material library the model
+    /// names as `reading` says, see [`Model::read_with_materials`]: [`MaterialReading::Skipped`]
+    /// for a caller that chooses and caches the libraries itself, see [`Self::material_library`],
+    /// [`MaterialReading::Plain`] for a listing such as `model info`.
     ///
     /// # Errors
     ///
     /// As [`Self::from_index_with`].
-    pub fn from_index_without_materials(
-        index: &PathIndex<'_>,
-        path: &str,
-        lods: LodSelection,
-    ) -> Result<Self, ConversionError> {
-        Self::from_index_selecting(index, path, lods, false, PositionBox::default())
-    }
-
-    /// Reads the model like [`Self::from_index_without_materials`], dequantising its positions
-    /// with `position_box`, see [`Model::read_with_box`].
-    ///
-    /// # Errors
-    ///
-    /// As [`Self::from_index_with`].
-    pub fn from_index_without_materials_with_box(
+    pub fn from_index_reading(
         index: &PathIndex<'_>,
         path: &str,
         lods: LodSelection,
         position_box: PositionBox,
-    ) -> Result<Self, ConversionError> {
-        Self::from_index_selecting(index, path, lods, false, position_box)
-    }
-
-    fn from_index_selecting(
-        index: &PathIndex<'_>,
-        path: &str,
-        lods: LodSelection,
-        load_materials: bool,
-        position_box: PositionBox,
+        reading: MaterialReading,
     ) -> Result<Self, ConversionError> {
         let source = ChunkSource::from_index(index, path)?;
         let name = source.name().to_owned();
         let (folder, file_name) = split_entry_path(&name);
         let mut companions = ArchiveCompanions { index, folder };
-        let read = if load_materials {
-            Model::read_with_box(
-                file_name,
-                source.file(),
-                &mut companions,
-                lods,
-                position_box,
-            )
-        } else {
-            Model::read_without_materials_with_box(
-                file_name,
-                source.file(),
-                &mut companions,
-                lods,
-                position_box,
-            )
-        };
+        let read = Model::read_with_materials(
+            file_name,
+            source.file(),
+            &mut companions,
+            lods,
+            position_box,
+            reading,
+        );
         let model = read.map_err(|source| ConversionError::Model {
             file: name.clone(),
             source,
@@ -142,15 +106,24 @@ impl ModelSource {
     /// Reads the material library `library` as a model Entry at `model_path` names it: a bare
     /// name is looked for beside the model first, then below `Data`. A library that does not
     /// exist or cannot be read is a status, not a failure.
+    ///
+    /// The layer files come from `cache` and stay there, so that the libraries of one ship fetch
+    /// and parse each shared layer file once.
     #[must_use]
     pub fn material_library(
         index: &PathIndex<'_>,
         model_path: &str,
         library: &str,
+        cache: &LayerCache,
     ) -> MaterialStatus {
         let (folder, _) = split_entry_path(model_path);
         let mut companions = ArchiveCompanions { index, folder };
-        MaterialStatus::load(Some(library), &mut companions)
+        MaterialStatus::load_with(
+            Some(library),
+            &mut companions,
+            MaterialReading::Drawn,
+            cache,
+        )
     }
 
     /// Returns the model, giving up the source.
@@ -202,6 +175,20 @@ impl ModelSource {
     /// As [`Self::from_file`], and [`ConversionError::Model`] with
     /// [`p4kx_model::ModelError::NoSuchLod`] when `lods` names a level the model lacks.
     pub fn from_file_with(path: &Path, lods: LodSelection) -> Result<Self, ConversionError> {
+        Self::from_file_reading(path, lods, MaterialReading::Drawn)
+    }
+
+    /// Reads the model file at `path` like [`Self::from_file_with`], reading the material library
+    /// the model names as `reading` says; see [`Self::from_index_reading`].
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::from_file_with`].
+    pub fn from_file_reading(
+        path: &Path,
+        lods: LodSelection,
+        reading: MaterialReading,
+    ) -> Result<Self, ConversionError> {
         let source = ChunkSource::from_file(path)?;
         let file_name = path
             .file_name()
@@ -213,12 +200,18 @@ impl ModelSource {
             read: vec![path.to_path_buf()],
             absent: None,
         };
-        let model = Model::read_with(&file_name, source.file(), &mut companions, lods).map_err(
-            |source| ConversionError::Model {
-                file: path.display().to_string(),
-                source,
-            },
-        )?;
+        let read = Model::read_with_materials(
+            &file_name,
+            source.file(),
+            &mut companions,
+            lods,
+            PositionBox::default(),
+            reading,
+        );
+        let model = read.map_err(|source| ConversionError::Model {
+            file: path.display().to_string(),
+            source,
+        })?;
         Ok(Self {
             name: path.display().to_string(),
             inputs: companions.read,
@@ -238,140 +231,9 @@ impl ModelSource {
         &self.model
     }
 
-    /// Writes the model as a GLB file to `out`, replacing it; the file is written under a
-    /// temporary name first.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`ConversionError::OutputIsInput`] when `out` is one of the model's files or
-    /// the Archive it was read from,
-    /// [`ConversionError::Glb`] when the model cannot be exported with `options`, and
-    /// [`ConversionError::Write`] when the file cannot be written.
-    pub fn write_glb(
-        &self,
-        options: &GlbOptions,
-        out: &Path,
-    ) -> Result<GlbSummary, ConversionError> {
-        self.write_glb_animated(&AnimationSet::default(), options, out)
-    }
-
-    /// Writes the model with the `animations` as a GLB file to `out`, replacing it; see
-    /// [`Self::write_glb`].
-    ///
-    /// # Errors
-    ///
-    /// As [`Self::write_glb`], and [`ConversionError::OutputIsInput`] also when `out` is a file
-    /// an animation was read from.
-    pub fn write_glb_animated(
-        &self,
-        animations: &AnimationSet,
-        options: &GlbOptions,
-        out: &Path,
-    ) -> Result<GlbSummary, ConversionError> {
-        self.write_glb_observed(
-            animations,
-            options,
-            out,
-            None,
-            &CancelToken::new(),
-            &|_, _| {},
-        )
-    }
-
-    /// Writes the model as a GLB file to `out` like [`Self::write_glb`], taking the textures of
-    /// [`p4kx_gltf::MaterialMode::Textures`] from the Entries of the Archive `index` is over;
-    /// they are found there ignoring case and the kind of separator, and a `.tif` or `.tga` name
-    /// in the material file is the `.dds` Entry.
-    ///
-    /// A texture that is missing, not an image, too large or undecodable leaves the material its
-    /// plain colour and is listed in [`GlbSummary::texture_fallbacks`], never an error.
-    ///
-    /// # Errors
-    ///
-    /// As [`Self::write_glb`].
-    pub fn write_glb_textured(
-        &self,
-        index: &PathIndex<'_>,
-        options: &GlbOptions,
-        out: &Path,
-    ) -> Result<GlbSummary, ConversionError> {
-        self.write_glb_animated_textured(index, &AnimationSet::default(), options, out)
-    }
-
-    /// Writes the model with the `animations` and the textures of the Archive `index` is over as
-    /// a GLB file to `out`; see [`Self::write_glb_animated`] and [`Self::write_glb_textured`].
-    ///
-    /// # Errors
-    ///
-    /// As [`Self::write_glb_animated`].
-    pub fn write_glb_animated_textured(
-        &self,
-        index: &PathIndex<'_>,
-        animations: &AnimationSet,
-        options: &GlbOptions,
-        out: &Path,
-    ) -> Result<GlbSummary, ConversionError> {
-        self.write_glb_observed(
-            animations,
-            options,
-            out,
-            Some(&ArchiveTextures::new(index)),
-            &CancelToken::new(),
-            &|_, _| {},
-        )
-    }
-
-    /// Writes the model as [`Self::write_glb`] does, taking the textures from `textures` when it
-    /// is given, calling `progress` with the bytes written and the length of the file as it goes,
-    /// and stopping once `cancel` is set.
-    ///
-    /// # Errors
-    ///
-    /// As [`Self::write_glb`], and [`ConversionError::Cancelled`] when `cancel` was set; nothing is
-    /// left at `out` then.
-    pub fn write_glb_observed(
-        &self,
-        animations: &AnimationSet,
-        options: &GlbOptions,
-        out: &Path,
-        textures: Option<&dyn TextureLoader>,
-        cancel: &CancelToken,
-        progress: &dyn Fn(u64, u64),
-    ) -> Result<GlbSummary, ConversionError> {
-        if is_same_file(out, self.inputs.iter().chain(&animations.inputs).cloned()) {
-            return Err(ConversionError::OutputIsInput {
-                path: out.to_path_buf(),
-            });
-        }
-        if cancel.is_cancelled() {
-            return Err(ConversionError::Cancelled);
-        }
-        write_replacing(out, |writer| {
-            let mut observed = Observed::new(writer, cancel, progress);
-            let written = match textures {
-                Some(textures) => p4kx_gltf::write_glb_animated_with(
-                    &self.model,
-                    &animations.animations,
-                    options,
-                    textures,
-                    &mut observed,
-                ),
-                None => p4kx_gltf::write_glb_animated(
-                    &self.model,
-                    &animations.animations,
-                    options,
-                    &mut observed,
-                ),
-            };
-            written.map_err(|error| match error {
-                GltfError::Write(source) if is_cancelled(&source) => ConversionError::Cancelled,
-                GltfError::Write(source) => write_error(out, source),
-                source => ConversionError::Glb {
-                    file: self.name.clone(),
-                    source,
-                },
-            })
-        })
+    /// Returns the files the model was read from: the model file and its companions.
+    pub(crate) fn inputs(&self) -> &[PathBuf] {
+        &self.inputs
     }
 }
 

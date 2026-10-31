@@ -8,6 +8,7 @@ use super::piece::Note;
 use super::{Head, HeadError, Look, Piece, Wearable};
 
 const HEAD_PORT: &str = "head_itemport";
+const BODY_PORT: &str = "body_itemport";
 const EYES_PORT: &str = "eyes_itemport";
 const HAIR_PORT: &str = "hair_itemport";
 const SCALP_PORT: &str = "universal_scalp_itemport";
@@ -136,7 +137,9 @@ impl Head {
     /// The head, the teeth and the eyes are shaped by the Character's DNA, the other items follow
     /// the shaped head. The Character's material choices are applied to the pieces: its base
     /// material replaces the library of the head, and its colours and numbers set the skin tone,
-    /// the iris and the hair, see [`Look`]. An item that `items` cannot supply is kept as a failed
+    /// the iris and the hair, see [`Look`]. The choice the Character made for its body is given by
+    /// a last piece, [`Piece::body`], that styles the default body the same way, so that the body
+    /// and the head have one skin tone. An item that `items` cannot supply is kept as a failed
     /// piece, and a base material that is in no lookup table is listed, so that the Armour's
     /// report names both.
     ///
@@ -167,6 +170,10 @@ impl Head {
             if let Some(piece) = dressing.piece(item, items) {
                 head.pieces.push(piece);
             }
+        }
+        if dressing.choice_for(BODY_PORT).is_some() {
+            head.pieces
+                .push(dressing.styled(Piece::body(), BODY_PORT, items));
         }
         Ok(head)
     }

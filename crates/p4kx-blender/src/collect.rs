@@ -238,18 +238,8 @@ impl Collected {
             self.layer_issue(parent, path, &problem);
             return None;
         };
-        let position = if library.single {
-            Some(0)
-        } else {
-            match layer.attribute("Submtl").map(str::trim) {
-                None | Some("") => Some(0),
-                Some(name) => library
-                    .materials
-                    .iter()
-                    .position(|material| material.name.eq_ignore_ascii_case(name)),
-            }
-        };
-        let Some(position) = position else {
+        let Some(position) = library.layer_position(layer.attribute("Submtl").unwrap_or_default())
+        else {
             self.layer_issue(parent, path, "the layer file has no such sub-material");
             return None;
         };

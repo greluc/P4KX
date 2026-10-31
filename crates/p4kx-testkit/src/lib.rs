@@ -53,6 +53,7 @@ mod entity_npc_face;
 mod entity_npc_zones;
 mod entity_painted;
 mod entity_port;
+mod entity_prop_rig;
 mod entity_sample;
 mod entity_schema;
 mod entity_skin;
@@ -198,6 +199,10 @@ pub use entity_painted::{
     painted_entries,
 };
 pub use entity_port::TestPort;
+pub use entity_prop_rig::{
+    GARMENT_ON_SKIN_PORT, PROP_ON_BONE_PORT, PROP_ON_LOST_PORT, PROP_ON_SKIN_PORT,
+    PROP_RIG_CREATURE, PROP_RIG_HUMAN, PROP_RIG_STATIC, SKINNED_ON_SKIN_PORT, prop_rig_entries,
+};
 pub use entity_sample::{SAMPLE_GUN, SAMPLE_MISSING, SAMPLE_MOUNT, SAMPLE_SHIP, sample_ship};
 pub use entity_schema::{entity_schema, tint_palette_record};
 pub use entity_skin::{SKIN_BODY, skin_attachment_entries};

@@ -178,14 +178,19 @@ fn below_data(path: &str) -> &str {
     }
 }
 
-/// Returns whether `path` names a `.cdf`, `.chr` or `.skin` file outside the human body rigs.
-pub(crate) fn is_rigged_path_outside_human_rigs(path: &str) -> bool {
-    let relative = below_data(path);
+/// Returns whether `relative` ends in the extension of a character file.
+fn has_character_extension(relative: &str) -> bool {
     relative.rsplit_once('.').is_some_and(|(_, extension)| {
         CHARACTER_EXTENSIONS
             .iter()
             .any(|wanted| wanted.eq_ignore_ascii_case(extension))
-    }) && !starts_with_path(relative, HUMAN_RIGS)
+    })
+}
+
+/// Returns whether `path` names a `.cdf`, `.chr` or `.skin` file outside the human body rigs.
+pub(crate) fn is_rigged_path_outside_human_rigs(path: &str) -> bool {
+    let relative = below_data(path);
+    has_character_extension(relative) && !starts_with_path(relative, HUMAN_RIGS)
 }
 
 /// Returns whether `path` names a character file outside the human body rigs that lies in the
@@ -193,6 +198,13 @@ pub(crate) fn is_rigged_path_outside_human_rigs(path: &str) -> bool {
 /// weapons, gadgets, ships and buildings.
 pub(crate) fn is_creature_path(path: &str) -> bool {
     is_rigged_path_outside_human_rigs(path) && starts_with_path(below_data(path), CHARACTERS)
+}
+
+/// Returns whether `path` names a `.cdf`, `.chr` or `.skin` file in the characters folder, the
+/// human body rigs included.
+pub(crate) fn is_character_path(path: &str) -> bool {
+    let relative = below_data(path);
+    starts_with_path(relative, CHARACTERS) && has_character_extension(relative)
 }
 
 impl Geometry {

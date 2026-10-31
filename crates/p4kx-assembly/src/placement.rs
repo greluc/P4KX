@@ -56,6 +56,14 @@ pub(crate) fn node_transform(model: &Model, name: &str) -> Option<Transform> {
     None
 }
 
+/// Returns whether the model has a mesh at the level `level` of detail and none of its meshes is
+/// skinned.
+pub(crate) fn is_unskinned(model: &Model, level: u32) -> bool {
+    model
+        .nearest_lod(level)
+        .is_some_and(|lod| lod.meshes.iter().all(|mesh| mesh.influences.is_none()))
+}
+
 /// Returns the transform from the bind-pose space of the bone of `model` named `name`, ignoring
 /// ASCII case, to the model's space, or `None` when the model has no such bone or its pose is
 /// not finite.

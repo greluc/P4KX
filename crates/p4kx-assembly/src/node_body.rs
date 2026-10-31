@@ -101,7 +101,9 @@ impl LoadoutResolver<'_> {
     }
 }
 
-fn is_character_item(item_type: &str) -> bool {
+/// Returns whether `item_type` is the item type of a character item: a body, head, clothing,
+/// armour or accessory.
+pub(crate) fn is_character_item(item_type: &str) -> bool {
     item_type
         .get(..CHARACTER_PREFIX.len())
         .is_some_and(|start| start.eq_ignore_ascii_case(CHARACTER_PREFIX))

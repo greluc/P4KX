@@ -7,7 +7,8 @@ use crate::build::issue;
 use crate::build_models::Loaded;
 use crate::creature_rig;
 use crate::flatten::Draft;
-use crate::placement::{bone_transform, node_transform, offset};
+use crate::node_body::is_character_item;
+use crate::placement::{bone_transform, is_unskinned, node_transform, offset};
 use crate::{Issue, IssueKind, Part, Placement, PortDefinition, PortNode, PortTransform};
 
 /// Returns whether the parent of the part is a skin part.
@@ -18,13 +19,18 @@ pub(crate) fn under_skin(draft: &Draft<'_>, parts: &[Part]) -> bool {
         .is_some_and(|parent| parent.placement == Placement::Skin)
 }
 
-/// Returns the transform of a part to its parent's and how it was found. `rig` is the skeleton of a
-/// creature root that the item ports of its skins anchor to.
+/// Returns the transform of a part to its parent's and how it was found. `rig` is the skeleton of
+/// a character root that the item ports of its skins anchor to, and `level` the level of detail of
+/// the models.
+///
+/// A part on a skin port is drawn in the bind pose of its parent, unless it is a prop: an Entity
+/// that is no character item and has a rigid model, which has no weights to follow the skeleton.
+/// A prop hangs on the bone its port names, and sits in the bind pose only where no bone is found.
 pub(crate) fn place(
     draft: &Draft<'_>,
     parts: &[Part],
     model: Option<&Loaded>,
-    rig: Option<&[Bone]>,
+    (rig, level): (Option<&[Bone]>, u32),
     issues: &mut Vec<Issue>,
 ) -> (Transform, Placement) {
     let mut unreported = Vec::new();
@@ -43,21 +49,27 @@ pub(crate) fn place(
         return (Transform::IDENTITY, Placement::Origin);
     };
     let port_definition = port.definition();
-    if port_definition.is_some_and(PortDefinition::is_skin) {
-        return (Transform::IDENTITY, Placement::Skin);
-    }
     let definition = port_definition.and_then(PortDefinition::transform);
     let helper = definition
         .map(PortTransform::helper)
         .filter(|helper| !helper.is_empty());
-    let (mut placement, mut base) = anchor(parent.model(), helper, port);
-    if !matches!(placement, Placement::Helper(_))
-        && let Some((found, transform)) = rig
-            .zip(helper)
+    let on_rig = || {
+        rig.zip(helper)
             .and_then(|(rig, helper)| creature_rig::skin_port_anchor(rig, parent, helper))
-    {
-        (placement, base) = (found, transform);
-    }
+    };
+    let (placement, base) = if port_definition.is_some_and(PortDefinition::is_skin) {
+        let rigid = !is_character_item(draft.node.attach_type())
+            && model.is_some_and(|loaded| is_unskinned(&loaded.model, level));
+        match on_rig().filter(|_| rigid) {
+            Some(found) => found,
+            None => return (Transform::IDENTITY, Placement::Skin),
+        }
+    } else {
+        match anchor(parent.model(), helper, port) {
+            (Placement::Helper(helper), base) => (Placement::Helper(helper), base),
+            other => on_rig().unwrap_or(other),
+        }
+    };
     if let Some(helper) = helper
         && placement == Placement::Origin
         && parent.model().is_some()

@@ -92,9 +92,9 @@ impl Assembly {
             let (palette, unresolved) = palettes.of_part(draft, *model, &materials);
             issues.extend(unresolved.into_iter().map(|kind| issue(draft, kind)));
             let rig = under_skin(draft, &parts)
-                .then(|| creature_rig::skeleton_of(&parts, &issues, options.lod))
+                .then(|| creature_rig::anchor_bones_of(&parts, &issues, options.lod))
                 .flatten();
-            let (local, placement) = place(draft, &parts, *model, rig, &mut issues);
+            let (local, placement) = place(draft, &parts, *model, (rig, options.lod), &mut issues);
             let world = world_of(draft, &parts, &local);
             parts.push(Part {
                 name: draft.name.clone(),

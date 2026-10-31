@@ -1,6 +1,9 @@
 # Screens take game variables from the caller
 
-Decided for issue #588. Amends ADR-0110 (the state at rest).
+Decided for issue #588. Amends ADR-0110 (the state at rest). ADR-0277 adds namespaces
+(`CANVAS::NAME=VALUE`, a setting for the bindings of one canvas), the canvases that
+`CanvasReferenceRecord` picks, and the persistence of the state and the typed variables in the UI
+tab; the passages below that say otherwise are superseded by it.
 
 ## Context
 

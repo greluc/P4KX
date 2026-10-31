@@ -151,6 +151,7 @@ mod texture_groups_folders;
 mod theme_render;
 mod ui_tab_export;
 mod ui_tab_files;
+mod ui_tab_persist;
 mod ui_tab_render;
 mod ui_tab_ships;
 mod ui_tabbing;

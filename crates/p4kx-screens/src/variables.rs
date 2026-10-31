@@ -55,12 +55,17 @@ pub enum VariableError {
     ValueTooLong,
 }
 
+/// Separates the namespace of a setting, the canvas that reads the variable, from its name.
+const NAMESPACE_SEPARATOR: &str = "::";
+
 /// A game variable and the value it has when the bindings are evaluated, instead of its zero.
 ///
 /// The bindings of a screen read game variables by path, such as `/seatdashboard/powerstate`; a
-/// name without `/` is the last segment of that path, `powerstate`. The value is read as the
-/// kind of variable a binding names: `true`, `false` or a number for a boolean, a finite number
-/// for a number or an integer, any text for a string.
+/// name without `/` is the last segment of that path, `powerstate`. A name may follow a
+/// namespace and `::`, as in `mapdisplaymaster::isradar`: the variable is then set for the
+/// bindings of that canvas only, named by the last segment of its Record path (ADR-0277). The
+/// value is read as the kind of variable a binding names: `true`, `false` or a number for a
+/// boolean, a finite number for a number or an integer, any text for a string.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Variable {
     name: String,
@@ -75,7 +80,10 @@ impl Variable {
     /// Returns the [`VariableError`] that says which bound the name or value breaks.
     pub fn new(name: &str, value: &str) -> Result<Self, VariableError> {
         let (name, value) = (name.trim(), value.trim());
-        if name.trim_matches('/').is_empty() || name.chars().any(char::is_control) {
+        let (namespace, path) = split_namespace(name);
+        let bad_namespace = namespace.is_some_and(|space| space.is_empty() || space.contains('/'));
+        if bad_namespace || path.trim_matches('/').is_empty() || name.chars().any(char::is_control)
+        {
             return Err(VariableError::BadName);
         }
         if name.len() > MAX_NAME_BYTES {
@@ -111,7 +119,7 @@ impl Variable {
     /// A name without `/` is the last segment of the path, one with `/` is the whole path.
     pub(crate) fn matches(&self, binding: &str) -> bool {
         let binding = binding.trim_matches('/');
-        let name = self.name.trim_matches('/');
+        let name = split_namespace(&self.name).1.trim_matches('/');
         if name.contains('/') {
             binding.eq_ignore_ascii_case(name)
         } else {
@@ -120,6 +128,14 @@ impl Variable {
                 .next()
                 .is_some_and(|last| last.eq_ignore_ascii_case(name))
         }
+    }
+
+    /// Returns whether the bindings of the canvas named `canvas`, the last segment of its Record
+    /// path, can read this variable: it names no namespace, or this canvas; case is ignored.
+    pub(crate) fn in_namespace(&self, canvas: &str) -> bool {
+        split_namespace(&self.name)
+            .0
+            .is_none_or(|space| space.eq_ignore_ascii_case(canvas))
     }
 
     /// Reads the value as the kind of `zero`, the value the variable has at rest.
@@ -150,6 +166,14 @@ impl Variable {
                 .ok_or_else(|| refuse("a number")),
             Rest::Text(_) => Ok(Rest::Text(self.value.clone())),
         }
+    }
+}
+
+/// Splits `name` into its namespace, if it names one, and the path of the variable.
+fn split_namespace(name: &str) -> (Option<&str>, &str) {
+    match name.split_once(NAMESPACE_SEPARATOR) {
+        Some((space, path)) => (Some(space.trim()), path.trim()),
+        None => (None, name),
     }
 }
 
@@ -212,6 +236,29 @@ mod tests {
         assert!(whole.matches("seatdashboard/powerstate"));
         assert!(!whole.matches("/other/powerstate"));
         assert!(!whole.matches("powerstate"));
+    }
+
+    #[test]
+    fn a_namespace_limits_a_setting_to_the_canvas_it_names() {
+        let scoped: Variable = "MapDisplayMaster :: isradar=1".parse().expect("setting");
+        assert!(scoped.in_namespace("mapdisplaymaster"));
+        assert!(!scoped.in_namespace("other"));
+        assert!(scoped.matches("StarMapData/CommonData/IsRadar"));
+        let plain = Variable::new("isradar", "1").expect("variable");
+        assert!(plain.in_namespace("anything"));
+        let whole = Variable::new("canvas::/a/b", "1").expect("variable");
+        assert!(whole.matches("a/b") && !whole.matches("b"));
+    }
+
+    #[test]
+    fn a_namespace_that_is_empty_or_a_path_is_refused() {
+        for setting in ["::power=1", "a/b::power=1", "canvas::=1", "canvas::/=1"] {
+            assert_eq!(
+                setting.parse::<Variable>(),
+                Err(VariableError::BadName),
+                "{setting}"
+            );
+        }
     }
 
     #[test]

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
+use std::borrow::Cow;
 use std::rc::Rc;
 
 use p4kx_dataforge::Guid;
@@ -11,6 +12,7 @@ use crate::elements;
 use crate::report::VariableInForce;
 use crate::rest::{AtRest, RestParams};
 use crate::style::{Modifiers, Subject};
+use crate::variables::Variable;
 use crate::walk::Walk;
 use crate::widget::Widget;
 
@@ -60,7 +62,23 @@ impl Walk<'_, '_, '_, '_> {
         let state = if let Some(known) = self.at_rest.get(&key) {
             Rc::clone(known)
         } else {
-            let state = Rc::new(AtRest::of(&canvas.operations, &inputs, self.variables));
+            let name = canvas.name();
+            let variables: Cow<'_, [Variable]> = if self
+                .variables
+                .iter()
+                .all(|variable| variable.in_namespace(name))
+            {
+                Cow::Borrowed(self.variables)
+            } else {
+                Cow::Owned(
+                    self.variables
+                        .iter()
+                        .filter(|variable| variable.in_namespace(name))
+                        .cloned()
+                        .collect(),
+                )
+            };
+            let state = Rc::new(AtRest::of(&canvas.operations, &inputs, &variables));
             self.note_rest(canvas, &state);
             self.at_rest.insert(key, Rc::clone(&state));
             state
@@ -74,8 +92,13 @@ impl Walk<'_, '_, '_, '_> {
         if self.variables.is_empty() {
             return;
         }
-        self.known_variables
-            .extend(canvas.operations.variable_names().map(str::to_owned));
+        let name = canvas.name();
+        self.known_variables.extend(
+            canvas
+                .operations
+                .variable_names()
+                .map(|path| (name.to_owned(), path.to_owned())),
+        );
     }
 
     /// Returns the variables that were set, the last setting of each name, and whether a canvas
@@ -89,7 +112,7 @@ impl Walk<'_, '_, '_, '_> {
                 used: self
                     .known_variables
                     .iter()
-                    .any(|path| variable.matches(path)),
+                    .any(|(canvas, path)| variable.in_namespace(canvas) && variable.matches(path)),
             };
             match forced
                 .iter_mut()
@@ -167,6 +190,20 @@ impl Walk<'_, '_, '_, '_> {
             .active
             .or_else(|| self.rests.last().and_then(|state| state.active(index)))
             .unwrap_or(widget.active)
+    }
+
+    /// Returns the canvas widget `index` holds: a style entry beats the bound
+    /// `CanvasReferenceRecord`, which beats the field of the widget.
+    pub(crate) fn canvas_of(
+        &self,
+        index: usize,
+        widget: &Widget,
+        style: &Modifiers,
+    ) -> Option<Guid> {
+        style
+            .canvas
+            .or_else(|| self.rests.last().and_then(|state| state.canvas(index)))
+            .or(widget.canvas)
     }
 
     /// Returns the own alpha of widget `index`, in the same order of precedence.

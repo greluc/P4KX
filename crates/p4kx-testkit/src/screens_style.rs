@@ -100,6 +100,8 @@ pub enum TestModifier {
     WordWrap(bool),
     /// The font style Record `guid`.
     FontStyle(u128),
+    /// The canvas Record `guid` a canvas widget holds (`CanvasReferenceRecord`).
+    Canvas(u128),
     /// The horizontal alignment, `Left`, `Center` or `Right`.
     Horizontal(&'static str),
     /// The vertical alignment, `Top`, `Center` or `Bottom`.
@@ -138,41 +140,12 @@ impl TestModifier {
             Self::ImagePath(path) => ("String", "ImagePath", TestValue::text(path)),
             Self::SvgPath(path) => ("String", "SvgPath", TestValue::text(path)),
             Self::ColourOverlay(on) => ("Boolean", "EnableColorOverlay", TestValue::Bool(on)),
-            Self::FontStyle(guid) => {
-                return typed(
-                    "RecordRef",
-                    "RecordRefTypeFontStyleRecord",
-                    TestValue::Reference(guid),
-                );
-            }
-            Self::Horizontal(name) => {
-                return typed(
-                    "Enumerated",
-                    "EnumeratedTypeHorizontalAlignment",
-                    TestValue::text(name),
-                );
-            }
-            Self::Vertical(name) => {
-                return typed(
-                    "Enumerated",
-                    "EnumeratedTypeVerticalAlignment",
-                    TestValue::text(name),
-                );
-            }
-            Self::Case(name) => {
-                return typed(
-                    "Enumerated",
-                    "EnumeratedTypeCaseModifier",
-                    TestValue::text(name),
-                );
-            }
-            Self::Enumerated(kind, name) => {
-                return typed(
-                    "Enumerated",
-                    &format!("EnumeratedType{kind}"),
-                    TestValue::text(name),
-                );
-            }
+            Self::FontStyle(_)
+            | Self::Canvas(_)
+            | Self::Horizontal(_)
+            | Self::Vertical(_)
+            | Self::Case(_)
+            | Self::Enumerated(..) => return self.typed_value(),
         };
         let key = if kind == "Color" { "color" } else { "value" };
         TestValue::Struct(
@@ -180,6 +153,31 @@ impl TestModifier {
                 .value("field", TestValue::text(field))
                 .value(key, value),
         )
+    }
+}
+
+impl TestModifier {
+    /// Returns a record reference or enumerated modifier, whose field is a struct of its own.
+    fn typed_value(self) -> TestValue {
+        let enumerated =
+            |inner: &str, name: &str| typed("Enumerated", inner, TestValue::text(name));
+        match self {
+            Self::FontStyle(guid) => typed(
+                "RecordRef",
+                "RecordRefTypeFontStyleRecord",
+                TestValue::Reference(guid),
+            ),
+            Self::Canvas(guid) => typed(
+                "RecordRef",
+                "RecordRefTypeCanvasReferenceRecord",
+                TestValue::Reference(guid),
+            ),
+            Self::Horizontal(name) => enumerated("EnumeratedTypeHorizontalAlignment", name),
+            Self::Vertical(name) => enumerated("EnumeratedTypeVerticalAlignment", name),
+            Self::Case(name) => enumerated("EnumeratedTypeCaseModifier", name),
+            Self::Enumerated(kind, name) => enumerated(&format!("EnumeratedType{kind}"), name),
+            _ => unreachable!("only the typed modifiers reach here"),
+        }
     }
 }
 

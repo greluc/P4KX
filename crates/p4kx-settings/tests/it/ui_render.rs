@@ -5,7 +5,10 @@
 
 use std::error::Error;
 
-use p4kx_settings::{Settings, UiRenderBackground, UiRenderFormat, UiRenderSettings, UiRenderSize};
+use p4kx_settings::{
+    MAX_VARIABLES_BYTES, Settings, UiRenderBackground, UiRenderFormat, UiRenderPower,
+    UiRenderSettings, UiRenderSize,
+};
 
 type TestResult = Result<(), Box<dyn Error>>;
 
@@ -18,6 +21,8 @@ fn the_choices_survive_a_round_trip() -> TestResult {
             size: UiRenderSize::FullHd,
             background: UiRenderBackground::Black,
             format: UiRenderFormat::Svg,
+            power: UiRenderPower::PoweredOn,
+            variables: "isradar=1 mapdisplaymaster::ismapactive=1".to_owned(),
         },
         ..Settings::default()
     };
@@ -25,6 +30,24 @@ fn the_choices_survive_a_round_trip() -> TestResult {
     settings.save(&file)?;
 
     assert_eq!(Settings::load(&file)?, settings, "settings round-trip");
+    Ok(())
+}
+
+#[test]
+fn typed_variables_are_bounded_on_load_at_a_character_boundary() -> TestResult {
+    let folder = tempfile::tempdir()?;
+    let file = folder.path().join("settings.toml");
+    let long = "ä".repeat(MAX_VARIABLES_BYTES);
+    std::fs::write(
+        &file,
+        format!("[ui]\npower = \"warp\"\nvariables = \"{long}\"\n"),
+    )?;
+
+    let loaded = Settings::load(&file)?.ui;
+
+    assert_eq!(loaded.power, UiRenderPower::AtRest, "unknown state");
+    assert_eq!(loaded.variables.len(), MAX_VARIABLES_BYTES, "kept bytes");
+    assert!(loaded.variables.chars().all(|c| c == 'ä'));
     Ok(())
 }
 

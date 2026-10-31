@@ -48,8 +48,23 @@ pub enum UiRenderFormat {
     Png,
 }
 
+/// The game state the UI tab draws screens in.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum UiRenderPower {
+    /// The ship is powered on.
+    PoweredOn,
+    /// Every game variable at zero; also what a value this version does not know reads as.
+    #[default]
+    #[serde(other)]
+    AtRest,
+}
+
+/// The most bytes of typed game variables that are kept.
+pub const MAX_VARIABLES_BYTES: usize = 4096;
+
 /// The choices of the UI tab, remembered between sessions.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct UiRenderSettings {
     /// The size of the picture.
@@ -58,4 +73,20 @@ pub struct UiRenderSettings {
     pub background: UiRenderBackground,
     /// The format an export writes.
     pub format: UiRenderFormat,
+    /// The game state a screen is drawn in.
+    pub power: UiRenderPower,
+    /// The game variables typed beside the state, as `NAME=VALUE` settings; at most
+    /// [`MAX_VARIABLES_BYTES`] bytes are kept when it is read.
+    #[serde(deserialize_with = "bounded")]
+    pub variables: String,
+}
+
+fn bounded<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<String, D::Error> {
+    let mut text = String::deserialize(deserializer)?;
+    let end = (0..=MAX_VARIABLES_BYTES.min(text.len()))
+        .rev()
+        .find(|&at| text.is_char_boundary(at))
+        .unwrap_or(0);
+    text.truncate(end);
+    Ok(text)
 }

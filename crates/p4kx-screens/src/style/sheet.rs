@@ -69,6 +69,14 @@ impl CanvasStyles {
         self.uses
     }
 
+    /// Returns the canvases the entries of the sheet may put in a canvas widget.
+    pub(crate) fn canvases(&self) -> impl Iterator<Item = Guid> + '_ {
+        self.groups
+            .iter()
+            .flat_map(|group| group.iter())
+            .filter_map(|entry| entry.modifiers.canvas)
+    }
+
     pub(crate) fn unsupported(&self) -> impl Iterator<Item = (&str, &str)> {
         self.groups.iter().flat_map(|group| {
             group.iter().flat_map(|entry| {
@@ -131,6 +139,7 @@ pub(crate) fn merge(into: &mut Modifiers, from: &Modifiers) {
     set(&mut into.enable_background, from.enable_background.as_ref());
     set(&mut into.active, from.active.as_ref());
     set(&mut into.alpha, from.alpha.as_ref());
+    set(&mut into.canvas, from.canvas.as_ref());
     into.text.merge(&from.text);
     into.picture.merge(&from.picture);
     into.geometry.merge(&from.geometry);

@@ -105,6 +105,12 @@ impl UiTab {
         &self.settings
     }
 
+    /// Returns the choices and the typed game variables as the settings file stores them.
+    #[must_use]
+    pub fn stored_settings(&self) -> p4kx_settings::UiRenderSettings {
+        self.settings.stored(&self.variables)
+    }
+
     /// Replaces the choices of how the tab draws and exports.
     pub const fn set_settings(&mut self, settings: UiSettings) {
         self.settings = settings;

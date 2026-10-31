@@ -8,11 +8,17 @@ use crate::widget::Widget;
 
 const WIDGET_CANVAS: &str = "BuildingBlocks_WidgetCanvas";
 
-/// Returns the canvas a widget shows inside its box: the one a canvas widget names, or the
-/// canvas that holds the look of a standard widget.
-pub(crate) fn nested(widget: &Widget, forge: &DataForge<'_>) -> Option<Guid> {
-    if widget.type_name == WIDGET_CANVAS {
-        widget.canvas
+/// Returns whether `widget` is a canvas widget, which holds a canvas of its own choosing.
+pub(crate) fn is_canvas_widget(widget: &Widget) -> bool {
+    widget.type_name == WIDGET_CANVAS
+}
+
+/// Returns the canvas a widget shows inside its box: `chosen`, the one a canvas widget names
+/// once styles and bindings had their say, or the canvas that holds the look of a standard
+/// widget.
+pub(crate) fn nested(widget: &Widget, chosen: Option<Guid>, forge: &DataForge<'_>) -> Option<Guid> {
+    if is_canvas_widget(widget) {
+        chosen
     } else {
         standard::canvas_of(widget, forge)
     }

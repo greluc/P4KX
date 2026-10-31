@@ -50,7 +50,7 @@ pub(crate) struct Walk<'s, 'a, 'f, 't> {
     pub(crate) shape: Uses,
     pub(crate) rests: Vec<Rc<AtRest>>,
     pub(crate) variables: &'s [Variable],
-    pub(crate) known_variables: HashSet<String>,
+    pub(crate) known_variables: HashSet<(String, String)>,
     pub(crate) typed: Vec<RestParams>,
     pub(crate) at_rest: HashMap<(Guid, u64), Rc<AtRest>>,
     pub(crate) measured: HashMap<MeasureKey, [Option<f32>; 2]>,
@@ -186,7 +186,7 @@ impl<'s, 'a, 'f, 't> Walk<'s, 'a, 'f, 't> {
         }
         let geometry = Geometry::of(widget, &style);
         self.commit_kids(widget, &mut plan);
-        let has_children = !plan.kids.is_empty() || widget.canvas.is_some();
+        let has_children = !plan.kids.is_empty() || self.canvas_of(index, widget, &style).is_some();
         let probe = Probe {
             canvas,
             index,
@@ -356,7 +356,8 @@ impl<'s, 'a, 'f, 't> Walk<'s, 'a, 'f, 't> {
             alpha,
             depth + 1,
         );
-        if let Some(nested) = elements::nested_canvas(widget, self.store.forge()) {
+        let chosen = self.canvas_of(sibling.index, widget, &sibling.style);
+        if let Some(nested) = elements::nested_canvas(widget, chosen, self.store.forge()) {
             let handover = self.handover(sibling.index, widget);
             self.nested(
                 nested,

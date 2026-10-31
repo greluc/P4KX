@@ -105,6 +105,12 @@ impl UiTab {
         &self.settings
     }
 
+    /// Returns the choices and the typed game variables as the settings file stores them.
+    #[must_use]
+    pub fn stored_settings(&self) -> p4kx_settings::UiRenderSettings {
+        self.settings.stored(&self.variables)
+    }
+
     /// Replaces the choices of how the tab draws and exports.
     pub const fn set_settings(&mut self, settings: UiSettings) {
         self.settings = settings;
@@ -138,8 +144,12 @@ impl UiTab {
 
     /// Draws screens with the game variables in `text`, `NAME=VALUE` settings separated by blanks
     /// or commas, after those of the state.
+    ///
+    /// The text is held to [`p4kx_settings::MAX_VARIABLES_BYTES`] bytes: a longer one is cut at
+    /// the last separator before the limit, so that no setting is cut in two, and is empty when
+    /// it has none.
     pub fn set_variables_text(&mut self, text: &str) {
-        text.clone_into(&mut self.variables);
+        p4kx_settings::bound_variables(text).clone_into(&mut self.variables);
     }
 
     /// Returns the typed settings that are no `NAME=VALUE`.

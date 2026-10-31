@@ -133,15 +133,28 @@ impl Walk<'_, '_, '_, '_> {
         let mut todo = vec![Rc::clone(root)];
         let mut uses = Uses::default();
         while let Some(canvas) = todo.pop() {
-            uses = uses.or(self.sheet(&canvas).uses());
+            let sheet = self.sheet(&canvas);
+            uses = uses.or(sheet.uses());
             self.note_variables(&canvas);
+            let mut reachable: Vec<Guid> = sheet
+                .canvases()
+                .chain(canvas.operations.canvas_choices())
+                .collect();
             for widget in &canvas.widgets {
                 if let Some(style) = widget.stylesheet {
-                    uses = uses.or(self.override_sheet(style).uses());
+                    let over = self.override_sheet(style);
+                    uses = uses.or(over.uses());
+                    reachable.extend(over.canvases());
                 }
-                let Some(guid) = widget.canvas else {
-                    continue;
-                };
+                reachable.extend(widget.canvas);
+                reachable.extend(
+                    widget
+                        .inline
+                        .iter()
+                        .filter_map(|entry| entry.modifiers.canvas),
+                );
+            }
+            for guid in reachable {
                 if seen.len() >= MAX_SURVEYED {
                     uses = Uses {
                         count: true,

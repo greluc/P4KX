@@ -56,6 +56,7 @@ mod model;
 mod model_options;
 mod mtl;
 mod mtl_error;
+mod mtl_layer_shares;
 mod mtl_layers;
 mod mtl_load;
 mod mtl_parse;

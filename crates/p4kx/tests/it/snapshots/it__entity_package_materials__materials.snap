@@ -28,6 +28,12 @@ expression: "pretty(&manifest, \"materials\")?"
     "glow": 0.0,
     "id": "x0001",
     "index": 1,
+    "layer_shares": [
+      0.8181819,
+      0.0909091,
+      0.0,
+      0.0909091
+    ],
     "layers": [
       {
         "attributes": [
@@ -311,6 +317,9 @@ expression: "pretty(&manifest, \"materials\")?"
     "gen_mask": [],
     "glow": 0.0,
     "id": "x0004",
+    "layer_shares": [
+      1.0
+    ],
     "layers": [
       {
         "attributes": [

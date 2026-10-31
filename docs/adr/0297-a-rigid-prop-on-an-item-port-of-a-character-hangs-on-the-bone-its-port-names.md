@@ -31,7 +31,7 @@ well; they are character items (`Char_*`) and the box is not meant to be worn.
   placement is `helper` with the bone's name and the transform is the bind pose of the bone in the
   space of the skin part. The port's offset applies in the space of the bone.
 - **A prop on a skin port hangs on its bone too.** A prop is an Entity whose item type is no
-  `Char_` item and whose model has meshes none of which is skinned. Such a part has no weights
+  `Char_` item and whose model has no skinned mesh (a model without meshes counts). Such a part has no weights
   that could follow the skeleton, so the attachment type `Skin` does not put it in the bind pose.
   Its helper is looked up in the skeleton only, not in the parent's model, so a rigid part whose
   helper is a node of the skin keeps ADR-0224.

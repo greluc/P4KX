@@ -156,9 +156,31 @@ jobs:
       - name: Import a synthetic package in headless Blender
         run: python tests/blender_smoke.py
 
+  glb-validator:
+    name: Khronos glTF-Validator
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-rust
+        with:
+          cache-key: glb-validator
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+          package-manager-cache: false
+      - name: Install the pinned validator from the lockfile, without install scripts
+        run: npm ci --ignore-scripts --prefix .github/glb-validator
+      - name: Write the GLBs of the synthetic fixtures
+        run: P4KX_VALIDATOR_DIR="$RUNNER_TEMP/validator-glbs" cargo test --locked -p p4kx-gltf --test it the_synthetic_glbs_are_written_for_the_validator
+      - name: Validate them, failing on any error
+        run: node .github/glb-validator/validate.mjs "$RUNNER_TEMP/validator-glbs"
+
   check:
     name: Check (${{ matrix.os }})
-    needs: [lint, tests-windows, tests-ubuntu, doctests, focused, blender-addon]
+    needs: [lint, tests-windows, tests-ubuntu, doctests, focused, blender-addon, glb-validator]
     if: always()
     runs-on: ubuntu-latest
     strategy:

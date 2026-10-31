@@ -67,6 +67,36 @@ impl WorldBox {
         }
     }
 
+    /// Grows `bounds` to hold the whole of `other`, starting it when it is `None`.
+    pub fn grow_with_box(bounds: &mut Option<Self>, other: &Self) {
+        Self::grow(bounds, other.min);
+        Self::grow(bounds, other.max);
+    }
+
+    /// Returns the volume in cubic metres; a degenerate box has none.
+    #[must_use]
+    pub fn volume(&self) -> f32 {
+        self.min
+            .iter()
+            .zip(&self.max)
+            .map(|(low, high)| high - low)
+            .product()
+    }
+
+    /// Returns how far in metres this box protrudes beyond `outer` on its worst axis, 0 when it
+    /// lies inside.
+    #[must_use]
+    pub fn overshoot(&self, outer: &Self) -> f32 {
+        self.min
+            .iter()
+            .zip(&self.max)
+            .zip(outer.min.iter().zip(&outer.max))
+            .map(|((low, high), (outer_low, outer_high))| {
+                (outer_low - low).max(high - outer_high).max(0.0)
+            })
+            .fold(0.0, f32::max)
+    }
+
     /// Grows `bounds` around the first level of detail of `model`, placed by `placement` (the
     /// transform from the model's space to the world): each mesh's vertices carried through its
     /// node chain. A model without meshes adds nothing.

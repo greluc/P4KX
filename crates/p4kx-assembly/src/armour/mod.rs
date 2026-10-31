@@ -21,6 +21,7 @@ mod head_move;
 mod jobs;
 mod loadout;
 mod look;
+mod materials;
 mod mount;
 mod normals;
 mod npc;

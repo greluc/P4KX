@@ -152,8 +152,8 @@ pub use interior::{
 };
 #[cfg(feature = "verification")]
 pub use interior_check::{
-    AnimatedPart, ContainerFit, Hardpoint, HardpointFit, HardpointKind, InteriorFit, Misfit,
-    WorldBox,
+    AnimatedPart, ContainerFit, HULL_SLACK, Hardpoint, HardpointFit, HardpointKind, InteriorFit,
+    Misfit, ROOM_VOLUME_SHARE, WorldBox,
 };
 pub use issue::{Issue, IssueKind};
 pub use loadout_entry::LoadoutEntry;

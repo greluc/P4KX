@@ -23,18 +23,16 @@ pub(super) struct Face {
 /// A head part and what ties it to its rig.
 pub(super) struct Found {
     pub(super) part: usize,
-    pub(super) skin: String,
     pub(super) dna: Option<Dna>,
     pub(super) face: Face,
 }
 
 impl Found {
-    /// Returns the part `part` made of the skin at `skin` of a story character's own head: its
-    /// bones join the skeleton at the positions its skin gives, and it has no rig to animate.
-    pub(super) fn bespoke(part: usize, skin: &str) -> Self {
+    /// Returns the part `part` made of the skin of a story character's own head: its bones join
+    /// the skeleton at the positions its skin gives, and it has no rig to animate.
+    pub(super) const fn bespoke(part: usize) -> Self {
         Self {
             part,
-            skin: skin.to_owned(),
             dna: None,
             face: Face {
                 facial: None,
@@ -44,17 +42,10 @@ impl Found {
         }
     }
 
-    /// Returns the head part `part` made of the skin at `skin` when it was shaped by `dna` and
-    /// has a face.
-    pub(super) fn of(
-        part: usize,
-        skin: &str,
-        dna: Option<&Dna>,
-        face: Option<Face>,
-    ) -> Option<Self> {
+    /// Returns the head part `part` when it was shaped by `dna` and has a face.
+    pub(super) fn of(part: usize, dna: Option<&Dna>, face: Option<Face>) -> Option<Self> {
         Some(Self {
             part,
-            skin: skin.to_owned(),
             dna: Some(dna?.clone()),
             face: face?,
         })
@@ -106,11 +97,11 @@ pub(super) fn extend_with_faces(skeleton: &mut Model, parts: &mut [ArmourPart], 
             .collect();
         part.face = Some(
             FaceLink {
-                skin: head.skin,
                 rig: head.face.rig,
                 dna,
                 joints,
                 blendshapes: head.face.numbers,
+                logic: facial.logic,
             }
             .shared(),
         );

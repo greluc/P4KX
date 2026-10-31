@@ -15,7 +15,7 @@ use crate::animations::{AnimationPlan, push_animations};
 use crate::block_data::BlockData;
 use crate::instance::{Content, Instance, MaterialIds, materials};
 use crate::layout::{Block, Layout, MeshLayout};
-use crate::morphs::{primitive_targets, push_targets};
+use crate::morphs::{mesh_extras, primitive_targets, push_targets};
 use crate::nodes::{Skeleton, push_nodes};
 use crate::scene_nodes::{SceneSkin, push_scene_nodes};
 use crate::scene_rig::SceneRig;
@@ -327,7 +327,7 @@ fn push_mesh(
         primitives,
         weights: (!targets.is_empty()).then(|| vec![0.0; targets.len()]),
         extensions: None,
-        extras: json::extras::Extras::default(),
+        extras: mesh_extras(mesh),
     })
 }
 

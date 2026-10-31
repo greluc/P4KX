@@ -98,6 +98,9 @@ pub enum ExtractionError {
     /// could not be started; nothing is written.
     #[error("cannot start the worker threads: {0}")]
     ThreadPool(String),
+    /// The file of an input folder cannot be read as an Entry.
+    #[error(transparent)]
+    Folder(#[from] crate::FolderFileError),
 }
 
 impl ExtractionError {
@@ -167,8 +170,11 @@ pub struct ExtractionReport {
     pub(crate) failures: Vec<EntryFailure>,
     pub(crate) unconverted: Vec<EntryFailure>,
     pub(crate) cancelled: Vec<String>,
+    pub(crate) not_converted: usize,
     pub(crate) archive_changed: bool,
     pub(crate) records: Option<RecordExportReport>,
+    pub(crate) records_entry: Option<String>,
+    pub(crate) dataforge_left_out: Vec<String>,
 }
 
 impl ExtractionReport {
@@ -215,6 +221,13 @@ impl ExtractionReport {
         &self.unconverted
     }
 
+    /// Returns the number of files a run that copies only converted files left out because
+    /// Conversion has nothing to do with them.
+    #[must_use]
+    pub const fn not_converted(&self) -> usize {
+        self.not_converted
+    }
+
     /// Returns the paths of Entries not written because the run was cancelled.
     #[must_use]
     pub fn cancelled(&self) -> &[String] {
@@ -225,6 +238,21 @@ impl ExtractionReport {
     #[must_use]
     pub const fn archive_changed(&self) -> bool {
         self.archive_changed
+    }
+
+    /// Returns the paths of the DataForge files of a folder that a Conversion did not convert
+    /// because it converted another one; they are counted in [`not_converted`](Self::not_converted)
+    /// or copied.
+    #[must_use]
+    pub fn dataforge_left_out(&self) -> &[String] {
+        &self.dataforge_left_out
+    }
+
+    /// Returns the path of the DataForge Entry whose Records a Conversion wrote, or `None` when
+    /// none was converted.
+    #[must_use]
+    pub fn records_entry(&self) -> Option<&str> {
+        self.records_entry.as_deref()
     }
 
     /// Returns the outcome of the Records a Conversion wrote for the DataForge Entry, or `None`

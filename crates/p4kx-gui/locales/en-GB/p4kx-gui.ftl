@@ -1429,3 +1429,15 @@ ui-report-import = Import not found
 ui-report-tag = Unreadable tag
 ui-report-bitmap = Unreadable bitmap
 ui-report-warning = Note
+
+folder-conversion-action = Convert folder…
+folder-conversion-running-title = Converting folder
+folder-conversion-progress = { $done } of { $total } files, { $percent } %
+folder-conversion-scanning = Reading the folder…
+folder-conversion-summary-title = Folder converted
+folder-conversion-summary-cancelled-title = Conversion cancelled
+folder-conversion-summary-counts = Written { $extracted } ({ $converted } converted), kept { $skipped }, failed { $failed }, cancelled { $cancelled }, left out without a conversion { $left }
+folder-conversion-summary-input = Input folder: { $path }
+folder-conversion-failed-title = Conversion failed
+folder-conversion-failed = Cannot convert { $path }: { $reason }
+folder-conversion-stopped = The conversion of { $path } stopped without a result.

@@ -157,10 +157,10 @@ pub use tags::{TagRow, TagsStatus, TagsTab, TagsView};
 pub use texts::{
     AboutText, ArchiveKeyText, AssemblyExportText, AudioText, CatalogText, ChangeExtractionText,
     CharacterText, ComparisonText, ContainerText, ContentSearchText, DataForgeText, DiffText,
-    EntityText, ExtractionText, GroupText, ImageText, IncomingText, LocalizationText,
-    ModelExportText, ModelInfoText, ModelText, QueryText, RecordChangeText, RecordExportText,
-    RecordLanguageText, RecordSearchText, RecordText, SchemaText, ScrollText, SoundsText, TagsText,
-    Text, Texts, UiText, XmlText,
+    EntityText, ExtractionText, FolderConversionText, GroupText, ImageText, IncomingText,
+    LocalizationText, ModelExportText, ModelInfoText, ModelText, QueryText, RecordChangeText,
+    RecordExportText, RecordLanguageText, RecordSearchText, RecordText, SchemaText, ScrollText,
+    SoundsText, TagsText, Text, Texts, UiText, XmlText,
 };
 pub use ui_tab::{
     ContentRow, Fact, FileList, MAX_CONTENT_ROWS, Note, ReportLine, RowDetail, ShipList, ShipPick,

@@ -6,14 +6,16 @@ use std::path::Path;
 use p4kx_archive::{Archive, Entry};
 
 use crate::buffers::Buffers;
+use crate::dataforge_pick::{DataForgePick, Pick, located};
 use crate::dependent::Collisions;
 use crate::sound_job::mark_sounds;
 use crate::sound_workers::{run_parallel, within};
+use crate::source::{EntrySource, SourceEntry};
 use crate::texture_job::{Item, group_textures};
 use crate::tracker::Tracker;
 use crate::write::{EntryWriter, Outcome};
 use crate::{
-    DataForgeEntry, EntryFailure, ExtractOptions, ExtractionError, ExtractionReport, MAX_SOUND_LEN,
+    EntryFailure, ExtractOptions, ExtractionError, ExtractionReport, MAX_SOUND_LEN,
     MAX_SOUNDBANK_LEN,
 };
 
@@ -76,8 +78,36 @@ pub fn extract(
     target: &Path,
     options: &ExtractOptions<'_>,
 ) -> ExtractionReport {
+    let files: Vec<SourceEntry<'_>> = entries
+        .iter()
+        .map(|entry| SourceEntry::of_archive(archive, entry))
+        .collect();
+    let rules = Rules {
+        copy_other: true,
+        pick: &|entries, stop| located(archive, entries, stop),
+    };
+    extract_files(archive, &files, target, options, &rules)
+}
+
+/// What differs between an Extraction of an Archive and a Conversion of a folder.
+pub(crate) struct Rules<'p> {
+    /// Whether a file that Conversion leaves unchanged is written too; without it such a file is
+    /// not written but counted in [`ExtractionReport::not_converted`].
+    pub(crate) copy_other: bool,
+    /// How the DataForge to convert is chosen among the files.
+    pub(crate) pick: Pick<'p>,
+}
+
+/// Runs an Extraction of `entries` of `source` like [`extract`], as `rules` say.
+pub(crate) fn extract_files(
+    source: &dyn EntrySource,
+    entries: &[SourceEntry<'_>],
+    target: &Path,
+    options: &ExtractOptions<'_>,
+    rules: &Rules<'_>,
+) -> ExtractionReport {
     let Some(threads) = options.threads else {
-        return run(archive, entries, target, options, None);
+        return run(source, entries, target, options, None, rules);
     };
     let limit = std::thread::available_parallelism().map_or(1, std::num::NonZero::get);
     let pool = rayon::ThreadPoolBuilder::new()
@@ -85,7 +115,7 @@ pub fn extract(
         .thread_name(|number| format!("p4kx-extract-{number}"))
         .build();
     match pool {
-        Ok(pool) => run(archive, entries, target, options, Some(&pool)),
+        Ok(pool) => run(source, entries, target, options, Some(&pool), rules),
         Err(error) => ExtractionReport {
             failures: entries
                 .iter()
@@ -101,11 +131,12 @@ pub fn extract(
 }
 
 fn run(
-    archive: &Archive,
-    entries: &[&Entry],
+    source: &dyn EntrySource,
+    entries: &[SourceEntry<'_>],
     target: &Path,
     options: &ExtractOptions<'_>,
     pool: Option<&rayon::ThreadPool>,
+    rules: &Rules<'_>,
 ) -> ExtractionReport {
     if let Some(report) = not_started(entries, target, options) {
         return report;
@@ -113,21 +144,24 @@ fn run(
     let tracker = Tracker::new(entries, options.cancel, options.watch, options.progress);
     let absolute = std::path::absolute(target).unwrap_or_else(|_| target.to_path_buf());
     let writer = EntryWriter {
-        archive,
+        source,
         target: &absolute,
         policy: options.policy,
         convert: options.convert,
+        copy_other: rules.copy_other,
         textures: options.textures,
         audio: options.audio,
         verify: options.verify,
         tracker: &tracker,
     };
-    let dataforge = options
-        .convert
-        .then(|| dataforge_position(archive, entries))
-        .flatten();
+    let found = if options.convert {
+        within(pool, || (rules.pick)(entries, &|| tracker.should_stop()))
+    } else {
+        DataForgePick::default()
+    };
+    let dataforge = found.position;
     let (independent, dependent) =
-        split_dependent(within(pool, || items(archive, entries, options, dataforge)));
+        split_dependent(within(pool, || items(source, entries, options, dataforge)));
     let run = |buffers: &mut Buffers, item: Item<'_>| {
         let ended = write_item(&writer, item, buffers);
         writer.record_written(entries, &ended);
@@ -151,6 +185,15 @@ fn run(
         });
     let mut report = report(ended, options.convert);
     report.records = records;
+    report.records_entry = dataforge
+        .and_then(|index| entries.get(index))
+        .map(|entry| entry.path().to_owned());
+    report.dataforge_left_out = found
+        .left_out
+        .iter()
+        .filter_map(|&position| entries.get(position))
+        .map(|entry| entry.path().to_owned())
+        .collect();
     report.archive_changed = options.watch.is_some_and(|watch| watch.check().is_err());
     report
 }
@@ -180,7 +223,7 @@ fn write_item(writer: &EntryWriter<'_>, item: Item<'_>, buffers: &mut Buffers) -
 /// Returns the report of a run that must not start: every Entry failed because `target` lies
 /// inside a Star Citizen installation, or was cancelled because the Archive already changed.
 fn not_started(
-    entries: &[&Entry],
+    entries: &[SourceEntry<'_>],
     target: &Path,
     options: &ExtractOptions<'_>,
 ) -> Option<ExtractionReport> {
@@ -213,34 +256,21 @@ fn not_started(
 /// Splits `entries` into the items of the run: with Conversion on, textures, sounds and
 /// soundbanks; the DataForge Entry at `dataforge` is left out.
 fn items<'a>(
-    archive: &'a Archive,
-    entries: &[&'a Entry],
+    source: &'a dyn EntrySource,
+    entries: &'a [SourceEntry<'a>],
     options: &ExtractOptions<'_>,
     dataforge: Option<usize>,
 ) -> Vec<Item<'a>> {
     let mut items = if options.convert && options.textures.converts() {
-        group_textures(archive, entries)
+        group_textures(source, entries)
     } else {
-        entries
-            .iter()
-            .copied()
-            .enumerate()
-            .map(Item::Entry)
-            .collect()
+        entries.iter().enumerate().map(Item::Entry).collect()
     };
     items.retain(|item| !matches!(item, Item::Entry((index, _)) if Some(*index) == dataforge));
     if options.convert {
         mark_sounds(&mut items, options.audio);
     }
     items
-}
-
-/// Returns the position in `entries` of the DataForge Entry of `archive`, if it is requested.
-fn dataforge_position(archive: &Archive, entries: &[&Entry]) -> Option<usize> {
-    let located = DataForgeEntry::locate(archive)?;
-    entries
-        .iter()
-        .position(|entry| entry.path() == located.path())
 }
 
 fn report(ended: Vec<Ended>, convert: bool) -> ExtractionReport {
@@ -288,6 +318,7 @@ fn report(ended: Vec<Ended>, convert: bool) -> ExtractionReport {
                 report.converted = report.converted.map(|count| count + 1);
             }
             Outcome::Kept => report.skipped.push(path),
+            Outcome::NotConverted => report.not_converted += 1,
             Outcome::Cancelled => report.cancelled.push(path),
             Outcome::Failed(error) => report.failures.push(EntryFailure { path, error }),
         }

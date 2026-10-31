@@ -4,21 +4,20 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
-use p4kx_model::{MaterialStatus, Model, Transform};
+use p4kx_model::{MaterialStatus, Transform};
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
 use crate::build_attachments::attached;
 use crate::build_gear::load_models;
 use crate::build_models::{Loaded, choose_models};
 use crate::build_palettes::Palettes;
+use crate::build_place::{place, under_skin};
 use crate::build_zones::BodyCut;
 use crate::creature_rig;
 use crate::flatten::{Draft, flatten};
-use crate::placement::{bone_transform, node_transform, offset};
 use crate::{
     Assembly, AssemblyError, AssemblyOptions, EntityNode, Issue, IssueKind, ModelProvider,
-    ObjectContainerRef, PaletteProvider, Part, Placement, PortDefinition, PortNode, PortTransform,
-    SkeletonProblem,
+    ObjectContainerRef, PaletteProvider, Part, SkeletonProblem,
 };
 
 pub(crate) type Libraries = HashMap<String, Arc<MaterialStatus>>;
@@ -299,111 +298,4 @@ fn read_libraries(
         .par_iter()
         .map(|(key, entry, name)| (key.clone(), Arc::new(provider.library(entry, name))))
         .collect()
-}
-
-/// Returns whether the parent of the part is a skin part.
-fn under_skin(draft: &Draft<'_>, parts: &[Part]) -> bool {
-    draft
-        .parent
-        .and_then(|parent| parts.get(parent))
-        .is_some_and(|parent| parent.placement == Placement::Skin)
-}
-
-/// Returns the transform of a part to its parent's and how it was found. `rig` is the model of a
-/// creature root whose skeleton the item ports of its skins anchor to.
-fn place(
-    draft: &Draft<'_>,
-    parts: &[Part],
-    model: Option<&Loaded>,
-    rig: Option<&Model>,
-    issues: &mut Vec<Issue>,
-) -> (Transform, Placement) {
-    let mut unreported = Vec::new();
-    let issues = if draft.hidden {
-        &mut unreported
-    } else {
-        issues
-    };
-    let Some(parent) = draft.parent.and_then(|parent| parts.get(parent)) else {
-        return (Transform::IDENTITY, Placement::Root);
-    };
-    if let Some(gear) = draft.gear {
-        return place_gear(draft, gear.bone(), parent, issues);
-    }
-    let Some(port) = draft.port else {
-        return (Transform::IDENTITY, Placement::Origin);
-    };
-    let port_definition = port.definition();
-    if port_definition.is_some_and(PortDefinition::is_skin) {
-        return (Transform::IDENTITY, Placement::Skin);
-    }
-    let definition = port_definition.and_then(PortDefinition::transform);
-    let helper = definition
-        .map(PortTransform::helper)
-        .filter(|helper| !helper.is_empty());
-    let (mut placement, mut base) = anchor(parent.model(), helper, port);
-    if placement == Placement::Origin
-        && let Some((found, transform)) = rig
-            .zip(helper)
-            .and_then(|(rig, helper)| creature_rig::skin_port_anchor(rig, parent, helper))
-    {
-        (placement, base) = (found, transform);
-    }
-    if let Some(helper) = helper
-        && placement == Placement::Origin
-        && parent.model().is_some()
-    {
-        let helper = helper.to_owned();
-        issues.push(issue(draft, IssueKind::HelperNotFound { helper }));
-    }
-    let Some(definition) = definition else {
-        return (base, placement);
-    };
-    let mut local = base.then(&offset(definition.position(), definition.rotation()));
-    let inner = (!definition.offset_helper().is_empty())
-        .then(|| {
-            let child = model?;
-            node_transform(&child.model, definition.offset_helper())?.inverse()
-        })
-        .flatten();
-    if let Some(inner) = inner {
-        local = local.then(&inner);
-    }
-    (local, placement)
-}
-
-/// Returns the transform of a landing gear: the node `bone` of its Entity's model.
-fn place_gear(
-    draft: &Draft<'_>,
-    bone: &str,
-    parent: &Part,
-    issues: &mut Vec<Issue>,
-) -> (Transform, Placement) {
-    let Some(parent_model) = parent.model() else {
-        return (Transform::IDENTITY, Placement::Origin);
-    };
-    if let Some(transform) = node_transform(parent_model, bone) {
-        return (transform, Placement::Helper(bone.to_owned()));
-    }
-    let helper = bone.to_owned();
-    issues.push(issue(draft, IssueKind::HelperNotFound { helper }));
-    (Transform::IDENTITY, Placement::Origin)
-}
-
-/// Finds the node of the parent's model a port is anchored to: its helper as a node or as a bone
-/// of the skeleton, else a node named like the port.
-fn anchor(parent: Option<&Model>, helper: Option<&str>, port: &PortNode) -> (Placement, Transform) {
-    let Some(parent) = parent else {
-        return (Placement::Origin, Transform::IDENTITY);
-    };
-    if let Some(helper) = helper
-        && let Some(transform) =
-            node_transform(parent, helper).or_else(|| bone_transform(parent, helper))
-    {
-        return (Placement::Helper(helper.to_owned()), transform);
-    }
-    node_transform(parent, port.name())
-        .map_or((Placement::Origin, Transform::IDENTITY), |transform| {
-            (Placement::PortNode, transform)
-        })
 }

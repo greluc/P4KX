@@ -73,6 +73,7 @@ mod build_attachments;
 mod build_gear;
 mod build_models;
 mod build_palettes;
+mod build_place;
 mod build_zones;
 mod catalogue;
 mod cdf;

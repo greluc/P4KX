@@ -34,6 +34,7 @@ pub struct EntityNode {
     pub(crate) name: String,
     pub(crate) ports: Vec<PortNode>,
     pub(crate) issues: Vec<LoadoutError>,
+    pub(crate) notes: Vec<LoadoutError>,
     pub(crate) geometry: Option<Geometry>,
     pub(crate) fallback: Option<Geometry>,
     pub(crate) choice: GeometryChoice,
@@ -170,6 +171,13 @@ impl EntityNode {
     #[must_use]
     pub fn issues(&self) -> &[LoadoutError] {
         &self.issues
+    }
+
+    /// Returns what the Loadout of the Entity only notes: nothing was kept from being read, as in
+    /// an undecided Requirement of a loadout assortment. One note per assortment.
+    #[must_use]
+    pub fn notes(&self) -> &[LoadoutError] {
+        &self.notes
     }
 
     /// Returns every port in the tree below this Entity, depth first in port order, with its

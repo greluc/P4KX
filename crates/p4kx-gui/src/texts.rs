@@ -31,6 +31,7 @@ mod record_change_text;
 mod record_export_text;
 mod record_language_text;
 mod record_text;
+mod rename_text;
 mod schema_text;
 mod scroll_text;
 mod sounds_text;
@@ -67,6 +68,8 @@ pub use record_change_text::RecordChangeText;
 pub use record_export_text::RecordExportText;
 pub use record_language_text::RecordLanguageText;
 pub use record_text::RecordText;
+pub use rename_text::RenameText;
+pub(crate) use rename_text::describe_rename;
 pub use schema_text::SchemaText;
 pub use scroll_text::ScrollText;
 pub use sounds_text::SoundsText;
@@ -251,6 +254,8 @@ pub enum Text {
     Xml(XmlText),
     /// The accessible name of a view the keyboard scrolls.
     Scroll(ScrollText),
+    /// A text about the Records the file-name rule renamed.
+    Rename(RenameText),
     /// A text of the Query tab.
     Query(QueryText),
     /// A text of the containers in the path tree.

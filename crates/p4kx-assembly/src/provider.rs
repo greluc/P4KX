@@ -5,7 +5,9 @@ use std::error::Error;
 use std::io::Read;
 use std::sync::Arc;
 
-use p4kx_extraction::model::{LodSelection, MaterialStatus, Model, ModelError};
+use p4kx_extraction::model::{
+    LayerCache, LodSelection, MaterialReading, MaterialStatus, Model, ModelError, PositionBox,
+};
 use p4kx_extraction::{
     AnimationChoice, AnimationSet, Archive, ArchiveTextures, ConversionError, ModelSource,
     PathIndex, archive_error_in,
@@ -25,7 +27,7 @@ pub struct ProvidedModel {
     /// The path of the model's file in the source, which companions and bare material library
     /// names are looked up beside.
     pub entry: String,
-    /// The model, read without its material library, see [`Model::read_without_materials`].
+    /// The model, read without its material library, see [`MaterialReading::Skipped`].
     pub model: Model,
     /// The files of the attachments of a character definition (`.cdf`) that are neither `model`
     /// nor in `attachments`; empty for every other file.
@@ -191,12 +193,14 @@ pub(crate) fn starts_with_path(path: &str, prefix: &str) -> bool {
     })
 }
 
-/// Reads models and material libraries from the Entries of an Archive below `Data`.
+/// Reads models and material libraries from the Entries of an Archive below `Data`; the layer
+/// files of the libraries are fetched and parsed once for all of them.
 #[derive(Debug)]
 pub struct ArchiveModels<'a> {
     archive: &'a Archive,
     index: PathIndex<'a>,
     max_attachment_vertices: usize,
+    layers: LayerCache,
 }
 
 impl<'a> ArchiveModels<'a> {
@@ -207,6 +211,7 @@ impl<'a> ArchiveModels<'a> {
             archive,
             index: PathIndex::new(archive),
             max_attachment_vertices: MAX_ASSEMBLY_VERTICES,
+            layers: LayerCache::new(),
         }
     }
 
@@ -218,6 +223,12 @@ impl<'a> ArchiveModels<'a> {
     pub fn with_max_attachment_vertices(mut self, max: usize) -> Self {
         self.max_attachment_vertices = max.min(MAX_ASSEMBLY_VERTICES);
         self
+    }
+
+    /// Returns the layer files the libraries read through [`ModelProvider::library`] share.
+    #[must_use]
+    pub const fn layer_cache(&self) -> &LayerCache {
+        &self.layers
     }
 
     /// Returns whether the Archive holds a file at `path`, a path below `Data` as an Entity Record
@@ -288,7 +299,7 @@ impl ModelProvider for ArchiveModels<'_> {
     }
 
     fn library(&self, entry: &str, name: &str) -> MaterialStatus {
-        ModelSource::material_library(&self.index, entry, name)
+        ModelSource::material_library(&self.index, entry, name, &self.layers)
     }
 
     fn file(&self, path: &str, limit: u64) -> Result<Vec<u8>, ModelFailure> {
@@ -329,8 +340,15 @@ impl ArchiveModels<'_> {
         lod: u32,
         left_out: Vec<String>,
     ) -> Result<ProvidedModel, ModelFailure> {
-        let read =
-            |selection| ModelSource::from_index_without_materials(&self.index, &entry, selection);
+        let read = |selection| {
+            ModelSource::from_index_reading(
+                &self.index,
+                &entry,
+                selection,
+                PositionBox::default(),
+                MaterialReading::Skipped,
+            )
+        };
         let source = match read(LodSelection::AtMost(lod)) {
             Err(ConversionError::Model {
                 source: ModelError::NoSuchLod { .. },

@@ -52,11 +52,11 @@ fn port(
     })
 }
 
-const fn colour(name: u32, rgba: [u8; 4]) -> (u32, [u8; 4]) {
+pub(crate) const fn colour(name: u32, rgba: [u8; 4]) -> (u32, [u8; 4]) {
     (name, rgba)
 }
 
-fn material(
+pub(crate) fn material(
     port: &str,
     base: u128,
     sub: &str,
@@ -78,6 +78,10 @@ fn material(
 }
 
 fn character() -> Result<Chf, Box<dyn Error>> {
+    character_with(Vec::new())
+}
+
+pub(crate) fn character_with(more: Vec<TestMaterial>) -> Result<Chf, Box<dyn Error>> {
     let items = vec![
         port("hair_itemport", DRESSED_HAIR, Vec::new())?,
         port("eyes_itemport", DRESSED_EYES, Vec::new())?,
@@ -87,7 +91,6 @@ fn character() -> Result<Chf, Box<dyn Error>> {
         port("hat_itemport", 0x999, Vec::new())?,
     ];
     let head = port("head_itemport", 0x900, items)?;
-    let float = |name: &str, value: f32| (name_hash(name), value.to_bits());
     let test = TestChf {
         body_type: MALE_BODY_TYPE,
         dna_hashes: Some((MALE_RIG_HASH, 0)),
@@ -101,46 +104,51 @@ fn character() -> Result<Chf, Box<dyn Error>> {
             })
             .collect(),
         ports: Some(port("body_itemport", 0x901, vec![head])?),
-        materials: vec![
-            material(
-                "head_itemport",
-                DRESSED_HEAD_MATERIAL,
-                "shader_head",
-                Vec::new(),
-                vec![colour(BODY_COLOR, [255, 0, 0, 255])],
-                Vec::new(),
-            )?,
-            material(
-                "eyes_itemport",
-                0,
-                "shader_eyeInner",
-                Vec::new(),
-                vec![colour(EYE_COLOR, [0, 0, 255, 255])],
-                Vec::new(),
-            )?,
-            material(
-                "hair_itemport",
-                0,
-                "hair_test_m",
-                vec![float("BaseMelanin", 1.0), float("DyeAmount", 1.0)],
-                vec![colour(HAIR_DYE_COLOR, [0, 255, 0, 255])],
-                vec![(4, stored(0x31)?)],
-            )?,
-            material(
-                "eyebrow_itemport",
-                DRESSED_UNKNOWN_MATERIAL,
-                "hair_test_m",
-                Vec::new(),
-                Vec::new(),
-                Vec::new(),
-            )?,
-        ],
+        materials: head_materials()?.into_iter().chain(more).collect(),
         ..TestChf::v8()
     };
     Ok(Chf::read(&test.to_bytes())?)
 }
 
-fn archive_entries() -> Vec<TestEntry> {
+fn head_materials() -> Result<Vec<TestMaterial>, Box<dyn Error>> {
+    let float = |name: &str, value: f32| (name_hash(name), value.to_bits());
+    Ok(vec![
+        material(
+            "head_itemport",
+            DRESSED_HEAD_MATERIAL,
+            "shader_head",
+            Vec::new(),
+            vec![colour(BODY_COLOR, [255, 0, 0, 255])],
+            Vec::new(),
+        )?,
+        material(
+            "eyes_itemport",
+            0,
+            "shader_eyeInner",
+            Vec::new(),
+            vec![colour(EYE_COLOR, [0, 0, 255, 255])],
+            Vec::new(),
+        )?,
+        material(
+            "hair_itemport",
+            0,
+            "hair_test_m",
+            vec![float("BaseMelanin", 1.0), float("DyeAmount", 1.0)],
+            vec![colour(HAIR_DYE_COLOR, [0, 255, 0, 255])],
+            vec![(4, stored(0x31)?)],
+        )?,
+        material(
+            "eyebrow_itemport",
+            DRESSED_UNKNOWN_MATERIAL,
+            "hair_test_m",
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+        )?,
+    ])
+}
+
+pub(crate) fn archive_entries() -> Vec<TestEntry> {
     let rig = head_rig(HEAD_VERTICES, MALE_RIG_HASH).build();
     let mut entries = dressed_entries(Some(rig));
     let texture = SplitDds::new(TestTextureFormat::LegacyBgra8, 4, 4).mips(1);
@@ -151,13 +159,20 @@ fn archive_entries() -> Vec<TestEntry> {
     entries
 }
 
-struct Dressed {
-    armour: Armour,
+pub(crate) struct Dressed {
+    pub(crate) armour: Armour,
     glb: p4kx_testkit::CheckedGlb,
     summary: p4kx_gltf::GlbSummary,
 }
 
 fn dress(entries: Vec<TestEntry>) -> Result<Dressed, Box<dyn Error>> {
+    dress_character(entries, &character()?)
+}
+
+pub(crate) fn dress_character(
+    entries: Vec<TestEntry>,
+    chf: &Chf,
+) -> Result<Dressed, Box<dyn Error>> {
     let fixture = fixture(entries)?;
     let archive = Archive::open(&fixture.path)?;
     let entry = DataForgeEntry::read(&archive)?;
@@ -169,7 +184,7 @@ fn dress(entries: Vec<TestEntry>) -> Result<Dressed, Box<dyn Error>> {
         1,
         "the lookup table lists one material"
     );
-    let head = Head::dressed(&character()?.character, &mut items)?;
+    let head = Head::dressed(&chf.character, &mut items)?;
     let models = ArchiveModels::new(&archive);
     let armour = Armour::build(
         head.variant(),
@@ -187,7 +202,10 @@ fn dress(entries: Vec<TestEntry>) -> Result<Dressed, Box<dyn Error>> {
     })
 }
 
-fn named<'a>(dressed: &'a Dressed, name: &str) -> Result<&'a ArmourPart, Box<dyn Error>> {
+pub(crate) fn named<'a>(
+    dressed: &'a Dressed,
+    name: &str,
+) -> Result<&'a ArmourPart, Box<dyn Error>> {
     Ok(dressed
         .armour
         .parts()
@@ -211,7 +229,7 @@ fn factor(dressed: &Dressed, name: &str) -> Result<([f32; 4], bool, AlphaMode), 
     ))
 }
 
-fn near(found: [f32; 4], wanted: [f32; 3]) -> bool {
+pub(crate) fn near(found: [f32; 4], wanted: [f32; 3]) -> bool {
     found
         .iter()
         .zip(wanted)

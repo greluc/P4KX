@@ -290,8 +290,8 @@ The first argument of nearly every command is the path of a `Data.p4k` Archive, 
   `colours`), `--anim <name>` (or `all`) and `--anim-from <entry>` add animations, looked for first
   in the character's own folder `Animations/pu/<body>/<name>`, and `--anim-folder <folder>`
   names the only folders to look in. A story character's own head that has a `.RigLogic` file
-  (ADR-0281) gets its expressions as morph targets at LOD 0, read from the blendshapes of its
-  geometry: all of them, `--expression <name>` (repeatable) for some, `--no-expressions` for none;
+  (ADR-0281) gets its expressions as morph targets, read from the blendshapes of its geometry at
+  LOD 0 and carried to the vertices of a lower level (ADR-0293): all of them, `--expression <name>` (repeatable) for some, `--no-expressions` for none;
   its facial joints take the poses of its skeleton file and the face animations of its folder
   move them. The zones of the body that the worn clothing covers
   (`SCItemClothingParams`, ADR-0140) are left out of the body skin, as the game does not draw
@@ -558,13 +558,13 @@ The first argument of nearly every command is the path of a `Data.p4k` Archive, 
   into the character's neutral face (the neutral morphs of the DNA rig beside the skin, mixed by
   the DNA's blends: per face part up to the four strongest heads), worn on the default body of the
   character's body variant. The teeth and what the character wears on its head are included: the
-  eyes, hair, brows, lashes and beard, with the materials the character chose (its head material,
+  eyes, hair, brows, lashes and beard, with the materials the character chose (its head and body material,
   skin tone, iris colour, hair melanin and dye) and their textures (`--materials colours` leaves
   the textures out, `--texture-mip N` picks their size). The head rig's expressions (about 400 of
   its 495 blendshapes, e.g. `CTL_expressions blinkR`) are written as named morph targets of the
   head, mixed by the DNA so that they move the character's own face and stored sparse;
-  `--expression NAME` (repeatable) limits them, `--no-expressions` leaves them out. Only LOD 0 has
-  expressions. Hair, brows, lashes and beard get morph targets of their own that follow the head's
+  `--expression NAME` (repeatable) limits them, `--no-expressions` leaves them out. A lower level carries the
+  targets of LOD 0 to its own vertices (ADR-0293). Hair, brows, lashes and beard get morph targets of their own that follow the head's
   (on the first mesh of each, at LOD 0 only); eyes and teeth have none. `--lod N` picks
   the level of detail of head and body, `--no-vertex-colours` leaves the vertex colours out (they
   are written as `COLOR_0` only on primitives whose material reads them, ADR-0253). A head

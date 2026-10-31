@@ -53,16 +53,10 @@ fn rooms_over_their_hardpoints_break_no_rule() {
 }
 
 #[test]
-fn a_displaced_cockpit_room_splits_the_controller_and_seat_from_every_room() {
+fn a_displaced_cockpit_room_leaves_the_controller_outside_every_room() {
     let misfits = ship(50.0).misfits(TOLERANCE);
 
-    assert_eq!(
-        misfits,
-        [Misfit::CockpitSplit {
-            controller: 0,
-            seat: 1
-        }]
-    );
+    assert_eq!(misfits, [Misfit::ControllerOutsideRooms { controller: 0 }]);
 }
 
 /// The hull of the synthetic ships: x from -3 to 3, y from -20 to 14, z from -1 to 5.
@@ -117,62 +111,107 @@ fn a_room_of_an_attached_entity_may_lie_outside_the_hull() {
 }
 
 #[test]
-fn a_controller_and_seat_in_different_rooms_are_a_split() {
-    let split = fit(
+fn a_seat_away_from_the_controller_is_no_misfit() {
+    let apart = fit(
         &[room_at(10.0), room_at(14.0)],
         vec![
             hardpoint(HardpointKind::Controller, [0.0, 10.0, 1.0]),
-            hardpoint(HardpointKind::Seat, [0.0, 14.0, 1.0]),
+            hardpoint(HardpointKind::Seat, [0.0, 40.0, 1.0]),
         ],
     );
 
-    assert_eq!(
-        split.misfits(TOLERANCE),
-        [Misfit::CockpitSplit {
-            controller: 0,
-            seat: 1
-        }]
-    );
+    assert_eq!(apart.misfits(TOLERANCE), []);
 }
 
 #[test]
-fn a_cargo_grid_in_the_cockpit_room_is_not_in_a_cargo_room_of_its_own() {
-    let merged = fit(
-        &[room_at(10.0), room_at(10.0)],
+fn a_cargo_grid_in_the_cockpit_room_is_no_misfit() {
+    let shared = fit(
+        &[room_at(10.0)],
         vec![
             hardpoint(HardpointKind::Controller, [0.0, 11.0, 1.0]),
-            hardpoint(HardpointKind::Seat, [0.0, 10.0, 1.0]),
             hardpoint(HardpointKind::CargoGrid, [0.0, 9.0, 1.0]),
         ],
     );
 
-    assert_eq!(
-        merged.misfits(TOLERANCE),
-        [Misfit::CargoOutsideCargoRoom { grid: 2 }]
-    );
+    assert_eq!(shared.misfits(TOLERANCE), []);
 }
 
 #[test]
-fn a_cargo_grid_outside_every_room_is_a_misfit() {
+fn a_cargo_grid_outside_every_room_is_a_misfit_when_another_grid_is_inside() {
     let lost = fit(
         &[room_at(10.0)],
-        vec![hardpoint(HardpointKind::CargoGrid, [0.0, -10.0, 1.0])],
+        vec![
+            hardpoint(HardpointKind::CargoGrid, [0.0, 10.0, 1.0]),
+            hardpoint(HardpointKind::CargoGrid, [0.0, -10.0, 1.0]),
+        ],
     );
 
     assert_eq!(
         lost.misfits(TOLERANCE),
-        [Misfit::CargoOutsideCargoRoom { grid: 0 }]
+        [Misfit::CargoGridOutsideRooms { grid: 1 }]
     );
+}
+
+#[test]
+fn a_cargo_grid_outside_every_room_is_a_misfit_whichever_grid_comes_first() {
+    let lost = fit(
+        &[room_at(10.0)],
+        vec![
+            hardpoint(HardpointKind::CargoGrid, [0.0, -10.0, 1.0]),
+            hardpoint(HardpointKind::CargoGrid, [0.0, 10.0, 1.0]),
+        ],
+    );
+
+    assert_eq!(
+        lost.misfits(TOLERANCE),
+        [Misfit::CargoGridOutsideRooms { grid: 0 }]
+    );
+}
+
+#[test]
+fn a_lone_cargo_grid_near_a_room_but_not_inside_it_does_not_start_the_check() {
+    let near = fit(
+        &[room_at(10.0)],
+        vec![hardpoint(HardpointKind::CargoGrid, [0.0, 12.3, 1.0])],
+    );
+
+    assert_eq!(near.misfits(TOLERANCE), []);
+    assert_eq!(near.misfits(0.1), []);
+}
+
+#[test]
+fn the_cargo_grids_of_a_docked_ship_are_not_checked() {
+    let mut docked = hardpoint(HardpointKind::CargoGrid, [0.0, -10.0, 1.0]);
+    docked.vehicle = "collar/attach".to_owned();
+    let ship = fit(
+        &[room_at(10.0)],
+        vec![
+            hardpoint(HardpointKind::CargoGrid, [0.0, 10.0, 1.0]),
+            docked,
+        ],
+    );
+
+    assert_eq!(ship.misfits(TOLERANCE), []);
+}
+
+#[test]
+fn a_ship_whose_cargo_grids_all_lie_outside_every_room_is_not_checked() {
+    let open = fit(
+        &[room_at(10.0)],
+        vec![
+            hardpoint(HardpointKind::CargoGrid, [0.0, -10.0, 1.0]),
+            hardpoint(HardpointKind::CargoGrid, [0.0, -12.0, 1.0]),
+        ],
+    );
+
+    assert_eq!(open.misfits(TOLERANCE), []);
 }
 
 #[test]
 fn the_tolerance_decides_how_far_outside_a_box_still_counts() {
     let near = fit(
         &[room_at(10.0)],
-        vec![
-            hardpoint(HardpointKind::Controller, [0.0, 10.0, 1.0]),
-            hardpoint(HardpointKind::Seat, [0.0, 12.3, 1.0]),
-        ],
+        vec![hardpoint(HardpointKind::Controller, [0.0, 12.3, 1.0])],
     );
 
     assert_eq!(near.misfits(TOLERANCE), []);
@@ -183,14 +222,7 @@ fn the_tolerance_decides_how_far_outside_a_box_still_counts() {
 fn a_docked_ships_controller_is_not_checked() {
     let mut controller = hardpoint(HardpointKind::Controller, [0.0, 99.0, 0.0]);
     controller.vehicle = "collar/attach".to_owned();
-    let docked = fit(
-        &[room_at(10.0)],
-        vec![controller, {
-            let mut seat = hardpoint(HardpointKind::Seat, [0.0, 10.0, 1.0]);
-            seat.vehicle = "collar/attach".to_owned();
-            seat
-        }],
-    );
+    let docked = fit(&[room_at(10.0)], vec![controller]);
 
     assert_eq!(docked.misfits(TOLERANCE), []);
 }
@@ -199,10 +231,7 @@ fn a_docked_ships_controller_is_not_checked() {
 fn a_container_without_a_room_box_holds_nothing() {
     let empty = fit(
         &[None],
-        vec![
-            hardpoint(HardpointKind::Controller, [0.0; 3]),
-            hardpoint(HardpointKind::Seat, [0.0; 3]),
-        ],
+        vec![hardpoint(HardpointKind::Controller, [0.0; 3])],
     );
 
     assert_eq!(empty.misfits(f32::MAX).len(), 1);
@@ -214,13 +243,16 @@ fn non_finite_hardpoints_are_in_no_room() {
         &[room_at(10.0)],
         vec![
             hardpoint(HardpointKind::Controller, [f32::NAN, 10.0, 1.0]),
-            hardpoint(HardpointKind::Seat, [0.0, 10.0, 1.0]),
+            hardpoint(HardpointKind::CargoGrid, [0.0, 10.0, 1.0]),
             hardpoint(HardpointKind::CargoGrid, [f32::INFINITY, 0.0, 0.0]),
         ],
     );
 
     assert_eq!(
         lost.misfits(TOLERANCE),
-        [Misfit::CargoOutsideCargoRoom { grid: 2 }]
+        [
+            Misfit::ControllerOutsideRooms { controller: 0 },
+            Misfit::CargoGridOutsideRooms { grid: 2 }
+        ]
     );
 }

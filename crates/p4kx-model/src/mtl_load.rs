@@ -1,11 +1,35 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use crate::{CompanionError, CompanionPath, CompanionResolver, MaterialLibrary, MaterialStatus};
+use crate::{
+    CompanionError, CompanionPath, CompanionResolver, LayerCache, MaterialLibrary, MaterialStatus,
+};
 
-/// Fetches and reads the material library `name` through `companions`; a library that is
-/// missing, unsafe to ask for or unreadable is a status, not a failure of the model.
-pub(crate) fn load(name: Option<&str>, companions: &mut dyn CompanionResolver) -> MaterialStatus {
+/// How much of the material library a model names is read.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MaterialReading {
+    /// Not at all: the status is [`MaterialStatus::Skipped`].
+    Skipped,
+    /// The library only, as a listing needs it: the layers keep no
+    /// [`LayerSurface`](crate::LayerSurface) and no diffuse map is checked.
+    Plain,
+    /// The library with the surfaces of its layers and its checked diffuse maps, as a caller that
+    /// draws needs it.
+    Drawn,
+}
+
+/// Fetches and reads the material library `name` through `companions` as `reading` says, taking
+/// the layer files from `cache`; a library that is missing, unsafe to ask for or unreadable is a
+/// status, not a failure of the model.
+pub(crate) fn load(
+    name: Option<&str>,
+    companions: &mut dyn CompanionResolver,
+    reading: MaterialReading,
+    cache: &LayerCache,
+) -> MaterialStatus {
+    if reading == MaterialReading::Skipped {
+        return MaterialStatus::Skipped;
+    }
     let Some(name) = name else {
         return MaterialStatus::Unnamed;
     };
@@ -24,8 +48,10 @@ pub(crate) fn load(name: Option<&str>, companions: &mut dyn CompanionResolver) -
         },
         Ok(Some(bytes)) => match MaterialLibrary::parse(name, &bytes) {
             Ok(mut library) => {
-                crate::mtl_layers::resolve(&mut library, companions);
-                crate::mtl_relief::check_diffuse_maps(&mut library, companions);
+                if reading == MaterialReading::Drawn {
+                    crate::mtl_layers::resolve(&mut library, companions, cache);
+                    crate::mtl_relief::check_diffuse_maps(&mut library, companions);
+                }
                 MaterialStatus::Loaded(library)
             }
             Err(error) => MaterialStatus::Unreadable {

@@ -71,6 +71,8 @@ pub enum ModelExportText {
     SummaryDefaultMaterials,
     /// Library entries that are no material; takes `number`.
     SummaryUnnamedMaterials,
+    /// Layer files of the material library that are missing or unreadable; takes `number`.
+    SummaryMissingLayers,
     /// Submeshes left out because their material draws nothing; takes `number`.
     SummaryHidden,
     /// The heading of the chunks that were not exported; takes `number`.
@@ -113,7 +115,7 @@ pub enum ModelExportText {
 
 impl ModelExportText {
     /// Every text, for checks of the Fluent files.
-    pub(crate) const ALL: [Self; 51] = [
+    pub(crate) const ALL: [Self; 52] = [
         Self::Action,
         Self::SetupTitle,
         Self::Model,
@@ -147,6 +149,7 @@ impl ModelExportText {
         Self::SummaryLibraryUnreadable,
         Self::SummaryDefaultMaterials,
         Self::SummaryUnnamedMaterials,
+        Self::SummaryMissingLayers,
         Self::SummaryHidden,
         Self::SummaryChunks,
         Self::SummaryChunkUnknown,
@@ -204,6 +207,7 @@ impl ModelExportText {
             Self::SummaryLibraryUnreadable => "model-export-summary-library-unreadable",
             Self::SummaryDefaultMaterials => "model-export-summary-default-materials",
             Self::SummaryUnnamedMaterials => "model-export-summary-unnamed-materials",
+            Self::SummaryMissingLayers => "model-export-summary-missing-layers",
             Self::SummaryHidden => "model-export-summary-hidden",
             Self::SummaryChunks => "model-export-summary-chunks",
             Self::SummaryChunkUnknown => "model-export-summary-chunk-unknown",

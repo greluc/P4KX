@@ -2,7 +2,9 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 use p4kx_chunks::ChunkFile;
-use p4kx_extraction::model::{CompanionError, CompanionPath, LodSelection, Model};
+use p4kx_extraction::model::{
+    CompanionError, CompanionPath, LodSelection, MaterialReading, Model, PositionBox,
+};
 
 use crate::{ArchiveModels, ModelFailure, ModelProvider};
 
@@ -63,11 +65,13 @@ impl ArchiveModels<'_> {
         // The skeleton is checked on its own: no companion is supplied.
         let mut no_companions =
             |_: CompanionPath<'_>| -> Result<Option<Vec<u8>>, CompanionError> { Ok(None) };
-        match Model::read_without_materials(
+        match Model::read_with_materials(
             path,
             &chunks,
             &mut no_companions,
             LodSelection::OnlyOrBase(0),
+            PositionBox::default(),
+            MaterialReading::Skipped,
         ) {
             Ok(_) => Ok(None),
             Err(error) => unreadable(error.to_string()),

@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 use p4kx_extraction::chunks::{Chunk, Container, KnownChunkType};
+use p4kx_extraction::model::{LodSelection, MaterialReading, PositionBox};
 use p4kx_extraction::{
     AnimationChoice, AnimationInfo, AnimationSet, BoneInfo, ChunkInfo, ChunkJson, ChunkSource,
     ConversionError, LibraryInfo, LodInfo, MaterialInfo, MeshInfo, ModelSource, NodeInfo,
@@ -242,8 +243,14 @@ fn read(
     with_animations: bool,
 ) -> Result<(ModelSource, AnimationSet), ToolError> {
     let index = opened.index();
-    let source =
-        ModelSource::from_index(&index, path).map_err(|error| converted(path, "a model", error))?;
+    let source = ModelSource::from_index_reading(
+        &index,
+        path,
+        LodSelection::All,
+        PositionBox::default(),
+        MaterialReading::Plain,
+    )
+    .map_err(|error| converted(path, "a model", error))?;
     let animations = if with_animations {
         AnimationSet::from_archive(&index, source.name(), &AnimationChoice::All, &[])
             .map_err(|error| converted(path, "a model with its animations", error))?

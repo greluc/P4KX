@@ -13,6 +13,8 @@ const H: &str = "20000000-0000-4000-8000-000000000009";
 const I: &str = "20000000-0000-4000-8000-00000000000a";
 const SUB_TWO: &str = "30000000-0000-4000-8000-000000000002";
 const POOL_CONTRACT: &str = "e4000000-0000-4000-8000-000000000001";
+const POOL_MODIFIER: &str = "e4000000-0000-4000-8000-000000000004";
+const STRAY: &str = "60000000-0000-4000-8000-000000000005";
 const POOL_SUB: &str = "e4000000-0000-4000-8000-000000000003";
 const LOC_A: &str = "a0000000-0000-4000-8000-000000000001";
 const LOC_B: &str = "a0000000-0000-4000-8000-000000000002";
@@ -101,8 +103,16 @@ fn a_contract_without_a_place_takes_the_location_of_its_broker_entry() -> TestRe
     assert_eq!(names(&broker["locations"]), [("Planet", "Hurston")]);
     assert_eq!(broker["localityGuids"], json!([]));
     assert_eq!(
+        broker["brokerFallback"], true,
+        "told apart from a stated one"
+    );
+    assert_eq!(
         entry(&catalog, C, None)?["offeredAt"],
-        json!({"localityGuids": [], "locations": []})
+        json!({"localityGuids": [], "locations": [], "brokerFallback": false})
+    );
+    assert_eq!(
+        entry(&catalog, D, None)?["offeredAt"]["brokerFallback"],
+        false
     );
     Ok(())
 }
@@ -139,14 +149,23 @@ fn a_rival_with_a_negative_amount_falls_through_to_the_prerequisite() -> TestRes
     let (_, catalog) = build(None)?;
     let contract = entry(&catalog, H, None)?;
     assert_eq!(contract["giverFaction"]["source"], "reputationPrerequisite");
-    assert_eq!(contract["giverFaction"]["faction"]["guid"], ACME);
+    let faction = &contract["giverFaction"]["faction"];
+    assert_eq!(
+        faction["guid"], STRAY,
+        "a faction outside the faction folder stays"
+    );
+    assert_eq!(
+        faction["name"], "odd",
+        "the name comes from the reference path"
+    );
+    assert_eq!(faction["displayName"]["en"], Value::Null);
     Ok(())
 }
 
 #[test]
 fn a_sub_contract_shares_the_contracts_blueprint_rewards_unless_it_states_its_own() -> TestResult {
     let (_, catalog) = build(None)?;
-    let contract = json!([{"poolGuid": POOL_CONTRACT, "chance": 0.25}]);
+    let contract = json!([{"poolGuid": POOL_CONTRACT, "source": "result", "chance": 0.25}]);
     assert_eq!(
         entry(&catalog, A, None)?["blueprintRewards"],
         contract,
@@ -158,10 +177,15 @@ fn a_sub_contract_shares_the_contracts_blueprint_rewards_unless_it_states_its_ow
     );
     assert_eq!(
         entry(&catalog, A, Some(SUB_TWO))?["blueprintRewards"],
-        json!([{"poolGuid": POOL_SUB, "chance": 1.0}]),
+        json!([{"poolGuid": POOL_SUB, "source": "result", "chance": 1.0}]),
         "a sub contract with its own results does not take the contract's"
     );
-    assert_eq!(entry(&catalog, C, None)?["blueprintRewards"], json!([]));
+    assert_eq!(entry(&catalog, B, None)?["blueprintRewards"], json!([]));
+    assert_eq!(
+        entry(&catalog, C, None)?["blueprintRewards"],
+        json!([{"poolGuid": POOL_MODIFIER, "source": "temporaryModifier", "chance": null}]),
+        "an enabled temporary blueprint modifier, not the disabled one"
+    );
     Ok(())
 }
 

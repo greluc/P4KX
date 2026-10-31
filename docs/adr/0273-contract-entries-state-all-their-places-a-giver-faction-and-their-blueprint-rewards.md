@@ -20,31 +20,42 @@ VerseKit lists where a blueprint comes from and found four gaps in the `contract
   cap, without dropping stars and without dropping an object that is missing from
   `starmapObjects` (its `objectType` and `place` are `null`). A locality is linked, not expanded:
   the consumer joins `missionLocalities[].starmapObjectGuids` to `starmapObjects`, which keeps
-  the 5,175 entries from repeating the same list. A contract with no place at all takes the
-  location of its broker entry. A Reference to a missing Record keeps its GUID (ADR-0269). On LIVE
-  4,801 entries state a place and every link resolves.
+  the 5,175 entries from repeating the same list. A contract whose prerequisites state no place
+  takes the location of its broker entry and `brokerFallback` is `true`, so a consumer tells it
+  from a stated location. This differs from `pickupPlaces`, which falls back whenever no place
+  resolves (for example only stars are named); `offeredAt` stays "as stated". A Reference to a
+  missing Record keeps its GUID (ADR-0269). On LIVE 4,801 entries state a place and every link
+  resolves. The three new fields add about 2.0 MB to the uncompressed catalog JSON.
 - **`giverFaction` states the faction and where it came from.** `faction` stays the handler's
   `factionReputation` as stored; changing it would change its meaning, which ADR-0054 forbids.
   `giverFaction` is `{source, faction}`, `faction` having the shape of `faction`, and `source` one
   of `handler` (the same faction as `faction`), `reputationResult` or `reputationPrerequisite`:
   the handler's faction first; else the faction of the first success amount of the contract's
   `reputationGains` whose `amount` is positive; else the faction of the first reputation
-  prerequisite (the order of `standingRequirements`) that is not an exclusion. A negative amount
-  names a rival that loses standing (the `CFP_OOS` and `HH_OOS` handlers, ADR-0068) and never
-  counts. `null` when none names a faction. On LIVE: 4,010 entries `handler`, 232
-  `reputationResult`, 57 `reputationPrerequisite`, 876 `null`.
+  prerequisite (the order of `standingRequirements`) that is not an exclusion, named from the
+  Reference's path like a gain, so a faction Record the faction index lacks stays. A negative
+  amount names a rival that loses standing (the `CFP_OOS` and `HH_OOS` handlers, ADR-0068) and
+  never counts. The gains are those of the entry's own resolved results, resolved like the
+  blueprint rewards. `null` when none names a faction. On LIVE: 4,010 entries `handler`, 232
+  `reputationResult`, 57 `reputationPrerequisite`, 876 `null`. None of the 232 has more than one
+  distinct positive faction, so the choice of the first is never a choice between factions; the
+  picked gains sit in the scope of their faction (130 `factionreputationscope`, the rest the
+  faction's own scope such as `reputationscope_wikelo`, 7 `reputationscope_affinity`), and since
+  the factions never differ, preferring a scope would change nothing.
 - **Why this does not break ADR-0065.** ADR-0065 forbids values computed with the game's rules
   (damage per second, acceleration). `giverFaction` computes nothing: it names one of the factions
   the Archive states and the field it came from, using a fixed order the documentation states.
   The raw facts stay in `faction`, `reputationGains` and `standingRequirements`, so a consumer
   with another preference reads them. The catalog does not weigh several stated factions against
   each other: the first wins.
-- **`blueprintRewards` lists the pools of the entry.** Each element is `{poolGuid, chance}`: a
-  `BlueprintRewards` result whose first `missionResults` flag (success) is set, `poolGuid` the
-  `guid` of an entry of `blueprintPools` and `chance` as stored. The results are the entry's own
-  resolved results: those of the sub contract when it states results, else those of the
-  contract. `blueprintPools[].rewardSources` stays, and names only the `id` that a contract and
-  its sub contracts share.
+- **`blueprintRewards` lists the pools of the entry.** Each element is `{poolGuid, source,
+  chance}`, `poolGuid` the `guid` of an entry of `blueprintPools`. `source` `result`: a
+  `BlueprintRewards` result whose first `missionResults` flag (success) is set, `chance` as stored;
+  the results are the entry's own resolved results (the sub contract's when it states results,
+  else the contract's). `source` `temporaryModifier`: an enabled
+  `MissionModifier_TemporaryBlueprint` of `modifierOverrides` of the nearest level (sub contract,
+  contract, handler) that states one, `chance` `null`. `blueprintPools[].rewardSources` stays, and
+  names only the `id` that a contract and its sub contracts share.
 
 ## Census (LIVE 4.10)
 
@@ -55,8 +66,18 @@ VerseKit lists where a blueprint comes from and found four gaps in the `contract
 - Outcome flags: 1,034 fire on success, 3 on the second outcome. Those three are left out of
   `blueprintRewards`, as a failure amount is left out of `reputationGains` (ADR-0068). All 1,037
   have a `chance`.
-- The entries list 2,282 rewards on 783 contracts, each one checked against the reward sources of
-  its pool.
+- The scan that fills `blueprintPools[].rewardSources` finds every struct that references a pool.
+  Two structs of the contracts do: `BlueprintRewards` (1,037) and
+  `MissionModifier_TemporaryBlueprint` (2, enabled, in the `paramOverrides` of two contracts of
+  the `thebackpocket` generator, named `tempBP` and `testIlya`; they have no chance). The
+  modifiers are read, as `temporaryModifier`.
+- No contract `id` is stated twice with a reward (no duplicate `guid` and `subContractGuid` is
+  dropped by the entry rule), so no source is lost to that rule.
+- With the modifiers, the entries list 2,290 rewards on 785 contracts. Every reward of an entry is
+  a source of its pool, every sub contract lists the rewards of its contract, and exactly three
+  sources of exported contracts are in no entry: the three `BlueprintRewards` results that fire on
+  the second outcome (`TheCollector_Vehicle_L22_Wolf`, `TheCollector_Vehicle_DrakeClipper`,
+  `ORS_Cr_Large`). The real-Archive test asserts that count.
 
 ## Consequences
 

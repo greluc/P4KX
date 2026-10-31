@@ -223,7 +223,7 @@ fn bounty_handler() -> TestValue {
         CONTRACT_C,
         "Bounty_C",
         PLAIN_TEMPLATE,
-        overrides(None, None, Vec::new()),
+        gaps::modifier_overrides(),
     );
     let leftover = contract(
         CONTRACT_DEV,

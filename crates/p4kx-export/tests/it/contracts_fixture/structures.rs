@@ -51,6 +51,11 @@ fn prerequisite_structs() -> Vec<TestStruct> {
 
 fn blueprint_structs() -> Vec<TestStruct> {
     vec![
+        TestStruct::new("MissionModifier"),
+        TestStruct::new("MissionModifier_TemporaryBlueprint")
+            .parent("MissionModifier")
+            .field("enabled", TestType::Bool)
+            .field("blueprintPool", TestType::Reference),
         TestStruct::new("BlueprintRewards")
             .parent("ContractResult")
             .field("chance", TestType::Single)
@@ -111,6 +116,7 @@ fn generator_structs() -> Vec<TestStruct> {
     vec![
         TestStruct::new("ContractParamOverrides")
             .field("missionTypeOverride", TestType::Reference)
+            .array("modifierOverrides", pointer("MissionModifier"))
             .array("stringParamOverrides", class("ContractStringParam"))
             .array("propertyOverrides", class("MissionProperty")),
         TestStruct::new("ContractStringParam")

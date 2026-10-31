@@ -76,6 +76,18 @@ fn every_contract_links_all_its_places_and_none_is_lost_to_the_cap() -> TestResu
         "{} entries, {with_places} state a place, {uncapped} reach the cap of five, {unlinked} links without an entry",
         contracts.len()
     ));
+    let added: usize = contracts
+        .iter()
+        .map(|entry| {
+            ["offeredAt", "giverFaction", "blueprintRewards"]
+                .iter()
+                .map(|key| key.len() + entry[*key].to_string().len() + 4)
+                .sum::<usize>()
+        })
+        .sum();
+    print_line(&format!(
+        "the three new fields add about {added} bytes of JSON"
+    ));
     assert!(with_places > 0, "some contract is offered somewhere");
     assert_eq!(unlinked, 0, "every link resolves in this Archive");
     Ok(())
@@ -132,7 +144,10 @@ fn the_giver_faction_follows_the_handler_then_a_positive_result_then_a_prerequis
         "{} entries; giver sources {counts:?}",
         contracts.len()
     ));
-    assert!(counts.contains_key("handler"));
+    assert_eq!(counts.get("handler"), Some(&4010));
+    assert_eq!(counts.get("reputationResult"), Some(&232));
+    assert_eq!(counts.get("reputationPrerequisite"), Some(&57));
+    print_line(&result_giver_census(contracts));
     Ok(())
 }
 
@@ -187,16 +202,52 @@ fn the_blueprint_rewards_of_an_entry_match_the_reward_sources_of_the_pools() -> 
     }
     let missed: usize = sources
         .iter()
-        .filter(|(contract, pools)| {
-            listed
-                .get(*contract)
-                .is_some_and(|found| !pools.is_subset(found))
-        })
-        .count();
+        .filter_map(|(contract, pools)| Some(pools.difference(listed.get(contract)?).count()))
+        .sum();
     print_line(&format!(
-        "{entries} blueprint rewards on {} contracts; {missed} contracts have a source that does not fire on success",
+        "{entries} blueprint rewards on {} contracts; {missed} reward sources are not in an entry",
         listed.values().filter(|found| !found.is_empty()).count()
     ));
+    assert_eq!(
+        missed, 3,
+        "exactly the three results that fire on the second outcome are left out"
+    );
     assert!(entries > 0, "some entry hands out a blueprint");
     Ok(())
+}
+
+/// Counts the `reputationResult` entries with more than one distinct positive faction and the
+/// scopes of the picked gains.
+#[expect(
+    clippy::indexing_slicing,
+    reason = "indexing a JSON value by key yields null, never a panic"
+)]
+fn result_giver_census(contracts: &[Value]) -> String {
+    let mut several = 0_usize;
+    let mut scopes: HashMap<String, usize> = HashMap::new();
+    for entry in contracts {
+        if entry["giverFaction"]["source"] != "reputationResult" {
+            continue;
+        }
+        let positive = || {
+            entry["reputationGains"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .filter(|gain| gain["amount"].as_i64().is_some_and(|amount| amount > 0))
+        };
+        let factions: HashSet<&str> = positive()
+            .filter_map(|gain| gain["factionReputationGuid"].as_str())
+            .collect();
+        several += usize::from(factions.len() > 1);
+        let picked = positive()
+            .find(|gain| gain["factionReputationGuid"] == entry["giverFaction"]["faction"]["guid"]);
+        let scope = picked
+            .and_then(|gain| gain["scopeName"].as_str())
+            .unwrap_or("none");
+        *scopes.entry(scope.to_owned()).or_default() += 1;
+    }
+    format!(
+        "reputationResult: {several} entries with several positive factions; picked scopes {scopes:?}"
+    )
 }

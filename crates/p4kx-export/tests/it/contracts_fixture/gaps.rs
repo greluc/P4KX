@@ -8,7 +8,9 @@ use p4kx_testkit::{TestInstance, TestValue};
 use super::lookups::{amount, amount_of, flags, legacy};
 use super::prerequisites::{location, standing_prerequisite};
 use super::records::results;
-use super::{FACTION_SCOPE, LOSS, OBJ_MISSING, OBJ_STAR, RANK_FIFTY, RIVAL, SUB_TWO};
+use super::{
+    FACTION_SCOPE, LOSS, OBJ_MISSING, OBJ_STAR, RANK_FIFTY, RIVAL, STRAY_FACTION, SUB_TWO,
+};
 
 const SUCCESS: [bool; 5] = [true, false, false, false, false];
 
@@ -40,13 +42,36 @@ pub(super) fn rival_only() -> TestValue {
     )])
 }
 
-/// One reputation prerequisite that is a requirement.
+/// One reputation prerequisite that is a requirement, about a faction outside the faction folder.
 pub(super) fn requirement() -> TestValue {
-    TestValue::Array(vec![standing_prerequisite(false, None)])
+    TestValue::Array(vec![TestValue::Struct(
+        TestInstance::new("ContractPrerequisite_Reputation")
+            .value("exclude", TestValue::Bool(false))
+            .value("factionReputation", TestValue::Reference(STRAY_FACTION)),
+    )])
+}
+
+/// Parameter overrides with an enabled and a disabled temporary blueprint modifier.
+pub(super) fn modifier_overrides() -> TestValue {
+    let modifier = |enabled: bool, pool: u128| {
+        TestValue::Struct(
+            TestInstance::new("MissionModifier_TemporaryBlueprint")
+                .value("enabled", TestValue::Bool(enabled))
+                .value("blueprintPool", TestValue::Reference(pool)),
+        )
+    };
+    TestValue::Struct(TestInstance::new("ContractParamOverrides").value(
+        "modifierOverrides",
+        TestValue::Array(vec![
+            modifier(false, POOL_UNREACHED),
+            modifier(true, POOL_MODIFIER),
+        ]),
+    ))
 }
 
 pub(super) const POOL_CONTRACT: u128 = 0xe400_0000_0000_4000_8000_0000_0000_0001;
 pub(super) const POOL_UNREACHED: u128 = 0xe400_0000_0000_4000_8000_0000_0000_0002;
+const POOL_MODIFIER: u128 = 0xe400_0000_0000_4000_8000_0000_0000_0004;
 const POOL_SUB: u128 = 0xe400_0000_0000_4000_8000_0000_0000_0003;
 
 /// A `BlueprintRewards` result that fires on success when `on_success`, else on the second

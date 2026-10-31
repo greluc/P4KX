@@ -79,19 +79,15 @@ impl<'s, 'f> Places<'s, 'f> {
         index: &MissionIndex<'f>,
         levels: &[&Where],
     ) -> Vec<PickupPlace<'f>> {
-        let mut seen: HashSet<Guid> = HashSet::new();
-        let mut ranked: Vec<(u8, Guid, &StarmapObject<'f>)> = Vec::new();
-        let listed = levels.iter().flat_map(|level| {
+        let listed = unique(levels.iter().flat_map(|level| {
             level
                 .localities
                 .iter()
                 .flat_map(|locality| index.locality(*locality).iter().copied())
                 .chain(level.locations.iter().copied())
-        });
+        }));
+        let mut ranked: Vec<(u8, Guid, &StarmapObject<'f>)> = Vec::new();
         for guid in listed {
-            if !seen.insert(guid) {
-                continue;
-            }
             let Some(object) = self.objects.get(&guid).copied() else {
                 continue;
             };
@@ -118,19 +114,16 @@ impl<'s, 'f> Places<'s, 'f> {
             .collect()
     }
 
-    /// Returns the pickup places and everywhere the contract is offered, for the prerequisites of
-    /// its handler and contract (`inherited`) and of its sub contract (`own`); a sub contract's
-    /// own places replace the inherited ones. A contract left without a pickup place takes
-    /// `broker`, the location of its broker entry.
+    /// Returns the pickup places and everywhere the contract is offered. A contract left without
+    /// a pickup place takes `broker`, the location of its broker entry; `offeredAt` takes it only
+    /// when the prerequisites name no place at all.
     pub(crate) fn locate(
         &self,
         index: &MissionIndex<'f>,
-        (own, inherited): (Option<&Where>, [&Where; 2]),
+        prerequisites: &Prerequisites<'_>,
         broker: Option<Guid>,
     ) -> (Vec<PickupPlace<'f>>, OfferedAt<'f>) {
-        let levels: Vec<&Where> = own
-            .filter(|own| !own.is_empty())
-            .map_or_else(|| inherited.to_vec(), |own| vec![own]);
+        let levels = prerequisites.levels();
         let mut pickup = self.pickup(index, &levels);
         if pickup.is_empty()
             && let Some(location) = broker
@@ -145,33 +138,53 @@ impl<'s, 'f> Places<'s, 'f> {
     }
 
     /// Returns every place the levels `levels` name, uncapped: their localities and their
-    /// location objects, each in stored order and none twice. A contract that names no place
-    /// takes `fallback`, the location of its broker entry.
-    pub(crate) fn offered(&self, levels: &[&Where], fallback: Option<Guid>) -> OfferedAt<'f> {
-        let mut seen_localities: HashSet<Guid> = HashSet::new();
-        let mut seen_locations: HashSet<Guid> = HashSet::new();
-        let localities: Vec<CatalogGuid> = levels
-            .iter()
-            .flat_map(|level| level.localities.iter().copied())
-            .filter(|guid| seen_localities.insert(*guid))
-            .map(CatalogGuid)
-            .collect();
-        let mut locations: Vec<Guid> = levels
-            .iter()
-            .flat_map(|level| level.locations.iter().copied())
-            .filter(|guid| seen_locations.insert(*guid))
-            .collect();
-        if localities.is_empty() && locations.is_empty() {
+    /// location objects, each in stored order and none twice. When they name no place at all the
+    /// location `fallback` is the only one and `broker_fallback` is set.
+    fn offered(&self, levels: &[&Where], fallback: Option<Guid>) -> OfferedAt<'f> {
+        let localities = unique(
+            levels
+                .iter()
+                .flat_map(|level| level.localities.iter().copied()),
+        );
+        let mut locations = unique(
+            levels
+                .iter()
+                .flat_map(|level| level.locations.iter().copied()),
+        );
+        let broker_fallback = localities.is_empty() && locations.is_empty() && fallback.is_some();
+        if broker_fallback {
             locations.extend(fallback);
         }
         OfferedAt {
-            locality_guids: localities,
+            locality_guids: localities.into_iter().map(CatalogGuid).collect(),
             locations: locations
                 .into_iter()
                 .map(|guid| describe(guid, self.objects.get(&guid).copied()))
                 .collect(),
+            broker_fallback,
         }
     }
+}
+
+/// The prerequisites a contract's places are read from: those of its handler and contract, or the
+/// sub contract's own when it names any.
+pub(crate) struct Prerequisites<'w> {
+    pub(crate) own: Option<&'w Where>,
+    pub(crate) inherited: [&'w Where; 2],
+}
+
+impl<'w> Prerequisites<'w> {
+    fn levels(&self) -> Vec<&'w Where> {
+        self.own
+            .filter(|own| !own.is_empty())
+            .map_or_else(|| self.inherited.to_vec(), |own| vec![own])
+    }
+}
+
+/// Returns the GUIDs of `listed` in order, none twice.
+fn unique(listed: impl Iterator<Item = Guid>) -> Vec<Guid> {
+    let mut seen: HashSet<Guid> = HashSet::new();
+    listed.filter(|guid| seen.insert(*guid)).collect()
 }
 
 /// Describes the starmap object `guid`; without the object only its GUID is known.

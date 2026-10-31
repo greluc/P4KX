@@ -11,7 +11,8 @@ fn gaps() -> serde_json::Value {
     json!({
         "offeredAt": {
             "localityGuids": ["a0000000-0000-4000-8000-000000000001"],
-            "locations": places()
+            "locations": places(),
+            "brokerFallback": false
         },
         "giverFaction": {
             "source": "handler",
@@ -23,6 +24,7 @@ fn gaps() -> serde_json::Value {
         },
         "blueprintRewards": [{
             "poolGuid": "e4000000-0000-4000-8000-000000000001",
+            "source": "result",
             "chance": 1.0
         }]
     })

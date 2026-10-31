@@ -9,7 +9,7 @@ use crate::contract_missions::{ContractFaction, PickupPlace};
 use crate::guid_text::CatalogGuid;
 
 /// Everywhere a contract is offered, as its prerequisites state it and without a cap.
-#[derive(Debug, Clone, Default, Serialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 #[schemars(transform = every_field_required)]
 pub(crate) struct OfferedAt<'a> {
@@ -20,8 +20,11 @@ pub(crate) struct OfferedAt<'a> {
     /// The objects of the `ContractPrerequisite_Location` prerequisites, in stored order, none
     /// twice, a star and an object that is not in `starmapObjects` included (its `objectType` and
     /// `place` are then `null`). When the contract states no place at all, the
-    /// `locationMissionAvailable` of its `MissionBrokerEntry`.
+    /// `locationMissionAvailable` of its `MissionBrokerEntry`, and `brokerFallback` is `true`.
     pub(crate) locations: Vec<PickupPlace<'a>>,
+    /// Whether `locations` is the location of the broker entry because the contract's
+    /// prerequisites state no place, not a location the prerequisites state.
+    pub(crate) broker_fallback: bool,
 }
 
 /// Where the faction of a contract was found.
@@ -49,13 +52,26 @@ pub(crate) struct GiverFaction<'a> {
     pub(crate) faction: ContractFaction<'a>,
 }
 
-/// A blueprint pool a contract hands out on success.
+/// The struct that states a blueprint reward.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+#[schemars(transform = crate::closed_set::closed_string_set)]
+pub(crate) enum BlueprintSource {
+    /// A `BlueprintRewards` result that fires on success.
+    Result,
+    /// An enabled `MissionModifier_TemporaryBlueprint` of the parameter overrides.
+    TemporaryModifier,
+}
+
+/// A blueprint pool a contract hands out.
 #[derive(Debug, Clone, Copy, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 #[schemars(transform = every_field_required)]
 pub(crate) struct BlueprintReward {
     /// The `guid` of the entry of `blueprintPools` the reward draws from.
     pub(crate) pool_guid: CatalogGuid,
-    /// The `chance` of the reward as stored, `null` when it states none.
+    /// The struct that states the reward.
+    pub(crate) source: BlueprintSource,
+    /// The `chance` of the reward as stored, `null` when it states none (a modifier has none).
     pub(crate) chance: Option<f32>,
 }

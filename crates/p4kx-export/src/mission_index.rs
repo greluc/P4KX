@@ -63,25 +63,6 @@ pub(crate) struct MissionTypeName<'f> {
 /// The string variants of a mission organisation: the Tag Record and the localisation key of each.
 pub(crate) type Variants<'f> = Vec<(Guid, &'f str)>;
 
-/// The names of a `FactionReputation` Record.
-#[derive(Debug, Clone, Copy)]
-pub(crate) struct FactionName<'f> {
-    /// The Record name, the last part of the record path.
-    pub(crate) record: &'f str,
-    /// The localisation key of the display name.
-    pub(crate) display_key: Option<&'f str>,
-}
-
-impl<'f> FactionName<'f> {
-    /// Reads the names of the `FactionReputation` Record `tree`.
-    fn of(tree: &RecordTree<'f>) -> Self {
-        Self {
-            record: tree.record_path().rsplit('/').next().unwrap_or_default(),
-            display_key: key(Some(tree.root()), "displayName"),
-        }
-    }
-}
-
 enum Piece<'f> {
     Template(Guid, Template<'f>, SpawnPools),
     Failed(CatalogFailure),
@@ -90,7 +71,7 @@ enum Piece<'f> {
     Reward(Guid, i64),
     Locality(Guid, Vec<Guid>),
     Broker(Guid, Broker<'f>),
-    Faction(Guid, FactionName<'f>),
+    Faction(Guid, Option<&'f str>),
 }
 
 /// The Records a contract refers to, read once: templates, mission types, mission
@@ -103,7 +84,7 @@ pub(crate) struct MissionIndex<'f> {
     rewards: HashMap<Guid, i64>,
     localities: HashMap<Guid, Vec<Guid>>,
     brokers: HashMap<Guid, Broker<'f>>,
-    factions: HashMap<Guid, FactionName<'f>>,
+    factions: HashMap<Guid, Option<&'f str>>,
     tags: TagTree,
     pools: SpawnPools,
     failures: Vec<CatalogFailure>,
@@ -166,8 +147,8 @@ impl<'f> MissionIndex<'f> {
                 Piece::Broker(guid, broker) => {
                     index.brokers.insert(guid, broker);
                 }
-                Piece::Faction(guid, faction) => {
-                    index.factions.insert(guid, faction);
+                Piece::Faction(guid, name) => {
+                    index.factions.insert(guid, name);
                 }
             }
         }
@@ -204,9 +185,9 @@ impl<'f> MissionIndex<'f> {
         self.brokers.get(&guid)
     }
 
-    /// Returns the Record name and the display name key of the `FactionReputation` Record `guid`.
-    pub(crate) fn faction(&self, guid: Guid) -> Option<FactionName<'f>> {
-        self.factions.get(&guid).copied()
+    /// Returns the localisation key of the display name of the `FactionReputation` Record `guid`.
+    pub(crate) fn faction_name(&self, guid: Guid) -> Option<&'f str> {
+        self.factions.get(&guid).copied().flatten()
     }
 
     /// Returns the starmap objects the `MissionLocality` Record `guid` lists as available
@@ -289,7 +270,7 @@ fn piece<'f>(
             },
         )
     } else if starts(FACTIONS) {
-        Piece::Faction(guid, FactionName::of(&tree))
+        Piece::Faction(guid, key(root, "displayName"))
     } else {
         match integer(root, "reputationAmount") {
             Some(amount) => Piece::Reward(guid, amount),

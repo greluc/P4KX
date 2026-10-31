@@ -5,8 +5,8 @@ use p4kx_testkit::{DataForgeBuilder, TestInstance, TestRecord, TestValue};
 
 use super::{
     AFFINITY, BOUNTY, BROKER, DELIVERY, FACTION, FACTION_SCOPE, LOC_A, LOC_B, LOSS, OBJ_PLANET,
-    OBJ_STAR, OBJ_STATION, OBJ_SYSTEM, RANK_FIFTY, RANK_TWO_HUNDRED, RIVAL, TYPE_PLANET, TYPE_STAR,
-    TYPE_STATION, TYPE_SYSTEM,
+    OBJ_STAR, OBJ_STATION, OBJ_SYSTEM, RANK_FIFTY, RANK_TWO_HUNDRED, RIVAL, STRAY_FACTION,
+    TYPE_PLANET, TYPE_STAR, TYPE_STATION, TYPE_SYSTEM,
 };
 
 pub(super) fn flags(set: [bool; 5]) -> TestValue {
@@ -181,6 +181,7 @@ pub(super) fn reputation(builder: DataForgeBuilder) -> DataForgeBuilder {
             "factions/factionreputation/acme",
         )
         .value("displayName", TestValue::text("@faction_acme")),
+        plain_record(STRAY_FACTION, "FactionReputation", "factions/stray/odd"),
         plain_record(
             RIVAL,
             "FactionReputation",

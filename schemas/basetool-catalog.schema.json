@@ -338,10 +338,10 @@
       "type": "object"
     },
     "BlueprintReward": {
-      "description": "A blueprint pool a contract hands out on success.",
+      "description": "A blueprint pool a contract hands out.",
       "properties": {
         "chance": {
-          "description": "The `chance` of the reward as stored, `null` when it states none.",
+          "description": "The `chance` of the reward as stored, `null` when it states none (a modifier has none).",
           "format": "float",
           "type": [
             "number",
@@ -351,13 +351,32 @@
         "poolGuid": {
           "$ref": "#/$defs/Guid",
           "description": "The `guid` of the entry of `blueprintPools` the reward draws from."
+        },
+        "source": {
+          "$ref": "#/$defs/BlueprintSource",
+          "description": "The struct that states the reward."
         }
       },
       "required": [
         "chance",
-        "poolGuid"
+        "poolGuid",
+        "source"
       ],
       "type": "object"
+    },
+    "BlueprintSource": {
+      "description": "The struct that states a blueprint reward.",
+      "type": "string",
+      "x-values": [
+        {
+          "description": "A `BlueprintRewards` result that fires on success.",
+          "value": "result"
+        },
+        {
+          "description": "An enabled `MissionModifier_TemporaryBlueprint` of the parameter overrides.",
+          "value": "temporaryModifier"
+        }
+      ]
     },
     "BlueprintTier": {
       "description": "One tier of a blueprint: its craft time and its costs.",
@@ -6252,6 +6271,10 @@
     "OfferedAt": {
       "description": "Everywhere a contract is offered, as its prerequisites state it and without a cap.",
       "properties": {
+        "brokerFallback": {
+          "description": "Whether `locations` is the location of the broker entry because the contract's\nprerequisites state no place, not a location the prerequisites state.",
+          "type": "boolean"
+        },
         "localityGuids": {
           "description": "The `MissionLocality` Records of the `ContractPrerequisite_Locality` prerequisites, the\n`guid`s of entries of `missionLocalities`, in stored order, none twice. A locality names\nits places through `starmapObjectGuids`.",
           "items": {
@@ -6260,7 +6283,7 @@
           "type": "array"
         },
         "locations": {
-          "description": "The objects of the `ContractPrerequisite_Location` prerequisites, in stored order, none\ntwice, a star and an object that is not in `starmapObjects` included (its `objectType` and\n`place` are then `null`). When the contract states no place at all, the\n`locationMissionAvailable` of its `MissionBrokerEntry`.",
+          "description": "The objects of the `ContractPrerequisite_Location` prerequisites, in stored order, none\ntwice, a star and an object that is not in `starmapObjects` included (its `objectType` and\n`place` are then `null`). When the contract states no place at all, the\n`locationMissionAvailable` of its `MissionBrokerEntry`, and `brokerFallback` is `true`.",
           "items": {
             "$ref": "#/$defs/PickupPlace"
           },
@@ -6268,6 +6291,7 @@
         }
       },
       "required": [
+        "brokerFallback",
         "localityGuids",
         "locations"
       ],

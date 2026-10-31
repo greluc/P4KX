@@ -14,13 +14,13 @@ use p4kx_testkit::{
 use crate::support::{SCREEN, TestResult, guid_text, near, pixel, stage};
 use crate::text::fonts;
 
-const PART: u128 = SCREEN + 0x300;
-const BELOW: u128 = SCREEN + 0x301;
-const RED: TestColour = TestColour::Solid([255, 0, 0, 255]);
-const GREEN: TestColour = TestColour::Solid([0, 255, 0, 255]);
-const BLUE: TestColour = TestColour::Solid([0, 0, 255, 255]);
+pub(crate) const PART: u128 = SCREEN + 0x300;
+pub(crate) const BELOW: u128 = SCREEN + 0x301;
+pub(crate) const RED: TestColour = TestColour::Solid([255, 0, 0, 255]);
+pub(crate) const GREEN: TestColour = TestColour::Solid([0, 255, 0, 255]);
+pub(crate) const BLUE: TestColour = TestColour::Solid([0, 0, 255, 255]);
 
-fn field(name: &'static str, at: f32) -> TestWidget {
+pub(crate) fn field(name: &'static str, at: f32) -> TestWidget {
     TestWidget::new("BuildingBlocks_WidgetTextField", name)
         .parent("root")
         .size(TestDim::Fixed(20.0), TestDim::Fixed(20.0))
@@ -34,7 +34,7 @@ fn field(name: &'static str, at: f32) -> TestWidget {
         )
 }
 
-fn field_entry() -> TestStyleEntry {
+pub(crate) fn field_entry() -> TestStyleEntry {
     TestStyleEntry::new("field")
         .when(TestCondition::Type("TextField"))
         .set(TestModifier::FontStyle(SCREEN_TEXT_STYLE))
@@ -42,7 +42,7 @@ fn field_entry() -> TestStyleEntry {
         .set(TestModifier::Fill(RED))
 }
 
-fn render(canvas: &TestCanvas) -> Result<RgbaImage, Box<dyn std::error::Error>> {
+pub(crate) fn render(canvas: &TestCanvas) -> Result<RgbaImage, Box<dyn std::error::Error>> {
     let bytes = screens_text_sample()
         .record(canvas.record())
         .record(tag_record(PART, "Part"))

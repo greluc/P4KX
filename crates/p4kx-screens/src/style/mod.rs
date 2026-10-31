@@ -8,6 +8,8 @@ mod flex;
 mod geometry;
 mod matching;
 mod picture;
+#[cfg(test)]
+mod select_tests;
 mod sheet;
 mod text;
 

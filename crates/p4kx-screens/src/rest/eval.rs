@@ -264,6 +264,31 @@ fn tag_of(value: Rest) -> Result<Option<Guid>, String> {
     }
 }
 
+/// Returns whether a binding of the field `field` of the kind `kind` is evaluated at rest.
+fn is_evaluated(kind: FieldKind, field: &str) -> bool {
+    match (kind, field) {
+        (FieldKind::Other, _) => false,
+        (FieldKind::Boolean, "Instantiated" | "IsActive") | (FieldKind::Number, "Alpha") => true,
+        (FieldKind::Number | FieldKind::Integer, field) if GeometryModifiers::has_field(field) => {
+            true
+        }
+        (_, field) => field.starts_with(PARAMETER),
+    }
+}
+
+/// Returns why `value` cannot be the value of the layout field `field`; `None` for any other
+/// field and for a value it takes.
+fn layout_problem(field: &str, value: &Rest) -> Option<&'static str> {
+    if !GeometryModifiers::has_field(field) {
+        return None;
+    }
+    match value {
+        Rest::Num(number) if GeometryModifiers::takes(field, *number) => None,
+        Rest::Num(_) => Some("a number the layout field does not take"),
+        _ => Some("a value that is not a number"),
+    }
+}
+
 const fn whole_if(value: f64, whole: bool) -> f64 {
     if whole { value.trunc() } else { value }
 }
@@ -312,21 +337,13 @@ impl AtRest {
                 }
                 continue;
             }
-            let handled = match (binding.kind, binding.field.as_str()) {
-                (FieldKind::Boolean, "Instantiated" | "IsActive")
-                | (FieldKind::Number, "Alpha") => true,
-                (FieldKind::Number | FieldKind::Integer, field)
-                    if GeometryModifiers::has_field(field) =>
-                {
-                    true
-                }
-                (_, field) => field.starts_with(PARAMETER),
-            };
-            if !handled || binding.kind == FieldKind::Other {
+            if !is_evaluated(binding.kind, &binding.field) {
                 found.left_out.push((binding.widget, binding.field.clone()));
                 continue;
             }
-            match eval.input(binding.input, 0) {
+            match eval.input(binding.input, 0).and_then(|value| {
+                layout_problem(&binding.field, &value).map_or(Ok(value), |why| Err(why.to_owned()))
+            }) {
                 Ok(value) => found.set(binding.widget, &binding.field, value),
                 Err(why) => found
                     .unknown

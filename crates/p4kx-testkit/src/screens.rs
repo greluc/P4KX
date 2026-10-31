@@ -281,6 +281,12 @@ fn condition_structs() -> Vec<TestStruct> {
             .field("type", TestType::String)
             .field("count", TestType::Int32)
             .field("offset", TestType::Int32),
+        TestStruct::new("BuildingBlocks_StyleSelectorConditionAllOfCondition")
+            .parent("BuildingBlocks_StyleSelectorCondition")
+            .array(
+                "conditions",
+                pointer("BuildingBlocks_StyleSelectorCondition"),
+            ),
         TestStruct::new("BuildingBlocks_StyleSelectorConditionUnknown")
             .parent("BuildingBlocks_StyleSelectorCondition"),
         TestStruct::new("BuildingBlocks_FieldModifier"),

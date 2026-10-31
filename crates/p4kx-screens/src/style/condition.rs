@@ -110,29 +110,32 @@ pub(crate) fn counted(kind: CountKind, count: u32, offset: u32, position: usize)
 /// Returns whether `conditions` require the widget itself to be of the type `kind`, directly or
 /// inside an all-of; types asked of a parent, ancestor or child do not count.
 fn requires_type(conditions: &[Condition], kind: &str) -> bool {
-    conditions.iter().any(|condition| match condition {
-        Condition::Type(found) => found == kind,
-        Condition::AllOf(inner) => requires_type(inner, kind),
-        _ => false,
-    })
+    any_in_all_of(
+        conditions,
+        &|condition| matches!(condition, Condition::Type(found) if found == kind),
+    )
 }
 
 /// Returns whether `conditions` name a type of the widget itself, directly or inside an all-of.
 fn names_type(conditions: &[Condition]) -> bool {
-    conditions.iter().any(|condition| match condition {
-        Condition::Type(_) => true,
-        Condition::AllOf(inner) => names_type(inner),
-        _ => false,
+    any_in_all_of(conditions, &|condition| {
+        matches!(condition, Condition::Type(_))
     })
 }
 
 /// Returns whether `conditions` require a parent that meets some condition, directly or inside
 /// an all-of.
 fn requires_parent(conditions: &[Condition]) -> bool {
+    any_in_all_of(conditions, &|condition| {
+        matches!(condition, Condition::Parent(_))
+    })
+}
+
+/// Returns whether `test` holds for a condition of the list or of an all-of inside it.
+fn any_in_all_of(conditions: &[Condition], test: &dyn Fn(&Condition) -> bool) -> bool {
     conditions.iter().any(|condition| match condition {
-        Condition::Parent(_) => true,
-        Condition::AllOf(inner) => requires_parent(inner),
-        _ => false,
+        Condition::AllOf(inner) => any_in_all_of(inner, test),
+        other => test(other),
     })
 }
 

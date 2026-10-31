@@ -55,7 +55,7 @@ fn main() -> Result<()> {
     model.set_extraction_audio(settings.extraction_audio);
     model.set_model_export_settings(settings.model_export.clone());
     model.set_assembly_export_settings(settings.assembly_export.clone());
-    model.set_ui_render_settings(settings.ui);
+    model.set_ui_render_settings(&settings.ui);
     model.set_update_check(settings.update_check);
     model.watch_game(true);
     model.query_mut().set_saved(settings.queries.clone());

@@ -5,6 +5,7 @@
 
 mod armour_build;
 mod armour_mount;
+mod armour_natural_hair;
 mod armour_palette;
 mod assembly_build;
 mod assembly_changes;

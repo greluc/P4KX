@@ -4,12 +4,15 @@
 use std::collections::HashMap;
 use std::hash::{DefaultHasher, Hash, Hasher};
 
+use p4kx_dataforge::Guid;
+
 use super::Rest;
 use super::graph::{FieldKind, Input, Node, Operations};
 use crate::variables::Variable;
 
 const MAX_DEPTH: usize = 128;
 const PARAMETER: &str = "ParamInput";
+const CANVAS_FIELD: &str = "CanvasReferenceRecord";
 const TOO_DEEP: &str = "nested too deep";
 const NOT_FINITE: &str = "a number that is not finite";
 
@@ -102,6 +105,21 @@ impl Eval<'_> {
             }
         }
         unknown.map_or(Ok(Rest::Bool(wanted)), Err)
+    }
+
+    /// Evaluates the canvas the node `input` picks.
+    fn canvas(&mut self, input: Input, depth: usize) -> Result<Guid, String> {
+        let nodes = self.nodes;
+        let Some(Node::CanvasChoice { canvases, input }) = input.and_then(|at| nodes.get(at))
+        else {
+            return Err("a canvas that only the game names at run time".to_owned());
+        };
+        let at = usize::from(!self.flag(*input, depth + 1)?);
+        canvases
+            .get(at)
+            .copied()
+            .flatten()
+            .ok_or_else(|| "a branch that names no canvas".to_owned())
     }
 
     fn node(&mut self, node: &Node, depth: usize) -> Outcome {
@@ -214,6 +232,7 @@ pub(crate) struct AtRest {
     instantiated: HashMap<usize, bool>,
     active: HashMap<usize, bool>,
     alpha: HashMap<usize, f32>,
+    canvases: HashMap<usize, Guid>,
     typed: HashMap<usize, Vec<(String, Rest)>>,
     left_out: Vec<(usize, String)>,
     unknown: Vec<(usize, String, String)>,
@@ -260,6 +279,17 @@ impl AtRest {
             memo: operations.nodes.iter().map(|_| Memo::Fresh).collect(),
         };
         for binding in &operations.bindings {
+            if binding.kind == FieldKind::Text && binding.field == CANVAS_FIELD {
+                match eval.canvas(binding.input, 0) {
+                    Ok(canvas) => {
+                        found.canvases.insert(binding.widget, canvas);
+                    }
+                    Err(why) => found
+                        .unknown
+                        .push((binding.widget, binding.field.clone(), why)),
+                }
+                continue;
+            }
             let handled = match (binding.kind, binding.field.as_str()) {
                 (FieldKind::Boolean, "Instantiated" | "IsActive")
                 | (FieldKind::Number, "Alpha") => true,
@@ -324,6 +354,11 @@ impl AtRest {
     /// Returns what the bindings make of the alpha of widget `widget`.
     pub(crate) fn alpha(&self, widget: usize) -> Option<f32> {
         self.alpha.get(&widget).copied()
+    }
+
+    /// Returns the canvas the bindings put in the canvas widget `widget`.
+    pub(crate) fn canvas(&self, widget: usize) -> Option<Guid> {
+        self.canvases.get(&widget).copied()
     }
 
     /// Returns the parameters the bindings hand to the canvas of the widget `widget`.

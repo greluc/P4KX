@@ -11,7 +11,6 @@ use p4kx_gltf::{
 };
 use p4kx_model::Animation;
 
-use super::expressions::logic_of;
 use super::facial::FaceLink;
 use super::sample::{Control, evaluate, joint_samples, reduced, values_of, weight_samples};
 use super::shape::MAX_DNA_RIG_LEN;
@@ -154,9 +153,8 @@ fn load(link: &FaceLink, models: &dyn ModelProvider) -> Result<Loaded, String> {
     let matrix = rig
         .matrix(&link.dna)
         .map_err(|error| format!("{}: {error}", link.rig))?;
-    let logic = logic_of(&link.skin, models)?;
-    let face =
-        FaceRig::new(&rig, &matrix, &logic).map_err(|error| format!("{}: {error}", link.rig))?;
+    let face = FaceRig::new(&rig, &matrix, &link.logic)
+        .map_err(|error| format!("{}: {error}", link.rig))?;
     Ok(Loaded { face })
 }
 

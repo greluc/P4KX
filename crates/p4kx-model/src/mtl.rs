@@ -104,12 +104,36 @@ pub struct Material {
     pub diffuse_map_is_grey: Option<bool>,
 }
 
+/// A parsed `PublicParams` value.
+enum PublicValue {
+    Number(f32),
+    Colour([f32; 3]),
+}
+
 impl Material {
     /// Returns the shader parameter `name` of the material's `PublicParams`, ignoring case, as a
     /// number in the first channel or as a colour in all three; `None` when the material sets
     /// none or its value is neither.
     #[must_use]
     pub fn public_param(&self, name: &str) -> Option<[f32; 3]> {
+        match self.public_value(name)? {
+            PublicValue::Number(first) => Some([first, 0.0, 0.0]),
+            PublicValue::Colour(colour) => Some(colour),
+        }
+    }
+
+    /// Returns the shader parameter `name` of the material's `PublicParams`, ignoring case, when
+    /// it is a colour of exactly three finite components; `None` for a number or anything else.
+    #[must_use]
+    pub fn public_colour(&self, name: &str) -> Option<[f32; 3]> {
+        match self.public_value(name)? {
+            PublicValue::Colour(colour) => Some(colour),
+            PublicValue::Number(_) => None,
+        }
+    }
+
+    /// Parses the parameter `name` as one finite number or three finite components.
+    fn public_value(&self, name: &str) -> Option<PublicValue> {
         let (_, text) = self
             .public_params
             .iter()
@@ -123,8 +147,12 @@ impl Material {
         let mut parts = text.split(',');
         let first = number(parts.next()?)?;
         match (parts.next(), parts.next(), parts.next()) {
-            (None, ..) => Some([first, 0.0, 0.0]),
-            (Some(second), Some(third), None) => Some([first, number(second)?, number(third)?]),
+            (None, ..) => Some(PublicValue::Number(first)),
+            (Some(second), Some(third), None) => Some(PublicValue::Colour([
+                first,
+                number(second)?,
+                number(third)?,
+            ])),
             _ => None,
         }
     }

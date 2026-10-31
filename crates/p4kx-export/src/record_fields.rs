@@ -162,6 +162,16 @@ pub(crate) fn reference(parent: Option<&StructValue<'_>>, name: &str) -> Option<
     record_reference(parent?.field(name)?)
 }
 
+/// Returns the GUID of the Record the field `name` of `parent` links to, including a Reference to
+/// a Record the DataForge does not have.
+pub(crate) fn linked(parent: Option<&StructValue<'_>>, name: &str) -> Option<CatalogGuid> {
+    let value = parent?.field(name)?;
+    record_reference(value).or_else(|| match value {
+        Value::Error(error) => error.dangling_guid().map(CatalogGuid),
+        _ => None,
+    })
+}
+
 /// Returns the GUID of the Record `value` links to, `None` for a value that is no Reference or
 /// links into a Record rather than to it.
 pub(crate) fn record_reference(value: &Value<'_>) -> Option<CatalogGuid> {

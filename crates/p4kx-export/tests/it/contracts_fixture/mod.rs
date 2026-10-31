@@ -4,6 +4,7 @@
 //! A synthetic Archive with contracts, sub contracts, templates, mission types, a mission
 //! organisation with tagged string variants and reputation rewards.
 
+mod gaps;
 mod lookups;
 mod prerequisites;
 mod records;
@@ -60,6 +61,9 @@ pub(crate) const OBJ_SYSTEM: u128 = 0xc000_0000_0000_4000_8000_0000_0000_0001;
 pub(crate) const OBJ_PLANET: u128 = 0xc000_0000_0000_4000_8000_0000_0000_0002;
 pub(crate) const OBJ_STAR: u128 = 0xc000_0000_0000_4000_8000_0000_0000_0003;
 pub(crate) const OBJ_STATION: u128 = 0xc100_0000_0000_4000_8000_0000_0000_0000;
+pub(crate) const OBJ_MISSING: u128 = 0xc200_0000_0000_4000_8000_0000_0000_0001;
+pub(crate) const STRAY_FACTION: u128 = 0x6000_0000_0000_4000_8000_0000_0000_0005;
+pub(crate) const RIVAL: u128 = 0x6000_0000_0000_4000_8000_0000_0000_0004;
 
 fn database() -> DataForgeBuilder {
     records::generator(lookups::places(lookups::reputation(

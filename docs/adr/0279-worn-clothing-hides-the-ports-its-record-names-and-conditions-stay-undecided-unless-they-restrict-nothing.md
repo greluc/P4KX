@@ -26,15 +26,24 @@ that port in `HiddenParts`, compared ignoring ASCII case, is left out of the Arm
 `part_hidden` with the port and the piece that hides it. The rules:
 
 - Every piece hides by its Record, whether it is hidden itself or not: the result does not depend
-  on the order of the pieces.
+  on the order of the pieces, and a cycle (two pieces that hide each other's port) hides both.
+  Evidence on LIVE: 699 of the 700 helmets with `HiddenParts` hide the hat port, but only 123 of
+  them name the hair port, so a hat under such a helmet is the only thing that could hide hair
+  there; the data does not show whether the game relies on that chain, and the order-independent
+  rule needs no guess. No armour port (`Armor_*`) is ever hidden, and no two port types hide each
+  other (0 two-cycles over the item types), so a cycle cannot come from the Archive today.
+- Of several pieces that hide one port, the report names the one with the smallest name.
+- Ports compare by name only, whatever the depth of the Loadout they sit at.
 - A piece never hides itself.
 - A hidden piece contributes no model, no materials and no zones: its chunks cover nothing of the
   body, so the body shows where a hidden shirt covered it.
 - A piece without a port (a piece given with `--piece`, the head, the teeth) is never hidden. The
   head and the teeth are the base of the face rig and the skeleton; `Head_ItemPort` and
   `Teeth_ItemPort` in a closed helmet's list therefore hide nothing.
-- A piece mounted on the port of a hidden holder stays and is reported as `helper_not_found`, as for
-  any holder that is not worn.
+- A piece mounted on a hidden holder is hidden too, by whatever hides the holder, and reported as
+  `part_hidden`; this holds down a chain of holders.
+- A piece that failed to resolve and sits at a hidden port is reported as hidden; its failure
+  notice is not listed.
 
 This is also the answer to garments under garments at the level of whole garments: the game hides
 the shirt under a jacket and the clothing under an undersuit by these lists.
@@ -61,8 +70,9 @@ port only, 7 one port and `DisableTags`, and 193 name ports and `ActiveTags`; no
 
 **Decision.**
 
-- A condition that names no port and no tag restricts nothing; such a chunk is not conditional and
-  covers its zone like any other chunk.
+- A condition whose `PortVisibility` entries all name no port and no tag restricts nothing; such a
+  chunk is not conditional and covers its zone like any other chunk. A condition without entries
+  is not a form the Archive has; it fails closed and counts as restricting.
 - A condition that names a port or a tag depends on the items in ports and on tags of those items.
   The data does not state how the tags are matched (any or all, against which tags of the item) or
   what an empty `Ports` or `ActiveTags` means beside non-empty ones; it is evaluated by the game.
@@ -76,7 +86,8 @@ port only, 7 one port and `DisableTags`, and 193 name ports and `ActiveTags`; no
 - `armour glb`, the Blender package and the GUI leave hidden pieces out, with `part_hidden` in the
   report; the Eckhart cut of ADR-0140 is unchanged (his jacket hides no port he wears).
 - The entity assembly (ADR-0228) does not apply `HiddenParts`: its tree has no ports of a body.
-  A follow-up is proposed for it.
+  Follow-up #943. The empty-condition rule above also applies to the entity assembly, which reads
+  the zones the same way.
 - `Wearable::hidden_ports` and `Piece::hidden_ports` give the lower-case port names;
   `IssueKind::PartHidden` and `IssueKind::ClothingConditionsUndecided` are new, with the codes
   `part_hidden` and `clothing_conditions_undecided`.

@@ -69,14 +69,6 @@ impl Wearable {
         &self.zones.hidden_ports
     }
 
-    /// Returns whether the Entity hides the item at `port`, ignoring ASCII case.
-    pub(crate) fn hides(&self, port: &str) -> bool {
-        self.zones
-            .hidden_ports
-            .iter()
-            .any(|hidden| hidden.eq_ignore_ascii_case(port))
-    }
-
     /// Returns the tags of the Entity's `AttachDef`, e.g. `hairVar_Brown` for a hair colour.
     #[must_use]
     pub fn tags(&self) -> &[String] {

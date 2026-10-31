@@ -144,11 +144,6 @@ impl Piece {
         }
     }
 
-    /// Returns whether the piece is an Entity whose Record hides the items at `port`.
-    pub(crate) fn hides(&self, port: &str) -> bool {
-        matches!(&self.source, Source::Wearable(wearable) if wearable.hides(port))
-    }
-
     pub(crate) fn mounted(mut self, mount: Mount) -> Self {
         self.mount = Some(mount);
         self

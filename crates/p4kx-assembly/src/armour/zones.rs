@@ -49,8 +49,8 @@ impl ZoneChunk {
     }
 
     /// Returns whether the Record makes the zone depend on conditions that are not evaluated:
-    /// ports that must hold items, or tags the items must or must not carry. A condition that
-    /// names no port and no tag restricts nothing and does not count.
+    /// ports that must hold items, or tags the items must or must not carry. A condition whose
+    /// entries name no port and no tag restricts nothing and does not count.
     #[must_use]
     pub const fn conditional(&self) -> bool {
         self.conditional
@@ -68,12 +68,15 @@ impl ZoneChunk {
 /// The condition fields of `SCItemClothingPortVisibilityConditionParams` that restrict a chunk.
 const RESTRICTIONS: [&str; 4] = ["Ports", "DisableTags", "SkipTags", "ActiveTags"];
 
-/// Returns whether the `VisibilityConditions` of `chunk` restrict it: one of them names a port
-/// or a tag.
+/// Returns whether the `VisibilityConditions` of `chunk` restrict it. Only a condition whose
+/// `PortVisibility` entries all name no port and no tag restricts nothing; one without entries is
+/// not understood and counts as restricting.
 fn restricted(chunk: &StructValue<'_>) -> bool {
-    struct_items(chunk, "VisibilityConditions")
-        .flat_map(|condition| struct_items(condition, "PortVisibility"))
-        .any(|entry| RESTRICTIONS.iter().any(|field| has_items(entry, field)))
+    struct_items(chunk, "VisibilityConditions").any(|condition| {
+        let mut entries = struct_items(condition, "PortVisibility").peekable();
+        entries.peek().is_none()
+            || entries.any(|entry| RESTRICTIONS.iter().any(|field| has_items(entry, field)))
+    })
 }
 
 /// What the `SCItemClothingParams` of an Entity say: the body zones it covers and the ports whose

@@ -8,8 +8,10 @@ use crate::{TestInstance, TestStruct, TestType, TestValue};
 pub enum TestClothingCondition {
     /// No condition.
     None,
-    /// A condition that names no port and no tag, so it restricts nothing.
+    /// A condition whose entry names no port and no tag, so it restricts nothing.
     Unrestricted,
+    /// A condition with no entries at all.
+    NoEntries,
     /// A condition on the port `backpack`.
     OnPort,
     /// A condition on a tag.
@@ -69,9 +71,22 @@ impl TestZoneChunk {
         self
     }
 
+    /// Gives the chunk a visibility condition that has no `PortVisibility` entries.
+    #[must_use]
+    pub const fn without_entries(mut self) -> Self {
+        self.condition = TestClothingCondition::NoEntries;
+        self
+    }
+
     fn conditions(&self) -> Vec<TestValue> {
         let (ports, tags) = match self.condition {
             TestClothingCondition::None => return Vec::new(),
+            TestClothingCondition::NoEntries => {
+                return vec![TestValue::Struct(
+                    TestInstance::new("SCItemClothingVisibilityConditionParams")
+                        .value("PortVisibility", TestValue::Array(Vec::new())),
+                )];
+            }
             TestClothingCondition::Unrestricted => (Vec::new(), Vec::new()),
             TestClothingCondition::OnPort => (vec![TestValue::text("backpack")], Vec::new()),
             TestClothingCondition::OnTag => (Vec::new(), vec![TestValue::Reference(0x77)]),

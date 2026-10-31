@@ -85,7 +85,22 @@ pub(crate) fn rest_structs() -> Vec<TestStruct> {
         parameter("Number", TestType::Single),
         parameter("Localization", TestType::Locale),
     ];
-    structs.into_iter().chain(enumerated_structs()).collect()
+    structs.into_iter().chain(later_structs()).collect()
+}
+
+fn later_structs() -> impl Iterator<Item = TestStruct> {
+    tag_structs().chain(enumerated_structs())
+}
+
+fn tag_structs() -> impl Iterator<Item = TestStruct> {
+    let tag = || TestType::ReferenceTo("Tag".to_owned());
+    [operation("TagFromBoolean")
+        .field("isTrue", tag())
+        .field("isFalse", tag())
+        .field("inputTrue", operation_input())
+        .field("inputFalse", operation_input())
+        .field("input", operation_input())]
+    .into_iter()
 }
 
 fn enumerated_structs() -> impl Iterator<Item = TestStruct> {
@@ -152,6 +167,10 @@ pub enum TestOp {
     CanvasFromBool(&'static str, u128, u128),
     /// The `CanvasReferenceRecord` of the canvas widget, which the canvas operation sets.
     CanvasField(&'static str, &'static str),
+    /// The `Tag` Record `on` when the boolean operation holds, else the `Tag` Record `off`.
+    TagFromBool(&'static str, u128, u128),
+    /// The state tag field (`PrimaryStateTag`, ...) of the widget, which the tag operation sets.
+    TagField(&'static str, &'static str, &'static str),
 }
 
 fn input(name: &str) -> TestValue {
@@ -229,6 +248,13 @@ impl TestOp {
             Self::CanvasField(widget, source) => {
                 field("String", widget, "CanvasReferenceRecord", source)
             }
+            Self::TagFromBool(source, on, off) => {
+                TestInstance::new("BuildingBlocks_BindingsTagFromBoolean")
+                    .value("isTrue", TestValue::Reference(*on))
+                    .value("isFalse", TestValue::Reference(*off))
+                    .value("input", input(source))
+            }
+            Self::TagField(widget, name, source) => field("String", widget, name, source),
         }
     }
 }

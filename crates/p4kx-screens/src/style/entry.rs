@@ -7,7 +7,9 @@ use crate::colour::ColorSpec;
 use crate::reader::{as_struct, child, flag, float, items, reference, text};
 use crate::style::{GeometryModifiers, PictureModifiers, TextModifiers};
 
+use super::animation::{ANIMATION, settled};
 use super::condition::{Condition, Uses, collect_unsupported, conditions};
+use super::sheet::merge;
 
 #[derive(Debug, Clone, Default, PartialEq)]
 pub(crate) struct Modifiers {
@@ -74,6 +76,12 @@ pub(crate) fn modifiers<'a, 'f: 'a>(
 ) -> Modifiers {
     let mut found = Modifiers::default();
     for modifier in structs {
+        if modifier.type_name() == ANIMATION {
+            if let Some(settled) = settled(modifier) {
+                merge(&mut found, &settled);
+            }
+            continue;
+        }
         if matches!(
             modifier.type_name(),
             "BuildingBlocks_FieldModifierRecordRef" | "BuildingBlocks_FieldModifierEnumerated"

@@ -257,6 +257,8 @@ ui_texts! {
     ReportLeftOut = "ui-report-left-out";
     /// A nested canvas that could not be read.
     ReportMissingCanvas = "ui-report-missing-canvas";
+    /// A texture that the Archive does not hold or cannot read.
+    ReportMissingTexture = "ui-report-missing-texture";
     /// A game variable that was set and that no canvas of the screen reads.
     ReportUnknownVariable = "ui-report-unknown-variable";
     /// A limit stopped the composition.

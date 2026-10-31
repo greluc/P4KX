@@ -9,6 +9,7 @@ use serde::Serialize;
 use crate::assets::{AssetSet, ScreenAssets};
 use crate::canvas::CanvasStore;
 use crate::elements::is_rendered;
+use crate::style::{CanvasStyles, StyleCache};
 
 const MAX_CANVASES: usize = 4096;
 
@@ -30,6 +31,7 @@ pub(crate) fn inspect(
     let mut assets = AssetSet::default();
     let mut kinds: BTreeMap<String, (usize, bool)> = BTreeMap::new();
     let mut seen = HashSet::new();
+    let mut cache = StyleCache::new();
     let mut queue = vec![root];
     while let Some(guid) = queue.pop() {
         if !seen.insert(guid) || seen.len() > MAX_CANVASES {
@@ -51,6 +53,11 @@ pub(crate) fn inspect(
                 .0 += 1;
             queue.extend(widget.canvas);
         }
+        queue.extend(CanvasStyles::swapped_canvases(
+            store.forge(),
+            &mut cache,
+            &canvas,
+        ));
     }
     let elements = kinds
         .into_iter()
@@ -61,4 +68,56 @@ pub(crate) fn inspect(
         })
         .collect();
     (assets.finish(), elements)
+}
+
+#[cfg(test)]
+mod tests {
+    use p4kx_dataforge::DataForge;
+    use p4kx_testkit::{
+        DataForgeBuilder, TestCanvas, TestCondition, TestModifier, TestStyleEntry, TestValue,
+        TestWidget, entity_schema, screens_schema,
+    };
+
+    use super::inspect;
+    use crate::canvas::{CanvasStore, find_canvas};
+
+    const OUTER: u128 = 0x5a00_0000_0000_4000_8000_0000_0000_0040;
+    const SWAPPED: u128 = OUTER + 0x100;
+
+    fn guid_text(guid: u128) -> String {
+        format!(
+            "{:08x}-{:04x}-{:04x}-{:04x}-{:012x}",
+            guid >> 96,
+            (guid >> 80) & 0xffff,
+            (guid >> 64) & 0xffff,
+            (guid >> 48) & 0xffff,
+            guid & 0xffff_ffff_ffff
+        )
+    }
+
+    #[test]
+    fn the_assets_of_a_canvas_a_style_swaps_in_are_listed() {
+        let swap = TestStyleEntry::new("swap")
+            .when(TestCondition::Type("Canvas"))
+            .set(TestModifier::Canvas(SWAPPED));
+        let outer = TestCanvas::new(OUTER, "outer", 10.0, 10.0)
+            .embedded(swap)
+            .widget(TestWidget::new("BuildingBlocks_WidgetCanvas", "holder"));
+        let swapped = TestCanvas::new(SWAPPED, "swapped", 10.0, 10.0).widget(
+            TestWidget::new("BuildingBlocks_WidgetImage", "picture")
+                .with("imagePath", TestValue::text("UI/Test/swapped.tif")),
+        );
+        let bytes = [outer.record(), swapped.record()]
+            .into_iter()
+            .fold(
+                screens_schema(entity_schema(DataForgeBuilder::new())),
+                DataForgeBuilder::record,
+            )
+            .build();
+        let forge = DataForge::open(&bytes).expect("database");
+        let root = find_canvas(&forge, &guid_text(OUTER)).expect("canvas");
+        let (assets, _) = inspect(&mut CanvasStore::new(&forge), root);
+        assert_eq!(assets.canvases.len(), 2, "{:?}", assets.canvases);
+        assert_eq!(assets.textures, ["UI/Test/swapped.dds"]);
+    }
 }

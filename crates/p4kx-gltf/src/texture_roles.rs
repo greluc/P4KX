@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use p4kx_model::{Material, TextureSlot, texture_suffix_lowercase as suffix};
+use p4kx_model::{DIFFUSE_SLOT, Material, TextureSlot, texture_suffix_lowercase as suffix};
 
 use crate::texture_report::TextureRole;
 
 const DATA_PREFIX: &str = "data/";
 const SOURCE_EXTENSIONS: [&str; 7] = ["tif", "tiff", "tga", "png", "bmp", "jpg", "dds"];
 const NORMAL_SLOTS: [&str; 2] = ["TexSlot2", "TexSlot3"];
-const DIFFUSE_SLOT: &str = "TexSlot1";
 const SPECULAR_SLOT: &str = "TexSlot4";
 const NORMAL_GLOSS_SUFFIX: &str = "ddna";
 const NORMAL_SUFFIX: &str = "ddn";

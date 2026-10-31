@@ -1842,7 +1842,8 @@ widgets it concerns and the names of up to three.
 `Binding` lists what the state at rest of a canvas (ADR-0110) could not decide, per canvas once
 for the fields and per set of parameters for the inputs. The bound fields `Instantiated`,
 `IsActive`, `Alpha` and `ParamInput0` to `ParamInput4` that evaluate to a value are applied and not
-listed. The reasons are `bound state tags are not evaluated at rest`, `bound layout fields (size,
+listed, and so are the bound state tags (`PrimaryStateTag` to `QuinaryStateTag`), which the styles
+of the widget select on like its own tags (ADR-0287). The reasons are `bound layout fields (size,
 position, anchor, pivot, scale, turn, spacing, flex) are not evaluated at rest`, `bound field
 <field> is not evaluated at rest` for any other field, and `the input of the bound field <field>
 is not evaluated: <why>` where the graph that feeds a field of those that are evaluated holds a
@@ -1853,7 +1854,10 @@ drawn at rest: Instantiated is bound to game variables, which are zero at rest`,
 one that is hidden, so that an empty picture says why; with `--var` it reads `not drawn:
 Instantiated is bound to game variables, whose values leave it off`. Since a list that is not
 empty makes the exit code 1 (below), many screens of the game, whose bindings are not all
-evaluated, exit with 1 although they are drawn. `missing_canvases` names nested canvases that cannot be
+evaluated, exit with 1 although they are drawn. `missing_textures` is present only when a texture
+is missing: the Archive paths (`UI/Textures/….dds`) that widgets name and the Archive does not hold
+or cannot read, each once, at most 256; stderr prints them as `texture not in the Archive: <path>`.
+`missing_canvases` names nested canvases that cannot be
 read, that no Record answers or that contain themselves; widgets whose parents form a cycle are
 listed in `unsupported` (`not reachable from a root: its parents form a cycle`). Textures and SVG
 files add `texture missing or unreadable` and `vector graphic missing or unreadable` (an example is

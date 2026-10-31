@@ -5,12 +5,11 @@ use p4kx_character::{
     BODY_COLOR, EYE_COLOR, HAIR_DYE_COLOR, HAIR_TINT_COLOR, Material as Choice, SubMaterial,
     lowered_hash, name_hash,
 };
-use p4kx_model::{Material, MaterialLibrary, MaterialStatus, srgb8_to_linear};
+use p4kx_model::{DIFFUSE_SLOT, Material, MaterialLibrary, MaterialStatus, srgb8_to_linear};
 
 const SKIN_SHADER: &str = "HumanSkin_V2";
 const EYE_SHADER: &str = "Eye";
 const HAIR_SHADERS: [&str; 1] = ["HairPBR"];
-const DIFFUSE_SLOT: &str = "TexSlot1";
 const HAIR_TINT_PARAM: &str = "BaseTintColor";
 const HAIR_DYE_PARAM: &str = "DyeColor";
 

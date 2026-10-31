@@ -1,17 +1,16 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use std::collections::HashMap;
-use std::hash::{DefaultHasher, Hash, Hasher};
+use std::cmp::Ordering;
 
 use p4kx_dataforge::Guid;
 
 use super::Rest;
 use super::graph::{FieldKind, Input, Node, Operations};
+use super::state::{AtRest, PARAMETER, STATE_TAG, key_of};
 use crate::variables::Variable;
 
 const MAX_DEPTH: usize = 128;
-const PARAMETER: &str = "ParamInput";
 const CANVAS_FIELD: &str = "CanvasReferenceRecord";
 const TOO_DEEP: &str = "nested too deep";
 const NOT_FINITE: &str = "a number that is not finite";
@@ -133,10 +132,7 @@ impl Eval<'_> {
             Node::Param { parameter, default } => Ok(self
                 .inputs
                 .iter()
-                .find(|(name, given)| {
-                    name == parameter
-                        && std::mem::discriminant(given) == std::mem::discriminant(default)
-                })
+                .find(|(name, given)| name == parameter && fits(given, default))
                 .map_or_else(|| default.clone(), |(_, given)| given.clone())),
             Node::Invert(input) => Ok(Rest::Bool(!self.flag(*input, depth)?)),
             Node::All(inputs) => self.all(inputs, true, depth),
@@ -167,7 +163,37 @@ impl Eval<'_> {
                 "{} is not evaluated",
                 self.kinds.get(*kind).map_or("an operation", String::as_str)
             )),
+            Node::TagChoice { .. } | Node::TagSwitch { .. } => self.tag_node(node, depth),
             other => self.maths(other, depth),
+        }
+    }
+
+    fn tag_node(&mut self, node: &Node, depth: usize) -> Outcome {
+        match node {
+            Node::TagChoice {
+                tags,
+                branches,
+                input,
+            } => {
+                let at = usize::from(!self.flag(*input, depth)?);
+                branches.get(at).copied().flatten().map_or_else(
+                    || Ok(Rest::Tag(tags.get(at).copied().flatten())),
+                    |branch| self.value(branch, depth + 1),
+                )
+            }
+            Node::TagSwitch {
+                pairs,
+                default,
+                input,
+            } => {
+                let value = self.number(*input, depth)?;
+                let tag = pairs
+                    .iter()
+                    .find(|(first, _)| value.partial_cmp(first).is_some_and(Ordering::is_eq))
+                    .map_or(*default, |(_, tag)| *tag);
+                Ok(Rest::Tag(tag))
+            }
+            _ => Err("a node that is not a tag".to_owned()),
         }
     }
 
@@ -220,39 +246,25 @@ impl Eval<'_> {
     }
 }
 
+/// Returns whether the value `given` for a parameter may stand where `default` is expected: the
+/// same kind, or a tag for a string parameter, which is how a nested canvas receives one.
+fn fits(given: &Rest, default: &Rest) -> bool {
+    std::mem::discriminant(given) == std::mem::discriminant(default)
+        || matches!((given, default), (Rest::Tag(_), Rest::Text(_)))
+}
+
+/// Reads the tag a node gave: a tag node's tag, or the empty text of a string parameter, which
+/// names none.
+fn tag_of(value: Rest) -> Result<Option<Guid>, String> {
+    match value {
+        Rest::Tag(tag) => Ok(tag),
+        Rest::Text(text) if text.is_empty() => Ok(None),
+        _ => Err("a tag that only the game names at run time".to_owned()),
+    }
+}
+
 const fn whole_if(value: f64, whole: bool) -> f64 {
     if whole { value.trunc() } else { value }
-}
-
-/// What the `operations` of one canvas give its widgets at rest, for the parameters its
-/// `WidgetCanvas` hands it.
-#[derive(Debug, Default)]
-pub(crate) struct AtRest {
-    key: u64,
-    instantiated: HashMap<usize, bool>,
-    active: HashMap<usize, bool>,
-    alpha: HashMap<usize, f32>,
-    canvases: HashMap<usize, Guid>,
-    typed: HashMap<usize, Vec<(String, Rest)>>,
-    left_out: Vec<(usize, String)>,
-    unknown: Vec<(usize, String, String)>,
-}
-
-/// Returns a number that tells apart the parameters a canvas is entered with.
-pub(crate) fn key_of(inputs: &[(String, Rest)]) -> u64 {
-    if inputs.is_empty() {
-        return 0;
-    }
-    let mut hasher = DefaultHasher::new();
-    for (name, value) in inputs {
-        name.hash(&mut hasher);
-        match value {
-            Rest::Bool(flag) => (0_u8, flag).hash(&mut hasher),
-            Rest::Num(number) => (1_u8, number.to_bits()).hash(&mut hasher),
-            Rest::Text(text) => (2_u8, text).hash(&mut hasher),
-        }
-    }
-    hasher.finish().max(1)
 }
 
 impl AtRest {
@@ -290,6 +302,15 @@ impl AtRest {
                 }
                 continue;
             }
+            if binding.kind == FieldKind::Text && binding.field.ends_with(STATE_TAG) {
+                match eval.input(binding.input, 0).and_then(tag_of) {
+                    Ok(tag) => found.tag(binding.widget, tag),
+                    Err(why) => found
+                        .unknown
+                        .push((binding.widget, binding.field.clone(), why)),
+                }
+                continue;
+            }
             let handled = match (binding.kind, binding.field.as_str()) {
                 (FieldKind::Boolean, "Instantiated" | "IsActive")
                 | (FieldKind::Number, "Alpha") => true,
@@ -307,72 +328,5 @@ impl AtRest {
             }
         }
         found
-    }
-
-    fn set(&mut self, widget: usize, field: &str, value: Rest) {
-        match (field, value) {
-            ("Instantiated", Rest::Bool(flag)) => {
-                self.instantiated.insert(widget, flag);
-            }
-            ("IsActive", Rest::Bool(flag)) => {
-                self.active.insert(widget, flag);
-            }
-            ("Alpha", Rest::Num(number)) => {
-                #[expect(
-                    clippy::cast_possible_truncation,
-                    reason = "an alpha is held between 0 and 1"
-                )]
-                let alpha = number.clamp(0.0, 1.0) as f32;
-                self.alpha.insert(widget, alpha);
-            }
-            (field, value) if field.starts_with(PARAMETER) => {
-                let values = self.typed.entry(widget).or_default();
-                values.retain(|(name, _)| name != field);
-                values.push((field.to_owned(), value));
-            }
-            _ => {}
-        }
-    }
-
-    /// Returns what tells this state apart from the states of the same canvas under other
-    /// parameters, 0 for the plain one.
-    pub(crate) const fn key(&self) -> u64 {
-        self.key
-    }
-
-    /// Returns whether the bindings leave widget `widget` instantiated, `None` when they do not
-    /// say.
-    pub(crate) fn instantiated(&self, widget: usize) -> Option<bool> {
-        self.instantiated.get(&widget).copied()
-    }
-
-    /// Returns what the bindings make of the `IsActive` of widget `widget`.
-    pub(crate) fn active(&self, widget: usize) -> Option<bool> {
-        self.active.get(&widget).copied()
-    }
-
-    /// Returns what the bindings make of the alpha of widget `widget`.
-    pub(crate) fn alpha(&self, widget: usize) -> Option<f32> {
-        self.alpha.get(&widget).copied()
-    }
-
-    /// Returns the canvas the bindings put in the canvas widget `widget`.
-    pub(crate) fn canvas(&self, widget: usize) -> Option<Guid> {
-        self.canvases.get(&widget).copied()
-    }
-
-    /// Returns the parameters the bindings hand to the canvas of the widget `widget`.
-    pub(crate) fn typed(&self, widget: usize) -> &[(String, Rest)] {
-        self.typed.get(&widget).map_or(&[], Vec::as_slice)
-    }
-
-    /// Returns the bindings of fields that are not evaluated: widget and field.
-    pub(crate) fn left_out(&self) -> &[(usize, String)] {
-        &self.left_out
-    }
-
-    /// Returns the bindings whose inputs could not be evaluated: widget, field and why.
-    pub(crate) fn unknown(&self) -> &[(usize, String, String)] {
-        &self.unknown
     }
 }

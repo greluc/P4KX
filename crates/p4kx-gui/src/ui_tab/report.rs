@@ -145,6 +145,10 @@ impl UiReport {
             label: UiText::ReportMissingCanvas,
             detail: canvas.clone(),
         }));
+        lines.extend(report.missing_textures.iter().map(|texture| ReportLine {
+            label: UiText::ReportMissingTexture,
+            detail: texture.clone(),
+        }));
         if report.truncated {
             lines.push(ReportLine {
                 label: UiText::ReportTruncated,

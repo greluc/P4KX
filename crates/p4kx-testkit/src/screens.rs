@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
+use crate::screens_animation::animation_structs;
 use crate::screens_geometry::{box_structs, instance_structs};
 use crate::screens_image_schema::image_structs;
 use crate::screens_radar_schema::radar_structs;
@@ -44,6 +45,7 @@ pub fn screens_schema(builder: DataForgeBuilder) -> DataForgeBuilder {
         .chain(text_structs())
         .chain(image_structs())
         .chain(rest_structs())
+        .chain(animation_structs())
         .chain(radar_structs())
         .fold(builder, DataForgeBuilder::structure)
 }

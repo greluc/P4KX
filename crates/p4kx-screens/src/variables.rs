@@ -167,6 +167,7 @@ impl Variable {
                 .map(Rest::Num)
                 .ok_or_else(|| refuse("a number")),
             Rest::Text(_) => Ok(Rest::Text(self.value.clone())),
+            Rest::Tag(_) => Err(refuse("a tag")),
         }
     }
 }

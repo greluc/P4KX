@@ -1433,6 +1433,7 @@ ui-report-skipped = Skipped
 ui-report-effect = Drawn without effect
 ui-report-left-out = Left out
 ui-report-missing-canvas = Canvas not drawn
+ui-report-missing-texture = Texture not in the Archive
 ui-report-unknown-variable = Game variable that the screen does not read
 ui-report-truncated = Stopped early: a limit of the composition was reached
 ui-report-import = Import not found

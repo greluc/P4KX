@@ -18,7 +18,7 @@ use crate::limits::Limits;
 use crate::look::Look;
 use crate::paint::Area;
 use crate::rest::{AtRest, RestParams};
-use crate::style::{CanvasStyles, Modifiers, StyleCache, Subject, TagPaths, Uses, resolve};
+use crate::style::{CanvasStyles, Modifiers, StyleCache, Subject, TagPaths, Uses, merge, resolve};
 use crate::text::Shaped;
 use crate::transform::Placement;
 use crate::variables::Variable;
@@ -148,7 +148,7 @@ impl<'s, 'a, 'f, 't> Walk<'s, 'a, 'f, 't> {
         if let Some(known) = self.resolved.get(&key) {
             return Rc::clone(known);
         }
-        let subject = self.subject_of(canvas, widget, place);
+        let subject = self.subject_of(canvas, (index, widget), place);
         let mut style = resolve(
             &self.sheets,
             widget,
@@ -156,6 +156,9 @@ impl<'s, 'a, 'f, 't> Walk<'s, 'a, 'f, 't> {
             self.tags,
             &mut self.budget,
         );
+        if let Some(part) = self.text_part(widget, &subject) {
+            merge(&mut style, &part);
+        }
         self.apply_overrides(canvas, index, &mut style);
         let style = Rc::new(style);
         self.resolved.insert(key, Rc::clone(&style));
@@ -332,7 +335,8 @@ impl<'s, 'a, 'f, 't> Walk<'s, 'a, 'f, 't> {
         let widget = sibling.widget;
         let padding = sibling.geometry.padding;
         let content = area.inset(padding.top, padding.right, padding.bottom, padding.left);
-        let subject = self.subject_of(canvas, widget, (sibling.position, &sibling.kids));
+        let place = (sibling.position, sibling.kids.as_slice());
+        let subject = self.subject_of(canvas, (sibling.index, widget), place);
         self.push_subject(&subject, sibling.position);
         self.above.push(subject);
         if sibling.instance {

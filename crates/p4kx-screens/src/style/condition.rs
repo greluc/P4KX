@@ -107,6 +107,16 @@ pub(crate) fn counted(kind: CountKind, count: u32, offset: u32, position: usize)
     }
 }
 
+/// Returns whether `conditions` require the widget itself to be of the type `kind`, directly or
+/// inside an all-of; types asked of a parent, ancestor or child do not count.
+pub(crate) fn requires_type(conditions: &[Condition], kind: &str) -> bool {
+    conditions.iter().any(|condition| match condition {
+        Condition::Type(found) => found == kind,
+        Condition::AllOf(inner) => requires_type(inner, kind),
+        _ => false,
+    })
+}
+
 pub(crate) fn collect_unsupported(condition: &Condition, out: &mut Vec<String>) {
     match condition {
         Condition::Unsupported(name) => {

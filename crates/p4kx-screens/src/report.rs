@@ -4,6 +4,7 @@
 use serde::Serialize;
 
 const MAX_EXAMPLES: usize = 3;
+const MAX_MISSING_TEXTURES: usize = 256;
 
 /// An element type or feature the render left out or approximated, with how often.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -53,6 +54,10 @@ pub struct Report {
     pub unsupported: Vec<Unsupported>,
     /// Record paths of nested canvases that could not be read.
     pub missing_canvases: Vec<String>,
+    /// The Archive paths of textures that widgets name and the Archive does not hold or cannot
+    /// read, each once, in the order they were met; at most 256.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub missing_textures: Vec<String>,
     /// Whether a limit stopped the composition before the whole screen was drawn.
     pub truncated: bool,
     /// The game variables that were set, the last setting of each name; empty at rest.
@@ -80,6 +85,15 @@ impl Report {
             count: 1,
             examples: vec![name.to_owned()],
         });
+    }
+
+    /// Lists the Archive path `path` of a texture that could not be read, once.
+    pub(crate) fn missing_texture(&mut self, path: &str) {
+        if self.missing_textures.len() < MAX_MISSING_TEXTURES
+            && !self.missing_textures.iter().any(|known| known == path)
+        {
+            self.missing_textures.push(path.to_owned());
+        }
     }
 
     /// Returns the names of the variables that were set and that no canvas of the screen reads.

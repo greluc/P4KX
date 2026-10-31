@@ -4,12 +4,31 @@
 use std::rc::Rc;
 
 use crate::canvas::Canvas;
-use crate::style::Modifiers;
-use crate::text::FontStyleInfo;
+use crate::style::{Modifiers, Subject, resolve_text};
+use crate::text::{FontStyleInfo, TEXT, TEXT_FIELD};
 use crate::walk::Walk;
 use crate::widget::Widget;
 
 impl Walk<'_, '_, '_, '_> {
+    /// Resolves the entries that select the text a text field holds: those that require the type
+    /// `Text` and look at the field as the parent (`Type Text` below a tag). `None` for any other
+    /// widget.
+    pub(crate) fn text_part(&mut self, widget: &Widget, field: &Subject) -> Option<Modifiers> {
+        if widget.type_name != TEXT_FIELD {
+            return None;
+        }
+        let text = Subject::of(TEXT, &[]);
+        self.above.push(field.clone());
+        let found = resolve_text(
+            &self.sheets,
+            (&text, &self.above),
+            self.tags,
+            &mut self.budget,
+        );
+        self.above.pop();
+        Some(found)
+    }
+
     pub(crate) fn font_of(
         &mut self,
         widget: &Widget,

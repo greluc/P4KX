@@ -34,6 +34,10 @@ pub(super) fn show(ui: &Ui, model: &mut Model) {
     let Some(extraction) = model.extraction() else {
         return;
     };
+    if extraction.is_folder_conversion() {
+        super::folder_conversion_outcome::show(ui, model);
+        return;
+    }
     let texts = model.texts();
     let path = extraction.folder().display().to_string();
     let mut cancel = false;
@@ -97,10 +101,10 @@ pub(super) fn decorate<R>(ui: &Ui, shown: Option<InnerResponse<R>>, tone: Tone) 
     }
 }
 
-fn outcome_window(
+pub(super) fn outcome_window(
     ui: &Ui,
     texts: &Texts,
-    (title, tone): (T, Tone),
+    (title, tone): (impl Into<crate::Text>, Tone),
     open: &mut bool,
     body: impl FnOnce(&mut Ui),
 ) {
@@ -123,7 +127,7 @@ fn outcome_window(
     }
 }
 
-fn close_foot(ui: &mut Ui, texts: &Texts) -> bool {
+pub(super) fn close_foot(ui: &mut Ui, texts: &Texts) -> bool {
     frames::foot_rule(ui);
     frames::foot_action(ui, &texts.get(T::Close), Kind::Cta)
 }
@@ -211,7 +215,7 @@ fn finished(ui: &mut Ui, texts: &Texts, summary: &ExtractionSummary, comparison_
     lists(ui, texts, summary);
 }
 
-fn lists(ui: &mut Ui, texts: &Texts, summary: &ExtractionSummary) {
+pub(super) fn lists(ui: &mut Ui, texts: &Texts, summary: &ExtractionSummary) {
     for (heading, failed) in [
         (T::SummaryFailed, summary.failures()),
         (T::SummaryUnconverted, summary.unconverted()),

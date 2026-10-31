@@ -13,8 +13,8 @@ use p4kx_texture::{
 
 use crate::output_file::{read_error, write_replacing};
 use crate::path_index::PathIndex;
-use crate::texture_parts::{Found, PartReader, Parts, is_same_file, open_entry};
-use crate::{ConversionError, UnknownEntries};
+use crate::texture_parts::{Found, PartReader, Parts, is_same_file};
+use crate::{ConversionError, ExtractionError, UnknownEntries};
 
 /// A DDS texture whose header is an Entry of an Archive or a file on disk, with its sibling parts
 /// `.1` … `.N` and any alpha tail `.a` with its parts `.1a` … `.Na` next to it.
@@ -64,16 +64,13 @@ impl<'a> Texture<'a> {
         alpha: Option<Parts<'a>>,
     ) -> Result<Self, ConversionError> {
         let (name, header_size, header) = match &parts {
-            Parts::Archive {
-                archive, header, ..
-            } => {
+            Parts::Source { header, .. } => {
                 let name = header.path().to_owned();
                 let size = header.uncompressed_size();
-                (
-                    name.clone(),
-                    size,
-                    parse_start(archive.open_entry(header)?, &name)?,
-                )
+                let reader = header
+                    .open(false)
+                    .map_err(|error| conversion_error(error, &name))?;
+                (name.clone(), size, parse_start(reader, &name)?)
             }
             Parts::Files { header: path, .. } => {
                 let name = path.display().to_string();
@@ -303,12 +300,10 @@ impl<'a> Texture<'a> {
     /// Opens the header's data from its start.
     pub(crate) fn open_header(&self) -> Result<PartReader<'_>, ConversionError> {
         match &self.parts {
-            Parts::Archive {
-                archive,
-                header,
-                verify,
-                ..
-            } => Ok(PartReader::Entry(open_entry(archive, header, *verify)?)),
+            Parts::Source { header, verify, .. } => header
+                .open(*verify)
+                .map(PartReader::Source)
+                .map_err(|error| conversion_error(error, header.path())),
             Parts::Files { header, .. } => File::open(header)
                 .map(PartReader::File)
                 .map_err(|source| read_error(header, source)),
@@ -317,7 +312,7 @@ impl<'a> Texture<'a> {
 
     fn input_files(&self) -> Vec<PathBuf> {
         let own = match &self.parts {
-            Parts::Archive { .. } => Vec::new(),
+            Parts::Source { .. } => Vec::new(),
             Parts::Files { header, .. } => {
                 let count = self.part_count().unwrap_or(0);
                 std::iter::once(header.clone())
@@ -353,6 +348,17 @@ impl Texture<'static> {
             });
         }
         Self::from_found(Parts::on_disk(path))
+    }
+}
+
+/// Returns `error` of opening the data of the file `name` as a [`ConversionError`].
+fn conversion_error(error: ExtractionError, name: &str) -> ConversionError {
+    match error {
+        ExtractionError::Archive(error) => ConversionError::Archive(error),
+        other => ConversionError::Read {
+            path: PathBuf::from(name),
+            source: io::Error::other(other),
+        },
     }
 }
 

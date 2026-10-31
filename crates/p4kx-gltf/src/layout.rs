@@ -30,6 +30,8 @@ pub(crate) struct Block<'m> {
 pub(crate) struct PrimitiveLayout {
     pub(crate) indices: usize,
     pub(crate) material_id: u16,
+    /// Whether the primitive carries the mesh's vertex colours as `COLOR_0`.
+    pub(crate) colours: bool,
 }
 
 /// The blocks of one mesh and the bounds of its converted positions.
@@ -201,13 +203,18 @@ impl<'m> Layout<'m> {
             .as_ref()
             .filter(|tangents| tangents.len() == mesh.positions.len())
             .map(|tangents| self.push(BlockData::Tangents(tangents)));
+        let reading: Vec<bool> = primitives
+            .iter()
+            .map(|&(_, id)| colours_wanted && materials.reads_vertex_colours(id))
+            .collect();
         let colours = mesh
             .colours
             .as_ref()
-            .filter(|colours| colours_wanted && colours.len() == mesh.positions.len())
+            .filter(|colours| colours.len() == mesh.positions.len())
+            .filter(|_| reading.contains(&true))
             .map(|colours| self.push(BlockData::Colours(colours)));
         let (joints, weights) = self.plan_skin(mesh, binds, remapped);
-        let primitives = self.plan_primitives(&primitives, mesh.positions.len());
+        let primitives = self.plan_primitives(&primitives, &reading, mesh.positions.len());
         self.meshes.push(MeshLayout {
             part,
             node: mesh.node,
@@ -228,18 +235,21 @@ impl<'m> Layout<'m> {
     fn plan_primitives(
         &mut self,
         primitives: &[(&'m [u32], u16)],
+        reading: &[bool],
         vertices: usize,
     ) -> Vec<PrimitiveLayout> {
         let short = u16::try_from(vertices).is_ok();
         primitives
             .iter()
-            .map(|&(indices, material_id)| PrimitiveLayout {
+            .zip(reading)
+            .map(|(&(indices, material_id), &colours)| PrimitiveLayout {
                 indices: self.push(if short {
                     BlockData::Short(indices)
                 } else {
                     BlockData::Wide(indices)
                 }),
                 material_id,
+                colours,
             })
             .collect()
     }

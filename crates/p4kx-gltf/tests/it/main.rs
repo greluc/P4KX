@@ -29,3 +29,4 @@ mod skin_limits;
 mod skin_nodes;
 mod skin_skeletons;
 mod textures;
+mod vertex_colour_primitives;

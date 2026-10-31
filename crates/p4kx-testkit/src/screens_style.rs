@@ -27,6 +27,8 @@ pub enum TestCondition {
     /// The widget is among the siblings the count selects: `First` or `Every`, the count and the
     /// offset.
     Count(&'static str, i32, i32),
+    /// Every condition holds.
+    AllOf(Vec<Self>),
     /// A selector the screens reader does not evaluate.
     Unknown,
 }
@@ -70,6 +72,12 @@ impl TestCondition {
                     .value("type", TestValue::text(*kind))
                     .value("count", TestValue::Int32(*count))
                     .value("offset", TestValue::Int32(*offset))
+            }
+            Self::AllOf(inner) => {
+                TestInstance::new("BuildingBlocks_StyleSelectorConditionAllOfCondition").value(
+                    "conditions",
+                    TestValue::Array(inner.iter().map(Self::value).collect()),
+                )
             }
             Self::Unknown => TestInstance::new("BuildingBlocks_StyleSelectorConditionUnknown"),
         })
@@ -206,6 +214,7 @@ fn typed(kind: &str, inner: &str, value: TestValue) -> TestValue {
 pub struct TestStyleEntry {
     name: String,
     conditions: Vec<TestCondition>,
+    other_lists: Vec<Vec<TestCondition>>,
     modifiers: Vec<TestModifier>,
 }
 
@@ -216,8 +225,16 @@ impl TestStyleEntry {
         Self {
             name: name.into(),
             conditions: Vec::new(),
+            other_lists: Vec::new(),
             modifiers: Vec::new(),
         }
+    }
+
+    /// Adds a second list of conditions: the entry applies when either list holds.
+    #[must_use]
+    pub fn or_list(mut self, conditions: Vec<TestCondition>) -> Self {
+        self.other_lists.push(conditions);
+        self
     }
 
     /// Adds a condition that must hold together with the others.
@@ -234,22 +251,29 @@ impl TestStyleEntry {
         self
     }
 
-    fn value(&self) -> TestValue {
+    pub(crate) fn value(&self) -> TestValue {
+        let lists = std::iter::once(&self.conditions).chain(&self.other_lists);
         TestValue::Struct(
             TestInstance::new("BuildingBlocks_StyleEntry")
                 .value("name", TestValue::text(self.name.clone()))
                 .value(
                     "conditionsList",
-                    TestValue::Array(vec![TestValue::Struct(
-                        TestInstance::new("BuildingBlocks_StyleConditionList")
-                            .value("name", TestValue::text("list"))
-                            .value(
-                                "conditions",
-                                TestValue::Array(
-                                    self.conditions.iter().map(TestCondition::value).collect(),
-                                ),
-                            ),
-                    )]),
+                    TestValue::Array(
+                        lists
+                            .map(|list| {
+                                TestValue::Struct(
+                                    TestInstance::new("BuildingBlocks_StyleConditionList")
+                                        .value("name", TestValue::text("list"))
+                                        .value(
+                                            "conditions",
+                                            TestValue::Array(
+                                                list.iter().map(TestCondition::value).collect(),
+                                            ),
+                                        ),
+                                )
+                            })
+                            .collect(),
+                    ),
                 )
                 .value(
                     "modifiers",

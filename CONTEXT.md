@@ -585,13 +585,15 @@ The rules that give a widget its colours, geometry and visibility at rest: the p
 count and their combinations) pick widgets and whose modifiers set fill, stroke, background,
 border colour, alpha, activity, sizes, margins, padding, anchor, pivot, scale and flex settings.
 State tags bound by a canvas are tags of their widget, and an animation that holds its last frame
-is applied at that frame (ADR-0287); transitions are not evaluated (ADR-0089, ADR-0110).
+is applied at that frame (ADR-0287); an entry that names no type and selects by the parent also
+colours the text of a text field (ADR-0296); transitions are not evaluated (ADR-0089, ADR-0110).
 _Avoid_: CSS, theme
 
 **State at rest**:
 What a Screen shows before the game sets anything: every game variable has its zero value, and
 the `operations` of each canvas, evaluated on that, decide which widgets are instantiated and
-active, their alpha and the parameters of nested canvases (ADR-0110).
+active, their alpha, the number fields of their layout (size, anchor, pivot, scale, position,
+padding, margin, bounds) and the parameters of nested canvases (ADR-0110, ADR-0296).
 _Avoid_: default state, idle (the game has no such state)
 
 **Text field**:

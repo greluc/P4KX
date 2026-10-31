@@ -54,11 +54,12 @@ pub(crate) const DIFFERENCES: u8 = 1;
 /// output that is one of its inputs or lies inside a Star Citizen installation, names a
 /// package output folder that exists and holds something else than an earlier package, names an
 /// armour `--loadout` that is neither an Entity nor an XML Loadout that can be read, has an
-/// invalid Query or a Query or field-statistics output that does not fit --json, names a Loadout change (`--exclude`, `--replace`) that is
-/// malformed, names a port the Loadout lacks or contradicts another, names a Record dcb refs does
-/// not find, or gives CHF JSON that is invalid or cannot be written as CHF, asks loc for a language the Archive holds no
-/// global.ini for, or looks up a localisation key that has no text, asks actionmap export for an
-/// Archive without a default profile, names an Entity whose own geometry the Archive lacks, or
+/// invalid Query or a Query or field-statistics output that does not fit --json, names a Loadout
+/// change (`--exclude`, `--replace`) that is malformed, names a port the Loadout lacks or
+/// contradicts another, names a Record dcb refs does not find, or gives CHF JSON that is invalid
+/// or cannot be written as CHF, asks loc for a language the Archive holds no global.ini for, or
+/// looks up a localisation key that has no text, asks actionmap export for an Archive without a
+/// default profile, names an Entity whose own geometry the Archive lacks, or
 /// names a prefab library or prefab the Archive lacks.
 pub(crate) const INVALID_INPUT: u8 = 2;
 /// The Archive, a container in it, an Entry's data, the input file or a model companion cannot be
@@ -126,8 +127,8 @@ pub(crate) const EXIT_CODES_HELP: &str = "Exit codes:
      entity package the geometry of the Entity itself, its .chrm or .skinm companion or the
      character definition that names no model, which cannot be read; nothing is written), with
      a CHF CRC-32C mismatch or unknown CHF version, a sound, soundbank, chunk file or UI movie
-     too large to read into memory, or with unreadable Entry data, also a socpak container that cannot be
-     opened, a --diff Entry that cannot be read or holds corrupt CryXml, a global.ini of the
+     too large to read into memory, or with unreadable Entry data, also a socpak container that
+     cannot be opened, a --diff Entry that cannot be read or holds corrupt CryXml, a global.ini of the
      catalog that is corrupt or cannot be read, a defaultProfile.xml that is no XML, is too large
      or cannot be read, a prefab library that cannot be read, or the skeleton of a body variant
      (armour glb) that is missing or unreadable; a missing texture, sound, soundbank, chunk file,
@@ -207,7 +208,7 @@ fn code_for(error: &anyhow::Error) -> u8 {
         || texture::is_invalid_input(error)
         || model::is_invalid_input(error)
         || is_output_or_query_error(error)
-        || is_root_geometry_error(error, true)
+        || is_missing_root_geometry(error)
         || error.downcast_ref::<EntityLookupError>().is_some()
         || is_screen_error(error, |error| !matches!(error, ScreenError::DataForge(_)))
         || is_unknown_audio_input(error)
@@ -245,6 +246,7 @@ fn is_loadout_or_screen_forge_error(error: &anyhow::Error) -> bool {
         || is_screen_error(error, |error| matches!(error, ScreenError::DataForge(_)))
 }
 
+/// Returns whether `error` is an audio trigger or language the Archive does not define.
 fn is_unknown_audio_input(error: &anyhow::Error) -> bool {
     error.downcast_ref::<UnknownTrigger>().is_some()
         || error.downcast_ref::<UnknownAudioLanguage>().is_some()
@@ -257,15 +259,23 @@ fn is_unreadable_assembly_source(error: &anyhow::Error) -> bool {
         error.downcast_ref::<AssemblyError>(),
         Some(AssemblyError::Body { .. })
     ) || crate::prefab::is_archive_error(error)
-        || is_root_geometry_error(error, false)
+        || is_unreadable_root_geometry(error)
 }
 
-/// Returns whether `error` is a root geometry that does not exist (`missing`) or that cannot be
-/// read (`!missing`).
-fn is_root_geometry_error(error: &anyhow::Error, missing: bool) -> bool {
-    error
-        .downcast_ref::<RootGeometryError>()
-        .is_some_and(|error| matches!(error, RootGeometryError::Missing { .. }) == missing)
+/// Returns whether `error` is a geometry of the exported Entity itself that does not exist.
+fn is_missing_root_geometry(error: &anyhow::Error) -> bool {
+    matches!(
+        error.downcast_ref::<RootGeometryError>(),
+        Some(RootGeometryError::Missing { .. })
+    )
+}
+
+/// Returns whether `error` is a geometry of the exported Entity itself that cannot be read.
+fn is_unreadable_root_geometry(error: &anyhow::Error) -> bool {
+    matches!(
+        error.downcast_ref::<RootGeometryError>(),
+        Some(RootGeometryError::Unreadable { .. })
+    )
 }
 
 fn is_export_conflict(error: &anyhow::Error) -> bool {

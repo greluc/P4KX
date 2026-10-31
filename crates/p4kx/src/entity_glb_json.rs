@@ -12,7 +12,7 @@ use serde::Serialize;
 
 use crate::cli_entity::EntityGlbArgs;
 use crate::entity_glb_body::{BodyJson, body_json};
-use crate::entity_glb_placements::{PlacementJson, placements_json};
+use crate::entity_glb_placements::{PlacementJson, painted, placements_json};
 use crate::json;
 
 /// What the JSON report of one `entity glb` run is built from.
@@ -38,7 +38,7 @@ impl GlbReport<'_> {
             applied,
             changes,
         } = *self;
-        json::print(&GlbJson {
+        Ok(json::print(&GlbJson {
             archive: json::path(archive),
             entity: tree.class_name(),
             guid: tree.guid().to_string(),
@@ -82,8 +82,7 @@ impl GlbReport<'_> {
                 .collect(),
             placements: placements_json(assembly),
             issues: assembly.issues().iter().map(IssueJson::from).collect(),
-        })?;
-        Ok(())
+        })?)
     }
 }
 
@@ -185,15 +184,6 @@ impl<'a> From<&'a Issue> for IssueJson<'a> {
             reason: issue.kind().to_string(),
         }
     }
-}
-
-/// The number of parts of `assembly` drawn with a tint palette.
-pub(crate) fn painted(assembly: &Assembly) -> usize {
-    assembly
-        .parts()
-        .iter()
-        .filter(|part| part.palette().is_some())
-        .count()
 }
 
 fn fallbacks_json(summary: &GlbSummary) -> Vec<FallbackJson<'_>> {

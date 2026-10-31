@@ -14,6 +14,7 @@ from p4kx_importer.graph_groups import LAYER_BLEND, WEAR, group_spec
 from p4kx_importer.graph_spec import GraphSpec, NodeSpec, Ref
 from p4kx_importer.material_graph import BuildContext, build_graph, family_of
 from p4kx_importer.material_model import parse_materials, parse_palettes
+from p4kx_importer.material_surface import GLASS_BSDF_SHARE
 from p4kx_importer.material_pairing import index_of, pair_by_index
 from synthetic_materials import description, entry, manifest_11, slot
 
@@ -383,7 +384,7 @@ def tint_of(graph: GraphSpec, mix: str) -> NodeSpec:
 def test_glass_is_a_tinted_transparent_surface_with_a_share_of_the_principled_bsdf() -> None:
     graph = single([description("x0001", "GlassPBR", diffuse=[0.5, 0.5, 0.5])])
     mix = glass_mix(graph)
-    assert graph.node(mix).inputs["Fac"] == pytest.approx(0.15)
+    assert graph.node(mix).inputs["Fac"] == GLASS_BSDF_SHARE
     assert tint_of(graph, mix).inputs["Color"] == (0.5, 0.5, 0.5)
     assert graph.linked(mix, 2) == Ref("bsdf", "BSDF")
     assert graph.node("bsdf").inputs["Transmission Weight"] == 1.0
@@ -391,10 +392,11 @@ def test_glass_is_a_tinted_transparent_surface_with_a_share_of_the_principled_bs
     assert graph.alpha_mode == "blend"
 
 
-def test_dark_glass_keeps_the_same_share_of_the_scene_behind_it() -> None:
+def test_dark_glass_differs_from_grey_glass_only_in_its_tint() -> None:
     dark = single([description("x0001", "GlassPBR", diffuse=[0.0, 0.0, 0.0])])
     grey = single([description("x0001", "GlassPBR", diffuse=[0.16, 0.16, 0.16])])
-    assert dark.node(glass_mix(dark)).inputs["Fac"] == grey.node(glass_mix(grey)).inputs["Fac"] == 0.15
+    assert dark.node(glass_mix(dark)).inputs["Fac"] == grey.node(glass_mix(grey)).inputs["Fac"] == GLASS_BSDF_SHARE
+    assert tint_of(dark, glass_mix(dark)).inputs["Color"] != tint_of(grey, glass_mix(grey)).inputs["Color"]
 
 
 def test_palette_glass_colour_tints_the_transparent_surface() -> None:
@@ -406,6 +408,15 @@ def test_per_vertex_tint_glass_tints_the_transparent_surface_with_the_same_colou
     graph = single([description("x0001", "GlassPBR", gen_mask=["PER_VERTEX_TINT"])])
     colours = graph.linked("bsdf", "Base Color")
     assert colours is not None
+    assert graph.linked(tint_of(graph, glass_mix(graph)).key, "Color") == colours
+
+
+def test_a_coloured_per_vertex_tint_feeds_one_multiply_mix_to_both_glass_colours() -> None:
+    raw = description("x0001", "GlassPBR", gen_mask=["PER_VERTEX_TINT"], diffuse=[0.5, 0.25, 1.0])
+    graph = single([raw])
+    colours = graph.linked("bsdf", "Base Color")
+    assert colours is not None and graph.node(colours.key).props["blend_type"] == "MULTIPLY"
+    assert graph.node(colours.key).inputs["B"] == (0.5, 0.25, 1.0)
     assert graph.linked(tint_of(graph, glass_mix(graph)).key, "Color") == colours
 
 

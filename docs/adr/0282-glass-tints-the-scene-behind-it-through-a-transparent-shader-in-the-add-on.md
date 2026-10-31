@@ -40,6 +40,14 @@ Transmission BSDF both do. A blended Principled BSDF with alpha 1 draws the worl
   and Cycles agree within a few per cent on the Cutlass Black's `glass_mat` and
   `plastic_dirty_translucent`.
 - Cycles glass is no longer lightened by an alpha; it shows the colour as the game does.
+- Shadows, measured with a sun and a plane under glass in Blender 5.2.3: dark glass
+  (`glass_mat`) casts a shadow lighter than an opaque surface of the same colour, and clear glass
+  (`glass_int`) one that is nearly as bright as the lit floor, in EEVEE and in Cycles (floor
+  brightness 0.29 and 0.51 to 0.53 against 0.22 for an opaque surface, 0.58 lit). Setting
+  transparent shadows on the material changed nothing, so the importer does not set it.
+- Vertex-colour glass (`PER_VERTEX_TINT`) with a real colour attribute tints in both engines: one
+  Multiply mix feeds the Transparent BSDF and the Principled BSDF, and EEVEE stays within a few
+  per cent of Cycles.
 - Surfaces drawn after the glass by Blended per-object sorting can still show in front of it.
 - Removing the vertex colours from glass on a mesh without colours (ADR-0253) sets the colour of
   the Transparent BSDF and of the Principled BSDF to the plain colour.

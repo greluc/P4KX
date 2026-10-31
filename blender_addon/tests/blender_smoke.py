@@ -277,6 +277,15 @@ def check_glass_tint() -> None:
     tinted, plain = glass("tinted"), glass("plain")
     check(len(vertex_nodes(tinted)) == 1, "the glass tree has a vertex colour node")
     check(vertex_nodes(tinted)[0].layer_name == "Color", "the node names the glTF colour attribute")
+    nodes = tinted.node_tree.nodes
+    base_in = next(n for n in nodes if n.type == "BSDF_PRINCIPLED").inputs["Base Color"]
+    tint_in = next(n for n in nodes if n.type == "BSDF_TRANSPARENT").inputs["Color"]
+    check(
+        base_in.is_linked
+        and tint_in.is_linked
+        and base_in.links[0].from_socket == tint_in.links[0].from_socket,
+        "the Transparent Color and the Principled Base Color share one source",
+    )
     importer._drop_vertex_colour_tint(tinted)
     check(len(vertex_nodes(tinted)) == 1, "the glTF tint drop leaves described glass alone")
 

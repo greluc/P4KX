@@ -1,7 +1,8 @@
-# Glass alpha follows the glass colour
+# Glass alpha follows the glass colour (amended: the alpha rule is replaced by ADR-0282)
 
 Decided for issue #855. Amends ADR-0100 (the glass row and the alpha rule) and keeps ADR-0253.
-The alpha rule is replaced by ADR-0282.
+**Amended by ADR-0282:** glass no longer takes an alpha from its colour; the colour tints a
+Transparent BSDF. The measurements below stay as the reason for the 0.15 share.
 
 ## Context
 

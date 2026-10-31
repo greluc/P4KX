@@ -107,6 +107,12 @@ impl RecordChangeView {
         }
     }
 
+    /// Shows no row, as the Filter text a field refuses selects nothing.
+    pub(crate) fn show_none(&mut self) {
+        self.pending = None;
+        self.show_mask(Some(vec![false; self.list.len()]));
+    }
+
     /// Returns the selected row, or `None` when none is.
     #[must_use]
     pub const fn selected(&self) -> Option<u32> {

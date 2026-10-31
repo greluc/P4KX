@@ -72,7 +72,8 @@ pub(super) fn show(ui: &mut Ui, texts: &Texts, setup: &mut ExtractionSetup) -> b
     accepted
 }
 
-fn problem_text(texts: &Texts, problem: &FilterError) -> String {
+/// Returns the words for a Filter text that is not accepted.
+pub(super) fn problem_text(texts: &Texts, problem: &FilterError) -> String {
     let limit = |max: usize| [("max", u64::try_from(max).unwrap_or(u64::MAX).into())];
     match problem {
         FilterError::TooLong { .. } => texts.format(T::ExcludeTooLong, &limit(MAX_FILTER_LEN)),

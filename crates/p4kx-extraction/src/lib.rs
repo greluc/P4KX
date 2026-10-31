@@ -128,9 +128,9 @@ pub use entry_tree::{EntryTree, Folder, FolderId};
 pub use exclusion::{Exclusion, LeftOut, MAX_EXCLUSIONS};
 pub use extract::extract;
 pub use filter::{Filter, FilterError, MAX_FILTER_LEN, MAX_FILTER_WILDCARDS};
-pub use folder_convert::convert_folder;
+pub use folder_convert::{convert_folder, convert_folder_excluding};
 pub use folder_source::{
-    FolderError, FolderFileError, FolderSource, MAX_FOLDER_DEPTH, MAX_FOLDER_ENTRIES,
+    FolderCounts, FolderError, FolderFileError, FolderSource, MAX_FOLDER_DEPTH, MAX_FOLDER_ENTRIES,
 };
 pub use loaded_dataforge::{DataForgeStopped, LoadedDataForge};
 pub use localization::{LocalizationEntry, LocalizationLoadError};

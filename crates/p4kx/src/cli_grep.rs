@@ -35,6 +35,11 @@ pub(crate) struct GrepArgs {
     /// Entries it replaces the list of extensions, so any Entry whose path matches is read.
     #[arg(long, value_name = "FILTER")]
     pub(crate) filter: Option<String>,
+    /// Leaves out every Record, localisation key and Entry whose record path, key or path this
+    /// Filter matches, with the rules of `p4kx search --exclude`; repeatable. Without --filter it
+    /// narrows the default selection.
+    #[arg(long, value_name = "FILTER")]
+    pub(crate) exclude: Vec<String>,
     /// The languages of the loc search: a code such as `en`, `de`, `es-419` or `zh-Hans`, or the
     /// folder name of the Archive such as `german_(germany)`, separated by commas; every language
     /// the Archive holds when not given.

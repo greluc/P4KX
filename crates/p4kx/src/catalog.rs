@@ -45,7 +45,7 @@ pub(crate) fn run(args: &CatalogArgs, as_json: bool) -> Result<ExitCode> {
             .ok_or_else(|| InvalidExportTime::of(seconds))?,
     };
     let archive = crate::key::open(archive)?;
-    let filter = args.filter.as_deref().map(Filter::new);
+    let filter = args.filter.as_deref().map(Filter::parse).transpose()?;
     let cancel = cancel_on_interrupt()?;
     let line = ProgressLine::new();
     let show = |progress| line.show_records(progress);

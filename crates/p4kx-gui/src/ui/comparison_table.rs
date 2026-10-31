@@ -8,7 +8,7 @@ use egui::{Frame, Galley, Id, Margin, Ui, vec2};
 use super::comparison_extraction;
 use super::comparison_list::{self, ListAction};
 use super::comparison_lists;
-use super::search::{eyebrow, field};
+use super::search::{eyebrow, filter_field, filter_problem};
 use super::{Dialog, Requests};
 use crate::theme::desktop::{SEARCH_WIDTH, TOOLBAR_PADDING};
 use crate::theme::palette;
@@ -166,6 +166,7 @@ fn rows(ui: &mut Ui, model: &Model, cache: &mut ToolbarCache, saving: bool) -> P
     let rest = shown + button::width(ui, Size::Normal, &cache.save);
     let mut pressed = Pressed::default();
     let mut inline = true;
+    let problem = filter_problem(model.texts(), &cache.filter);
     ui.horizontal(|ui| {
         let label = cache.label.clone().map(|label| ui.label(label));
         let label = label.map_or_else(|| ui.next_auto_id(), |label| label.id);
@@ -174,7 +175,12 @@ fn rows(ui: &mut Ui, model: &Model, cache: &mut ToolbarCache, saving: bool) -> P
         let trail = if inline { beside } else { rest };
         let width = (ui.available_width() - gap - trail).max(SEARCH_WIDTH);
         ui.allocate_ui(vec2(width, TOUCH_TARGET), |ui| {
-            pressed.filter_changed = field(ui, &mut cache.filter, &cache.hint, label);
+            pressed.filter_changed = filter_field(
+                ui,
+                &mut cache.filter,
+                (&cache.hint, label),
+                problem.as_deref(),
+            );
         });
         if inline && entries {
             pressed.extract = comparison_extraction::actions(ui, model, &cache.extract);

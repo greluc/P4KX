@@ -72,6 +72,7 @@ mod entity_package_materials;
 mod entity_package_parity;
 mod entity_vehicle;
 mod entry_issues;
+mod exclude_commands;
 mod extract;
 mod extract_audio;
 mod extract_conflicts;

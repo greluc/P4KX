@@ -3,11 +3,25 @@
 
 //! The selection of Entries by an include Filter and exclusion Filters.
 
+use std::io::{self, Write};
+
 use anyhow::Result;
 use p4kx_extraction::{Archive, Entry, Exclusion, Filter, TextureGroups};
 use thiserror::Error;
 
 use crate::no_match::NoMatch;
+
+/// Notes on stderr the `count` part Entries of textures that stay which an exclusion Filter left
+/// out and which `reader`, the option that converts, still reads; says nothing for none.
+pub(crate) fn note_excluded_parts(count: usize, reader: &str) {
+    if count > 0 {
+        let _ignored = writeln!(
+            io::stderr().lock(),
+            "note: --exclude left out {count} part Entries of textures that stay; {reader} still \
+             reads them to build each texture"
+        );
+    }
+}
 
 /// An include Filter whose every match an exclusion Filter leaves out.
 #[derive(Debug, Error)]
@@ -15,6 +29,16 @@ use crate::no_match::NoMatch;
 pub(crate) struct ExcludedAll {
     include: String,
     excluded: usize,
+}
+
+impl ExcludedAll {
+    /// Creates the error for the include Filter `include` whose `excluded` matches all left out.
+    pub(crate) fn new(include: &str, excluded: usize) -> Self {
+        Self {
+            include: include.to_owned(),
+            excluded,
+        }
+    }
 }
 
 /// The Entries a Filter pair selects.
@@ -74,6 +98,28 @@ pub(crate) fn search<'a>(
     )
 }
 
+/// Returns the Entries of `archive` to verify: those the Filter `text` matches, or every Entry
+/// without a Filter, without those an exclusion Filter of `exclude` matches.
+///
+/// # Errors
+///
+/// Returns an error for invalid Filter text, [`NoMatch`] when `text` matches none and
+/// [`ExcludedAll`] when the exclusion Filters leave out everything selected; the message names
+/// `*` as the include Filter when there is none.
+pub(crate) fn verification<'a>(
+    archive: &'a Archive,
+    text: Option<&str>,
+    exclude: &[String],
+) -> Result<Vec<&'a Entry>> {
+    let exclusion = Exclusion::parse(exclude)?;
+    let found = match text {
+        Some(text) => Filter::parse(text)?.select(archive),
+        None => archive.entries().iter().collect(),
+    };
+    let required = text.is_some() || !exclusion.is_empty();
+    Ok(narrow(found, text.unwrap_or("*"), &exclusion, required)?.entries)
+}
+
 fn narrow<'a>(
     found: Vec<&'a Entry>,
     text: &str,
@@ -85,11 +131,7 @@ fn narrow<'a>(
     }
     let left = exclusion.leave_out(found, |entry: &&'a Entry| -> &'a str { entry.path() });
     if left.kept.is_empty() && required {
-        return Err(ExcludedAll {
-            include: text.to_owned(),
-            excluded: left.removed,
-        }
-        .into());
+        return Err(ExcludedAll::new(text, left.removed).into());
     }
     Ok(Selected {
         entries: left.kept,

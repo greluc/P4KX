@@ -11,7 +11,7 @@ use rayon::prelude::*;
 use thiserror::Error;
 
 use crate::source::{EntrySource, SourceEntry, SourceReader};
-use crate::{CancelToken, EntryFailure, ExtractionError, Filter};
+use crate::{CancelToken, EntryFailure, Exclusion, ExtractionError, Filter, LeftOut};
 
 /// The most files, folders and rejected names [`FolderSource::scan`] visits; it bounds the memory
 /// of the listing, of the rejected names and of the folders waiting to be read.
@@ -43,6 +43,17 @@ pub enum FolderFileError {
     /// The file resolves to a place outside the input folder when it is opened.
     #[error("the file lies outside the input folder")]
     Outside,
+}
+
+/// How many files of a folder a Filter matches and an exclusion leaves out of them.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct FolderCounts {
+    /// The files the Filter matches.
+    pub matched: usize,
+    /// The files that remain after the exclusion.
+    pub kept: usize,
+    /// The left-out part files of textures whose header remains; a Conversion still reads them.
+    pub parts_of_kept_textures: usize,
 }
 
 /// Why an input folder cannot be converted.
@@ -178,23 +189,32 @@ impl FolderSource {
         &self.rejected
     }
 
-    /// Returns the files whose path matches `filter`, or every file, in path order.
-    pub(crate) fn select(&self, filter: Option<&Filter>) -> Vec<SourceEntry<'_>> {
-        self.files
+    /// Returns the files whose path matches `filter`, or every file, without those `exclusion`
+    /// leaves out, in path order.
+    pub(crate) fn select(
+        &self,
+        filter: Option<&Filter>,
+        exclusion: &Exclusion,
+    ) -> LeftOut<SourceEntry<'_>> {
+        let matching: Vec<SourceEntry<'_>> = self
+            .files
             .iter()
             .enumerate()
             .filter(|(_, file)| filter.is_none_or(|filter| filter.matches(&file.path)))
             .map(|(index, file)| self.entry(index, file))
-            .collect()
+            .collect();
+        exclusion.leave_out(matching, |entry: &SourceEntry<'_>| entry.path())
     }
 
-    /// Returns how many files `filter` matches.
+    /// Returns how many files `filter` matches and how many of them `exclusion` leaves out.
     #[must_use]
-    pub fn count_matching(&self, filter: &Filter) -> usize {
-        self.files
-            .par_iter()
-            .filter(|file| filter.matches(&file.path))
-            .count()
+    pub fn count_selected(&self, filter: Option<&Filter>, exclusion: &Exclusion) -> FolderCounts {
+        let left = self.select(filter, exclusion);
+        FolderCounts {
+            matched: left.kept.len().saturating_add(left.removed),
+            kept: left.kept.len(),
+            parts_of_kept_textures: left.parts_of_kept_textures.len(),
+        }
     }
 
     /// Returns the failures of the files and folders that were not listed.

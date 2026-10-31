@@ -38,24 +38,26 @@ pub(crate) fn run(args: &SocpakArgs, as_json: bool) -> Result<ExitCode> {
             }
             Ok(ExitCode::from(exit::SUCCESS))
         }
-        SocpakAction::Verify { source, filter } => {
+        SocpakAction::Verify {
+            source,
+            filter,
+            exclude,
+        } => {
             let (container, _) = open(source)?;
-            let entries = verify::selected(&container, filter.as_deref())?;
+            let entries = filter_pair::verification(&container, filter.as_deref(), exclude)?;
             verify::execute(&container, &entries, as_json)
         }
         SocpakAction::Extract {
             source,
             filter,
+            exclude,
             out,
             conflict,
             convert,
             verify,
         } => {
             let (container, _) = open(source)?;
-            let entries = match filter {
-                Some(text) => filter_pair::extraction(&container, text, &[])?.entries,
-                None => container.entries().iter().collect(),
-            };
+            let entries = extracted(&container, filter.as_deref(), exclude, *convert)?;
             let settings = Settings {
                 out: out.as_deref(),
                 conflict: *conflict,
@@ -73,6 +75,25 @@ pub(crate) fn run(args: &SocpakArgs, as_json: bool) -> Result<ExitCode> {
             extract::execute(&container, &entries, &settings, as_json)
         }
     }
+}
+
+/// Returns the Entries of `container` that `p4kx socpak extract` writes: those the Filter `text`
+/// matches without those `exclude` matches, or all of them without a Filter; with `convert`,
+/// notes the excluded parts of textures that stay.
+fn extracted<'a>(
+    container: &'a Archive,
+    text: Option<&str>,
+    exclude: &[String],
+    convert: bool,
+) -> Result<Vec<&'a Entry>> {
+    let Some(text) = text else {
+        return Ok(container.entries().iter().collect());
+    };
+    let selected = filter_pair::extraction(container, text, exclude)?;
+    if convert {
+        filter_pair::note_excluded_parts(selected.excluded_parts.len(), "--convert");
+    }
+    Ok(selected.entries)
 }
 
 /// Opens the Archive and every container of the chain in turn; returns the last container and

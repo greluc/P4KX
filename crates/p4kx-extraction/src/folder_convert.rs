@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 
 use crate::dataforge_pick::by_name_then_content;
 use crate::extract::{Rules, extract_files};
-use crate::{ExtractOptions, ExtractionReport, Filter, FolderError, FolderSource};
+use crate::{Exclusion, ExtractOptions, ExtractionReport, Filter, FolderError, FolderSource};
 
 /// Converts the files of `source` whose path matches `filter`, or all of them, into the folder
 /// `target` with the same relative paths, as `extract` with Conversion on writes the same
@@ -32,6 +32,31 @@ pub fn convert_folder(
     target: &Path,
     options: &ExtractOptions<'_>,
 ) -> Result<ExtractionReport, FolderError> {
+    convert_folder_excluding(
+        source,
+        (filter, &Exclusion::default()),
+        copy_other,
+        target,
+        options,
+    )
+}
+
+/// Converts the files of `source` whose path matches the Filter of `selection` without those its
+/// exclusion leaves out, as [`convert_folder`] does.
+///
+/// A texture whose header the exclusion matches is left out with its parts; a part it matches
+/// alone is not written, but a texture whose header remains is still built from it.
+///
+/// # Errors
+///
+/// As [`convert_folder`].
+pub fn convert_folder_excluding(
+    source: &FolderSource,
+    selection: (Option<&Filter>, &Exclusion),
+    copy_other: bool,
+    target: &Path,
+    options: &ExtractOptions<'_>,
+) -> Result<ExtractionReport, FolderError> {
     ensure_disjoint(source.root(), target)?;
     p4kx_guard::ensure_writable(target)?;
     fs::create_dir_all(target).map_err(|error| FolderError::Read {
@@ -44,7 +69,8 @@ pub fn convert_folder(
         watch: None,
         ..*options
     };
-    let entries = source.select(filter);
+    let (filter, exclusion) = selection;
+    let entries = source.select(filter, exclusion).kept;
     let rules = Rules {
         copy_other,
         pick: &by_name_then_content,

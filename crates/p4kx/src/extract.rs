@@ -189,13 +189,8 @@ fn requested_entries<'a>(args: &ExtractArgs, archive: &'a Archive) -> Result<Vec
         return Ok(select_entries(archive, &args.entries)?);
     };
     let selected = filter_pair::extraction(archive, text, &args.exclude)?;
-    if args.convert && !selected.excluded_parts.is_empty() {
-        let _ignored = writeln!(
-            io::stderr().lock(),
-            "note: --exclude left out {} part Entries of textures that stay; --convert still reads \
-             them to build each texture",
-            selected.excluded_parts.len()
-        );
+    if args.convert {
+        filter_pair::note_excluded_parts(selected.excluded_parts.len(), "--convert");
     }
     Ok(selected.entries)
 }

@@ -1,0 +1,238 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
+//! Binding what follows the head to its joints: every level of detail, only the bones a vertex
+//! uses, and the cases that are reported.
+
+use std::sync::Arc;
+
+use p4kx_chunks::ChunkFile;
+use p4kx_model::{CompanionError, CompanionPath, Model};
+use p4kx_testkit::{TestBone, TestModel, TestPositions, TestSkeleton, armour_male_skeleton};
+
+use super::{bind, plan};
+use crate::IssueKind;
+use crate::armour::follow_blend::{HeadSkin, Unbound};
+use crate::armour::head_move::{HeadMove, followed};
+
+const HEAD: u16 = 2;
+const VERTICES: usize = 24;
+
+fn bone(name: &str, parent: u16) -> TestBone {
+    TestBone {
+        name: name.to_owned(),
+        parent: Some(parent),
+        rotation: [0.0, 0.0, 0.0, 1.0],
+        translation: [0.0, 0.0, 0.1],
+    }
+}
+
+/// The cube as a skin of the male body plus `extra`, every vertex weighted to `bone`.
+fn skin(extra: Vec<TestBone>, bone: Option<u16>) -> TestModel {
+    let mut bones = armour_male_skeleton().bones().to_vec();
+    bones.extend(extra);
+    let cube = TestModel::cube()
+        .with_positions(TestPositions::Float)
+        .with_nodes(Vec::new())
+        .with_skeleton(&TestSkeleton::new(bones));
+    match bone {
+        Some(bone) => cube.with_bone_map(false, vec![vec![(bone, 255)]; VERTICES]),
+        None => cube,
+    }
+}
+
+/// Reads `source` as `<stem>.skin` with its levels of detail.
+fn read(source: &TestModel, stem: &str) -> Result<Model, Box<dyn std::error::Error>> {
+    let mut companions = |path: CompanionPath<'_>| -> Result<Option<Vec<u8>>, CompanionError> {
+        Ok(match path {
+            CompanionPath::Sibling(name) if name == format!("{stem}.skinm") => Some(source.cgfm()),
+            CompanionPath::Sibling(name) if name == format!("{stem}_lod1.skinm") => {
+                source.lod_cgfm(1)
+            }
+            CompanionPath::Sibling(name) if name == format!("{stem}_lod1.skin") => {
+                source.lod_cgf(1)
+            }
+            _ => None,
+        })
+    };
+    Ok(Model::read(
+        &format!("{stem}.skin"),
+        &ChunkFile::parse(source.cgf())?,
+        &mut companions,
+    )?)
+}
+
+fn head_with_jaw() -> Result<Model, Box<dyn std::error::Error>> {
+    let extra = vec![bone("jaw", HEAD), bone("tooth", 3)];
+    read(&skin(extra, Some(3)), "head")
+}
+
+fn hair() -> Result<Model, Box<dyn std::error::Error>> {
+    let source = skin(Vec::new(), Some(HEAD)).with_lod(skin(Vec::new(), Some(HEAD)));
+    read(&source, "hair")
+}
+
+fn names(bones: &[p4kx_model::Bone]) -> Vec<&str> {
+    bones.iter().map(|bone| bone.name.as_str()).collect()
+}
+
+#[test]
+fn every_level_of_detail_is_bound_to_the_bones_its_vertices_use()
+-> Result<(), Box<dyn std::error::Error>> {
+    let head = head_with_jaw()?;
+    let mesh = head
+        .lods
+        .first()
+        .and_then(|lod| lod.meshes.first())
+        .ok_or("a head mesh")?;
+    let mut hair = hair()?;
+    assert_eq!(hair.lods.len(), 2, "the hair has two levels");
+
+    bind(
+        &mut hair,
+        &HeadSkin::of(&head, mesh).map_err(|error| error.to_string())?,
+    )?;
+
+    for lod in &hair.lods {
+        let bones = hair.bones_of(lod);
+        assert_eq!(
+            names(bones),
+            ["pelvis", "spine", "head", "jaw"],
+            "level {}",
+            lod.level
+        );
+        let influences = lod
+            .meshes
+            .first()
+            .and_then(|mesh| mesh.influences.as_ref())
+            .ok_or("weights")?;
+        assert_eq!(influences.len(), VERTICES);
+        for each in influences {
+            assert_eq!(each.joints.first(), Some(&3), "level {}", lod.level);
+            assert_eq!(each.sum(), 255);
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn the_parents_of_a_used_bone_join_it_and_the_unused_children_do_not()
+-> Result<(), Box<dyn std::error::Error>> {
+    let extra = vec![bone("neck_mid", HEAD), bone("jaw", 3), bone("tooth", 4)];
+    let head = read(&skin(extra, Some(4)), "head")?;
+    let mesh = head
+        .lods
+        .first()
+        .and_then(|lod| lod.meshes.first())
+        .ok_or("a head mesh")?;
+    let mut hair = hair()?;
+
+    bind(
+        &mut hair,
+        &HeadSkin::of(&head, mesh).map_err(|error| error.to_string())?,
+    )?;
+
+    let lod = hair.lods.first().ok_or("a level")?;
+    let bones = hair.bones_of(lod);
+    assert_eq!(names(bones), ["pelvis", "spine", "head", "neck_mid", "jaw"]);
+    assert_eq!(bones.get(4).and_then(|jaw| jaw.parent), Some(3));
+    let influences = lod
+        .meshes
+        .first()
+        .and_then(|mesh| mesh.influences.as_ref())
+        .ok_or("weights")?;
+    assert!(
+        influences
+            .iter()
+            .all(|each| each.joints.first() == Some(&4))
+    );
+    Ok(())
+}
+
+#[test]
+fn a_head_without_weights_is_not_bound() -> Result<(), Box<dyn std::error::Error>> {
+    let head = read(&skin(vec![bone("jaw", HEAD)], None), "head")?;
+    let mesh = head
+        .lods
+        .first()
+        .and_then(|lod| lod.meshes.first())
+        .ok_or("a head mesh")?;
+
+    assert_eq!(
+        HeadSkin::of(&head, mesh).err(),
+        Some(Unbound::HeadNotSkinned)
+    );
+    Ok(())
+}
+
+#[test]
+fn more_bones_than_joint_indices_are_refused() -> Result<(), Box<dyn std::error::Error>> {
+    let head = head_with_jaw()?;
+    let template = head.bones.first().ok_or("a head bone")?;
+    let many: Vec<_> = (0..70_000)
+        .map(|index| {
+            let mut bone = template.clone();
+            bone.name = format!("extra_{index}");
+            bone.parent = None;
+            bone
+        })
+        .collect();
+
+    let refused = plan(&head.bones, &many).err();
+
+    assert_eq!(
+        refused,
+        Some(Unbound::TooManyBones {
+            count: head.bones.len() + 70_000
+        })
+    );
+    Ok(())
+}
+
+fn move_of(head: &Arc<Model>) -> HeadMove {
+    HeadMove {
+        before: Arc::clone(head),
+        after: Arc::clone(head),
+        morphs: Vec::new(),
+    }
+}
+
+#[test]
+fn a_head_that_cannot_be_followed_in_its_joints_is_reported_and_the_hair_keeps_its_bones()
+-> Result<(), Box<dyn std::error::Error>> {
+    let head = Arc::new(read(&skin(vec![bone("jaw", HEAD)], None), "head")?);
+    let hair = Arc::new(hair()?);
+
+    let worn = followed(&hair, &move_of(&head));
+
+    assert!(matches!(
+        worn.kinds.as_slice(),
+        [IssueKind::FollowJointsSkipped { reason }] if reason == "the head is not skinned"
+    ));
+    let lod = worn.model.lods.first().ok_or("a level")?;
+    let influences = lod
+        .meshes
+        .first()
+        .and_then(|mesh| mesh.influences.as_ref())
+        .ok_or("weights")?;
+    assert!(
+        influences
+            .iter()
+            .all(|each| each.joints.first() == Some(&HEAD))
+    );
+    assert_eq!(worn.model.bones.len(), 3);
+    Ok(())
+}
+
+#[test]
+fn a_skinned_head_binds_the_hair_without_a_report() -> Result<(), Box<dyn std::error::Error>> {
+    let head = Arc::new(head_with_jaw()?);
+    let hair = Arc::new(hair()?);
+
+    let worn = followed(&hair, &move_of(&head));
+
+    assert!(worn.kinds.is_empty(), "{:?}", worn.kinds);
+    let lod = worn.model.lods.first().ok_or("a level")?;
+    assert_eq!(worn.model.bones_of(lod).len(), 4);
+    Ok(())
+}

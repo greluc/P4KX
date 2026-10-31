@@ -121,6 +121,48 @@ fn a_new_value_of_a_closed_value_set_is_additive() -> TestResult {
 }
 
 #[test]
+fn no_definition_is_an_enum_or_a_oneof_of_constants() {
+    let schema = p4kx_export::catalog_schema();
+    let definitions = schema
+        .get("$defs")
+        .and_then(serde_json::Value::as_object)
+        .expect("the schema has definitions");
+    for (name, definition) in definitions {
+        assert!(
+            definition.get("enum").is_none(),
+            "{name} is an enum; a closed value set stays a string (ADR-0054)"
+        );
+        let all_constants = definition
+            .get("oneOf")
+            .and_then(serde_json::Value::as_array)
+            .is_some_and(|variants| {
+                !variants.is_empty()
+                    && variants
+                        .iter()
+                        .all(|variant| variant.get("const").is_some())
+            });
+        assert!(
+            !all_constants,
+            "{name} is a oneOf of constants; a closed value set stays a string (ADR-0054)"
+        );
+    }
+}
+
+#[test]
+fn the_fact_layer_and_standing_level_are_strings_that_list_their_known_values() {
+    let definitions = p4kx_export::catalog_schema()["$defs"].clone();
+    for name in ["FactLayer", "StandingLevel"] {
+        assert_eq!(definitions[name]["type"], "string", "{name} is a string");
+        assert!(
+            definitions[name]["x-values"]
+                .as_array()
+                .is_some_and(|values| !values.is_empty()),
+            "{name} lists its known values"
+        );
+    }
+}
+
+#[test]
 fn the_schema_accepts_unknown_fields_and_kinds_but_not_unknown_versions() -> TestResult {
     let validator = jsonschema::validator_for(&p4kx_export::catalog_schema())?;
     let catalog = minimal_catalog();

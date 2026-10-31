@@ -24,7 +24,9 @@ The rule is ADR-0054 (amending ADR-0002):
   selection or the ordering of an existing kind; the meaning of `completeness` stays.
 - **A new value in an existing closed value set is additive,** e.g. a new playability value or a
   new `itemClass`. A reader maps an unknown value to `null`. The schema documents such a set but
-  keeps the type a string, so an older schema accepts the new value.
+  keeps the type a string, so an older schema accepts the new value. A set derived from a Rust
+  enum lists its known values in the `x-values` annotation of the definition (`value` and
+  `description` per entry); a schema test rejects any `enum` or `oneOf` of constants.
 - **Loadouts (#393), paints, item stats and the starmap are kinds of the one catalog;** the size is
   handled by compression (`.json.zst`), not by a second Export. The Basetool accepts `.json`,
   `.json.gz` and `.json.zst`; the 64 MB limit applies to the compressed upload, the decompressed

@@ -76,6 +76,7 @@ mod catalog_crafting;
 mod catalog_file;
 mod catalog_output;
 mod catalog_recipe;
+mod closed_set;
 mod collected;
 #[cfg(test)]
 mod collected_tests;

@@ -38,6 +38,7 @@ pub(crate) struct CargoManifest<'a> {
 /// How a cargo manifest shares the capacity among its resources.
 #[derive(Debug, Clone, Copy, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
+#[schemars(transform = crate::closed_set::closed_string_set)]
 pub(crate) enum CargoFillType {
     /// `CargoFillCapacityValue_Even`: the capacity is split evenly.
     Even,
@@ -89,6 +90,7 @@ pub(crate) struct CargoSpawnRule<'a> {
 /// What a spawn rule of a cargo manifest lists.
 #[derive(Debug, Clone, Copy, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
+#[schemars(transform = crate::closed_set::closed_string_set)]
 pub(crate) enum CargoSpawnKind {
     /// `CargoSpawnEntityDef`: entities.
     Entities,

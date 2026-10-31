@@ -47,6 +47,7 @@ mod records;
 mod scmdb;
 mod scmdb_compare;
 mod second_uvs;
+mod shader_census;
 mod skeletons;
 mod soc_chunks;
 mod sound;

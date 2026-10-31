@@ -7,13 +7,13 @@ use std::io::Write;
 use std::path::Path;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use p4kx_archive::Entry;
 use p4kx_audio::{AudioError, Soundbank};
 
 use crate::buffers::Buffers;
 use crate::entry_path::relative_path;
 use crate::sound_convert::{Converted, SoundFile};
 use crate::sound_job::sound_role;
+use crate::source::SourceEntry;
 use crate::texture_convert::Step;
 use crate::write::{EntryWriter, Outcome};
 use crate::{ConversionError, ExtractionError};
@@ -63,7 +63,7 @@ impl EntryWriter<'_> {
     /// Soundbank itself was written lists each WEM not written as cancelled, as `<path> WEM <ID>`.
     pub(crate) fn try_write_bank(
         &self,
-        entry: &Entry,
+        entry: &SourceEntry<'_>,
         buffers: &mut Buffers,
         credited: &AtomicU64,
     ) -> Result<Converted, ExtractionError> {
@@ -133,7 +133,7 @@ impl EntryWriter<'_> {
     /// left unwritten once the run is cancelled.
     fn unpack(
         &self,
-        entry: &Entry,
+        entry: &SourceEntry<'_>,
         bank: &Soundbank<&[u8]>,
         (folder, chunk): (&Path, &mut [u8]),
         credited: &AtomicU64,

@@ -9,12 +9,11 @@ use std::path::{Path, PathBuf};
 use std::process;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use p4kx_archive::{Archive, ArchiveError, Checksum, ChecksumHasher, Entry, EntryReader};
-
 use crate::buffers::Buffers;
 use crate::convert::{PEEK_LEN, is_cryxml};
 use crate::entry_path::{escaped_raw_path, relative_path};
 use crate::portable_name::check_path_length;
+use crate::source::{EntrySource, SourceEntry, SourceReader};
 use crate::tracker::Tracker;
 use crate::{AudioConversion, ConflictPolicy, ExtractionError, TextureConversion};
 
@@ -27,6 +26,8 @@ pub(crate) enum Outcome {
     Written,
     Converted,
     Kept,
+    /// Left out because a run that copies only converted files found nothing to convert.
+    NotConverted,
     Cancelled,
     Failed(ExtractionError),
 }
@@ -64,26 +65,28 @@ impl Destination {
     }
 }
 
-/// Writes Entries of one Archive below one target folder under one Conflict policy.
+/// Writes the files of one source below one target folder under one Conflict policy.
 pub(crate) struct EntryWriter<'a> {
-    pub(crate) archive: &'a Archive,
+    pub(crate) source: &'a dyn EntrySource,
     pub(crate) target: &'a Path,
     pub(crate) policy: ConflictPolicy,
     pub(crate) convert: bool,
+    /// Whether a file that Conversion leaves unchanged is written too; without it such a file is
+    /// [`Outcome::NotConverted`].
+    pub(crate) copy_other: bool,
     pub(crate) textures: TextureConversion,
     pub(crate) audio: AudioConversion,
     pub(crate) verify: bool,
     pub(crate) tracker: &'a Tracker<'a>,
 }
 
-impl<'a> EntryWriter<'a> {
+impl EntryWriter<'_> {
     /// Opens the data of `entry`, checked against its directory checksum when the run verifies.
-    pub(crate) fn open_entry(&self, entry: &Entry) -> Result<EntryReader<'a>, ArchiveError> {
-        if self.verify {
-            self.archive.open_entry_verified(entry)
-        } else {
-            self.archive.open_entry(entry)
-        }
+    pub(crate) fn open_entry<'e>(
+        &self,
+        entry: &SourceEntry<'e>,
+    ) -> Result<SourceReader<'e>, ExtractionError> {
+        entry.open(self.verify)
     }
 }
 
@@ -91,16 +94,21 @@ impl EntryWriter<'_> {
     /// Writes `entry`, using `buffers` for its data, and reports its end to the tracker.
     ///
     /// An Entry that failed because the watched Archive changed counts as cancelled.
-    pub(crate) fn write(&self, entry: &Entry, buffers: &mut Buffers) -> Outcome {
+    pub(crate) fn write(&self, entry: &SourceEntry<'_>, buffers: &mut Buffers) -> Outcome {
         self.write_entry(entry, buffers, self.convert)
     }
 
     /// Writes `entry` unchanged, even with Conversion on, and reports its end to the tracker.
-    pub(crate) fn write_raw(&self, entry: &Entry, buffers: &mut Buffers) -> Outcome {
+    pub(crate) fn write_raw(&self, entry: &SourceEntry<'_>, buffers: &mut Buffers) -> Outcome {
         self.write_entry(entry, buffers, false)
     }
 
-    fn write_entry(&self, entry: &Entry, buffers: &mut Buffers, convert: bool) -> Outcome {
+    fn write_entry(
+        &self,
+        entry: &SourceEntry<'_>,
+        buffers: &mut Buffers,
+        convert: bool,
+    ) -> Outcome {
         let mut written = 0;
         let outcome = match self.try_write(entry, buffers, convert, &mut written) {
             Ok(outcome) => outcome,
@@ -114,7 +122,7 @@ impl EntryWriter<'_> {
 
     fn try_write(
         &self,
-        entry: &Entry,
+        entry: &SourceEntry<'_>,
         buffers: &mut Buffers,
         convert: bool,
         written: &mut u64,
@@ -122,17 +130,43 @@ impl EntryWriter<'_> {
         if self.tracker.should_stop() {
             return Ok(Outcome::Cancelled);
         }
+        let mut prefix = [0; PEEK_LEN];
+        let sniffed = if convert && !self.copy_other {
+            let Some((reader, count)) = self.open_sniffed(entry, &mut prefix, written)? else {
+                return Ok(Outcome::Cancelled);
+            };
+            if !is_cryxml(prefix.get(..count).unwrap_or_default()) {
+                return Ok(Outcome::NotConverted);
+            }
+            Some((reader, count))
+        } else {
+            None
+        };
+        self.write_file(entry, buffers, (convert, sniffed), (&mut prefix, written))
+    }
+
+    /// Writes `entry` to its destination: converted when it is `CryXml` and `convert` is set,
+    /// otherwise unchanged. `sniffed` is the reader of the Entry and the length of the prefix
+    /// already read into `prefix`, when the caller looked at it before.
+    fn write_file(
+        &self,
+        entry: &SourceEntry<'_>,
+        buffers: &mut Buffers,
+        (convert, mut sniffed): (bool, Option<(SourceReader<'_>, usize)>),
+        (prefix, written): (&mut [u8; PEEK_LEN], &mut u64),
+    ) -> Result<Outcome, ExtractionError> {
         let destination = self.destination(entry)?;
         if destination.existing.is_some() && self.policy == ConflictPolicy::Skip {
             return Ok(Outcome::Kept);
         }
-        let mut prefix = [0; PEEK_LEN];
-        let mut peeked = 0;
-        let opened = if convert {
-            let mut reader = self.open_entry(entry)?;
-            let Some(count) = self.peek(&mut reader, &mut prefix, written)? else {
+        if convert && sniffed.is_none() {
+            let Some(opened) = self.open_sniffed(entry, prefix, written)? else {
                 return Ok(Outcome::Cancelled);
             };
+            sniffed = Some(opened);
+        }
+        let mut peeked = 0;
+        let opened = if let Some((mut reader, count)) = sniffed {
             peeked = count;
             let start = prefix.get(..peeked).unwrap_or_default();
             if is_cryxml(start) {
@@ -142,7 +176,10 @@ impl EntryWriter<'_> {
         } else {
             None
         };
-        let expected = || (entry.uncompressed_size(), entry.checksum());
+        let Some(checksum) = self.stated_checksum(entry, &destination, &mut buffers.chunk)? else {
+            return Ok(Outcome::Cancelled);
+        };
+        let expected = || (entry.uncompressed_size(), checksum);
         if let Some(outcome) = self.decide(&destination, expected, &mut buffers.chunk)? {
             return Ok(outcome);
         }
@@ -167,25 +204,45 @@ impl EntryWriter<'_> {
         self.put_in_place(&temporary, &destination.file, copied, Outcome::Written)
     }
 
+    /// Opens `entry` and reads its first bytes into `prefix`; returns the reader and how many
+    /// bytes were read, or `None` once the run is to stop.
+    fn open_sniffed<'e>(
+        &self,
+        entry: &SourceEntry<'e>,
+        prefix: &mut [u8; PEEK_LEN],
+        written: &mut u64,
+    ) -> Result<Option<(SourceReader<'e>, usize)>, ExtractionError> {
+        let mut reader = self.open_entry(entry)?;
+        Ok(self
+            .peek(&mut reader, prefix, written)?
+            .map(|count| (reader, count)))
+    }
+
     /// Returns the path `entry` is named by on disk: its path, or for an Entry whose stored path
     /// is not UTF-8 the stored bytes with invalid ones escaped, which differs between Entries
     /// whose lossy paths are equal.
-    pub(crate) fn disk_name<'a>(&self, entry: &'a Entry) -> Cow<'a, str> {
-        self.archive.raw_path(entry.index()).map_or_else(
+    pub(crate) fn disk_name<'a>(&self, entry: &'a SourceEntry<'_>) -> Cow<'a, str> {
+        self.source.raw_path(entry.index()).map_or_else(
             || Cow::Borrowed(entry.path()),
             |raw| Cow::Owned(escaped_raw_path(raw)),
         )
     }
 
     /// Returns the path below the target `entry` is written to, or why it is not written.
-    pub(crate) fn relative_path(&self, entry: &Entry) -> Result<PathBuf, ExtractionError> {
+    pub(crate) fn relative_path(
+        &self,
+        entry: &SourceEntry<'_>,
+    ) -> Result<PathBuf, ExtractionError> {
         relative_path(&self.disk_name(entry))
     }
 
     /// Creates the folder of `entry` below the target and returns where its file goes; fails when
     /// the path is no valid name, too long for Windows or Linux, or collides ignoring case with a
     /// file an earlier Entry of the run wrote.
-    pub(crate) fn destination(&self, entry: &Entry) -> Result<Destination, ExtractionError> {
+    pub(crate) fn destination(
+        &self,
+        entry: &SourceEntry<'_>,
+    ) -> Result<Destination, ExtractionError> {
         let relative = self.relative_path(entry)?;
         check_path_length(&self.target.join(&relative))?;
         self.case_collision(&relative, entry)?;
@@ -215,57 +272,6 @@ impl EntryWriter<'_> {
             return Err(write_error(destination.to_path_buf(), source));
         }
         Ok(done)
-    }
-
-    /// Decides whether the file of `destination` is written, comparing an existing file under
-    /// [`ConflictPolicy::IfChanged`] with the size and checksum `expected` returns; returns the
-    /// outcome of an Entry that is not written, or `None` to write it.
-    pub(crate) fn decide(
-        &self,
-        destination: &Destination,
-        expected: impl FnOnce() -> (u64, Checksum),
-        buffer: &mut [u8],
-    ) -> Result<Option<Outcome>, ExtractionError> {
-        let Some(metadata) = &destination.existing else {
-            return Ok(None);
-        };
-        match self.policy {
-            ConflictPolicy::Skip => Ok(Some(Outcome::Kept)),
-            ConflictPolicy::IfChanged if metadata.is_file() => {
-                let (len, checksum) = expected();
-                if metadata.len() != len {
-                    return Ok(None);
-                }
-                let hasher = ChecksumHasher::of_kind(checksum);
-                Ok(
-                    match self.file_checksum(&destination.file, hasher, buffer)? {
-                        Some(existing) if existing == checksum => Some(Outcome::Kept),
-                        Some(_) => None,
-                        None => Some(Outcome::Cancelled),
-                    },
-                )
-            }
-            ConflictPolicy::Overwrite | ConflictPolicy::IfChanged => Ok(None),
-        }
-    }
-
-    fn file_checksum(
-        &self,
-        path: &Path,
-        mut hasher: ChecksumHasher,
-        buffer: &mut [u8],
-    ) -> Result<Option<Checksum>, ExtractionError> {
-        let mut file = File::open(path).map_err(|source| read_existing_error(path, source))?;
-        loop {
-            match self
-                .read_chunk(&mut file, buffer)
-                .map_err(|source| read_existing_error(path, source))?
-            {
-                Chunk::Data(count) => hasher.update(buffer.get(..count).unwrap_or_default()),
-                Chunk::End => return Ok(Some(hasher.finish())),
-                Chunk::Cancelled => return Ok(None),
-            }
-        }
     }
 
     fn copy(

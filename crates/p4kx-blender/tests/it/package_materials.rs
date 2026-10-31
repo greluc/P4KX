@@ -141,6 +141,8 @@ fn a_layered_material_carries_its_shader_flags_colours_and_parameters() -> TestR
     assert_eq!(hull.index, Some(1));
     assert_eq!(hull.diffuse, [0.5; 3]);
     assert_eq!(hull.alpha_mode, AlphaMode::Opaque);
+    assert!(hull.reads_vertex_colours, "layers without a blend map");
+    assert!(!written.material("canopy")?.reads_vertex_colours);
     assert_eq!(hull.palette, Some(PaletteEntry::Primary));
     assert_eq!(
         hull.default_palette.as_deref(),

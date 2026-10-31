@@ -79,6 +79,7 @@ mod extraction_run;
 mod extraction_summary_scrolling;
 mod extraction_textures;
 mod extraction_window;
+mod folder_conversion_window;
 mod glb_exporting;
 mod headless;
 mod image_preview;

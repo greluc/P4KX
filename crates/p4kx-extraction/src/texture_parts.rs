@@ -7,12 +7,12 @@ use std::fs::{self, File};
 use std::io::{self, Read};
 use std::path::{Path, PathBuf};
 
-use p4kx_archive::{Archive, ArchiveError, Entry, EntryReader};
+use p4kx_archive::Archive;
 use p4kx_texture::SiblingReader;
-use rayon::prelude::*;
 
 use crate::entry_path::same_entry_path;
 use crate::path_index::PathIndex;
+use crate::source::{EntrySource, SourceEntry, SourceReader};
 
 const ALPHA_SUFFIX: &str = "a";
 const MAX_PROBED_PARTS: u32 = 32;
@@ -20,11 +20,10 @@ const MAX_PROBED_PARTS: u32 = 32;
 /// Where the header and the parts of one split texture are stored.
 #[derive(Debug, Clone)]
 pub(crate) enum Parts<'a> {
-    /// Entries of an Archive, by part number.
-    Archive {
-        archive: &'a Archive,
-        header: &'a Entry,
-        parts: BTreeMap<u32, &'a Entry>,
+    /// Files of a source, by part number.
+    Source {
+        header: SourceEntry<'a>,
+        parts: BTreeMap<u32, SourceEntry<'a>>,
         verify: bool,
     },
     /// Files next to a header file on disk, part `N` named `<base>.<N><suffix>`.
@@ -44,14 +43,14 @@ pub(crate) struct Found<'a> {
 
 /// The data of one part.
 pub(crate) enum PartReader<'a> {
-    Entry(EntryReader<'a>),
+    Source(SourceReader<'a>),
     File(File),
 }
 
 impl Read for PartReader<'_> {
     fn read(&mut self, buffer: &mut [u8]) -> io::Result<usize> {
         match self {
-            Self::Entry(reader) => reader.read(buffer),
+            Self::Source(reader) => reader.read(buffer),
             Self::File(file) => file.read(buffer),
         }
     }
@@ -65,9 +64,10 @@ impl<'a> Parts<'a> {
     /// no alpha tail of its own.
     pub(crate) fn in_archive(archive: &'a Archive, path: &str) -> Option<Found<'a>> {
         let (base, is_alpha) = split_alpha(path);
-        let found: Vec<(Role, &Entry)> = archive
-            .entries()
-            .par_iter()
+        let source: &'a dyn EntrySource = archive;
+        let found: Vec<(Role, SourceEntry<'a>)> = source
+            .members(&|candidate| classify(candidate, base).is_some())
+            .into_iter()
             .filter_map(|entry| classify(entry.path(), base).map(|role| (role, entry)))
             .collect();
         let find = |wanted: Role| {
@@ -94,16 +94,14 @@ impl<'a> Parts<'a> {
         let alpha = if is_alpha {
             None
         } else {
-            find(Role::AlphaHeader).map(|header| Self::Archive {
-                archive,
+            find(Role::AlphaHeader).map(|header| Self::Source {
                 header,
                 parts: parts_of(true),
                 verify: false,
             })
         };
         Some(Found {
-            colour: Self::Archive {
-                archive,
+            colour: Self::Source {
                 header,
                 parts: parts_of(is_alpha),
                 verify: false,
@@ -118,18 +116,20 @@ impl<'a> Parts<'a> {
     pub(crate) fn in_index(index: &PathIndex<'a>, path: &str) -> Option<Found<'a>> {
         let (base, is_alpha) = split_alpha(path);
         let archive = index.archive();
-        let header = index.find(&if is_alpha {
-            format!("{base}.{ALPHA_SUFFIX}")
-        } else {
-            base.to_owned()
-        })?;
+        let header = index
+            .find(&if is_alpha {
+                format!("{base}.{ALPHA_SUFFIX}")
+            } else {
+                base.to_owned()
+            })
+            .map(|entry| SourceEntry::of_archive(archive, entry))?;
         let parts_of = |suffix: &str| {
             let mut parts = BTreeMap::new();
             for number in 1..=MAX_PROBED_PARTS {
                 let Some(part) = index.find(&format!("{base}.{number}{suffix}")) else {
                     break;
                 };
-                parts.insert(number, part);
+                parts.insert(number, SourceEntry::of_archive(archive, part));
             }
             parts
         };
@@ -139,16 +139,14 @@ impl<'a> Parts<'a> {
         } else {
             index
                 .find(&format!("{base}.{ALPHA_SUFFIX}"))
-                .map(|alpha| Self::Archive {
-                    archive,
-                    header: alpha,
+                .map(|alpha| Self::Source {
+                    header: SourceEntry::of_archive(archive, alpha),
                     parts: parts_of(ALPHA_SUFFIX),
                     verify: false,
                 })
         };
         Some(Found {
-            colour: Self::Archive {
-                archive,
+            colour: Self::Source {
                 header,
                 parts: parts_of(colour_suffix),
                 verify: false,
@@ -192,24 +190,11 @@ impl<'a> Parts<'a> {
     /// Returns the path of part `index` on disk, or `None` for parts in an Archive.
     pub(crate) fn file_of(&self, index: u32) -> Option<PathBuf> {
         match self {
-            Self::Archive { .. } => None,
+            Self::Source { .. } => None,
             Self::Files { base, suffix, .. } => {
                 Some(with_suffix(base, &format!(".{index}{suffix}")))
             }
         }
-    }
-}
-
-/// Opens the data of `entry`, checked against its directory checksum when `verify` is set.
-pub(crate) fn open_entry<'a>(
-    archive: &'a Archive,
-    entry: &Entry,
-    verify: bool,
-) -> Result<EntryReader<'a>, ArchiveError> {
-    if verify {
-        archive.open_entry_verified(entry)
-    } else {
-        archive.open_entry(entry)
     }
 }
 
@@ -227,9 +212,7 @@ impl SiblingReader for Parts<'_> {
 
     fn part_len(&self, index: u32) -> io::Result<Option<u64>> {
         match self {
-            Self::Archive { parts, .. } => {
-                Ok(parts.get(&index).map(|entry| entry.uncompressed_size()))
-            }
+            Self::Source { parts, .. } => Ok(parts.get(&index).map(SourceEntry::uncompressed_size)),
             Self::Files { .. } => match self.file_of(index).map(fs::metadata) {
                 Some(Ok(metadata)) if metadata.is_file() => Ok(Some(metadata.len())),
                 Some(Ok(_)) | None => Ok(None),
@@ -241,17 +224,13 @@ impl SiblingReader for Parts<'_> {
 
     fn open_part(&self, index: u32) -> io::Result<Self::Part<'_>> {
         match self {
-            Self::Archive {
-                archive,
-                parts,
-                verify,
-                ..
-            } => {
+            Self::Source { parts, verify, .. } => {
                 let entry = parts
                     .get(&index)
                     .ok_or_else(|| io::Error::from(io::ErrorKind::NotFound))?;
-                open_entry(archive, entry, *verify)
-                    .map(PartReader::Entry)
+                entry
+                    .open(*verify)
+                    .map(PartReader::Source)
                     .map_err(io::Error::other)
             }
             Self::Files { .. } => {

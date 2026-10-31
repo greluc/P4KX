@@ -1,0 +1,187 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
+//! `p4kx convert` over a folder written by `p4kx extract` without `--convert`.
+
+use std::collections::BTreeMap;
+use std::error::Error;
+use std::fs;
+use std::path::{Path, PathBuf};
+
+use p4kx_testkit::{
+    ArchiveBuilder, CryXmlByteOrder, CryXmlSignature, SplitDds, TestCodec, TestElement, TestEntry,
+    TestTextureFormat, TestWem, p4kx, test_signal,
+};
+
+type TestResult = Result<(), Box<dyn Error>>;
+
+struct Fixture {
+    dir: tempfile::TempDir,
+    archive: PathBuf,
+}
+
+fn fixture() -> Result<Fixture, Box<dyn Error>> {
+    let dir = tempfile::tempdir()?;
+    let archive = dir.path().join("Data.p4k");
+    let ship = TestElement::new("Ship")
+        .attribute("name", "Gladius")
+        .to_cryxml(CryXmlSignature::CryXmlB, CryXmlByteOrder::Little);
+    let sound = TestWem::pcm(TestCodec::WwisePcm, 1, 48_000, &test_signal(480, 1)).bytes();
+    let texture = SplitDds::new(TestTextureFormat::LegacyDxt5, 32, 16).split(3);
+    let mut builder = ArchiveBuilder::new()
+        .entry(TestEntry::stored("Data\\Ships\\gladius.xml", ship))
+        .entry(TestEntry::stored("Data\\Sounds\\5.wem", sound))
+        .entry(TestEntry::stored("Data\\readme.bin", b"plain".to_vec()));
+    for entry in texture.entries("Data\\Textures\\rock_diff.dds") {
+        builder = builder.entry(entry);
+    }
+    builder.write_to(&archive)?;
+    Ok(Fixture { dir, archive })
+}
+
+impl Fixture {
+    fn extract(&self, name: &str, convert: bool) -> Result<PathBuf, Box<dyn Error>> {
+        let out = self.dir.path().join(name);
+        let mut command = p4kx()?;
+        command
+            .arg("extract")
+            .arg(&self.archive)
+            .args(["--filter", "Data", "--out"])
+            .arg(&out);
+        if convert {
+            command.arg("--convert");
+        }
+        command.assert().code(0);
+        Ok(out)
+    }
+}
+
+fn tree(root: &Path) -> Result<BTreeMap<String, Vec<u8>>, Box<dyn Error>> {
+    let mut found = BTreeMap::new();
+    let mut folders = vec![root.to_path_buf()];
+    while let Some(folder) = folders.pop() {
+        for entry in fs::read_dir(folder)? {
+            let path = entry?.path();
+            if path.is_dir() {
+                folders.push(path);
+            } else {
+                let name = path
+                    .strip_prefix(root)?
+                    .to_string_lossy()
+                    .replace('\\', "/");
+                found.insert(name, fs::read(&path)?);
+            }
+        }
+    }
+    Ok(found)
+}
+
+#[test]
+fn convert_writes_what_extract_with_convert_writes() -> TestResult {
+    let fixture = fixture()?;
+    let expected = fixture.extract("converted", true)?;
+    let raw = fixture.extract("raw", false)?;
+    let out = fixture.dir.path().join("from-folder");
+
+    let output = p4kx()?
+        .args(["--json", "convert"])
+        .arg(&raw)
+        .arg("--out")
+        .arg(&out)
+        .arg("--copy-other")
+        .output()?;
+
+    assert_eq!(output.status.code(), Some(0), "success: {output:?}");
+    let json: serde_json::Value = serde_json::from_slice(&output.stdout)?;
+    assert_eq!(json["failed"], serde_json::json!([]), "no failure");
+    assert_eq!(tree(&out)?, tree(&expected)?, "the same files");
+    Ok(())
+}
+
+#[test]
+fn files_without_a_conversion_are_left_out_and_counted() -> TestResult {
+    let fixture = fixture()?;
+    let raw = fixture.extract("raw", false)?;
+    let out = fixture.dir.path().join("out");
+
+    let output = p4kx()?
+        .args(["--json", "convert"])
+        .arg(&raw)
+        .arg("--out")
+        .arg(&out)
+        .output()?;
+
+    assert_eq!(output.status.code(), Some(0), "success: {output:?}");
+    let json: serde_json::Value = serde_json::from_slice(&output.stdout)?;
+    assert_eq!(json["not_converted"], 1, "readme.bin");
+    assert!(!out.join("Data/readme.bin").exists(), "not copied");
+    Ok(())
+}
+
+#[test]
+fn an_output_that_overlaps_the_input_is_invalid_input() -> TestResult {
+    let fixture = fixture()?;
+    let raw = fixture.extract("raw", false)?;
+    let before = tree(&raw)?;
+
+    p4kx()?
+        .arg("convert")
+        .arg(&raw)
+        .arg("--out")
+        .arg(raw.join("inside"))
+        .assert()
+        .code(2);
+
+    assert_eq!(tree(&raw)?, before, "the input is untouched");
+    assert!(!raw.join("inside").exists(), "nothing was created");
+    Ok(())
+}
+
+#[test]
+fn a_filter_that_matches_no_file_is_invalid_input() -> TestResult {
+    let fixture = fixture()?;
+    let raw = fixture.extract("raw", false)?;
+
+    p4kx()?
+        .arg("convert")
+        .arg(&raw)
+        .args(["--filter", "no-such-file"])
+        .arg("--out")
+        .arg(fixture.dir.path().join("out"))
+        .assert()
+        .code(2);
+    Ok(())
+}
+
+#[test]
+fn an_input_that_is_no_folder_is_invalid_input() -> TestResult {
+    let fixture = fixture()?;
+
+    p4kx()?
+        .arg("convert")
+        .arg(&fixture.archive)
+        .arg("--out")
+        .arg(fixture.dir.path().join("out"))
+        .assert()
+        .code(2);
+    Ok(())
+}
+
+#[test]
+fn a_run_cancelled_before_the_folder_is_read_writes_nothing_and_ends_with_code_1() -> TestResult {
+    let fixture = fixture()?;
+    let raw = fixture.extract("raw", false)?;
+    let out = fixture.dir.path().join("out");
+
+    p4kx()?
+        .arg("convert")
+        .arg(&raw)
+        .arg("--out")
+        .arg(&out)
+        .args(["--cancel-after", "0"])
+        .assert()
+        .code(1);
+
+    assert!(!out.exists(), "nothing was created");
+    Ok(())
+}

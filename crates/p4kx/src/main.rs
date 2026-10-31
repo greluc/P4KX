@@ -36,6 +36,7 @@ mod cli_character;
 mod cli_chf;
 mod cli_chunks;
 mod cli_conflict;
+mod cli_convert;
 mod cli_coverage;
 mod cli_cryxml;
 mod cli_dcb;
@@ -57,6 +58,7 @@ mod cli_verify;
 mod cli_wwise;
 mod compare;
 mod compare_schema;
+mod convert;
 mod coverage;
 mod coverage_json;
 mod cryxml;
@@ -148,7 +150,6 @@ use crate::cli::{Cli, Command};
 fn main() -> ExitCode {
     let cli = Cli::parse();
     let json = cli.json;
-    let success = |()| ExitCode::from(exit::SUCCESS);
     guard::protect_installations();
     if !matches!(cli.command, Command::Key(_)) {
         guard::start_game_check();
@@ -161,43 +162,7 @@ fn main() -> ExitCode {
         key: cli.archive_key.clone(),
         file: cli.key_file.clone(),
     };
-    let result = match cli.command {
-        Command::List(args) => list::run(&args, json).map(success),
-        Command::Search(args) => list::search(&args, json).map(success),
-        Command::Extract(args) => extract::run(&args, json),
-        Command::Verify(args) => verify::run(&args, json),
-        Command::Channels(args) => channels::run(&args, json).map(success),
-        Command::Info(args) => info::run(&args, json).map(success),
-        Command::Dcb(args) => dcb::run(&args, json),
-        Command::Grep(args) => grep::run(&args, json),
-        Command::Catalog(args) => catalog::run(&args, json),
-        Command::Coverage(args) => coverage::run(&args, json),
-        Command::Ships(args) => ships::run(&args, json),
-        Command::Entity(args) => entity::run(&args, json),
-        Command::Interior(args) => cli_interior::dispatch(args.action, json).map(success),
-        Command::Prefab(args) => prefab::run(&args, json).map(success),
-        Command::Armour(args) => armour::run(&args, json).map(success),
-        Command::Character(args) => character_package::run(&args, json).map(success),
-        Command::Loc(args) => loc::run(&args, json),
-        Command::ActionMap(args) => actionmap::run(&args, json).map(success),
-        Command::Compare(args) => {
-            return compare::run(&args, json).unwrap_or_else(|error| {
-                report(&error);
-                exit::for_compare_error(&error)
-            });
-        }
-        Command::CryXml(args) => cryxml::run(&args, json).map(success),
-        Command::Texture(args) => texture::run(&args, json).map(success),
-        Command::Audio(args) => audio::run(&args, json).map(success),
-        Command::Bnk(args) => bnk::run(&args, json),
-        Command::Ui(args) => ui::run(&args, json),
-        Command::Socpak(args) => socpak::run(&args, json),
-        Command::Chf(args) => chf::run(&args, json),
-        Command::Chunks(args) => chunks::run(&args, json).map(success),
-        Command::Wwise(args) => wwise::run(&args, json),
-        Command::Model(args) => model::run(&args, json).map(success),
-        Command::Key(args) => key::run(&args, &given, json).map(success),
-    };
+    let result = dispatch(cli.command, json, &given);
     match result {
         Ok(code) => code,
         Err(error) if is_broken_pipe(&error) => ExitCode::from(exit::SUCCESS),
@@ -220,4 +185,45 @@ fn is_broken_pipe(error: &anyhow::Error) -> bool {
     error
         .downcast_ref::<io::Error>()
         .is_some_and(|error| error.kind() == io::ErrorKind::BrokenPipe)
+}
+
+/// Runs `command` and returns how it ended.
+fn dispatch(command: Command, json: bool, given: &key::Given) -> anyhow::Result<ExitCode> {
+    let success = |()| ExitCode::from(exit::SUCCESS);
+    match command {
+        Command::List(args) => list::run(&args, json).map(success),
+        Command::Search(args) => list::search(&args, json).map(success),
+        Command::Extract(args) => extract::run(&args, json),
+        Command::Convert(args) => convert::run(&args, json),
+        Command::Verify(args) => verify::run(&args, json),
+        Command::Channels(args) => channels::run(&args, json).map(success),
+        Command::Info(args) => info::run(&args, json).map(success),
+        Command::Dcb(args) => dcb::run(&args, json),
+        Command::Grep(args) => grep::run(&args, json),
+        Command::Catalog(args) => catalog::run(&args, json),
+        Command::Coverage(args) => coverage::run(&args, json),
+        Command::Ships(args) => ships::run(&args, json),
+        Command::Entity(args) => entity::run(&args, json),
+        Command::Interior(args) => cli_interior::dispatch(args.action, json).map(success),
+        Command::Prefab(args) => prefab::run(&args, json).map(success),
+        Command::Armour(args) => armour::run(&args, json).map(success),
+        Command::Character(args) => character_package::run(&args, json).map(success),
+        Command::Loc(args) => loc::run(&args, json),
+        Command::ActionMap(args) => actionmap::run(&args, json).map(success),
+        Command::Compare(args) => Ok(compare::run(&args, json).unwrap_or_else(|error| {
+            report(&error);
+            exit::for_compare_error(&error)
+        })),
+        Command::CryXml(args) => cryxml::run(&args, json).map(success),
+        Command::Texture(args) => texture::run(&args, json).map(success),
+        Command::Audio(args) => audio::run(&args, json).map(success),
+        Command::Bnk(args) => bnk::run(&args, json),
+        Command::Ui(args) => ui::run(&args, json),
+        Command::Socpak(args) => socpak::run(&args, json),
+        Command::Chf(args) => chf::run(&args, json),
+        Command::Chunks(args) => chunks::run(&args, json).map(success),
+        Command::Wwise(args) => wwise::run(&args, json),
+        Command::Model(args) => model::run(&args, json).map(success),
+        Command::Key(args) => key::run(&args, given, json).map(success),
+    }
 }

@@ -52,7 +52,8 @@ pub struct GlbOptions {
     /// The mip level of the textures, 0 for the largest; a texture with fewer mips gives its
     /// smallest.
     pub texture_mip: u32,
-    /// Whether to write the vertex colours of the meshes that have any as `COLOR_0`; viewers
+    /// Whether to write the vertex colours of the meshes that have any as `COLOR_0`, on the
+    /// primitives whose material [reads them](p4kx_model::Material::reads_vertex_colours); viewers
     /// multiply the base colour of the material by them.
     pub vertex_colours: bool,
     /// The most bones a vertex is weighted to in the skins of the file, 1 to 8: the strongest ones

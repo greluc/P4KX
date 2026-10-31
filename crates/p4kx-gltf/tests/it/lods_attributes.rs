@@ -10,8 +10,8 @@ use p4kx_gltf::{GlbOptions, GlbSummary, write_glb};
 use p4kx_model::{CompanionError, CompanionPath, LodSelection, Model};
 use p4kx_testkit::gltf::Semantic;
 use p4kx_testkit::{
-    CUBE_CAPS_MATERIAL, CUBE_SIDES_MATERIAL, CheckedGlb, TestModel, TestNode, TestNormals,
-    TestSubmesh, check_glb,
+    CUBE_CAPS_MATERIAL, CUBE_MATERIAL_LIBRARY, CUBE_SIDES_MATERIAL, CheckedGlb, TestModel, TestMtl,
+    TestMtlMaterial, TestNode, TestNormals, TestSubmesh, check_glb,
 };
 
 type TestResult = Result<(), Box<dyn Error>>;
@@ -27,14 +27,19 @@ fn caps_only() -> TestModel {
     }])
 }
 
+fn tinted_glass() -> Vec<u8> {
+    let glass = TestMtlMaterial::new("glass")
+        .shader("GlassPBR")
+        .string_gen_mask("%PER_VERTEX_TINT");
+    TestMtl::single(&glass).cryxml()
+}
+
 fn model(cube: &TestModel) -> Result<Model, Box<dyn Error>> {
     let mut companions = |path: CompanionPath<'_>| -> Result<Option<Vec<u8>>, CompanionError> {
-        let CompanionPath::Sibling(name) = path else {
-            return Ok(None);
-        };
-        Ok(match name {
-            "cube.cgfm" => Some(cube.cgfm()),
-            "cube_lod1.cgfm" => cube.lod_cgfm(1),
+        Ok(match path {
+            CompanionPath::Sibling("cube.cgfm") => Some(cube.cgfm()),
+            CompanionPath::Sibling("cube_lod1.cgfm") => cube.lod_cgfm(1),
+            CompanionPath::Material(CUBE_MATERIAL_LIBRARY) => Some(tinted_glass()),
             _ => None,
         })
     };

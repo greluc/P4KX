@@ -3,9 +3,8 @@
 Decided for issue #538, on top of ADR-0089 (screens) and ADR-0101 (texts). It closes the layout
 gaps that `p4kx ui render --screen` listed: lists, clones and templates, stack, grid and wrapping
 containers, pivot, anchor, rotation, overflow, bounds, sizes that come from the content and the
-unit of raw canvases. The rules were first read from the Records and from what the names of the
-fields say; issue #576 compared them with in-game screenshots, and the result for each guess is
-recorded at the end.
+unit of raw canvases. The rules are read from the Records and the field names; the section
+"Compared with the game" records what in-game screenshots confirm, refute or leave open.
 
 ## What was found, on LIVE with `p4kx dcb export` over the 4920 Records below `ui/buildingblocks`
 
@@ -50,10 +49,12 @@ recorded at the end.
   the size of the frame divided by that scale and drawn under the scale, so a nested canvas keeps
   the pixel of its host. A raw canvas nested in a widget of another size therefore keeps its
   pixels, as the issue #535 review asked to decide, unless the canvas is a world-space canvas,
-  which fits its root into the box of the widget, or the widget scales it. `Scale` lays a canvas widget's canvas out at the canvas size and fits it
-  into the box, centred; `Size` lays it out in the box. `aspectOverridesWidth` and
-  `aspectOverridesHeight` lay the canvas out in the whole box too, since the box brings its own
-  aspect (see "Compared with the game").
+  which fits its root into the box of the widget, or the widget scales it.
+  - `Scale` lays a canvas widget's canvas out at the canvas size and fits it into the box,
+    centred.
+  - `Size` lays it out in the box.
+  - `aspectOverridesWidth` and `aspectOverridesHeight` lay it out in the whole box, with no scale
+    (see "Compared with the game").
 - **Templates.** The widgets of the `library` follow the scene in the widget list of a canvas; a
   scene widget with the parent `library[n]` is a child of that template. A template is not drawn
   where it stands. A clone draws its target as its only child, laid out in the box of the clone
@@ -126,8 +127,7 @@ borders that differ on rounded boxes, spacer containers, and `inheritsRotation` 
 ## Compared with the game (#576)
 
 The reference was the cockpit MFDs of the Aegis Gladius and the RSI Constellation on LIVE, in
-screenshots of the powered ship in a hangar (the Avenger Titan shots were not among the images).
-The screens sit on angled consoles, so only what sits in one place on the glass can be compared,
+screenshots of the powered ship in a hangar. The screens sit on angled consoles, so only what sits in one place on the glass can be compared,
 not proportions to the pixel. The pages draw their rows and numbers from run-time data, so a
 canvas rendered at rest shows its frame and no rows; a guess that only a row can decide is
 compared by its Records and what the screenshot shows of the same widgets.
@@ -153,25 +153,24 @@ compared by its Records and what the screenshot shows of the same widgets.
   stacks on the MFDs (heat bar, ammunition bars, fuel bars) hold children of a percentage or fixed
   size across, which both readings size alike. Only a stack with an automatic-size child across
   would tell them apart; none was found on the MFDs.
-- **The placement of aspect-mode canvases: refuted, and fixed.** 82 of the MFD canvases, the
-  header and footer of every page among them, use `aspectOverridesWidth`. The footer
-  (`<  PAGE NAME  >`) is a canvas of 1920 x 1080 units hosted in a box about 800 x 66 pixels; the
-  former rule gave it the width of its height times the aspect of the canvas, about 117 pixels,
-  and squeezed the footer into the left corner. In the game it fills the width of the screen,
-  with the name in a bar in the middle and the chevrons at both ends, and its 33-unit font is
-  about half as high as the bar, as at one pixel per unit. The aspect modes now lay a canvas out
-  in the whole box, as a plain canvas, with no scale.
+- **The placement of aspect-mode canvases: decided.** 82 of the MFD canvases use
+  `aspectOverridesWidth`, among them the header and footer of every page. The footer
+  (`<  PAGE NAME  >`) is 1920 x 1080 units in a box of about 800 x 66 pixels. In the game it fills
+  the width of the screen, with the name in a bar in the middle and the chevrons at both ends, and
+  its 33-unit font is about half as high as the bar, as at one pixel per unit. So the aspect
+  modes lay a canvas out in the whole box, with no scale.
 - **The radar, the annunciator and the HUD.** The Gladius HUD draws nothing at rest, since its
   parts are bound to game variables, so it stays uncompared; the annunciators are dark. What the
   HUD screenshots show of the 1 to 5 degree turns of the HUD bounds cannot be separated from the
   perspective of the projected HUD.
 
-Seen but outside the six guesses: rendered at rest, the MFD frame draws large light-blue blocks
-at both lower corners and the ship diagram of the self-status page a light-blue rectangle, which
-the game does not show. The cause is not yet found and is left for a follow-up.
+The four open guesses and the screenshot that decides each are listed in issue #972.
 
-The measuring of automatic texts is no longer done twice: the text shaped to measure a widget is
-kept under the key of the widget and reused by the paint pass.
+Outside the guesses: rendered at rest, the MFD frame draws large light-blue blocks at both lower
+corners and the ship diagram of the self-status page a light-blue rectangle, which the game does
+not show; issue #969 covers both.
+
+The text shaped to measure a widget is kept under the widget's key and reused by the paint pass.
 
 ## Considered Options
 

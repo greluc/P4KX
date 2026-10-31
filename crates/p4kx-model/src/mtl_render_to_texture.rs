@@ -2,8 +2,8 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 use crate::Material;
+use crate::mtl_texture::DIFFUSE_SLOT;
 
-const DIFFUSE_SLOT: &str = "TexSlot1";
 const RENDER_TO_TEXTURE: &str = "$RenderToTexture";
 
 impl Material {

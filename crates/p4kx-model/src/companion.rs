@@ -44,6 +44,13 @@ pub enum CompanionPath<'a> {
     Material(&'a str),
 }
 
+/// The mip level of a texture whose colour [`CompanionResolver::texture_is_grey`] judges; a texture
+/// with fewer levels gives its last.
+pub const GREY_PROBE_MIP: u32 = 3;
+
+/// The mean saturation up to which a texture counts as grey.
+pub const MAX_GREY_SATURATION: f32 = 0.05;
+
 /// Supplies the companion files of a model, so that reading a model needs no Archive.
 pub trait CompanionResolver {
     /// Returns the bytes of the companion at `path`, or `None` when it does not exist.
@@ -55,6 +62,10 @@ pub trait CompanionResolver {
 
     /// Returns whether the texture `file`, as a material file names it, holds no colour of its own,
     /// or `None` when the resolver cannot tell, as the default does.
+    ///
+    /// A texture is grey when the mean saturation of mip [`GREY_PROBE_MIP`] (the last mip when it
+    /// has fewer), each pixel weighted by its alpha, is at most [`MAX_GREY_SATURATION`]; the
+    /// saturation of a pixel is its largest channel minus its smallest, over its largest.
     fn texture_is_grey(&mut self, _file: &str) -> Option<bool> {
         None
     }

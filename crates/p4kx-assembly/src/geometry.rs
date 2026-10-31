@@ -9,6 +9,9 @@ use crate::read::{struct_field, struct_items, text};
 /// The folder of the human body rigs, with a trailing separator.
 const HUMAN_RIGS: &str = "Objects/Characters/Human/";
 
+/// The folder of the character models, with a trailing separator.
+const CHARACTERS: &str = "Objects/Characters/";
+
 /// The folder an Archive path starts with that a Record's path leaves out.
 const DATA_FOLDER: &str = "Data/";
 
@@ -165,6 +168,33 @@ impl MaterialVariant {
     }
 }
 
+/// Returns `path` without a leading separator and without the `Data/` folder.
+fn below_data(path: &str) -> &str {
+    let relative = path.trim_start_matches(['/', '\\']);
+    if starts_with_path(relative, DATA_FOLDER) {
+        relative.get(DATA_FOLDER.len()..).unwrap_or_default()
+    } else {
+        relative
+    }
+}
+
+/// Returns whether `path` names a `.cdf`, `.chr` or `.skin` file outside the human body rigs.
+pub(crate) fn is_rigged_path_outside_human_rigs(path: &str) -> bool {
+    let relative = below_data(path);
+    relative.rsplit_once('.').is_some_and(|(_, extension)| {
+        CHARACTER_EXTENSIONS
+            .iter()
+            .any(|wanted| wanted.eq_ignore_ascii_case(extension))
+    }) && !starts_with_path(relative, HUMAN_RIGS)
+}
+
+/// Returns whether `path` names a character file outside the human body rigs that lies in the
+/// characters folder: the creatures and other non-human characters, not the animated parts of
+/// weapons, gadgets, ships and buildings.
+pub(crate) fn is_creature_path(path: &str) -> bool {
+    is_rigged_path_outside_human_rigs(path) && starts_with_path(below_data(path), CHARACTERS)
+}
+
 impl Geometry {
     /// Returns the model file as the Record spells it, a path below `Data`, e.g.
     /// `Objects\Spaceships\Ships\AEGS\Gladius\AEGS_Gladius.cga`.
@@ -190,17 +220,7 @@ impl Geometry {
     /// `Objects/Characters/Human`, the folder of the human body rigs.
     #[must_use]
     pub fn is_rigged_file_outside_human_rigs(&self) -> bool {
-        let relative = self.path.trim_start_matches(['/', '\\']);
-        let relative = if starts_with_path(relative, DATA_FOLDER) {
-            relative.get(DATA_FOLDER.len()..).unwrap_or_default()
-        } else {
-            relative
-        };
-        relative.rsplit_once('.').is_some_and(|(_, extension)| {
-            CHARACTER_EXTENSIONS
-                .iter()
-                .any(|wanted| wanted.eq_ignore_ascii_case(extension))
-        }) && !starts_with_path(relative, HUMAN_RIGS)
+        is_rigged_path_outside_human_rigs(&self.path)
     }
 
     /// Reads the main geometry of a `SGeometryResourceParams` component.
@@ -290,6 +310,24 @@ mod tests {
             assert!(body.skeleton().starts_with(HUMAN_RIGS), "{body:?}");
             assert!(!geometry(body.skeleton()).is_rigged_file_outside_human_rigs());
             assert!(!geometry(body.skin()).is_rigged_file_outside_human_rigs());
+        }
+    }
+
+    #[test]
+    fn creatures_are_the_character_files_in_the_characters_folder_outside_the_human_rigs() {
+        for path in [
+            "Objects/Characters/Creatures/x/x_skel.chr",
+            "Data\\Objects\\Characters\\Vanduul\\drone\\body.skin",
+        ] {
+            assert!(super::is_creature_path(path), "{path}");
+        }
+        for path in [
+            "Objects/Characters/Human/male_v7/export/bhm_skeleton_v7.chr",
+            "Objects/FPS_Weapons/Weapons_V7/x/rifle.cdf",
+            "Objects/Spaceships/Thrusters/nozzle.cdf",
+            "Objects/Characters/Creatures/x/x.cgf",
+        ] {
+            assert!(!super::is_creature_path(path), "{path}");
         }
     }
 

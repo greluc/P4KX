@@ -75,6 +75,13 @@ pub(crate) struct Canvas {
 const WORLD_UNIT_LIMIT: f32 = 3.0;
 
 impl Canvas {
+    /// Returns the name of the canvas: the last segment of its Record path.
+    pub(crate) fn name(&self) -> &str {
+        self.record_path
+            .rsplit_once('/')
+            .map_or(self.record_path.as_str(), |(_, name)| name)
+    }
+
     pub(crate) fn pick_brand(&self, code: Option<&str>) -> Option<&BrandStyle> {
         let wanted = code.map(|code| format!("s_{}_", code.to_ascii_lowercase()));
         wanted

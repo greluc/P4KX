@@ -233,7 +233,7 @@ impl Walk<'_, '_, '_, '_> {
             widget,
             style: &style,
             geometry: &geometry,
-            has_children: !plan.kids.is_empty() || widget.canvas.is_some(),
+            has_children: !plan.kids.is_empty() || self.canvas_of(kid, widget, &style).is_some(),
             kids: &plan.kids,
             own: plan.own,
         };

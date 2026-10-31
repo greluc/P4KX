@@ -23,12 +23,13 @@ impl Model {
     /// Returns the choices of the UI tab as the settings file stores them.
     #[must_use]
     pub fn ui_render_settings(&self) -> UiRenderSettings {
-        (*self.ui.settings()).into()
+        self.ui.stored_settings()
     }
 
     /// Replaces the choices of the UI tab with those the settings file stored.
-    pub fn set_ui_render_settings(&mut self, settings: UiRenderSettings) {
+    pub fn set_ui_render_settings(&mut self, settings: &UiRenderSettings) {
         self.ui.set_settings(settings.into());
+        self.ui.set_variables_text(&settings.variables);
     }
 
     /// Takes what the UI tab computed off the UI thread; returns whether something changed.

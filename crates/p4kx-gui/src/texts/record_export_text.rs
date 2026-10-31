@@ -68,10 +68,6 @@ pub enum RecordExportText {
     SummarySkipped,
     /// One failed Record; takes `path`, `guid` and `reason`.
     SummaryFailure,
-    /// The heading of the Records written under another file name; takes `number`.
-    SummaryRenamed,
-    /// One Record written under another file name; takes `path`, `guid` and `reason`.
-    SummaryRename,
     /// The title of the window shown when the Record export could not run.
     FailedTitle,
     /// DataForge or the target could not be prepared; takes `path` and `reason`.
@@ -82,7 +78,7 @@ pub enum RecordExportText {
 
 impl RecordExportText {
     /// Every text, for checks of the Fluent files.
-    pub const ALL: [Self; 36] = [
+    pub const ALL: [Self; 34] = [
         Self::Menu,
         Self::Action,
         Self::SetupTitle,
@@ -114,8 +110,6 @@ impl RecordExportText {
         Self::SummaryFailed,
         Self::SummarySkipped,
         Self::SummaryFailure,
-        Self::SummaryRenamed,
-        Self::SummaryRename,
         Self::FailedTitle,
         Self::Failed,
         Self::Stopped,
@@ -156,8 +150,6 @@ impl RecordExportText {
             Self::SummaryFailed => "record-export-summary-failed",
             Self::SummarySkipped => "record-export-summary-skipped",
             Self::SummaryFailure => "record-export-summary-failure",
-            Self::SummaryRenamed => "record-export-summary-renamed",
-            Self::SummaryRename => "record-export-summary-rename",
             Self::FailedTitle => "record-export-failed-title",
             Self::Failed => "record-export-failed",
             Self::Stopped => "record-export-stopped",

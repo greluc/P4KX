@@ -4,7 +4,7 @@
 use std::path::{Path, PathBuf};
 
 use p4kx_export::RecordForm;
-use p4kx_extraction::{RecordFailure, RecordRenamed};
+use p4kx_extraction::{RecordFailure, RecordRenamed, RenameCause};
 
 use crate::model::describe;
 
@@ -37,15 +37,16 @@ pub struct RenamedRecord {
     /// The GUID in canonical form.
     pub guid: String,
     /// Why the file differs.
-    pub reason: String,
+    pub cause: RenameCause,
 }
 
 impl RenamedRecord {
+    /// Returns the note of `renamed`.
     pub(crate) fn of(renamed: &RecordRenamed) -> Self {
         Self {
             record_path: renamed.record_path().to_owned(),
             guid: renamed.guid().to_string(),
-            reason: renamed.cause().to_string(),
+            cause: renamed.cause(),
         }
     }
 }

@@ -91,6 +91,7 @@ mod record_export_outcome;
 mod record_fields;
 mod record_incoming;
 mod record_key;
+mod record_line;
 mod record_lines;
 mod record_list;
 mod record_preview;

@@ -74,34 +74,43 @@ fn exported(language: Language) -> Result<(tempfile::TempDir, Model), Box<dyn st
     Ok((dir, model))
 }
 
-fn renamed_line(model: &Model) -> Result<String, Box<dyn std::error::Error>> {
-    let Some(run) = model.record_export() else {
-        return Err("no export".into());
-    };
-    let RecordExportStatus::Finished(summary) = run.status() else {
-        return Err("no summary".into());
-    };
-    assert!(summary.failures().is_empty(), "nothing failed");
-    assert_eq!(summary.written(), 2, "both Records written");
-    let [note] = summary.renamed() else {
-        return Err(format!("one note: {:?}", summary.renamed()).into());
-    };
-    Ok(format!(
-        "{} ({}): {}",
-        note.record_path, note.guid, note.reason
-    ))
-}
+const GUID_LINE: &str = "records/shared (00000000-0000-0000-0000-000000000001): ";
+const ENGLISH_REASON: &str = "the Record name is no valid file name (the character '?' is not \
+    allowed in a file name); the GUID names the file";
+const GERMAN_REASON: &str = "der Record-Name ist kein gültiger Dateiname (das Zeichen '?' ist in \
+    Dateinamen nicht erlaubt); die GUID benennt die Datei";
 
 #[test]
 fn the_record_export_summary_lists_the_renamed_records_and_counts_no_failure() -> TestResult {
-    let (_dir, model) = exported(Language::BritishEnglish)?;
-    let line = renamed_line(&model)?;
-    let mut harness = harness(model, None);
-    harness.run_steps(3);
+    for (language, counts, heading, reason) in [
+        (
+            Language::BritishEnglish,
+            "Records written 2, skipped 0, failed 0, cancelled 0",
+            "Renamed Records (1)",
+            ENGLISH_REASON,
+        ),
+        (
+            Language::German,
+            "Records geschrieben 2, übersprungen 0, fehlgeschlagen 0, abgebrochen 0",
+            "Umbenannte Records (1)",
+            GERMAN_REASON,
+        ),
+    ] {
+        let (_dir, model) = exported(language)?;
+        let mut harness = harness(model, None);
+        harness.run_steps(3);
 
-    harness.get_by_label("Records written 2, skipped 0, failed 0, cancelled 0");
-    harness.get_by_label("Renamed Records (1)");
-    harness.get_by_label(&line);
+        let Some(run) = harness.state().record_export() else {
+            return Err("no export".into());
+        };
+        let RecordExportStatus::Finished(summary) = run.status() else {
+            return Err("no summary".into());
+        };
+        assert!(summary.failures().is_empty(), "nothing failed");
+        harness.get_by_label(counts);
+        harness.get_by_label(heading);
+        harness.get_by_label(&format!("{GUID_LINE}{reason}"));
+    }
     Ok(())
 }
 
@@ -146,23 +155,35 @@ fn extracted(
 
 #[test]
 fn the_extraction_summary_lists_the_renamed_records_and_counts_no_failure() -> TestResult {
-    let (_dir, harness) = extracted(Language::BritishEnglish, None, ENGLISH)?;
+    for (language, labels, counts, heading, reason) in [
+        (
+            Language::BritishEnglish,
+            ENGLISH,
+            "Records written 2, skipped 0, failed 0, cancelled 0; 0 error values in 0 Records",
+            "Renamed Records (1)",
+            ENGLISH_REASON,
+        ),
+        (
+            Language::German,
+            GERMAN,
+            "Records geschrieben 2, übersprungen 0, fehlgeschlagen 0, abgebrochen 0; \
+             0 Fehlerwerte in 0 Records",
+            "Umbenannte Records (1)",
+            GERMAN_REASON,
+        ),
+    ] {
+        let (_dir, harness) = extracted(language, None, labels)?;
 
-    let Some(ExtractionStatus::Finished(summary)) =
-        harness.state().extraction().map(Extraction::status)
-    else {
-        return Err("no summary".into());
-    };
-    assert!(summary.record_failures().is_empty(), "no Record failed");
-    let [note] = summary.records_renamed() else {
-        return Err(format!("one note: {:?}", summary.records_renamed()).into());
-    };
-    let line = format!("{} ({}): {}", note.record_path, note.guid, note.reason);
-    harness.get_by_label(
-        "Records written 2, skipped 0, failed 0, cancelled 0; 0 error values in 0 Records",
-    );
-    harness.get_by_label("Renamed Records (1)");
-    harness.get_by_label(&line);
+        let Some(ExtractionStatus::Finished(summary)) =
+            harness.state().extraction().map(Extraction::status)
+        else {
+            return Err("no summary".into());
+        };
+        assert!(summary.record_failures().is_empty(), "no Record failed");
+        harness.get_by_label(counts);
+        harness.get_by_label(heading);
+        harness.get_by_label(&format!("{GUID_LINE}{reason}"));
+    }
     Ok(())
 }
 

@@ -3,49 +3,48 @@
 
 use egui::Ui;
 
-use super::extraction_outcome::{failure_lines, list};
-use crate::{ExtractionSummary, ExtractionText as T, Texts};
+use super::extraction_outcome::{list, record_lines};
+use super::record_line::record_line;
+use crate::texts::describe_rename;
+use crate::{ExtractionSummary, ExtractionText as T, RenameText, Texts};
 
 /// Shows the lists of the Records of the DataForge Entry: the ones not written and the ones
 /// written under another file name.
 pub(super) fn show(ui: &mut Ui, texts: &Texts, summary: &ExtractionSummary) {
     let heading = T::SummaryRecordsFailed;
-    let lines = failure_lines(
+    let lines = record_lines(
         ui,
         texts,
         (summary, heading),
         summary.record_failures(),
         |failure| {
-            let args = [
-                ("path", failure.record_path.clone().into()),
-                ("guid", failure.guid.clone().into()),
-                ("reason", failure.reason.clone().into()),
-            ];
-            (
-                texts.format(T::SummaryRecordFailure, &args),
-                failure.reason.len(),
-            )
+            let line = record_line(
+                texts,
+                T::SummaryRecordFailure,
+                &failure.record_path,
+                &failure.guid,
+                &failure.reason,
+            );
+            (line, Some(failure.reason.len()))
         },
     );
-    list(
-        ui,
-        texts,
-        (heading, &lines.lines, Some(&lines.reasons)),
-        true,
-    );
-    let heading = T::SummaryRecordsRenamed;
-    let renamed = failure_lines(
+    list(ui, texts, (heading, &lines.lines, lines.reasons()), true);
+    let heading = RenameText::Heading;
+    let renamed = record_lines(
         ui,
         texts,
         (summary, heading),
         summary.records_renamed(),
         |note| {
-            let args = [
-                ("path", note.record_path.clone().into()),
-                ("guid", note.guid.clone().into()),
-                ("reason", note.reason.clone().into()),
-            ];
-            (texts.format(T::SummaryRecordRenamed, &args), 0)
+            let reason = describe_rename(texts, note.cause);
+            let line = record_line(
+                texts,
+                RenameText::Line,
+                &note.record_path,
+                &note.guid,
+                &reason,
+            );
+            (line, None)
         },
     );
     list(ui, texts, (heading, &renamed.lines, None), true);

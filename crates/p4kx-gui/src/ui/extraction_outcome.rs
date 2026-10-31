@@ -24,7 +24,7 @@ use crate::widgets::scroll_region;
 use crate::widgets::text::paint_left;
 use crate::{
     ChangeExtractionText, ExtractionStatus, ExtractionSummary, ExtractionText as T, Language,
-    Model, ScrollText, Texts,
+    Model, ScrollText, Text, Texts,
 };
 
 const REFRESH: Duration = Duration::from_millis(100);
@@ -104,13 +104,13 @@ pub(super) fn decorate<R>(ui: &Ui, shown: Option<InnerResponse<R>>, tone: Tone) 
 pub(super) fn outcome_window(
     ui: &Ui,
     texts: &Texts,
-    (title, tone): (impl Into<crate::Text>, Tone),
+    (title, tone): (impl Into<Text>, Tone),
     open: &mut bool,
     body: impl FnOnce(&mut Ui),
 ) {
     let mut close = false;
     let title = texts.get(title);
-    let close_dialog = texts.get(crate::Text::CloseDialog);
+    let close_dialog = texts.get(Text::CloseDialog);
     let shown = placement::window(ui.ctx(), &title, tone)
         .id(Id::unique(WINDOW))
         .collapsible(false)
@@ -220,19 +220,17 @@ pub(super) fn lists(ui: &mut Ui, texts: &Texts, summary: &ExtractionSummary) {
         (T::SummaryFailed, summary.failures()),
         (T::SummaryUnconverted, summary.unconverted()),
     ] {
-        let lines = failure_lines(ui, texts, (summary, heading), failed, |failure| {
+        let lines = record_lines(ui, texts, (summary, heading), failed, |failure| {
             let args = [
                 ("path", failure.path.clone().into()),
                 ("reason", failure.reason.clone().into()),
             ];
-            (texts.format(T::SummaryFailure, &args), failure.reason.len())
+            (
+                texts.format(T::SummaryFailure, &args),
+                Some(failure.reason.len()),
+            )
         });
-        list(
-            ui,
-            texts,
-            (heading, &lines.lines, Some(&lines.reasons)),
-            true,
-        );
+        list(ui, texts, (heading, &lines.lines, lines.reasons()), true);
     }
     super::extraction_record_lists::show(ui, texts, summary);
     list(
@@ -249,62 +247,69 @@ pub(super) fn lists(ui: &mut Ui, texts: &Texts, summary: &ExtractionSummary) {
     );
 }
 
-/// The formatted failure lines of a summary and where the reason starts in each.
+/// The formatted lines of a list of a summary and, for failures, where the reason starts in each.
 #[derive(Clone)]
-pub(super) struct FailureLines {
+pub(super) struct RecordLines {
     key: (usize, usize, Language),
     pub(super) lines: Arc<[String]>,
-    pub(super) reasons: Arc<[usize]>,
+    reasons: Option<Arc<[usize]>>,
 }
 
-/// Returns the lines of `failed`, the list under `heading` of `summary`, formatted once per
-/// summary and language; `format` returns a line and the length of the reason it ends with.
-pub(super) fn failure_lines<F>(
+impl RecordLines {
+    /// Returns where the reason starts in each line, or `None` for lines without one.
+    pub(super) fn reasons(&self) -> Option<&[usize]> {
+        self.reasons.as_deref()
+    }
+}
+
+/// Returns the lines of `items`, the list under `heading` of `summary`, formatted once per
+/// summary and language; `format` returns a line and, for a failure, the length of the reason it
+/// ends with.
+pub(super) fn record_lines<F>(
     ui: &Ui,
     texts: &Texts,
-    (summary, heading): (&ExtractionSummary, T),
-    failed: &[F],
-    format: impl Fn(&F) -> (String, usize),
-) -> FailureLines {
+    (summary, heading): (&ExtractionSummary, impl Into<Text>),
+    items: &[F],
+    format: impl Fn(&F) -> (String, Option<usize>),
+) -> RecordLines {
     let key = (
         std::ptr::from_ref(summary).addr(),
-        failed.len(),
+        items.len(),
         texts.language(),
     );
-    let id = Id::unique("p4kx-failure-lines").with(heading.id());
-    if let Some(cached) = ui.data(|data| data.get_temp::<FailureLines>(id))
+    let id = Id::unique("p4kx-record-lines").with(heading.into().id());
+    if let Some(cached) = ui.data(|data| data.get_temp::<RecordLines>(id))
         && cached.key == key
     {
         return cached;
     }
-    let (lines, reasons): (Vec<String>, Vec<usize>) = failed
-        .iter()
-        .map(|failure| {
-            let (line, reason) = format(failure);
-            let start = line.len().saturating_sub(reason);
-            (line, start)
-        })
-        .unzip();
-    let lines: Arc<[String]> = lines.into();
-    let reasons: Arc<[usize]> = reasons.into();
-    let failures = FailureLines {
+    let (lines, ends): (Vec<String>, Vec<Option<usize>>) = items.iter().map(format).unzip();
+    let reasons = ends.iter().any(Option::is_some).then(|| {
+        lines
+            .iter()
+            .zip(&ends)
+            .map(|(line, reason)| line.len().saturating_sub(reason.unwrap_or(0)))
+            .collect()
+    });
+    let found = RecordLines {
         key,
-        lines,
+        lines: lines.into(),
         reasons,
     };
-    ui.data_mut(|data| data.insert_temp(id, failures.clone()));
-    failures
+    ui.data_mut(|data| data.insert_temp(id, found.clone()));
+    found
 }
 
 pub(super) fn list(
     ui: &mut Ui,
     texts: &Texts,
-    (heading, lines, reasons): (T, &[String], Option<&[usize]>),
+    (heading, lines, reasons): (impl Into<Text> + Copy, &[String], Option<&[usize]>),
     open: bool,
 ) {
     if lines.is_empty() {
         return;
     }
+    let heading: Text = heading.into();
     ui.add_space(SPACE_2);
     let title = texts.format(heading, &[("number", number(texts, lines.len()))]);
     let id = ui.scope_id().with(heading.id());

@@ -10,6 +10,8 @@ use fluent_bundle::FluentValue;
 
 use super::extraction::number;
 use super::extraction_outcome::{decorate, list_row, ratio};
+use super::record_line::record_line;
+use crate::texts::describe_rename;
 use crate::theme::desktop::{
     MODAL_WIDE_WIDTH, MODAL_WIDTH, ROW_HEIGHT, SECTION_LIST_HEIGHT, SPINNER_INLINE,
 };
@@ -22,7 +24,7 @@ use crate::widgets::placement;
 use crate::widgets::rows::section_header;
 use crate::{
     ExtractionText, Language, Model, RecordExportProgress, RecordExportStage, RecordExportStatus,
-    RecordExportSummary, RecordExportText as T, Text, Texts,
+    RecordExportSummary, RecordExportText as T, RenameText, Text, Texts,
 };
 
 const REFRESH: Duration = Duration::from_millis(100);
@@ -195,13 +197,12 @@ impl Laid {
             .failures()
             .iter()
             .map(|failure| {
-                texts.format(
+                record_line(
+                    texts,
                     T::SummaryFailure,
-                    &[
-                        ("path", failure.record_path.clone().into()),
-                        ("guid", failure.guid.clone().into()),
-                        ("reason", failure.reason.clone().into()),
-                    ],
+                    &failure.record_path,
+                    &failure.guid,
+                    &failure.reason,
                 )
             })
             .collect();
@@ -219,12 +220,15 @@ impl Laid {
                 .renamed()
                 .iter()
                 .map(|note| {
-                    let args = [
-                        ("path", note.record_path.clone().into()),
-                        ("guid", note.guid.clone().into()),
-                        ("reason", note.reason.clone().into()),
-                    ];
-                    texts.format(T::SummaryRename, &args)
+                    let reason = describe_rename(texts, note.cause);
+
+                    record_line(
+                        texts,
+                        RenameText::Line,
+                        &note.record_path,
+                        &note.guid,
+                        &reason,
+                    )
                 })
                 .collect(),
             skipped: summary.skipped().to_vec(),
@@ -233,7 +237,7 @@ impl Laid {
                 &[("number", number(texts, summary.failures().len()))],
             ),
             renamed_heading: texts.format(
-                T::SummaryRenamed,
+                RenameText::Heading,
                 &[("number", number(texts, summary.renamed().len()))],
             ),
             skipped_heading: texts.format(

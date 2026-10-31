@@ -4,7 +4,8 @@
 //! Checks that each container of an Interior holds the hardpoints it serves.
 //!
 //! [`InteriorFit::new`] measures every container of an [`EntityInterior`] in the world: the box
-//! around the static models it places, the functional hardpoints of the Assembly (controller,
+//! around the static models it places and the box of each room model among them (a hardpoint is
+//! held by a single room model, not by the union), the functional hardpoints of the Assembly (controller,
 //! seat, cargo grid, door; told by the item type of the Entity at the port, never by name) inside
 //! and outside it, and how far its animated parts lie from it. [`InteriorFit::misfits`] applies
 //! the rules a correct placement keeps.
@@ -15,9 +16,11 @@ mod hardpoint;
 mod misfit;
 
 pub use bounds::WorldBox;
-pub use fit::{AnimatedPart, ContainerFit, HardpointFit};
+pub use fit::{AnimatedPart, ContainerFit, HardpointFit, ROOM_VOLUME_SHARE};
 pub use hardpoint::{Hardpoint, HardpointKind};
 pub use misfit::Misfit;
+
+use p4kx_model::Transform;
 
 use crate::{Assembly, EntityInterior, EntityNode};
 
@@ -37,13 +40,33 @@ impl InteriorFit {
     /// of [`Self::containers`] and listed in [`Self::unplaced`].
     #[must_use]
     pub fn new(assembly: &Assembly, tree: &EntityNode, interior: &EntityInterior) -> Self {
+        Self::new_displaced(assembly, tree, interior, None)
+    }
+
+    /// Measures `interior` like [`Self::new`], with container `displaced.0` of
+    /// [`EntityInterior::containers`] moved by `displaced.1` metres in the world first: the check
+    /// of a misplaced container.
+    #[must_use]
+    pub fn new_displaced(
+        assembly: &Assembly,
+        tree: &EntityNode,
+        interior: &EntityInterior,
+        displaced: Option<(usize, [f32; 3])>,
+    ) -> Self {
         let hardpoints = hardpoint::collect(assembly, tree);
         let mut containers = Vec::new();
         let mut unplaced = Vec::new();
-        for container in interior.containers() {
+        for (index, container) in interior.containers().iter().enumerate() {
             match assembly.parts().get(container.part()) {
                 Some(owner) => {
-                    containers.push(ContainerFit::measure(owner.world(), container, &hardpoints));
+                    let mut world = *owner.world();
+                    if let Some((_, [x, y, z])) = displaced.filter(|(moved, _)| *moved == index) {
+                        world = Transform {
+                            rows: [[1.0, 0.0, 0.0, x], [0.0, 1.0, 0.0, y], [0.0, 0.0, 1.0, z]],
+                        }
+                        .then(&world);
+                    }
+                    containers.push(ContainerFit::measure(&world, container, &hardpoints));
                 }
                 None => unplaced.push(container.reference().file().to_owned()),
             }

@@ -67,7 +67,12 @@ fn a_cockpit_room_moved_away_leaves_the_seat_and_controller_outside_every_room()
     assert_eq!(holders(&fit, HardpointKind::CargoGrid)?, [1]);
     assert!(matches!(
         fit.misfits(TOLERANCE).as_slice(),
-        [Misfit::CockpitSplit { .. }]
+        [
+            Misfit::CockpitSplit { .. },
+            Misfit::SeatOutsideRooms { .. },
+            Misfit::RoomsApart { container: 0 },
+            Misfit::RoomsApart { container: 1 }
+        ]
     ));
     Ok(())
 }

@@ -65,22 +65,31 @@ Entity at the port, never by name: a `FlightController`, a `Seat`, a `CargoGrid`
 `DockingAnimator`. The pilot seat is the seat of the same vehicle nearest to the flight
 controller.
 
-`InteriorFit::misfits` applies two rules, with 0.5 m of slack in the real-Archive tests: the
-flight controller of the root vehicle and its pilot seat lie in the same container, and every
-cargo grid lies in a container that holds no flight controller and no pilot seat. A docked ship's
-flight controller sits at that ship's origin, below its cockpit, so only the root vehicle's is
-checked. The tests also keep every door and every animated part within the slack of a room. The
-Constellation holds all of this: its cockpit, neck, body and tail rooms sit where their hardpoints
-are. Synthetic ships show the checks fail for a cockpit room moved away and for a cargo grid in
-the cockpit room.
+**Room models.** A container's rooms are the boxes of its *room models*: the static models whose
+box volume is at least `ROOM_VOLUME_SHARE` (a quarter) of the largest static model's. A `.soc` may
+place the model of a neighbouring hull section next to its own (the Cutlass cockpit socpak also
+places `int_body`), so the union box can be much longer than the room. A hardpoint or an animated
+part is measured against the nearest single room model, never against the union
+(`ContainerFit::rooms`, `holds`, `distance_to`); the union stays available as `room()`.
 
-**Limit.** The Cutlass is verified only coarsely. Its cockpit socpak places the middle hull
-section's model (`int_body`) in its own `.soc` next to the cockpit model, so the cockpit's room box
-runs 15.7 m along the hull and would still hold the pilot seat and flight controller if the
-container were moved several metres. What holds for the Cutlass is that the cargo grids, the ramp
-and the side doors lie in the body container, not in the cockpit container, and that nothing is
-unreadable or unplaced. A tighter check (a hardpoint against the box of a single room model) is
-tracked in a follow-up issue.
+`InteriorFit::misfits` applies four rules, with 0.5 m of slack in the real-Archive tests:
+
+- the flight controller of the root vehicle and its pilot seat lie in the same container (a docked
+  ship's flight controller sits at that ship's origin, below its cockpit, so only the root
+  vehicle's is checked);
+- every seat of the root vehicle lies in a room (the seat nearest to the controller need not be
+  the pilot's: the Cutlass copilot seat is nearer than the pilot seat);
+- every cargo grid lies in a container that holds no flight controller and no pilot seat;
+- the rooms of each container lie within the slack of those of another container, because the
+  rooms of a hull abut or overlap (`RoomsApart`).
+
+The tests also keep every door and every animated part within the slack of a room. The
+Constellation and the Cutlass hold all of this. Moving the Cutlass cockpit container by 3 m along
+the hull breaks a rule in either direction (`InteriorFit::new_displaced` moves one container in
+the world): backwards, the pilot seat leaves the cockpit model; forwards, the container's rooms
+leave those of the body container, though the box of all its models still holds every hardpoint of
+the cockpit. Synthetic ships show the checks fail for a cockpit room moved away and for a cargo
+grid in the cockpit room.
 
 ## Open points
 

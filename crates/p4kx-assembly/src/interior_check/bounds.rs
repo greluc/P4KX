@@ -67,6 +67,40 @@ impl WorldBox {
         }
     }
 
+    /// Grows `bounds` to hold the whole of `other`, starting it when it is `None`.
+    pub fn grow_with_box(bounds: &mut Option<Self>, other: &Self) {
+        Self::grow(bounds, other.min);
+        Self::grow(bounds, other.max);
+    }
+
+    /// Returns the volume in cubic metres; a degenerate box has none.
+    #[must_use]
+    pub fn volume(&self) -> f32 {
+        self.min
+            .iter()
+            .zip(&self.max)
+            .map(|(low, high)| high - low)
+            .product()
+    }
+
+    /// Returns the distance in metres between this box and `other`, 0 when they touch or
+    /// overlap, or `None` when it overflows.
+    #[must_use]
+    pub fn distance_to_box(&self, other: &Self) -> Option<f32> {
+        let squared: f32 = self
+            .min
+            .iter()
+            .zip(&self.max)
+            .zip(other.min.iter().zip(&other.max))
+            .map(|((low, high), (other_low, other_high))| {
+                let gap = (other_low - high).max(low - other_high).max(0.0);
+                gap * gap
+            })
+            .sum();
+        let distance = squared.sqrt();
+        distance.is_finite().then_some(distance)
+    }
+
     /// Grows `bounds` around the first level of detail of `model`, placed by `placement` (the
     /// transform from the model's space to the world): each mesh's vertices carried through its
     /// node chain. A model without meshes adds nothing.

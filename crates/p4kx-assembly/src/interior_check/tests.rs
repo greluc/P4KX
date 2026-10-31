@@ -24,6 +24,7 @@ pub(super) fn container(room: Option<WorldBox>) -> ContainerFit {
     ContainerFit {
         file: "a.socpak".to_owned(),
         room,
+        rooms: room.into_iter().collect(),
         inside: Vec::new(),
         outside: Vec::new(),
         animated: Vec::new(),
@@ -59,6 +60,19 @@ fn a_degenerate_box_contains_its_own_points_and_nothing_else() {
     assert!(!point.contains([1.0, 2.0, 3.1]));
     assert!(flat.contains([2.0, 3.0, 2.0]));
     assert_eq!(flat.distance([2.0, 3.0, 5.0]), Some(3.0));
+}
+
+#[test]
+fn the_distance_between_boxes_is_zero_when_they_touch_or_overlap_and_euclidean_apart() {
+    let bounds = unit_box();
+    let touching = WorldBox::around([[1.0, 0.0, 0.0], [2.0, 1.0, 1.0]]).expect("finite");
+    let overlapping = WorldBox::around([[0.5; 3], [3.0; 3]]).expect("finite");
+    let apart = WorldBox::around([[4.0, 5.0, 0.5], [6.0, 6.0, 0.7]]).expect("finite");
+
+    assert_eq!(bounds.distance_to_box(&touching), Some(0.0));
+    assert_eq!(bounds.distance_to_box(&overlapping), Some(0.0));
+    assert_eq!(bounds.distance_to_box(&apart), Some(5.0));
+    assert_eq!(apart.distance_to_box(&bounds), Some(5.0));
 }
 
 #[test]

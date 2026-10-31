@@ -18,10 +18,12 @@ fn fit(rooms: &[Option<WorldBox>], hardpoints: Vec<Hardpoint>) -> InteriorFit {
     let containers = rooms
         .iter()
         .map(|room| {
-            let (inside, outside) = classify(room.as_ref(), &hardpoints);
+            let rooms: Vec<WorldBox> = room.iter().copied().collect();
+            let (inside, outside) = classify(&rooms, &hardpoints);
             ContainerFit {
                 file: "room.socpak".to_owned(),
                 room: *room,
+                rooms,
                 inside,
                 outside,
                 animated: Vec::new(),
@@ -34,11 +36,11 @@ fn fit(rooms: &[Option<WorldBox>], hardpoints: Vec<Hardpoint>) -> InteriorFit {
 
 fn ship(cockpit_y: f32) -> InteriorFit {
     fit(
-        &[room_at(cockpit_y), room_at(-10.0)],
+        &[room_at(cockpit_y), room_at(6.0)],
         vec![
             hardpoint(HardpointKind::Controller, [0.0, 11.0, 1.0]),
             hardpoint(HardpointKind::Seat, [0.0, 10.0, 1.0]),
-            hardpoint(HardpointKind::CargoGrid, [0.0, -10.0, 1.0]),
+            hardpoint(HardpointKind::CargoGrid, [0.0, 6.0, 1.0]),
         ],
     )
 }
@@ -54,20 +56,71 @@ fn a_displaced_cockpit_room_splits_the_controller_and_seat_from_every_room() {
 
     assert_eq!(
         misfits,
-        [Misfit::CockpitSplit {
-            controller: 0,
-            seat: 1
-        }]
+        [
+            Misfit::CockpitSplit {
+                controller: 0,
+                seat: 1
+            },
+            Misfit::SeatOutsideRooms { seat: 1 },
+            Misfit::RoomsApart { container: 0 },
+            Misfit::RoomsApart { container: 1 }
+        ]
+    );
+}
+
+#[test]
+fn a_room_moved_along_the_hull_away_from_its_neighbours_is_apart_though_it_holds_its_hardpoints() {
+    let gap = fit(
+        &[room_at(10.0), room_at(14.9)],
+        vec![
+            hardpoint(HardpointKind::Controller, [0.0, 10.0, 1.0]),
+            hardpoint(HardpointKind::Seat, [0.0, 10.5, 1.0]),
+        ],
+    );
+
+    assert_eq!(
+        gap.misfits(TOLERANCE),
+        [
+            Misfit::RoomsApart { container: 0 },
+            Misfit::RoomsApart { container: 1 }
+        ]
+    );
+    assert_eq!(gap.misfits(1.0), []);
+}
+
+#[test]
+fn a_chain_of_rooms_is_not_apart_and_a_lone_room_is_not_either() {
+    let chain = fit(&[room_at(0.0), room_at(4.0), room_at(8.0)], Vec::new());
+    let lone = fit(&[room_at(0.0), None], Vec::new());
+
+    assert_eq!(chain.misfits(TOLERANCE), []);
+    assert_eq!(lone.misfits(TOLERANCE), []);
+}
+
+#[test]
+fn a_seat_beyond_the_room_it_belongs_to_is_a_misfit_though_another_seat_is_nearer_the_controller() {
+    let moved = fit(
+        &[room_at(10.0)],
+        vec![
+            hardpoint(HardpointKind::Controller, [0.0, 10.0, 1.0]),
+            hardpoint(HardpointKind::Seat, [0.0, 9.0, 1.0]),
+            hardpoint(HardpointKind::Seat, [0.0, 14.0, 1.0]),
+        ],
+    );
+
+    assert_eq!(
+        moved.misfits(TOLERANCE),
+        [Misfit::SeatOutsideRooms { seat: 2 }]
     );
 }
 
 #[test]
 fn a_controller_and_seat_in_different_rooms_are_a_split() {
     let split = fit(
-        &[room_at(10.0), room_at(20.0)],
+        &[room_at(10.0), room_at(14.0)],
         vec![
             hardpoint(HardpointKind::Controller, [0.0, 10.0, 1.0]),
-            hardpoint(HardpointKind::Seat, [0.0, 20.0, 1.0]),
+            hardpoint(HardpointKind::Seat, [0.0, 14.0, 1.0]),
         ],
     );
 
@@ -121,7 +174,7 @@ fn the_tolerance_decides_how_far_outside_a_box_still_counts() {
     );
 
     assert_eq!(near.misfits(TOLERANCE), []);
-    assert_eq!(near.misfits(0.1).len(), 1);
+    assert_eq!(near.misfits(0.1).len(), 2);
 }
 
 #[test]
@@ -150,7 +203,7 @@ fn a_container_without_a_room_box_holds_nothing() {
         ],
     );
 
-    assert_eq!(empty.misfits(f32::MAX).len(), 1);
+    assert_eq!(empty.misfits(f32::MAX).len(), 2);
 }
 
 #[test]

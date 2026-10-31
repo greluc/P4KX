@@ -16,10 +16,11 @@ use p4kx_extraction::{CancelToken, ConversionError, DataForge};
 use p4kx_settings::ModelMaterials;
 
 use crate::assembly_export::{Stoppable, StoppableTextures, failure_of};
-use crate::forge_cache::ReadFailure;
+use crate::forge_cache::ForgeSource;
 use crate::model::describe;
 use crate::{
-    AssemblyScene, BuildError, BuildOptions, EntryIndex, Hooks, ModelExportFailure, Progress,
+    AssemblyScene, BuildError, BuildOptions, EntryIndex, Hooks, ModelExportFailure, NoEntries,
+    Progress,
 };
 
 /// The step a building view is at.
@@ -255,10 +256,13 @@ fn with_interior(
         cancelled: &|| cancel.is_cancelled(),
         progress: &|progress| shared.interior(progress),
     };
+    let archive = index
+        .entries_archive()
+        .map_err(|error| Ended::Failed(error.into()))?;
     let options = InteriorOptions::default().with_lod(request.lod);
     let classes = InteriorForge::new(forge);
     match EntityInterior::build_with_models(
-        index.archive(),
+        archive,
         &assembly,
         &request.tree,
         &options,
@@ -273,25 +277,31 @@ fn with_interior(
     }
 }
 
-fn run(index: &EntryIndex, request: &Request, cancel: &CancelToken, shared: &Shared) -> Ended {
+/// Returns the DataForge of `index`, or why the build ends without it.
+fn read_forge(index: &EntryIndex) -> Result<Arc<ForgeSource>, Ended> {
     if index.watch().check().is_err() {
-        return Ended::Failed(ModelExportFailure::ArchiveChanged);
+        return Err(Ended::Failed(ModelExportFailure::ArchiveChanged));
     }
-    let source = match index.forge().read(index, || {}) {
+    index
+        .forge()
+        .read(index, || {})
+        .map_err(|failure| Ended::Failed(failure.into_export()))
+}
+
+fn run(index: &EntryIndex, request: &Request, cancel: &CancelToken, shared: &Shared) -> Ended {
+    let source = match read_forge(index) {
         Ok(source) => source,
-        Err(ReadFailure::ArchiveChanged(_)) => {
-            return Ended::Failed(ModelExportFailure::ArchiveChanged);
-        }
-        Err(ReadFailure::Unreadable(reason)) => {
-            return Ended::Failed(ModelExportFailure::Failed(reason));
-        }
+        Err(ended) => return ended,
     };
     let forge = match source.entry.open() {
         Ok(forge) => forge,
         Err(error) => return Ended::Failed(ModelExportFailure::Failed(describe(&error))),
     };
     let palettes = ForgePalettes::new(&forge);
-    let archive_models = ArchiveModels::new(index.archive());
+    let Ok(archive) = index.entries_archive() else {
+        return Ended::Failed(NoEntries.into());
+    };
+    let archive_models = ArchiveModels::new(archive);
     let stoppable = Stoppable {
         models: &archive_models,
         cancel,

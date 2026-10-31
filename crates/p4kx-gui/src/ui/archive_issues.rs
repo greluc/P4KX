@@ -4,6 +4,7 @@
 use std::sync::Arc;
 
 use egui::{Frame, Panel, Rect, Ui, vec2};
+use p4kx_extraction::Archive;
 
 use crate::theme::desktop::NOTICE_ICON;
 use crate::theme::palette;
@@ -37,7 +38,8 @@ fn notice_text(ui: &Ui, model: &Model, count: usize) -> Arc<str> {
 pub(super) fn show(ui: &mut Ui, model: &Model) {
     let count = model
         .browser()
-        .map_or(0, |browser| browser.index().archive().issue_count());
+        .and_then(|browser| browser.index().archive())
+        .map_or(0, Archive::issue_count);
     if count == 0 || model.opening_path().is_some() {
         return;
     }

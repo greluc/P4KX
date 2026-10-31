@@ -89,7 +89,8 @@ fn open(source: &HeadSource, index: &EntryIndex) -> Result<(String, Vec<u8>), St
                 .and_then(|id| index.entry(id))
                 .ok_or_else(|| format!("the Archive has no Entry {path}"))?;
             let reader = index
-                .archive()
+                .entries_archive()
+                .map_err(|error| error.to_string())?
                 .open_entry(entry)
                 .map_err(|error| describe(&error))?;
             Ok((file_name(path).to_owned(), read_capped(reader)?))

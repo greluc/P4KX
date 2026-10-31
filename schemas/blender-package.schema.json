@@ -441,6 +441,14 @@
             "null"
           ]
         },
+        "layer_shares": {
+          "description": "The share of each layer of `layers` without a blend map or vertex colours (1.5), by\nposition and `WearBlendBase` (`Material::layer_shares`, the rule the GLB shades by): the\nfirst layer `1 - WearBlendBase`, the others `WearBlendBase` between them, a layer without a\n`material` has 0, all shares sum to 1. All 0 means the material keeps its own colours.\nEmpty when the material has no layers; a package before 1.5 lacks it.",
+          "items": {
+            "format": "float",
+            "type": "number"
+          },
+          "type": "array"
+        },
         "layers": {
           "description": "The layers in file order.",
           "items": {

@@ -67,12 +67,18 @@ pub struct Browser {
 }
 
 impl Browser {
-    /// Shows every Entry of `index`, sorted by name, with the root expanded.
+    /// Shows every Entry of `index`, sorted by name, with the root expanded. For a DataForge file
+    /// there are no Entries: only its DataForge node is shown, selected.
     #[must_use]
     pub fn new(index: EntryIndex) -> Self {
         let root = index.root();
         let checks = Checks::new(index.len());
-        let records = index.dataforge_name().map(RecordTree::new);
+        let mut records = index.dataforge_name().map(RecordTree::new);
+        if index.is_dataforge_file()
+            && let Some(records) = &mut records
+        {
+            records.select_root();
+        }
         let mut browser = Self {
             index: Arc::new(index),
             containers: Containers::default(),

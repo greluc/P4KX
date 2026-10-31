@@ -328,6 +328,10 @@ impl Browser {
     }
 
     pub(super) fn refresh_tree(&mut self) {
+        if self.index.is_dataforge_file() {
+            self.tree_rows.clear();
+            return;
+        }
         let mut rows = Vec::new();
         let mut pending = vec![TreeRow {
             node: TreeNode::from(self.index.root()),

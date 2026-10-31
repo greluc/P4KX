@@ -112,7 +112,7 @@ fn run(job: Job, cancel: &CancelToken, set: &impl Fn(QueryStage)) -> Outcome {
     };
     let source = Source {
         cached: &cached,
-        archive: job.index.archive().path(),
+        archive: job.index.path(),
     };
     let outcome = query_over(source, &job.query, job.text, cancel, set);
     if matches!(outcome, Outcome::Finished(_)) && job.index.watch().check().is_err() {

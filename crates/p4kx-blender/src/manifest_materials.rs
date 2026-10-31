@@ -210,6 +210,13 @@ pub struct MaterialDescription {
     /// absent field from `false` itself.
     #[serde(default)]
     pub reads_vertex_colours: bool,
+    /// The share of each layer of `layers` without a blend map or vertex colours (1.5), by
+    /// position and `WearBlendBase` (`Material::layer_shares`, the rule the GLB shades by): the
+    /// first layer `1 - WearBlendBase`, the others `WearBlendBase` between them, a layer without a
+    /// `material` has 0, all shares sum to 1. All 0 means the material keeps its own colours.
+    /// Empty when the material has no layers; a package before 1.5 lacks it.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub layer_shares: Vec<f32>,
     /// The palette entry the material takes: that of its first layer with a `PaletteTint` from 1
     /// to 3, or the glass colour of a glass material that uses the tint palette.
     #[serde(default, skip_serializing_if = "Option::is_none")]

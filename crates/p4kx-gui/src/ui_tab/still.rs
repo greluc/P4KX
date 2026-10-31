@@ -28,7 +28,7 @@ pub(super) fn draw(
             .resolve(key)
             .map(|text| decode_line_breaks(text).into_owned())
     };
-    let images = ArchiveImages::new(index.archive());
+    let images = ArchiveImages::new(index.entries_archive().map_err(|e| reason(&e))?);
     let read_texture = |path: &str, side: u32, pixels: u64| {
         images
             .texture(path, side, pixels)
@@ -67,6 +67,7 @@ pub(super) fn load_texts(
     index: &EntryIndex,
     forge: &DataForge<'_>,
     language: Option<crate::TextLanguage>,
-) -> ScreenTexts {
-    ScreenTexts::load(index.archive(), &font_file(forge), language)
+) -> Result<ScreenTexts, Fail> {
+    let archive = index.entries_archive().map_err(|e| reason(&e))?;
+    Ok(ScreenTexts::load(archive, &font_file(forge), language))
 }

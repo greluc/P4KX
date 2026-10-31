@@ -162,10 +162,14 @@ pub(super) fn run(
         send(answers, wake, Answer::Unavailable);
         return;
     }
-    let Some(audio_index) = AudioIndex::build_until(index.archive(), cancel) else {
+    let Some(archive) = index.archive() else {
+        send(answers, wake, Answer::Unavailable);
         return;
     };
-    let audio = ArchiveAudio::with_index(index.archive(), &audio_index);
+    let Some(audio_index) = AudioIndex::build_until(archive, cancel) else {
+        return;
+    };
+    let audio = ArchiveAudio::with_index(archive, &audio_index);
     let default_language = audio_index.default_language();
     let mut choice = LanguageChoice::new(None, default_language);
     let info = IndexInfo {

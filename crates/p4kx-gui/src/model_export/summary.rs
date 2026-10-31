@@ -7,7 +7,7 @@ use p4kx_extraction::model::{MaterialStatus, Model};
 use p4kx_extraction::{AnimationSet, GlbSummary, Guid, TextureRole, WriteRefused};
 
 use crate::model_info::{MAX_LISTED_ANIMATIONS, printable};
-use crate::{ChunkNote, ModelInfo};
+use crate::{ChunkNote, ModelInfo, NoEntries};
 
 /// What a finished Export as GLB wrote and what it left out.
 #[derive(Debug, Clone, PartialEq)]
@@ -261,4 +261,10 @@ pub enum ModelExportFailure {
     Failed(String),
     /// The export stopped without a result.
     Stopped,
+}
+
+impl From<NoEntries> for ModelExportFailure {
+    fn from(error: NoEntries) -> Self {
+        Self::Failed(error.to_string())
+    }
 }

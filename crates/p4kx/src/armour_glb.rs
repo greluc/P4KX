@@ -71,7 +71,7 @@ fn gather<'a>(
     args: &'a ArmourGlbArgs,
 ) -> Result<Selection<'a>> {
     let names = (args.pieces.as_slice(), args.loadout.as_deref());
-    let expressions = expressions_choice(args.lod, &args.expressions, args.no_expressions);
+    let expressions = expressions_choice(&args.expressions, args.no_expressions);
     Selection::gather(resolver, files, names, &expressions)
 }
 

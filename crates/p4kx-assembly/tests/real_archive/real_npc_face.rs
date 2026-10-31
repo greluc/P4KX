@@ -83,11 +83,12 @@ fn head_models(
     ))
 }
 
-/// Builds Miles Eckhart at LOD 0 with `expressions` on his head.
+/// Builds Miles Eckhart at level of detail `lod` with `expressions` on his head.
 fn eckhart(
     archive: &Archive,
     models: &ArchiveModels<'_>,
     expressions: &Expressions,
+    lod: u32,
 ) -> Result<Armour, Box<dyn Error>> {
     let entry = DataForgeEntry::read(archive)?;
     let forge = entry.open()?;
@@ -105,8 +106,39 @@ fn eckhart(
         head.variant(),
         &pieces,
         models,
-        &AssemblyOptions::default().with_lod(0),
+        &AssemblyOptions::default().with_lod(lod),
     )?)
+}
+
+#[test]
+#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
+#[expect(clippy::print_stdout, reason = "the counts are the measurement")]
+fn miles_eckhart_has_his_expressions_at_the_lower_levels_too() -> TestResult {
+    let archive = Archive::open_with_key(real_archive_path()?, real_archive_key().ok())?;
+    let models = ArchiveModels::new(&archive);
+    let count = |armour: &Armour| {
+        armour
+            .parts()
+            .iter()
+            .find(|part| part.name() == "head")
+            .map_or(0, |part| part.morphs().len())
+    };
+    let base = count(&eckhart(&archive, &models, &Expressions::All, 0)?);
+    for level in 1..=2 {
+        let armour = eckhart(&archive, &models, &Expressions::All, level)?;
+        println!("LOD {level}: {} of {base} expressions", count(&armour));
+        assert!(count(&armour) > 300, "{}", count(&armour));
+        assert!(count(&armour) <= base);
+        assert!(
+            !armour
+                .issues()
+                .iter()
+                .any(|issue| issue.kind().code() == "morphs_failed"),
+            "{:?}",
+            armour.issues()
+        );
+    }
+    Ok(())
 }
 
 #[test]
@@ -115,7 +147,7 @@ fn eckhart(
 fn miles_eckhart_has_expressions_and_a_face_animation_of_his_own() -> TestResult {
     let archive = Archive::open_with_key(real_archive_path()?, real_archive_key().ok())?;
     let models = ArchiveModels::new(&archive);
-    let armour = eckhart(&archive, &models, &Expressions::All)?;
+    let armour = eckhart(&archive, &models, &Expressions::All, 0)?;
 
     let part = armour
         .parts()
@@ -278,7 +310,7 @@ fn the_blendshapes_of_a_head_geometry_are_the_cells_of_the_base_head_of_its_dna_
 fn the_facial_joints_sit_where_the_skeleton_file_of_the_head_puts_them() -> TestResult {
     let archive = Archive::open_with_key(real_archive_path()?, real_archive_key().ok())?;
     let models = ArchiveModels::new(&archive);
-    let armour = eckhart(&archive, &models, &Expressions::None)?;
+    let armour = eckhart(&archive, &models, &Expressions::None, 0)?;
     let (skin, file) = head_models(&models)?;
     let (mut facial, mut like_the_file, mut unlike_the_skin) = (0_usize, 0_usize, 0_usize);
     for bone in &armour.skeleton().bones {

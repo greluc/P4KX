@@ -8,7 +8,7 @@ use thiserror::Error;
 
 use super::device::block_on_for;
 use super::readback::{BYTES_PER_PIXEL, DEVICE_WAIT};
-use super::teardown::Gpu;
+use super::teardown::{Gpu, Released};
 use super::{Frame, GpuReport, Renderer, Unavailable};
 
 /// Which graphics adapter to draw on.
@@ -124,6 +124,7 @@ pub struct Offscreen {
     gpu: Option<Gpu>,
     report: Arc<GpuReport>,
     adapter: String,
+    software: bool,
 }
 
 impl Offscreen {
@@ -162,6 +163,7 @@ impl Offscreen {
             }),
             report,
             adapter: format!("{} ({:?})", info.name, info.backend),
+            software: info.device_type == wgpu::DeviceType::Cpu,
         })
     }
 
@@ -169,6 +171,12 @@ impl Offscreen {
     #[must_use]
     pub fn adapter_name(&self) -> &str {
         &self.adapter
+    }
+
+    /// Returns whether the adapter is a software one (WARP, lavapipe).
+    #[must_use]
+    pub const fn is_software(&self) -> bool {
+        self.software
     }
 
     /// Returns what the renderer learned about the device and the scenes.
@@ -219,13 +227,23 @@ impl Offscreen {
     }
 }
 
+impl Offscreen {
+    /// Releases the device: waits for the queue to go idle and drops the GPU objects on a worker
+    /// thread, so that a driver that never answers cannot block the caller for longer than the
+    /// teardown limit. Dropping an `Offscreen` does the same and discards the outcome.
+    #[must_use]
+    pub fn close(mut self) -> Released {
+        self.release()
+    }
+
+    fn release(&mut self) -> Released {
+        self.gpu.take().map_or(Released::Dropped, Gpu::release)
+    }
+}
+
 impl Drop for Offscreen {
-    /// Waits for the queue to go idle and drops the device on a worker thread, so that a driver
-    /// that never answers cannot block the caller.
     fn drop(&mut self) {
-        if let Some(gpu) = self.gpu.take() {
-            gpu.release();
-        }
+        self.release();
     }
 }
 

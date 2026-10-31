@@ -150,6 +150,16 @@ fn loadout_structs() -> Vec<TestStruct> {
         TestStruct::new("SItemPortLoadoutXMLParams")
             .parent("SItemPortLoadoutBaseParams")
             .field("loadoutPath", TestType::String),
+        TestStruct::new("SItemPortLoadoutRandomGeneratedParams")
+            .parent("SItemPortLoadoutBaseParams")
+            .array(
+                "LoadoutAssortments",
+                TestType::ReferenceTo("SLoadoutAssortment".to_owned()),
+            ),
+        TestStruct::new("SLoadoutAssortment").array("GroupedLoadouts", class("SGroupedLoadouts")),
+        TestStruct::new("SGroupedLoadouts")
+            .field("Group", TestType::String)
+            .array("Loadouts", pointer("SItemPortLoadoutBaseParams")),
         TestStruct::new("SItemPortLoadoutOutfitParams")
             .parent("SItemPortLoadoutBaseParams")
             .field("BaseLoadout", pointer("SItemPortLoadoutBaseParams"))

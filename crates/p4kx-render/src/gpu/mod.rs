@@ -17,6 +17,9 @@ mod offscreen_tests;
 mod pipelines;
 #[cfg(test)]
 mod probe;
+mod readback;
+#[cfg(test)]
+mod real_gpu_tests;
 mod report;
 mod resources;
 mod shading;
@@ -26,6 +29,7 @@ mod skeleton_tests;
 mod slot;
 mod straight;
 mod target;
+mod teardown;
 #[cfg(test)]
 mod tests;
 
@@ -41,6 +45,7 @@ use resources::{MaterialTexture, MeshBuffers};
 pub use shading::{Hologram, Shading};
 use slot::Slot;
 use target::Target;
+pub use teardown::{Released, abandoned_teardowns};
 
 use super::assembly::{AssemblyScene, DrawList};
 use super::camera::Uniforms;

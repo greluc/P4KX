@@ -3,7 +3,9 @@
 
 use std::fmt::Write as _;
 
-use p4kx_model::{Material, MaterialLayer, TextureSlot, texture_suffix_lowercase as suffix};
+use p4kx_model::{
+    DIFFUSE_SLOT, Material, MaterialLayer, TextureSlot, texture_suffix_lowercase as suffix,
+};
 
 use crate::shading::{Shaded, shaded_layers};
 use crate::texture_report::TextureRole;
@@ -20,7 +22,6 @@ pub(crate) const BASE_LAYERS: usize = 4;
 const MAX_TILING: f32 = 4096.0;
 const MASK_SUFFIX: &str = "blend";
 const TEXTURE_MODIFIER: &str = "TexMod";
-const DIFFUSE_SLOT: &str = "TexSlot1";
 
 /// One layer of a layered material as the image bake sees it.
 #[derive(Debug, Clone, PartialEq)]

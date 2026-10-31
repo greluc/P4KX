@@ -10,6 +10,9 @@ pub enum TestLoadout {
     Manual(Vec<TestLoadoutEntry>),
     /// An XML Loadout naming the file that holds it.
     Xml(String),
+    /// A Loadout generated at random from the `SLoadoutAssortment` Records with these GUIDs, see
+    /// [`assortment_record`](crate::assortment_record).
+    RandomGenerated(Vec<u128>),
     /// An outfit: a base Loadout and outfits, each with its name tags and the Loadouts it adds.
     Outfit {
         /// The base Loadout.
@@ -28,6 +31,18 @@ impl TestLoadout {
             ),
             Self::Xml(path) => TestInstance::new("SItemPortLoadoutXMLParams")
                 .value("loadoutPath", TestValue::text(path.clone())),
+            Self::RandomGenerated(assortments) => {
+                TestInstance::new("SItemPortLoadoutRandomGeneratedParams").value(
+                    "LoadoutAssortments",
+                    TestValue::Array(
+                        assortments
+                            .iter()
+                            .copied()
+                            .map(TestValue::Reference)
+                            .collect(),
+                    ),
+                )
+            }
             Self::Outfit { base, outfits } => {
                 let outfit = |(tags, loadouts): &(Vec<String>, Vec<Self>)| {
                     TestValue::Struct(

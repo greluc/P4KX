@@ -46,4 +46,5 @@ unreadable. Causes that stay open:
 - Creatures drawn without joints (#880).
 - Item ports of a creature's skin whose helper is a bone of the creature's skeleton, e.g. a
   collar, are placed at the origin (#881).
-- Creature base Entities whose body port is unset draw nothing (#882).
+- Creature base Entities whose body port is unset draw nothing (#882; the generated Loadout of the
+  Quasigrazers is read, ADR-0289).

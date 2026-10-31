@@ -18,10 +18,14 @@ fn fit(rooms: &[Option<WorldBox>], hardpoints: Vec<Hardpoint>) -> InteriorFit {
     let containers = rooms
         .iter()
         .map(|room| {
-            let (inside, outside) = classify(room.as_ref(), &hardpoints);
+            let rooms: Vec<WorldBox> = room.iter().copied().collect();
+            let (inside, outside) = classify(&rooms, &hardpoints);
             ContainerFit {
                 file: "room.socpak".to_owned(),
                 room: *room,
+                owner: 0,
+                models: rooms.clone(),
+                rooms,
                 inside,
                 outside,
                 animated: Vec::new(),
@@ -34,11 +38,11 @@ fn fit(rooms: &[Option<WorldBox>], hardpoints: Vec<Hardpoint>) -> InteriorFit {
 
 fn ship(cockpit_y: f32) -> InteriorFit {
     fit(
-        &[room_at(cockpit_y), room_at(-10.0)],
+        &[room_at(cockpit_y), room_at(6.0)],
         vec![
             hardpoint(HardpointKind::Controller, [0.0, 11.0, 1.0]),
             hardpoint(HardpointKind::Seat, [0.0, 10.0, 1.0]),
-            hardpoint(HardpointKind::CargoGrid, [0.0, -10.0, 1.0]),
+            hardpoint(HardpointKind::CargoGrid, [0.0, 6.0, 1.0]),
         ],
     )
 }
@@ -61,13 +65,64 @@ fn a_displaced_cockpit_room_splits_the_controller_and_seat_from_every_room() {
     );
 }
 
+/// The hull of the synthetic ships: x from -3 to 3, y from -20 to 14, z from -1 to 5.
+fn hull() -> Option<WorldBox> {
+    WorldBox::around([[-3.0, -20.0, -1.0], [3.0, 14.0, 5.0]])
+}
+
+fn outside_hull(fit: &InteriorFit) -> Vec<usize> {
+    fit.misfits(TOLERANCE)
+        .into_iter()
+        .filter_map(|misfit| match misfit {
+            Misfit::RoomOutsideHull { container } => Some(container),
+            _ => None,
+        })
+        .collect()
+}
+
+#[test]
+fn a_room_moved_out_of_the_hull_is_a_misfit_though_it_holds_its_hardpoints() {
+    let hardpoints = || {
+        vec![
+            hardpoint(HardpointKind::Controller, [0.0, 14.8, 1.0]),
+            hardpoint(HardpointKind::Seat, [0.0, 15.3, 1.0]),
+        ]
+    };
+
+    let beyond = fit(&[room_at(0.0), room_at(15.0)], hardpoints()).with_hull(hull());
+    let within_slack = fit(&[room_at(0.0), room_at(12.5)], hardpoints()).with_hull(hull());
+    let no_hull = fit(&[room_at(0.0), room_at(15.0)], hardpoints());
+
+    assert_eq!(outside_hull(&beyond), [1]);
+    assert_eq!(outside_hull(&within_slack), Vec::<usize>::new());
+    assert_eq!(outside_hull(&no_hull), Vec::<usize>::new());
+}
+
+#[test]
+fn a_room_without_room_models_cannot_protrude() {
+    let empty = fit(&[room_at(0.0), None], Vec::new()).with_hull(hull());
+
+    assert_eq!(outside_hull(&empty), Vec::<usize>::new());
+}
+
+#[test]
+fn a_room_of_an_attached_entity_may_lie_outside_the_hull() {
+    let rooms = [room_at(0.0), room_at(30.0)];
+    let mut docked = fit(&rooms, Vec::new()).with_hull(hull());
+    let own = fit(&rooms, Vec::new()).with_hull(hull());
+    docked.containers[1].owner = 3;
+
+    assert_eq!(outside_hull(&docked), Vec::<usize>::new());
+    assert_eq!(outside_hull(&own), [1]);
+}
+
 #[test]
 fn a_controller_and_seat_in_different_rooms_are_a_split() {
     let split = fit(
-        &[room_at(10.0), room_at(20.0)],
+        &[room_at(10.0), room_at(14.0)],
         vec![
             hardpoint(HardpointKind::Controller, [0.0, 10.0, 1.0]),
-            hardpoint(HardpointKind::Seat, [0.0, 20.0, 1.0]),
+            hardpoint(HardpointKind::Seat, [0.0, 14.0, 1.0]),
         ],
     );
 

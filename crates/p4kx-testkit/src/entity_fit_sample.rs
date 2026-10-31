@@ -23,6 +23,13 @@ const IDENTITY: [[f32; 4]; 3] = [
     [0.0, 0.0, 1.0, 0.0],
 ];
 
+/// The hull's mesh: the 4 m cube stretched tenfold along y, so its box spans y from -20 to 20.
+const LONG: [[f32; 4]; 3] = [
+    [1.0, 0.0, 0.0, 0.0],
+    [0.0, 10.0, 0.0, 0.0],
+    [0.0, 0.0, 1.0, 0.0],
+];
+
 const fn at(x: f32, y: f32, z: f32) -> [[f32; 4]; 3] {
     [[1.0, 0.0, 0.0, x], [0.0, 1.0, 0.0, y], [0.0, 0.0, 1.0, z]]
 }
@@ -36,18 +43,18 @@ fn node(name: &str, parent: Option<u16>, local: [[f32; 4]; 3], kind: u16) -> Tes
     }
 }
 
-/// The hull: helpers for the cockpit at (0, 10, 0), the cargo room at (0, -10, 0), a far place at
+/// The hull: helpers for the cockpit at (0, 10, 0), the cargo room at (0, 6, 0), a far place at
 /// (0, 50, 0) and the seat, controller and grid points one metre above the rooms' floors.
 fn hull() -> TestModel {
     TestModel::cube().with_nodes(vec![
         node("hull", None, IDENTITY, 2),
-        node("hull_mesh", Some(0), IDENTITY, 0),
+        node("hull_mesh", Some(0), LONG, 0),
         node("hp_cockpit", Some(0), at(0.0, 10.0, 0.0), 2),
-        node("hp_cargo", Some(0), at(0.0, -10.0, 0.0), 2),
+        node("hp_cargo", Some(0), at(0.0, 6.0, 0.0), 2),
         node("hp_stray", Some(0), at(0.0, 50.0, 0.0), 2),
         node("hp_pilot", Some(0), at(0.0, 10.0, 1.0), 2),
         node("hp_ctrl", Some(0), at(0.0, 11.0, 1.0), 2),
-        node("hp_grid", Some(0), at(0.0, -10.0, 1.0), 2),
+        node("hp_grid", Some(0), at(0.0, 6.0, 1.0), 2),
     ])
 }
 
@@ -136,7 +143,8 @@ fn database() -> DataForgeBuilder {
 /// containers hold one 4 m cube room whose box spans 4 m in x and y and 4 m up from its origin.
 ///
 /// The rooms of [`ENTITY_FIT_CLASS`] sit at the cockpit (0, 10, 0) with the seat and controller
-/// in it and at the cargo room (0, -10, 0) with the grid in it. [`ENTITY_FIT_MOVED_CLASS`] puts
+/// in it and at the cargo room (0, 6, 0), which abuts the cockpit room, with the grid in it.
+/// [`ENTITY_FIT_MOVED_CLASS`] puts
 /// its cockpit room at (0, 50, 0), away from the seat and controller. [`ENTITY_FIT_MERGED_CLASS`]
 /// puts both rooms on the cockpit and its grid in it.
 #[must_use]

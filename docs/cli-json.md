@@ -2396,8 +2396,8 @@ At `--lod 1` and up, whose rigs have none, the targets of level 0 are carried to
 the level (ADR-0293). The hair, brows, lashes and beard
 have a target for each expression that moves one of their vertices by at least a fifth of the
 target's largest move, named like the head's and moved as they follow the neutral shape
-(ADR-0200); the teeth and eyes have none. Only the first mesh of such a piece at LOD 0 gets
-targets: a piece with several meshes adds the note `follow_morphs_first_mesh_only`, and
+(ADR-0200), at every `--lod` (ADR-0305); the teeth and eyes have none. Only the first mesh of such
+a piece gets targets: a piece with several meshes adds the note `follow_morphs_first_mesh_only`, and
 `follow_weights_skipped` says that a facial animation sets no weights for a piece whose targets do
 not match the head's. These pieces are also bound to the facial joints of the head
 (ADR-0299); `follow_joints_skipped` says that one is not, because the head mesh has no weights or

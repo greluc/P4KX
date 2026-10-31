@@ -107,10 +107,23 @@ models, but its cockpit model then protrudes about 3 m beyond the hull and the h
 Moved 3 m backwards it is not detected: the 8 m long cockpit model still holds the controller and
 the copilot seat, and the pilot seat leaves it by 0.65 m, which a rule for every seat of the root
 vehicle would catch but which also fails on the Redeemer's escape-pod bedding (0.57 m from any
-model). Two other rules tried on the census were dropped: a connected group of abutting
+model).
+
+Identifying the pilot seat by structure, to check only it, was tried on the census and found not
+reliable: the nearest seat to the controller is the Cutlass copilot seat; the `SCItemSeatParams`
+and dashboard parameters of the Cutlass pilot and copilot seat Records are the same
+(`seatType`, control template, engine and weapon interactions); the vehicle definition's
+`Camera type="pilot"` offsets exist only on the Cutlass of the 12 census ships whose definitions were read
+(and its z is not the seat's); the thruster and flight-controller ports carry no controller tag
+to match a seat against; and the `controllableTags` of the seat ports are free-form names
+(`pilotSeat`, `Pilot_Seat`, `ConsolePilotSeat`, none on the Caterpillar). So no pilot seat rule
+is applied.
+
+Two other rules tried on the census were dropped: a connected group of abutting
 containers (real ships have gaps of 1 to 11 m between sections) and containers' volume ratio as
 the room test (above). Synthetic ships show the checks fail for a cockpit room moved away and for
-a cargo grid in the cockpit room.
+a cargo grid in the cockpit room. The cockpit-split and cargo-room rules break on most other
+census ships (issue #936).
 
 ## Open points
 

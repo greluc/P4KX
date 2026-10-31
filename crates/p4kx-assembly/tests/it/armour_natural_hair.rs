@@ -5,6 +5,7 @@
 //! of their own shader parameters, in the library and in the written GLB.
 
 use std::error::Error;
+use std::sync::LazyLock;
 
 use p4kx_assembly::{
     ArchiveModels, Armour, AssemblyOptions, BodyVariant, LoadoutResolver, ModelFailure,
@@ -18,9 +19,7 @@ use p4kx_testkit::{armour_entries, check_glb};
 use crate::assembly_support::{TestResult, fixture};
 
 const LIBRARY: &str = r#"<Material><SubMaterials>
-    <Material Name="body_hair" Shader="HairPBR" Diffuse="1,1,1">
-      <PublicParams BaseMelanin="1" BaseMelaninRedness="0" BaseTintColor="1,1,1"/>
-    </Material>
+    <Material Name="unused" Shader="Illum" Diffuse="0.5,0.5,0.5"/>
     <Material Name="lash" Shader="HairPBR" Diffuse="1,1,1">
       <PublicParams BaseMelanin="0" BaseMelaninRedness="0" BaseTintColor="5,-5,0.5"/>
     </Material>
@@ -69,7 +68,27 @@ fn near(found: &[f32], wanted: [f32; 3]) -> bool {
         .all(|(found, wanted)| (found - wanted).abs() < 1e-3)
 }
 
-fn wear_suit() -> Result<(Armour, Vec<u8>), Box<dyn Error>> {
+type Worn = (Armour, Vec<u8>);
+
+static SUIT: LazyLock<Result<Worn, String>> =
+    LazyLock::new(|| wear_suit().map_err(|error| error.to_string()));
+
+fn worn_suit() -> Result<&'static Worn, Box<dyn Error>> {
+    SUIT.as_ref().map_err(|error| error.clone().into())
+}
+
+fn written_factor(bytes: &[u8], name: &str) -> Result<[f32; 4], Box<dyn Error>> {
+    let glb = check_glb(bytes)?;
+    Ok(glb
+        .document
+        .materials()
+        .find(|material| material.name() == Some(name))
+        .ok_or_else(|| format!("the {name} material is written"))?
+        .pbr_metallic_roughness()
+        .base_color_factor())
+}
+
+fn wear_suit() -> Result<Worn, Box<dyn Error>> {
     let fixture = fixture(armour_entries())?;
     let archive = Archive::open(&fixture.path)?;
     let entry = DataForgeEntry::read(&archive)?;
@@ -94,36 +113,30 @@ fn wear_suit() -> Result<(Armour, Vec<u8>), Box<dyn Error>> {
 
 #[test]
 fn a_piece_without_a_look_is_written_with_the_colour_of_its_hair_parameters() -> TestResult {
-    let (armour, bytes) = wear_suit()?;
+    let (armour, bytes) = worn_suit()?;
 
-    let lash = diffuse_of(&armour, PartOrigin::Piece, "lash")?;
+    let lash = diffuse_of(armour, PartOrigin::Piece, "lash")?;
     assert!(
         near(&lash, [0.45, 0.0, 0.05]),
         "{lash:?}: blond, tinted by the clamped tint"
     );
-    let glb = check_glb(&bytes)?;
-    let written = glb
-        .document
-        .materials()
-        .find(|material| material.name() == Some("lash"))
-        .ok_or("the lash material is written")?
-        .pbr_metallic_roughness()
-        .base_color_factor();
+    let written = written_factor(bytes, "lash")?;
     assert!(near(&written, [0.45, 0.0, 0.05]), "{written:?}");
     Ok(())
 }
 
 #[test]
 fn a_piece_that_is_no_character_item_has_its_hair_material_coloured_too() -> TestResult {
-    let (armour, _) = wear_suit()?;
+    let (armour, bytes) = worn_suit()?;
 
-    let body = diffuse_of(&armour, PartOrigin::Body, "body_hair")?;
-    let plain = diffuse_of(&armour, PartOrigin::Body, "plain")?;
+    let body = diffuse_of(armour, PartOrigin::Body, "lash")?;
+    let plain = diffuse_of(armour, PartOrigin::Body, "plain")?;
 
-    assert!(
-        body.iter().all(|channel| *channel < 0.05),
-        "{body:?}: black"
-    );
+    assert!(near(&body, [0.45, 0.0, 0.05]), "{body:?}: the hair colour");
     assert_eq!(plain, [0.5; 3], "other shaders stay");
+    let written = written_factor(bytes, "lash")?;
+    assert!(near(&written, body), "{written:?} is the library colour");
+    let written = written_factor(bytes, "plain")?;
+    assert!(near(&written, [0.5; 3]), "{written:?}");
     Ok(())
 }

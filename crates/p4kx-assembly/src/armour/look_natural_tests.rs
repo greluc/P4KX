@@ -3,10 +3,8 @@
 
 use p4kx_model::MaterialStatus;
 
-use super::Look;
 use super::tests::{diffuse, library};
-
-const BLOND: [f32; 3] = [0.45, 0.28, 0.10];
+use super::{BLOND, Look};
 
 fn hair_xml(params: &str, texture: bool) -> String {
     let textures = if texture {
@@ -90,7 +88,7 @@ fn a_hair_library_without_a_dye_amount_ignores_the_dye_colour() {
 }
 
 #[test]
-fn a_hair_material_with_a_diffuse_texture_takes_the_colour_and_keeps_the_texture() {
+fn a_diffuse_texture_does_not_change_the_natural_colour_and_stays() {
     let xml = hair_xml("", true);
 
     let status = Look::natural()

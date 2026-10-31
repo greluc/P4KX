@@ -14,7 +14,7 @@ const DIFFUSE_SLOT: &str = "TexSlot1";
 const HAIR_TINT_PARAM: &str = "BaseTintColor";
 const HAIR_DYE_PARAM: &str = "DyeColor";
 
-const BLOND: [f32; 3] = [0.45, 0.28, 0.10];
+pub(super) const BLOND: [f32; 3] = [0.45, 0.28, 0.10];
 const BROWN: [f32; 3] = [0.08, 0.045, 0.02];
 const BLACK: [f32; 3] = [0.012, 0.010, 0.009];
 const AUBURN: [f32; 3] = [0.25, 0.06, 0.02];
@@ -221,12 +221,9 @@ fn own_hair(material: &mut Material, takes_dye: bool) {
 /// Returns the colour parameter `name` of `material` with each channel clamped to 0..1; `None`
 /// when it is not set or has fewer than three components.
 fn colour_param(material: &Material, name: &str) -> Option<[f32; 3]> {
-    let value = material.public_param(name)?;
-    let (_, text) = material
-        .public_params
-        .iter()
-        .find(|(key, _)| key.eq_ignore_ascii_case(name))?;
-    (text.split(',').count() == 3).then(|| value.map(|channel| channel.clamp(0.0, 1.0)))
+    material
+        .public_colour(name)
+        .map(|colour| colour.map(|channel| channel.clamp(0.0, 1.0)))
 }
 
 /// Moves the diffuse colour of `material` from the colour its shader parameter `source` names to

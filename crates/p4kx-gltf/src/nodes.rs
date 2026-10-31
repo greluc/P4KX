@@ -94,7 +94,7 @@ pub(crate) fn push_rig_nodes(
     root.scene = Some(scene);
 }
 
-fn push_joints(
+pub(crate) fn push_joints(
     root: &mut Root,
     joints: Vec<Index<json::Node>>,
     bone_roots: &[Index<json::Node>],

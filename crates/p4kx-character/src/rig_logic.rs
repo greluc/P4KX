@@ -13,6 +13,9 @@ pub const RIG_LOGIC_MAGIC: [u8; 8] = *b"RIG V1.9";
 
 const PREFIX_LEN: usize = 8;
 
+/// The most padding bytes a chunk may hold behind the rig its prefix declares.
+const PADDING_MAX: usize = 7;
+
 const HEADER_LEN: usize = 0xa8;
 const HEADER_SIZE_AT: usize = 0x3e;
 const APPEARANCE_AT: usize = 0x40;
@@ -41,6 +44,15 @@ pub enum RigLogicError {
     /// The chunk does not start with the `RigLogic` magic.
     #[error("not a RigLogic chunk: the magic is not `RIG V1.9`")]
     BadMagic,
+    /// The length in front of the rig is longer than the rest of the chunk or leaves more than
+    /// padding unaccounted.
+    #[error("the RigLogic chunk declares a rig of {declared} bytes, it holds {have}")]
+    PrefixMismatch {
+        /// The length the prefix declares.
+        declared: u64,
+        /// The bytes that follow the prefix.
+        have: usize,
+    },
     /// The chunk breaks its layout.
     #[error("the RigLogic chunk is malformed: {0}")]
     Malformed(&'static str),
@@ -72,7 +84,7 @@ impl RigLogic {
     /// Returns [`RigLogicError`] when the chunk is not a `RigLogic` chunk of the version this
     /// reader knows or its sections do not fit the chunk.
     pub fn read(chunk: &[u8]) -> Result<Self, RigLogicError> {
-        let chunk = rig_of(chunk)?;
+        let chunk = unprefixed(chunk)?;
         if chunk.len() < HEADER_LEN {
             return Err(RigLogicError::Truncated {
                 need: HEADER_LEN,
@@ -245,17 +257,32 @@ impl RigLogic {
     }
 }
 
-/// Returns the rig of `chunk`: the chunk itself when it starts with the magic, else what follows
-/// the length prefix of a chunk.
-fn rig_of(chunk: &[u8]) -> Result<&[u8], RigLogicError> {
+/// Returns the rig of `chunk`: the chunk itself when it starts with the magic, else the bytes
+/// behind a `u64` that holds their length, less the padding of at most [`PADDING_MAX`] bytes the
+/// chunk may end with.
+fn unprefixed(chunk: &[u8]) -> Result<&[u8], RigLogicError> {
     let has_magic = |bytes: &[u8]| bytes.get(..RIG_LOGIC_MAGIC.len()) == Some(&RIG_LOGIC_MAGIC);
     if has_magic(chunk) {
         return Ok(chunk);
     }
-    chunk
+    let rig = chunk
         .get(PREFIX_LEN..)
         .filter(|rig| has_magic(rig))
-        .ok_or(RigLogicError::BadMagic)
+        .ok_or(RigLogicError::BadMagic)?;
+    let declared = u64_at(chunk, 0).ok_or(RigLogicError::Truncated {
+        need: PREFIX_LEN,
+        have: chunk.len(),
+    })?;
+    let mismatch = || RigLogicError::PrefixMismatch {
+        declared,
+        have: rig.len(),
+    };
+    let declared_len = usize::try_from(declared).map_err(|_| mismatch())?;
+    let padding = rig.len().checked_sub(declared_len).ok_or_else(mismatch)?;
+    if padding > PADDING_MAX {
+        return Err(mismatch());
+    }
+    rig.get(..declared_len).ok_or_else(mismatch)
 }
 
 /// Returns the bytes of section `slot`: from its start to the next start behind it.

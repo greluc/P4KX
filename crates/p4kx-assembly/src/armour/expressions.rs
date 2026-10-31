@@ -142,16 +142,15 @@ fn on_mesh(target: &ExpressionTarget, first: &[u32], next: &[u32]) -> (Vec<u32>,
     moves.into_iter().unzip()
 }
 
-/// Makes the morph targets `selection` asks for of the head `mesh`, whose skin is at `path`, from
-/// the expression morphs of `rig` mixed by `matrix`; the targets are named by the skin's
-/// `RigLogic` chunk, ascend by blendshape and leave out the blendshapes that move no vertex.
+/// Makes the morph targets `selection` asks for of the head `mesh` from the expression morphs of
+/// `rig` mixed by `matrix`; the targets are named by `logic`, the skin's `RigLogic` chunk, ascend
+/// by blendshape and leave out the blendshapes that move no vertex.
 pub(super) fn morphs(
     rig: &DnaRig<'_>,
     matrix: &DnaMatrix,
     mesh: &Mesh,
-    path: &str,
+    logic: &RigLogic,
     selection: &Expressions,
-    models: &dyn ModelProvider,
 ) -> Result<Morphs, String> {
     let covered = rig.vertex_count().map_err(|error| error.to_string())?;
     if covered != mesh.positions.len() {
@@ -160,18 +159,17 @@ pub(super) fn morphs(
             mesh.positions.len()
         ));
     }
-    let logic = logic_of(path, models)?;
     let blend = rig
         .expression_blend(matrix)
         .map_err(|error| error.to_string())?;
     if logic.blendshapes() != blend.blendshapes() {
         return Err(format!(
-            "{path} names {} blendshapes, the DNA rig has {}",
+            "the RigLogic chunk names {} blendshapes, the DNA rig has {}",
             logic.blendshapes(),
             blend.blendshapes()
         ));
     }
-    Ok(targets_of(&blend, &logic, mesh, selection))
+    Ok(targets_of(&blend, logic, mesh, selection))
 }
 
 /// The blendshapes of a head on the vertices of its geometry stream.

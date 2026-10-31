@@ -30,6 +30,12 @@ pub(crate) fn text_structs() -> Vec<TestStruct> {
                 "value",
                 TestType::ReferenceTo("BuildingBlocks_FontStyle".to_owned()),
             ),
+        TestStruct::new("BuildingBlocks_FieldModifierRecordRefTypeCanvasReferenceRecord")
+            .parent("BuildingBlocks_FieldModifierRecordRefType")
+            .field(
+                "value",
+                TestType::ReferenceTo("BuildingBlocks_Canvas".to_owned()),
+            ),
         TestStruct::new("BuildingBlocks_FieldModifierRecordRef")
             .parent("BuildingBlocks_FieldModifier")
             .field(

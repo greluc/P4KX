@@ -9,13 +9,14 @@ use p4kx_model::{Animation, Lod, MAX_INFLUENCES, Model};
 use crate::GltfError;
 use crate::animations::AnimationSummary;
 use crate::document::document;
-use crate::glb_plan::{plan_layout, single_animation_plans, summarise, texture_set};
-use crate::instance::{Instance, Wrapper, material_requests};
+use crate::glb_plan::{
+    Skeletal, own_binds, plan_layout, single_animation_plans, summarise, texture_set,
+};
+use crate::instance::{Content, Instance, material_requests};
 use crate::layout::Layout;
 use crate::material_index::index_materials;
 use crate::materials::MaterialPlan;
-use crate::morphs::json_bytes;
-use crate::skin::inverse_binds;
+use crate::scene_rig::SceneRig;
 use crate::texture_loader::{NoTextures, TextureLoader};
 use crate::texture_plan::TextureSet;
 use crate::texture_report::TextureFallback;
@@ -53,7 +54,8 @@ pub struct GlbOptions {
     /// The mip level of the textures, 0 for the largest; a texture with fewer mips gives its
     /// smallest.
     pub texture_mip: u32,
-    /// Whether to write the vertex colours of the meshes that have any as `COLOR_0`; viewers
+    /// Whether to write the vertex colours of the meshes that have any as `COLOR_0`, on the
+    /// primitives whose material [reads them](p4kx_model::Material::reads_vertex_colours); viewers
     /// multiply the base colour of the material by them.
     pub vertex_colours: bool,
     /// The most bones a vertex is weighted to in the skins of the file, 1 to 8: the strongest ones
@@ -261,29 +263,51 @@ pub fn write_glb_animated_with(
         plan: MaterialPlan::new(model.materials.library(), lod),
         twin: None,
     };
-    write_instances(&[], &[instance], animations, options, textures, 0, out)
+    let content = Content {
+        wrappers: &[],
+        instances: &[instance],
+        rig: None,
+    };
+    write_instances(&content, animations, options, textures, 0, out)
+}
+
+/// Returns how many meshes the twin instances reuse instead of writing them again.
+fn shared_meshes(instances: &[Instance<'_>], layout: &Layout<'_>) -> usize {
+    instances
+        .iter()
+        .filter_map(|instance| instance.twin)
+        .map(|twin| {
+            layout
+                .meshes
+                .iter()
+                .filter(|mesh| mesh.part == twin)
+                .count()
+        })
+        .sum()
 }
 
 pub(crate) fn write_instances(
-    wrappers: &[Wrapper<'_>],
-    instances: &[Instance<'_>],
+    content: &Content<'_, '_>,
     animations: &[Animation],
     options: &GlbOptions,
     textures: &dyn TextureLoader,
     lod_fallbacks: usize,
     out: &mut impl Write,
 ) -> Result<GlbSummary, GltfError> {
+    let Content {
+        wrappers,
+        instances,
+        rig,
+    } = *content;
     let single = match (wrappers, instances) {
         ([], [instance]) => Some(instance),
         _ => None,
     };
-    let binds = single.and_then(|instance| {
-        let lod = instance.lod?;
-        let bones = instance.model.bones_of(lod);
-        (!bones.is_empty() && lod.meshes.iter().any(|mesh| mesh.influences.is_some()))
-            .then(|| inverse_binds(bones))
-    });
-    let mut layout = plan_layout(instances, options, binds.as_deref());
+    let binds = single.and_then(own_binds);
+    let skeletal = rig
+        .map(SceneRig::skeletal)
+        .or_else(|| binds.as_deref().map(Skeletal::own));
+    let mut layout = plan_layout(instances, options, skeletal);
     let images = match options.materials {
         MaterialMode::Textures => texture_set(&layout, instances, options.texture_mip, textures),
         MaterialMode::Colours => TextureSet::default(),
@@ -292,7 +316,7 @@ pub(crate) fn write_instances(
         single_animation_plans(&mut layout, instance, animations)
     });
     layout.push_images(images.images.iter().map(|image| image.png.len() as u64));
-    let mut root = document(wrappers, instances, &layout, &images, &animation_plans);
+    let mut root = document(content, &layout, &images, &animation_plans);
     if options.material_indices {
         index_materials(&mut root);
     }
@@ -317,17 +341,7 @@ pub(crate) fn write_instances(
     );
     summary.parts = instances.len();
     summary.lod_fallbacks = lod_fallbacks;
-    summary.shared_meshes = instances
-        .iter()
-        .filter_map(|instance| instance.twin)
-        .map(|twin| {
-            layout
-                .meshes
-                .iter()
-                .filter(|mesh| mesh.part == twin)
-                .count()
-        })
-        .sum();
+    summary.shared_meshes = shared_meshes(instances, &layout);
     if instances.len() > 1 {
         summary.shared_materials =
             material_requests(&layout, instances).saturating_sub(root.materials.len());
@@ -341,7 +355,7 @@ pub(crate) fn write_file(
     images: &TextureSet,
     out: &mut impl Write,
 ) -> Result<u64, GltfError> {
-    let mut json = json_bytes(root, layout)?;
+    let mut json = root.to_vec()?;
     json.resize(json.len().next_multiple_of(4), b' ');
     let json_len = json.len() as u64;
     let bin_len = layout.len;

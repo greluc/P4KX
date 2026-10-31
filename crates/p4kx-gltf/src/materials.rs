@@ -18,7 +18,6 @@ use crate::texture_roles::sources_with;
 const GLASS_ALPHA: f32 = 0.3;
 
 const DECAL_SHADERS: [&str; 2] = ["MeshDecal", "Decal"];
-const GLASS_SHADERS: [&str; 1] = ["GlassPBR"];
 const HAIR_CARD_SHADERS: [&str; 1] = ["HairPBR"];
 const HAIR_CARD_CUTOFF: f32 = 0.5;
 
@@ -133,6 +132,12 @@ impl<'m> MaterialPlan<'m> {
         self.slots.get(&id).is_some_and(Option::is_none)
     }
 
+    /// Returns whether the material drawn with `id` reads the vertex colours of its mesh.
+    pub(crate) fn reads_vertex_colours(&self, id: u16) -> bool {
+        self.slot(id)
+            .is_some_and(|slot| self.material(slot).reads_vertex_colours())
+    }
+
     /// Returns the slot of `id`, or `None` when nothing is drawn with it.
     pub(crate) fn slot(&self, id: u16) -> Option<Slot> {
         self.slots.get(&id).copied().flatten()
@@ -210,7 +215,7 @@ pub(crate) fn display_name(material: &Material, slot: Slot) -> String {
 fn alpha_of(material: &Material) -> (AlphaMode, f32, Option<f32>) {
     let opacity = material.opacity.clamp(0.0, 1.0);
     let decal = is_one_of(&material.shader, &DECAL_SHADERS);
-    let glass = is_one_of(&material.shader, &GLASS_SHADERS);
+    let glass = material.is_glass();
     if material.alpha_test > 0.0 {
         (
             AlphaMode::Mask,

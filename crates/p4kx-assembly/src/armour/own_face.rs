@@ -6,7 +6,7 @@
 
 use std::collections::HashMap;
 
-use p4kx_character::{FaceRig, RigLogic, SkinBlendshapes};
+use p4kx_character::{RigLogic, SkinBlendshapes};
 use p4kx_chunks::{ChunkFile, ivo};
 use p4kx_model::{Bone, Model};
 
@@ -83,12 +83,6 @@ fn posed_bones(
     Ok(Some(posed))
 }
 
-/// Makes the face rig of the head from the `.RigLogic` file at `path`.
-pub(super) fn own_rig(path: &str, models: &dyn ModelProvider) -> Result<FaceRig, String> {
-    let logic = read_logic(path, models)?.ok_or_else(|| format!("{path} does not exist"))?;
-    FaceRig::from_logic(&logic).map_err(|error| format!("{path}: {error}"))
-}
-
 /// Reads the blendshapes of the head whose skin is at `skin` from the `BShapesGpu` chunk of its
 /// geometry file and makes the morph targets `expressions` asks for of its `mesh`.
 fn morphs(
@@ -155,7 +149,7 @@ pub(super) fn own_head(
     };
     let made = (*expressions != Expressions::None)
         .then(|| morphs(model, skin, (&logic, expressions), models));
-    let face = posed_bones(model, skin, models)
-        .map(|posed| (own_facial(model, &logic, posed), path.clone()));
+    let face =
+        posed_bones(model, skin, models).map(|posed| (own_facial(model, logic, posed), path));
     Some(outcome(made, Some(face)))
 }

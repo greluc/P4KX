@@ -13,7 +13,7 @@ from .graph_spec import Ref
 from .material_model import Colour, MaterialDesc, Palette
 
 SURFACE_SHADERS = frozenset({"hardsurface", "illum", "layerblend", "layerblend_v2", "layer", "simple"})
-GLASS_SHADERS = frozenset({"glasspbr", "glass"})
+GLASS_SHADERS = frozenset({"glasspbr"})
 DECAL_SHADERS = frozenset({"meshdecal"})
 HOLOGRAM_SHADERS = frozenset({"hologram", "hologramcig"})
 NODRAW_SHADERS = frozenset({"nodraw", "nodraw_proxy", "proxy"})
@@ -24,8 +24,10 @@ TINT_PALETTE_DECAL = "$TintPaletteDecal"
 PER_VERTEX_TINT = "PER_VERTEX_TINT"
 # Name Blender's glTF importer gives the attribute of COLOR_0.
 GLTF_COLOUR_ATTRIBUTE = "Color"
-# Alpha of white glass: low enough that EEVEE shows the scene behind it.
-GLASS_CLEAR_ALPHA = 0.15
+# Share of the Principled BSDF (reflection, refraction) in glass; the rest is the tinted transparent
+# surface that EEVEE shows the scene through. 0.15 keeps clear glass as it looked when measured
+# for ADR-0258: low enough to see the scene behind it, high enough to keep the reflections.
+GLASS_BSDF_SHARE = 0.15
 # Shader parameter: how far the palette's glass colour tints the glass (0 = clear, 1 = full).
 TINT_STRENGTH = "GlassTintStrength"
 MAX_PROPERTIES = 64
@@ -83,6 +85,22 @@ def family_of(shader: str) -> str:
     if name in NODRAW_SHADERS:
         return "nodraw"
     return "unknown"
+
+
+def reads_vertex_colours(desc: MaterialDesc) -> bool:
+    """Returns whether ``desc`` reads the vertex colours of its mesh.
+
+    The package states it (``reads_vertex_colours``, the rule of ``Material::reads_vertex_colours``
+    in p4kx-model, which also decides which GLB primitives carry ``COLOR_0``). A package without
+    the statement (before format 1.4) reads them for ``PER_VERTEX_TINT`` glass and for a layered
+    surface without a blend or mask map, as the add-on did then.
+    """
+    if desc.stated_vertex_colours is not None:
+        return desc.stated_vertex_colours
+    family = family_of(desc.shader)
+    if family == "glass":
+        return PER_VERTEX_TINT in desc.gen_mask
+    return family == "surface" and not (desc.slot("blend") or desc.slot("mask"))
 
 
 def multiply(a: Colour, b: Colour) -> Colour:

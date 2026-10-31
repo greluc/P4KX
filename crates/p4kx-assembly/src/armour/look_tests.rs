@@ -9,7 +9,7 @@ use p4kx_model::{MaterialLibrary, MaterialStatus};
 
 use super::Look;
 
-fn library(xml: &str) -> MaterialStatus {
+pub(super) fn library(xml: &str) -> MaterialStatus {
     MaterialStatus::Loaded(MaterialLibrary::parse("test", xml.as_bytes()).expect("a valid library"))
 }
 
@@ -37,7 +37,7 @@ const fn colour(name: u32, rgba: [u8; 4]) -> ColorParam {
     }
 }
 
-fn diffuse(status: &MaterialStatus, at: usize) -> [f32; 3] {
+pub(super) fn diffuse(status: &MaterialStatus, at: usize) -> [f32; 3] {
     status.library().expect("a library").materials[at].diffuse
 }
 

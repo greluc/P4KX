@@ -46,6 +46,7 @@ pub(crate) fn describe(
         alpha_test: material.alpha_test,
         glow: material.glow,
         alpha_mode: alpha_mode(material),
+        reads_vertex_colours: material.reads_vertex_colours(),
         palette: material.palette.and_then(entry),
         default_palette: default_palette.map(str::to_owned),
         textures: material

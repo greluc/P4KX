@@ -26,6 +26,7 @@ mod real_chf_tail;
 mod real_child_containers;
 mod real_container_census;
 mod real_creature_census;
+mod real_creature_skeletons;
 mod real_default_fit;
 mod real_docked_vehicles;
 mod real_dressed_head;

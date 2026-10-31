@@ -68,7 +68,7 @@ pub(crate) struct Request {
     pub(crate) excluded_parts: usize,
 }
 
-type RunResult = Result<ExtractionSummary, String>;
+pub(super) type RunResult = Result<ExtractionSummary, String>;
 
 #[derive(Debug)]
 enum State {
@@ -94,6 +94,7 @@ pub enum ExtractionStatus<'a> {
 pub struct Extraction {
     archive: PathBuf,
     comparison_side: bool,
+    folder_conversion: bool,
     folder: PathBuf,
     cancel: CancelToken,
     progress: Arc<Mutex<Progress>>,
@@ -101,6 +102,13 @@ pub struct Extraction {
 }
 
 impl Extraction {
+    /// Returns whether this is the conversion of a folder of files, whose
+    /// [`archive`](Self::archive) and [`folder`](Self::folder) are the input folder.
+    #[must_use]
+    pub const fn is_folder_conversion(&self) -> bool {
+        self.folder_conversion
+    }
+
     /// Returns the path of the Archive the Entries are read from.
     #[must_use]
     pub fn archive(&self) -> &Path {
@@ -190,21 +198,46 @@ pub(crate) fn target_naming(archive: &Archive) -> (Option<String>, Option<&str>)
 /// Starts writing the Entries of `request` on a background thread, calling `wake` from it once
 /// the Extraction ended.
 pub(crate) fn start(request: Request, wake: impl Fn() + Send + 'static) -> Extraction {
+    let origin = Origin {
+        archive: request.source.archive().path().to_path_buf(),
+        folder: request.folder.clone(),
+        comparison_side: matches!(request.source, Source::Changes(_)),
+        folder_conversion: false,
+        entries_total: request.source.len(),
+    };
+    launch(origin, wake, move |cancel, progress| {
+        run(&request, cancel, progress)
+    })
+}
+
+/// What an Extraction reads from and writes to, and how many Entries it starts with.
+pub(super) struct Origin {
+    pub(super) archive: PathBuf,
+    pub(super) folder: PathBuf,
+    pub(super) comparison_side: bool,
+    pub(super) folder_conversion: bool,
+    pub(super) entries_total: usize,
+}
+
+/// Runs `work` on a background thread as an Extraction of `origin`, calling `wake` from it once
+/// it ended.
+pub(super) fn launch(
+    origin: Origin,
+    wake: impl Fn() + Send + 'static,
+    work: impl FnOnce(&CancelToken, &Mutex<Progress>) -> RunResult + Send + 'static,
+) -> Extraction {
     let cancel = CancelToken::new();
     let progress = Arc::new(Mutex::new(Progress {
-        entries_total: request.source.len(),
+        entries_total: origin.entries_total,
         ..Progress::default()
     }));
-    let folder = request.folder.clone();
-    let archive = request.source.archive().path().to_path_buf();
-    let comparison_side = matches!(request.source, Source::Changes(_));
     let (sender, result) = mpsc::channel();
     let thread_cancel = cancel.clone();
     let thread_progress = Arc::clone(&progress);
     let spawned = thread::Builder::new()
         .name("extraction".to_owned())
         .spawn(move || {
-            let outcome = run(&request, &thread_cancel, &thread_progress);
+            let outcome = work(&thread_cancel, &thread_progress);
             if sender.send(outcome).is_ok() {
                 wake();
             }
@@ -214,9 +247,10 @@ pub(crate) fn start(request: Request, wake: impl Fn() + Send + 'static) -> Extra
         Err(error) => State::Failed(Some(describe(&error))),
     };
     Extraction {
-        archive,
-        comparison_side,
-        folder,
+        archive: origin.archive,
+        comparison_side: origin.comparison_side,
+        folder_conversion: origin.folder_conversion,
+        folder: origin.folder,
         cancel,
         progress,
         state,

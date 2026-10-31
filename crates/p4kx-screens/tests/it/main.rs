@@ -3,6 +3,8 @@
 
 //! Integration tests of `p4kx-screens`, built as one test binary.
 
+mod canvas_cycles;
+mod canvas_reference;
 mod cascade;
 mod corners;
 mod errors;

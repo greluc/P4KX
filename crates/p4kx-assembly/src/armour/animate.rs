@@ -4,16 +4,14 @@
 use std::collections::HashSet;
 use std::io::Write;
 
-use p4kx_character::{Dna, DnaRig, FaceRig};
+use p4kx_character::{Dna, DnaRig, FaceRig, RigLogic};
 use p4kx_gltf::{
     GlbOptions, GlbSummary, GltfError, RigAnimation, RigPiece, SampledAnimation, SampledWeights,
     TextureLoader, write_rigged_glb_animated, write_rigged_glb_animated_with,
 };
 use p4kx_model::Animation;
 
-use super::expressions::logic_of;
 use super::facial::{FaceLink, FaceSource};
-use super::own_face::own_rig;
 use super::sample::{Control, evaluate, joint_samples, reduced, values_of, weight_samples};
 use super::shape::MAX_DNA_RIG_LEN;
 use super::unused::summarise;
@@ -146,17 +144,18 @@ fn refused(
 
 fn load(link: &FaceLink, models: &dyn ModelProvider) -> Result<Loaded, String> {
     let face = match &link.source {
-        FaceSource::Dna { skin, rig, dna } => dna_face(skin, (rig, dna), models)?,
-        FaceSource::Own { logic } => own_rig(logic, models)?,
+        FaceSource::Dna { rig, dna } => dna_face(rig, dna, &link.logic, models)?,
+        FaceSource::Own => FaceRig::from_logic(&link.logic).map_err(|error| error.to_string())?,
     };
     Ok(Loaded { face })
 }
 
-/// Makes the face rig of a head shaped by `dna` from the DNA rig at `rig` and the `RigLogic`
-/// chunk of the skin at `skin`.
+/// Makes the face rig of a head shaped by `dna` from the DNA rig at `rig_path` and the rig logic
+/// `logic` of its skin.
 fn dna_face(
-    skin: &str,
-    (rig_path, dna): (&str, &Dna),
+    rig_path: &str,
+    dna: &Dna,
+    logic: &RigLogic,
     models: &dyn ModelProvider,
 ) -> Result<FaceRig, String> {
     let bytes = models
@@ -169,8 +168,7 @@ fn dna_face(
     let matrix = rig
         .matrix(dna)
         .map_err(|error| format!("{rig_path}: {error}"))?;
-    let logic = logic_of(skin, models)?;
-    FaceRig::new(&rig, &matrix, &logic).map_err(|error| format!("{rig_path}: {error}"))
+    FaceRig::new(&rig, &matrix, logic).map_err(|error| format!("{rig_path}: {error}"))
 }
 
 impl Armour {

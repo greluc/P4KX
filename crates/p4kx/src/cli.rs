@@ -17,6 +17,7 @@ use crate::cli_character::CharacterArgs;
 pub(crate) use crate::cli_chf::{ChfAction, ChfArgs, ChfDiffArgs, ChfDiffFormat, ChfGlbArgs};
 use crate::cli_chunks::ChunksArgs;
 pub(crate) use crate::cli_conflict::Conflict;
+pub(crate) use crate::cli_convert::ConvertArgs;
 pub(crate) use crate::cli_coverage::CoverageArgs;
 pub(crate) use crate::cli_cryxml::CryXmlArgs;
 pub(crate) use crate::cli_dcb::{
@@ -86,6 +87,10 @@ pub(crate) enum Command {
     /// Extracts the given Entries of an Archive into a new target folder.
     #[command(after_help = EXIT_CODES_HELP)]
     Extract(ExtractArgs),
+    /// Converts the files of a folder extracted earlier, CryXml, split textures, sounds,
+    /// soundbanks and a DataForge file, into a new folder as `extract --convert` writes them.
+    #[command(after_help = EXIT_CODES_HELP)]
+    Convert(ConvertArgs),
     /// Checks the data of the Entries of an Archive against the CRC-32C of its directory, in
     /// parallel, and reports every mismatch; nothing is written. Exits with 1 when an Entry
     /// mismatches or cannot be read.

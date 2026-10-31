@@ -5,7 +5,10 @@
 
 use std::error::Error;
 
-use p4kx_settings::{Settings, UiRenderBackground, UiRenderFormat, UiRenderSettings, UiRenderSize};
+use p4kx_settings::{
+    MAX_VARIABLES_BYTES, Settings, UiRenderBackground, UiRenderFormat, UiRenderPower,
+    UiRenderSettings, UiRenderSize, bound_variables,
+};
 
 type TestResult = Result<(), Box<dyn Error>>;
 
@@ -18,6 +21,8 @@ fn the_choices_survive_a_round_trip() -> TestResult {
             size: UiRenderSize::FullHd,
             background: UiRenderBackground::Black,
             format: UiRenderFormat::Svg,
+            power: UiRenderPower::PoweredOn,
+            variables: "isradar=1 mapdisplaymaster::ismapactive=1".to_owned(),
         },
         ..Settings::default()
     };
@@ -26,6 +31,35 @@ fn the_choices_survive_a_round_trip() -> TestResult {
 
     assert_eq!(Settings::load(&file)?, settings, "settings round-trip");
     Ok(())
+}
+
+#[test]
+fn typed_variables_are_cut_on_load_at_the_last_separator() -> TestResult {
+    let folder = tempfile::tempdir()?;
+    let file = folder.path().join("settings.toml");
+    let long = "äb=1 ".repeat(MAX_VARIABLES_BYTES);
+    std::fs::write(
+        &file,
+        format!("[ui]\npower = \"warp\"\nvariables = \"{long}\"\n"),
+    )?;
+
+    let loaded = Settings::load(&file)?.ui;
+
+    assert_eq!(loaded.power, UiRenderPower::AtRest, "unknown state");
+    assert!(loaded.variables.len() <= MAX_VARIABLES_BYTES, "bounded");
+    assert!(loaded.variables.ends_with("äb=1"), "no setting is cut");
+    Ok(())
+}
+
+#[test]
+fn a_text_without_a_separator_that_is_too_long_becomes_empty() {
+    assert_eq!(bound_variables(&"a".repeat(MAX_VARIABLES_BYTES + 1)), "");
+    let exact = format!("{}=1", "a".repeat(MAX_VARIABLES_BYTES - 2));
+    assert_eq!(bound_variables(&exact), exact);
+    let split = format!("{} b=1", "a".repeat(MAX_VARIABLES_BYTES - 3));
+    assert_eq!(bound_variables(&split).len(), MAX_VARIABLES_BYTES - 3);
+    let tail = format!("{},b", "a".repeat(MAX_VARIABLES_BYTES - 1));
+    assert_eq!(bound_variables(&tail).len(), MAX_VARIABLES_BYTES - 1);
 }
 
 #[test]

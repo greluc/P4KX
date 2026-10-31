@@ -48,9 +48,7 @@ impl Found {
         let source = face
             .as_ref()
             .filter(|face| face.facial.is_some())
-            .map(|face| FaceSource::Own {
-                logic: face.rig.clone(),
-            });
+            .map(|_| FaceSource::Own);
         Self {
             part,
             source,
@@ -62,19 +60,12 @@ impl Found {
         }
     }
 
-    /// Returns the head part `part` made of the skin at `skin` when it was shaped by `dna` and
-    /// has a face.
-    pub(super) fn of(
-        part: usize,
-        skin: &str,
-        dna: Option<&Dna>,
-        face: Option<Face>,
-    ) -> Option<Self> {
+    /// Returns the head part `part` when it was shaped by `dna` and has a face.
+    pub(super) fn of(part: usize, dna: Option<&Dna>, face: Option<Face>) -> Option<Self> {
         let face = face?;
         Some(Self {
             part,
             source: Some(FaceSource::Dna {
-                skin: skin.to_owned(),
                 rig: face.rig.clone(),
                 dna: dna?.clone(),
             }),
@@ -128,6 +119,7 @@ pub(super) fn extend_with_faces(skeleton: &mut Model, parts: &mut [ArmourPart], 
                 source,
                 joints,
                 blendshapes: head.face.numbers,
+                logic: facial.logic,
             }
             .shared(),
         );

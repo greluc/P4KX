@@ -1,5 +1,5 @@
 ---
-source: crates/p4kx/tests/entity_package_materials.rs
+source: crates/p4kx/tests/it/entity_package_materials.rs
 expression: "pretty(&manifest, \"materials\")?"
 ---
 [
@@ -149,6 +149,7 @@ expression: "pretty(&manifest, \"materials\")?"
         "value": "5"
       }
     ],
+    "reads_vertex_colours": true,
     "shader": "HardSurface",
     "shininess": 10.0,
     "specular": [
@@ -194,6 +195,7 @@ expression: "pretty(&manifest, \"materials\")?"
         "value": "0"
       }
     ],
+    "reads_vertex_colours": false,
     "shader": "Layer",
     "shininess": 10.0,
     "specular": [
@@ -260,6 +262,7 @@ expression: "pretty(&manifest, \"materials\")?"
         "value": "1"
       }
     ],
+    "reads_vertex_colours": false,
     "shader": "Layer",
     "shininess": 10.0,
     "specular": [
@@ -330,6 +333,7 @@ expression: "pretty(&manifest, \"materials\")?"
     "no_draw": false,
     "opacity": 1.0,
     "parameters": [],
+    "reads_vertex_colours": false,
     "shader": "Layer",
     "shininess": 10.0,
     "specular": [
@@ -381,6 +385,7 @@ expression: "pretty(&manifest, \"materials\")?"
         "value": "1"
       }
     ],
+    "reads_vertex_colours": false,
     "shader": "MeshDecal",
     "shininess": 10.0,
     "specular": [
@@ -466,6 +471,7 @@ expression: "pretty(&manifest, \"materials\")?"
         "value": "0.05"
       }
     ],
+    "reads_vertex_colours": false,
     "shader": "GlassPBR",
     "shininess": 10.0,
     "specular": [
@@ -547,6 +553,7 @@ expression: "pretty(&manifest, \"materials\")?"
         "value": "odd"
       }
     ],
+    "reads_vertex_colours": false,
     "shader": "ZedPBR",
     "shininess": 10.0,
     "specular": [

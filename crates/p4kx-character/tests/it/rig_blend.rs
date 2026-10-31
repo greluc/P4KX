@@ -180,6 +180,36 @@ fn a_control_is_found_by_its_stored_hash_and_a_table_that_disagrees_with_the_nam
 }
 
 #[test]
+fn a_prefix_that_differs_from_the_chunk_length_is_refused() {
+    let mut chunk = TestRigLogic::small().build();
+    let rig_len = chunk.len() - 8;
+    let declared = u64::try_from(rig_len).unwrap_or_default() + 1;
+    assert!(RigLogic::read(&chunk).is_ok());
+    chunk[0] = chunk[0].wrapping_add(1);
+    assert_eq!(
+        RigLogic::read(&chunk).err(),
+        Some(RigLogicError::PrefixMismatch {
+            declared,
+            have: rig_len
+        })
+    );
+    let mut padded = TestRigLogic::small().build();
+    padded.extend([0; 7]);
+    assert!(RigLogic::read(&padded).is_ok(), "alignment padding");
+    padded.push(0);
+    assert!(matches!(
+        RigLogic::read(&padded),
+        Err(RigLogicError::PrefixMismatch { .. })
+    ));
+    let mut short = TestRigLogic::small().build();
+    short.pop();
+    assert!(matches!(
+        RigLogic::read(&short),
+        Err(RigLogicError::PrefixMismatch { .. })
+    ));
+}
+
+#[test]
 fn a_chunk_that_is_not_a_rig_logic_chunk_is_refused() {
     let good = TestRigLogic::small().build_rig();
 

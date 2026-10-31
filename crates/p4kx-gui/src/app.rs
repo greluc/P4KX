@@ -134,6 +134,15 @@ impl App {
                     setup.set_folder(path);
                 }
             }
+            Some((Dialog::ConversionInput, path)) => {
+                self.model.begin_folder_conversion(path);
+                self.start_dialog(ui.ctx(), Dialog::ConversionOutput);
+            }
+            Some((Dialog::ConversionOutput, path)) => {
+                let ctx = ui.ctx().clone();
+                self.model
+                    .start_folder_conversion(path, move || ctx.request_repaint());
+            }
             Some((Dialog::RecordExportFolder, path)) => {
                 if let Some(setup) = self.model.record_export_setup_mut() {
                     setup.set_folder(path);
@@ -259,6 +268,8 @@ fn pick(
     match dialog {
         Dialog::AddFolder
         | Dialog::ExtractionFolder
+        | Dialog::ConversionInput
+        | Dialog::ConversionOutput
         | Dialog::RecordExportFolder
         | Dialog::SoundsFolder => picker.pick_folder(),
         Dialog::OpenArchive | Dialog::AddArchive | Dialog::ComparisonArchive(_) => {

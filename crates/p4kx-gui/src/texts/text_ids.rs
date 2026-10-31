@@ -4,10 +4,10 @@
 use super::{
     AboutText, ArchiveKeyText, AssemblyExportText, AudioText, CatalogText, ChangeExtractionText,
     CharacterText, ComparisonText, ContainerText, ContentSearchText, DataForgeText, DiffText,
-    EntityText, ExtractionText, GroupText, ImageText, IncomingText, LocalizationText,
-    ModelExportText, ModelInfoText, ModelText, QueryText, RecordChangeText, RecordExportText,
-    RecordLanguageText, RecordText, SchemaText, ScrollText, SoundsText, TagsText, Text, UiText,
-    XmlText,
+    EntityText, ExtractionText, FolderConversionText, GroupText, ImageText, IncomingText,
+    LocalizationText, ModelExportText, ModelInfoText, ModelText, QueryText, RecordChangeText,
+    RecordExportText, RecordLanguageText, RecordText, SchemaText, ScrollText, SoundsText, TagsText,
+    Text, UiText, XmlText,
 };
 use crate::Language;
 
@@ -120,6 +120,7 @@ impl Text {
             .chain(ModelText::ALL.map(Self::Model))
             .chain(ModelInfoText::ALL.map(Self::ModelInfo))
             .chain(ModelExportText::ALL.map(Self::ModelExport))
+            .chain(FolderConversionText::ALL.map(Self::FolderConversion))
             .chain(EntityText::ALL.map(Self::Entity))
             .chain(CharacterText::ALL.map(Self::Character))
             .chain(AssemblyExportText::ALL.map(Self::AssemblyExport))
@@ -232,6 +233,7 @@ impl Text {
             Self::Model(text) => text.id(),
             Self::ModelInfo(text) => text.id(),
             Self::ModelExport(text) => text.id(),
+            Self::FolderConversion(text) => text.id(),
             Self::Entity(text) => text.id(),
             Self::Character(text) => text.id(),
             Self::AssemblyExport(text) => text.id(),

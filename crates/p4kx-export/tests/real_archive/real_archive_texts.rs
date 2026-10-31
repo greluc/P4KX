@@ -47,7 +47,7 @@ const BASELINES: [Baseline; 16] = [
     baseline_of(Kind::ResourceGroups, 0.0, 0.0),
     baseline_of(Kind::GameplayProperties, 0.0, 0.97),
     baseline_of(Kind::StarmapObjects, 0.04, 0.67),
-    baseline_of(Kind::Contracts, 0.02, 0.52),
+    baseline_of(Kind::Contracts, 0.02, 0.53),
     baseline_of(Kind::RefiningProcesses, 0.0, 1.0),
     baseline_of(Kind::MineableCompositions, 0.01, 0.16),
     baseline_of(Kind::FactionReputations, 0.0, 0.73),

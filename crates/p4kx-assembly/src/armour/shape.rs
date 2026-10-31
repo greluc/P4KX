@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use p4kx_character::{Dna, DnaRig};
+use p4kx_character::{Dna, DnaRig, RigLogic};
 use p4kx_gltf::MorphTarget;
 use p4kx_model::{Mesh, Model};
 
@@ -156,17 +156,32 @@ pub(super) fn shaped(
         ));
     };
     apply(mesh, &moves).map_err(|problem| format!("{rig_path}: {problem}"))?;
-    let morphs = (*expressions != Expressions::None)
-        .then(|| morphs(&rig, &matrix, mesh, path, expressions, models));
-    let face = (face && level == 0).then(|| {
-        let logic = logic_of(path, models)?;
-        facial(model, &logic, &rig, &matrix).map(|found| (found, rig_path.clone()))
+    let wants_morphs = *expressions != Expressions::None;
+    let wants_face = face && level == 0;
+    let logic = (wants_morphs || wants_face).then(|| logic_of(path, models));
+    let morphs = logic.as_ref().filter(|_| wants_morphs).map(|logic| {
+        with_logic(logic, |logic| {
+            morphs(&rig, &matrix, mesh, logic, expressions)
+        })
+    });
+    let face = logic.as_ref().filter(|_| wants_face).map(|logic| {
+        with_logic(logic, |logic| {
+            facial(model, logic, &rig, &matrix).map(|found| (found, rig_path.clone()))
+        })
     });
     Ok(Shaped {
         model: shaped,
         morphs,
         face,
     })
+}
+
+/// Applies `make` to the rig logic read for the skin, or returns the failure to read it.
+fn with_logic<T>(
+    logic: &Result<RigLogic, String>,
+    make: impl FnOnce(&RigLogic) -> Result<T, String>,
+) -> Result<T, String> {
+    logic.as_ref().map_err(Clone::clone).and_then(make)
 }
 
 /// Moves the vertices of `mesh` by the moves of their stream vertices.

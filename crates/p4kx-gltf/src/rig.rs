@@ -369,7 +369,7 @@ fn rig_models<'a>(
 }
 
 /// Returns the influences of each mesh of the instance's level with the bones of `skeleton`.
-fn remap(skeleton: &[Bone], instance: &Instance<'_>) -> Vec<Vec<Influences>> {
+pub(crate) fn remap(skeleton: &[Bone], instance: &Instance<'_>) -> Vec<Vec<Influences>> {
     let Some(lod) = instance.lod else {
         return Vec::new();
     };

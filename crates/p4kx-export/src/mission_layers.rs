@@ -6,7 +6,7 @@ use p4kx_extraction::{Guid, StructValue, Value, is_placeholder_key};
 use crate::blueprint::as_struct;
 use crate::mission_hauling::{HaulingProperty, property_orders};
 use crate::mission_index::Broker;
-use crate::record_fields::{boolean, integer, number, reference, text};
+use crate::record_fields::{boolean, integer, reference, text};
 
 const STRING_HASH: &str = "MissionPropertyValue_StringHash";
 const ORGANIZATION: &str = "MissionPropertyValue_Organization";
@@ -35,8 +35,8 @@ pub(crate) struct Property<'f> {
 }
 
 /// What one level of a contract overrides: the title, the description, the mission type, the
-/// contractor, the boolean, integer and float parameters and the properties.
-#[derive(Debug, Clone, Default, PartialEq)]
+/// contractor, the boolean and integer parameters and the properties.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(crate) struct Layer<'f> {
     pub(crate) title: Option<&'f str>,
     pub(crate) description: Option<&'f str>,
@@ -46,7 +46,6 @@ pub(crate) struct Layer<'f> {
     pub(crate) hauling: Vec<HaulingProperty<'f>>,
     bools: Vec<(&'f str, bool)>,
     ints: Vec<(&'f str, i64)>,
-    floats: Vec<(&'f str, f32)>,
 }
 
 impl<'f> Layer<'f> {
@@ -82,10 +81,6 @@ impl<'f> Layer<'f> {
                 .into_iter()
                 .filter_map(|(name, param)| Some((name, integer(Some(param), "value")?)))
                 .collect(),
-            floats: named("floatParamOverrides")
-                .into_iter()
-                .filter_map(|(name, param)| Some((name, number(Some(param), "value")?)))
-                .collect(),
         }
     }
 
@@ -103,20 +98,6 @@ impl<'f> Layer<'f> {
             .iter()
             .find(|(param, _)| param.eq_ignore_ascii_case(name))
             .map(|(_, value)| *value)
-    }
-
-    /// Returns the number parameter `name` this level overrides, matched without regard to case:
-    /// its float override, else its integer override widened to a float.
-    #[expect(
-        clippy::cast_precision_loss,
-        reason = "a catalog number is a 32-bit float; larger integers lose their low digits"
-    )]
-    pub(crate) fn number_param(&self, name: &str) -> Option<f32> {
-        self.floats
-            .iter()
-            .find(|(param, _)| param.eq_ignore_ascii_case(name))
-            .map(|(_, value)| *value)
-            .or_else(|| self.int_param(name).map(|value| value as f32))
     }
 }
 

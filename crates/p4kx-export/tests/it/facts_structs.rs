@@ -74,7 +74,6 @@ fn contract_structs() -> Vec<TestStruct> {
         [
             ("boolParamOverrides", "ContractBoolParam"),
             ("intParamOverrides", "ContractIntParam"),
-            ("floatParamOverrides", "ContractFloatParam"),
         ]
     };
     let mut overrides = TestStruct::new("ContractParamOverrides");
@@ -94,9 +93,6 @@ fn contract_structs() -> Vec<TestStruct> {
         TestStruct::new("ContractIntParam")
             .field("param", TestType::String)
             .field("value", TestType::Int32),
-        TestStruct::new("ContractFloatParam")
-            .field("param", TestType::String)
-            .field("value", TestType::Single),
         TestStruct::new("CareerContract")
             .field("id", TestType::Guid)
             .field("debugName", TestType::String)

@@ -35,6 +35,7 @@ mod sample;
 mod shape;
 mod uncover;
 mod unused;
+mod vec3;
 mod wearable;
 mod zones;
 

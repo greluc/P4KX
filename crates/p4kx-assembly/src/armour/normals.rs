@@ -3,11 +3,7 @@
 
 use p4kx_model::Mesh;
 
-type Vec3 = [f32; 3];
-
-fn sub(a: Vec3, b: Vec3) -> Vec3 {
-    [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
-}
+use super::vec3::{Vec3, dot, sub};
 
 fn cross(a: Vec3, b: Vec3) -> Vec3 {
     [
@@ -48,10 +44,6 @@ fn surface_normals(mesh: &Mesh, positions: &[Vec3]) -> Vec<Vec3> {
     sums.into_iter()
         .map(|sum| unit(sum).unwrap_or_default())
         .collect()
-}
-
-fn dot(a: Vec3, b: Vec3) -> f32 {
-    a[2].mul_add(b[2], a[1].mul_add(b[1], a[0] * b[0]))
 }
 
 /// Returns `vector` turned by the smallest rotation that takes the unit vector `from` to the

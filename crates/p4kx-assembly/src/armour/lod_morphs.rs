@@ -11,8 +11,9 @@ use p4kx_gltf::MorphTarget;
 use p4kx_model::{Mesh, Model};
 use rayon::prelude::*;
 
-use super::anchor::{Anchor, Vec3, anchors};
+use super::anchor::{Anchor, anchors};
 use super::expressions::{Expressions, Morphs};
+use super::vec3::Vec3;
 use crate::ModelProvider;
 
 /// Reads the skin at `path` at level 0, lets `make` turn it into the model as it is worn and its
@@ -43,13 +44,22 @@ pub(super) fn from_level_zero(
 /// no vertex of `to` is left out, and listed as empty if `selection` named it.
 fn carry(morphs: Morphs, from: &Mesh, to: &Mesh, selection: &Expressions) -> Morphs {
     let anchors = anchors(&from.positions, &from.indices, &to.positions);
-    let width = from.positions.len();
+    carry_over(morphs, (from.positions.len(), &anchors), selection)
+}
+
+/// Carries the targets of `morphs`, made on a mesh of `width` vertices, over `anchors`, the
+/// anchors of the vertices of the lower level on it.
+fn carry_over(
+    morphs: Morphs,
+    (width, anchors): (usize, &[Option<Anchor>]),
+    selection: &Expressions,
+) -> Morphs {
     let made: Vec<Option<MorphTarget>> = morphs
         .targets
         .par_iter()
         .map_init(
             || vec![[0.0_f32; 3]; width],
-            |dense, target| carried(dense, target, &anchors),
+            |dense, target| carried(dense, target, anchors),
         )
         .collect();
     let named = matches!(selection, Expressions::Only(_));
@@ -121,7 +131,7 @@ fn carried(
 mod tests {
     use p4kx_gltf::MorphTarget;
 
-    use super::{Anchor, carried};
+    use super::{Anchor, Expressions, Morphs, carried, carry_over};
 
     fn target() -> MorphTarget {
         MorphTarget {
@@ -162,5 +172,54 @@ mod tests {
         let mut dense = vec![[0.0; 3]; 3];
 
         assert!(carried(&mut dense, &target(), &anchors).is_none());
+    }
+
+    fn named(name: &str, vertex: u32) -> MorphTarget {
+        MorphTarget {
+            name: name.to_owned(),
+            vertices: vec![vertex],
+            deltas: vec![[0.0, 0.0, 0.001]],
+        }
+    }
+
+    fn morphs() -> Morphs {
+        Morphs {
+            targets: vec![named("jaw", 0), named("blink", 1), named("brow", 2)],
+            numbers: vec![10, 20, 30],
+            unknown: Vec::new(),
+            empty: Vec::new(),
+        }
+    }
+
+    fn only_vertex_two() -> [Option<Anchor>; 1] {
+        [Some(Anchor {
+            corners: [2, 2, 2],
+            weights: [1.0, 0.0, 0.0],
+        })]
+    }
+
+    #[test]
+    fn a_dropped_target_takes_its_number_with_it_and_is_listed_when_named() {
+        let selection = Expressions::Only(vec!["jaw".to_owned()]);
+
+        let made = carry_over(morphs(), (3, &only_vertex_two()), &selection);
+
+        assert_eq!(made.numbers, vec![30]);
+        assert_eq!(
+            made.targets
+                .iter()
+                .map(|t| t.name.as_str())
+                .collect::<Vec<_>>(),
+            vec!["brow"]
+        );
+        assert_eq!(made.empty, vec!["jaw".to_owned(), "blink".to_owned()]);
+    }
+
+    #[test]
+    fn a_dropped_target_of_all_expressions_is_not_listed() {
+        let made = carry_over(morphs(), (3, &only_vertex_two()), &Expressions::All);
+
+        assert_eq!(made.numbers, vec![30]);
+        assert_eq!(made.empty, Vec::<String>::new());
     }
 }

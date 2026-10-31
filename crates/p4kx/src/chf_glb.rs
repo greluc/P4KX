@@ -372,3 +372,23 @@ fn print_report(
     print_issues(&mut stdout, armour.issues())?;
     stdout.flush()
 }
+
+#[cfg(test)]
+mod tests {
+    use p4kx_assembly::Expressions;
+
+    use super::expressions_choice;
+
+    #[test]
+    fn expressions_default_to_all_and_the_options_narrow_them() {
+        let named = vec!["jaw_open".to_owned()];
+
+        assert_eq!(expressions_choice(&[], false), Expressions::All);
+        assert_eq!(
+            expressions_choice(&named, false),
+            Expressions::Only(named.clone())
+        );
+        assert_eq!(expressions_choice(&named, true), Expressions::None);
+        assert_eq!(expressions_choice(&[], true), Expressions::None);
+    }
+}

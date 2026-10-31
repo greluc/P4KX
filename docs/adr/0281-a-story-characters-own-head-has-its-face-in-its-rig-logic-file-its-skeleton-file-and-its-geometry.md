@@ -86,8 +86,8 @@ GLB is 7.3 MB, passes the checker and imports into Blender 5.2 with 403 bones, o
 shape key action.
 
 `p4kx armour glb` and `p4kx character package` write the expressions of a `--loadout`'s head like
-those of a CHF's: all at every level, `--expression NAME` for some, `--no-expressions` for none. A failure
-is the issue `face_joints_failed` or `morphs_failed`, and the head is still written.
+those of a CHF's: all at every level, `--expression NAME` for some, `--no-expressions` for none. A
+failure is the issue `face_joints_failed` or `morphs_failed`, and the head is still written.
 
 ## What is not in it
 

@@ -39,6 +39,7 @@ mod real_head;
 mod real_head_animation;
 mod real_head_expressions;
 mod real_head_rotation;
+mod real_head_slot17;
 mod real_hirc_resolution;
 mod real_interior;
 mod real_interior_cache;

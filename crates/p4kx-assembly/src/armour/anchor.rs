@@ -5,7 +5,7 @@
 
 use rayon::prelude::*;
 
-pub(super) type Vec3 = [f32; 3];
+use super::vec3::{Vec3, dot, sub};
 
 /// The corners of each edge of a triangle, as indices into its points.
 const EDGES: [[usize; 2]; 3] = [[0, 1], [1, 2], [2, 0]];
@@ -13,7 +13,9 @@ const EDGES: [[usize; 2]; 3] = [[0, 1], [1, 2], [2, 0]];
 /// A point on a surface: the corners of a triangle and the barycentric weights of the point in it.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(super) struct Anchor {
+    /// The indices of the triangle's corners in the surface's vertices.
     pub(super) corners: [u32; 3],
+    /// The weight of each corner; they sum to one and none is negative.
     pub(super) weights: [f32; 3],
 }
 
@@ -23,14 +25,6 @@ struct Triangle {
     points: [Vec3; 3],
     centre: Vec3,
     radius: f32,
-}
-
-fn sub(from: Vec3, by: Vec3) -> Vec3 {
-    [from[0] - by[0], from[1] - by[1], from[2] - by[2]]
-}
-
-fn dot(left: Vec3, right: Vec3) -> f32 {
-    left[0].mul_add(right[0], left[1].mul_add(right[1], left[2] * right[2]))
 }
 
 fn distance_squared(first: Vec3, second: Vec3) -> f32 {
@@ -181,7 +175,7 @@ pub(super) fn anchors(positions: &[Vec3], indices: &[u32], points: &[Vec3]) -> V
 
 #[cfg(test)]
 mod tests {
-    use super::{Anchor, anchors};
+    use super::{Anchor, Triangle, anchors, blend, distance_squared};
 
     const CORNERS: [[f32; 3]; 3] = [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]];
 
@@ -215,6 +209,64 @@ mod tests {
     fn a_point_beyond_an_edge_takes_the_point_on_the_edge() {
         close(weights_of([0.5, -1.0, 0.0]), [0.5, 0.5, 0.0]);
         close(weights_of([1.0, 1.0, 0.0]), [0.0, 0.5, 0.5]);
+    }
+
+    fn random_unit(state: &mut u64) -> f32 {
+        *state = state
+            .wrapping_mul(6_364_136_223_846_793_005)
+            .wrapping_add(1_442_695_040_888_963_407);
+        f32::from(u16::try_from(*state >> 48).unwrap_or(0)) / 65_536.0
+    }
+
+    #[test]
+    fn the_pruned_search_finds_what_a_pass_over_every_triangle_finds() {
+        let mut state = 7_u64;
+        let positions: Vec<[f32; 3]> = (0..300)
+            .map(|_| std::array::from_fn(|_| random_unit(&mut state)))
+            .collect();
+        let indices: Vec<u32> = (0..900_u32).map(|at| (at * 7 + at / 3) % 300).collect();
+        let points: Vec<[f32; 3]> = (0..200)
+            .map(|_| std::array::from_fn(|_| random_unit(&mut state).mul_add(1.4, -0.2)))
+            .collect();
+        let triangles: Vec<Triangle> = indices
+            .as_chunks::<3>()
+            .0
+            .iter()
+            .filter_map(|&corners| Triangle::new(corners, &positions))
+            .collect();
+
+        let found = anchors(&positions, &indices, &points);
+
+        for (point, anchor) in points.iter().zip(found) {
+            let anchor = anchor.expect("an anchor");
+            let corners = anchor.corners.map(|corner| positions[corner as usize]);
+            let reached = distance_squared(*point, blend(&corners, anchor.weights));
+            let best = triangles
+                .iter()
+                .map(|triangle| {
+                    distance_squared(
+                        *point,
+                        blend(&triangle.points, triangle.nearest_weights(*point)),
+                    )
+                })
+                .fold(f32::MAX, f32::min);
+            assert!((reached - best).abs() <= 1e-6, "{reached} against {best}");
+        }
+    }
+
+    #[test]
+    fn a_triangle_with_no_area_still_anchors_on_its_edge() {
+        let line = [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [2.0, 0.0, 0.0]];
+        let found = anchors(&line, &[0, 1, 2], &[[0.5, 1.0, 0.0]]);
+        let anchor = found.first().copied().flatten().expect("an anchor");
+        let corners = anchor.corners.map(|corner| line[corner as usize]);
+        let squared = distance_squared([0.5, 1.0, 0.0], blend(&corners, anchor.weights));
+        assert!((squared - 1.0).abs() < 1e-6, "{squared}");
+
+        let point = [[1.0; 3]; 3];
+        let found = anchors(&point, &[0, 1, 2], &[[0.0; 3]]);
+        let anchor = found.first().copied().flatten().expect("an anchor");
+        assert!(anchor.weights.iter().all(|weight| weight.is_finite()));
     }
 
     #[test]

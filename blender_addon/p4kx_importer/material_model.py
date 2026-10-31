@@ -101,8 +101,13 @@ class Palette:
 
 @dataclass(frozen=True, slots=True)
 class Stencil:
-    """How a stencil decal is coloured: the colour (``None`` for the diffuse colour) and opacity."""
+    """How a stencil decal is drawn: whether it draws anything, its colour and opacity.
 
+    ``colour`` is ``None`` for the diffuse colour. The package states colour and opacity only for a
+    decal drawn by its stencil map, so they are applied as given.
+    """
+
+    drawn: bool
     colour: Colour | None
     opacity: float
 
@@ -243,7 +248,7 @@ def _stencil(value: object) -> Stencil | None:
     if not isinstance(value, dict):
         return None
     opacity = min(max(_float(value.get("opacity"), 1.0), 0.0), 1.0)
-    return Stencil(_colour(value.get("colour"), None), opacity)
+    return Stencil(value.get("drawn") is not False, _colour(value.get("colour"), None), opacity)
 
 
 def _layer_shares(value: object, count: int) -> tuple[float, ...] | None:

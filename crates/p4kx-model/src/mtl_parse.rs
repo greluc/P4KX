@@ -131,7 +131,11 @@ fn material<'a>(
         truncated: budget.cut(),
         diffuse_map_is_grey: None,
     };
-    if built.palette.is_none() && built.stencil().is_some_and(|stencil| stencil.palette_tint) {
+    if built.palette.is_none()
+        && built
+            .stencil_motif()
+            .is_some_and(|stencil| stencil.palette_tint)
+    {
         built.palette = Some(PaletteSlot::Primary);
     }
     Ok(built)

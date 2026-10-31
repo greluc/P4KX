@@ -188,7 +188,7 @@ def decal(
         "x0001",
         "MeshDecal",
         gen_mask=["STENCIL_MAP"],
-        stencil={"opacity": 1.0} if stencil is None else stencil,
+        stencil={"drawn": True, "opacity": 1.0} if stencil is None else stencil,
         textures=maps,
         **fields,
     )
@@ -214,7 +214,7 @@ def test_the_stencil_map_wins_over_a_mask_map() -> None:
 
 
 def test_a_stencil_decal_takes_its_stencil_colour() -> None:
-    graph = single([decal({"colour": [0.1, 0.2, 0.3], "opacity": 1.0})])
+    graph = single([decal({"drawn": True, "colour": [0.1, 0.2, 0.3], "opacity": 1.0})])
     assert graph.node("bsdf").inputs["Base Color"] == pytest.approx((0.1, 0.2, 0.3))
 
 
@@ -232,31 +232,48 @@ def test_a_palette_entry_wins_over_the_stencil_colour() -> None:
         "tertiary": entry([0.5, 0.5, 0.5], 100.0),
         "glass": [1.0, 1.0, 1.0],
     }
-    raw = decal({"colour": [0.1, 0.2, 0.3], "opacity": 1.0}, palette="primary")
+    raw = decal({"drawn": True, "colour": [0.1, 0.2, 0.3], "opacity": 1.0}, palette="primary")
     graph = single([raw], palette)
     assert graph.node("bsdf").inputs["Base Color"] == pytest.approx((0.5, 0.5, 0.5))
 
 
 def test_the_stencil_opacity_and_the_material_opacity_scale_the_alpha() -> None:
-    graph = single([decal({"opacity": 0.5}, opacity=0.8)])
+    graph = single([decal({"drawn": True, "opacity": 0.5}, opacity=0.8)])
     kind, _ = alpha_texture(graph)
     link = graph.linked("bsdf", "Alpha")
     assert kind == "ShaderNodeMath" and link is not None
     assert graph.node(link.key).inputs[1] == pytest.approx(0.4)
 
 
-def test_a_stencil_decal_without_any_map_draws_nothing() -> None:
-    nothing = [slot("TexSlot7", "other", None, file="$TintPaletteDecal")]
-    graph = single([decal(textures=nothing)])
-    assert [n.kind for n in graph.nodes] == [
-        "ShaderNodeBsdfTransparent",
-        "ShaderNodeOutputMaterial",
-    ]
+def test_a_stencil_opacity_of_zero_makes_the_alpha_zero() -> None:
+    graph = single([decal({"drawn": True, "opacity": 0.0})])
+    link = graph.linked("bsdf", "Alpha")
+    assert link is not None
+    assert graph.node(link.key).inputs[1] == 0.0
+
+
+NOTHING_DRAWN = [
+    "ShaderNodeBsdfTransparent",
+    "ShaderNodeOutputMaterial",
+]
+
+
+def test_a_stencil_decal_the_package_states_as_not_drawn_draws_nothing() -> None:
+    placeholder = [slot("TexSlot7", "other", None, file="$TintPaletteDecal")]
+    graph = single([decal({"drawn": False, "opacity": 1.0}, placeholder)])
+    assert [n.kind for n in graph.nodes] == NOTHING_DRAWN
+    unwritten = single([decal({"drawn": False, "opacity": 1.0})])
+    assert [n.kind for n in unwritten.nodes] == NOTHING_DRAWN
+
+
+def test_a_stencil_map_that_cannot_be_loaded_here_draws_nothing() -> None:
+    graph = single([decal()], loadable=no_texture)
+    assert [n.kind for n in graph.nodes] == NOTHING_DRAWN
 
 
 def test_a_stencil_decal_with_a_diffuse_map_is_drawn_by_it() -> None:
     kept = [slot("TexSlot1", "diffuse", "t0001")]
-    graph = single([decal(textures=kept)])
+    graph = single([decal({"drawn": True, "opacity": 1.0}, kept)])
     assert graph.linked("bsdf", "Base Color") is not None
     assert graph.node("bsdf").kind == "ShaderNodeBsdfPrincipled"
 
@@ -265,8 +282,9 @@ def test_a_malformed_stencil_reads_as_neutral() -> None:
     raw = decal({"colour": "red", "opacity": "x"})
     stencil = parse_materials([raw], [])["x0001"].stencil
     assert stencil is not None
-    assert stencil.colour is None and stencil.opacity == 1.0
-    assert parse_materials([decal({"opacity": 7})], [])["x0001"].stencil.opacity == 1.0
+    assert stencil.drawn and stencil.colour is None and stencil.opacity == 1.0
+    clamped = parse_materials([decal({"opacity": 7})], [])["x0001"].stencil
+    assert clamped is not None and clamped.opacity == 1.0
 
 
 def test_a_package_before_1_6_states_no_stencil() -> None:

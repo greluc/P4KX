@@ -7,7 +7,8 @@ use p4kx_model::Material;
 
 use crate::layer_jobs::{fallback_guards, layer_jobs, layer_normals_last};
 use crate::layer_plan::Layered;
-use crate::materials::{MaterialPlan, Slot, display_name, uses_alpha};
+use crate::material_alpha::uses_alpha;
+use crate::materials::{MaterialPlan, Slot, display_name};
 use crate::shading::shading;
 use crate::texture_assemble::Wish;
 use crate::texture_loader::{TextureLoader, WithFallbacks};

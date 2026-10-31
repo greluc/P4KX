@@ -285,7 +285,11 @@ fn decals_keep_their_placeholders_uv_modifiers_and_stencil_parameters() -> TestR
     assert_eq!(decal.alpha_mode, AlphaMode::Blend);
     assert_eq!(parameter(decal, "StencilDiffuseColor"), Some("0.1,0.2,0.3"));
     let stated = decal.stencil.ok_or("a stencil")?;
-    assert_eq!(stated.colour, Some([0.1, 0.2, 0.3]));
+    assert!(stated.drawn, "its diffuse map was written");
+    assert_eq!(
+        stated.colour, None,
+        "a diffuse map is drawn without the stencil colour"
+    );
     assert!((stated.opacity - 1.0).abs() < f32::EPSILON);
     let [stencil, diffuse] = decal.textures.as_slice() else {
         return Err("two textures".into());

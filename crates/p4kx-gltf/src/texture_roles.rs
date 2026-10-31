@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use p4kx_model::{DIFFUSE_SLOT, Material, TextureSlot, texture_suffix_lowercase as suffix};
+use p4kx_model::{
+    DIFFUSE_SLOT, Material, TextureSlot, is_diffuse_map, texture_suffix_lowercase as suffix,
+};
 
-use crate::materials::is_hair_cards;
+use crate::material_alpha::is_hair_cards;
 use crate::texture_report::TextureRole;
 
 const DATA_PREFIX: &str = "data/";
@@ -15,10 +17,6 @@ const NORMAL_SUFFIX: &str = "ddn";
 const SPECULAR_SUFFIX: &str = "spec";
 const OPACITY_SUFFIX: &str = "opac";
 const SCALP_SUFFIX: &str = "scalp";
-const NOT_DIFFUSE: [&str; 16] = [
-    "ao", "blend", "mask", "opac", "id", "scalp", "dir", "dirm", "hal", "wear", "displ", "disp",
-    "detail", "gloss", "ddna", "ddn",
-];
 
 /// The texture files of a material that map to glTF's PBR textures, as canonical paths.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -90,14 +88,14 @@ fn stencil_sources(textures: &[TextureSlot], stencil: &TextureSlot) -> Sources {
         Some(path) => {
             found.diffuse = Some(Source {
                 path,
-                file: stencil.file.clone(),
+                file: stencil.file.trim().to_owned(),
                 gloss: false,
                 opacity: true,
             });
         }
         None => found
             .refused
-            .push((TextureRole::Diffuse, stencil.file.clone())),
+            .push((TextureRole::Diffuse, stencil.file.trim().to_owned())),
     }
     found
 }
@@ -134,7 +132,10 @@ fn collect(textures: &[TextureSlot], opacity_suffix: Option<&str>) -> Sources {
             None
         }
     };
-    let diffuse = pick(&[DIFFUSE_SLOT], &|name| !NOT_DIFFUSE.contains(&name));
+    let diffuse = textures
+        .iter()
+        .find(|texture| is_diffuse_map(&texture.map, &texture.file))
+        .map(|texture| texture.file.as_str());
     let normal = pick(&NORMAL_SLOTS, &|name| {
         name == NORMAL_GLOSS_SUFFIX || name == NORMAL_SUFFIX
     });

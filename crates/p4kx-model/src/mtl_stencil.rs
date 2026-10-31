@@ -4,7 +4,6 @@
 //! The one rule for stencil decals: which texture is the stencil map and how the stencil is
 //! coloured.
 
-use crate::mtl_texture::DIFFUSE_SLOT;
 use crate::{Material, TextureSlot};
 
 /// The material slot of the stencil map of a stencil decal.
@@ -47,9 +46,6 @@ impl Material {
 
     /// Returns the stencil parameters of a [stencil decal](Self::is_stencil_decal), `None` for any
     /// other material.
-    ///
-    /// The GLB writer and the package take the colour and opacity of a stencil from here, so that
-    /// what the add-on draws is what is exported.
     #[must_use]
     pub fn stencil(&self) -> Option<Stencil> {
         self.is_stencil_decal().then(|| Stencil {
@@ -63,6 +59,15 @@ impl Material {
         })
     }
 
+    /// Returns the stencil parameters when the decal is drawn by its [stencil
+    /// map](Self::stencil_texture), else `None`: the colour, opacity and tint of a stencil colour
+    /// the motif only. The GLB writer and the package take them from here, so that what the
+    /// add-on draws is what is exported.
+    #[must_use]
+    pub fn stencil_motif(&self) -> Option<Stencil> {
+        self.stencil_texture().and_then(|_| self.stencil())
+    }
+
     /// Returns the stencil map a [stencil decal](Self::is_stencil_decal) is drawn by: the file of
     /// `TexSlot7`, whose red channel is the opacity of the motif. `None` for any other material,
     /// for a decal whose slot holds an engine placeholder such as `$TintPaletteDecal`, which the
@@ -70,10 +75,10 @@ impl Material {
     /// own, which is drawn by that map.
     #[must_use]
     pub fn stencil_texture(&self) -> Option<&TextureSlot> {
-        if !self.is_stencil_decal() || self.file_in(DIFFUSE_SLOT).is_some() {
+        if !self.is_stencil_decal() || self.has_diffuse_map() {
             return None;
         }
-        self.file_in(STENCIL_SLOT)
+        self.stencil_slot()
     }
 
     /// Returns whether the material is a stencil decal that has nothing to draw: neither a stencil
@@ -81,16 +86,16 @@ impl Material {
     /// it would be a solid quad.
     #[must_use]
     pub fn is_stencil_without_motif(&self) -> bool {
-        self.is_stencil_decal()
-            && self.file_in(DIFFUSE_SLOT).is_none()
-            && self.file_in(STENCIL_SLOT).is_none()
+        self.is_stencil_decal() && !self.has_diffuse_map() && self.stencil_slot().is_none()
     }
 
-    /// Returns the slot `slot` when it names a file rather than a placeholder or nothing.
-    fn file_in(&self, slot: &str) -> Option<&TextureSlot> {
+    /// Returns the slot of the stencil map when it names a file rather than a placeholder.
+    fn stencil_slot(&self) -> Option<&TextureSlot> {
         self.textures.iter().find(|texture| {
             let file = texture.file.trim();
-            texture.map.eq_ignore_ascii_case(slot) && !file.is_empty() && !file.starts_with('$')
+            texture.map.eq_ignore_ascii_case(STENCIL_SLOT)
+                && !file.is_empty()
+                && !file.starts_with('$')
         })
     }
 }
@@ -193,15 +198,65 @@ mod tests {
     }
 
     #[test]
-    fn a_tint_override_takes_the_primary_palette_entry() -> Result {
+    fn a_tint_override_with_a_stencil_map_takes_the_primary_palette_entry() -> Result {
         use crate::PaletteSlot;
-        let with = |params: &str| decal("MeshDecal", "%STENCIL_MAP", "", params);
+        let map = r#"<Texture Map="TexSlot7" File="a/b_stencil.tif"/>"#;
+        let with = |params: &str| decal("MeshDecal", "%STENCIL_MAP", map, params);
         assert_eq!(
             with(r#"StencilTintOverride="1""#)?.palette,
             Some(PaletteSlot::Primary)
         );
         assert_eq!(with(r#"StencilTintOverride="0""#)?.palette, None);
         assert_eq!(with("")?.palette, None);
+        Ok(())
+    }
+
+    #[test]
+    fn a_tint_override_without_a_stencil_map_takes_no_palette_entry() -> Result {
+        let over = r#"StencilTintOverride="1""#;
+        for textures in [
+            r#"<Texture Map="TexSlot7" File="$TintPaletteDecal"/>"#,
+            r#"<Texture Map="TexSlot1" File="a/b_diff.tif"/><Texture Map="TexSlot7" File="a/b_stencil.tif"/>"#,
+        ] {
+            let material = decal("MeshDecal", "%STENCIL_MAP", textures, over)?;
+            assert_eq!(material.palette, None, "{textures}");
+            assert!(material.stencil_motif().is_none(), "{textures}");
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn the_stencil_parameters_count_only_for_a_decal_drawn_by_its_stencil_map() -> Result {
+        let params = r#"StencilDiffuseColor="0.1,0.2,0.3" StencilOpacity="0""#;
+        let map = r#"<Texture Map="TexSlot7" File="a/b_stencil.tif"/>"#;
+        let drawn = decal("MeshDecal", "%STENCIL_MAP", map, params)?;
+        let motif = drawn.stencil_motif().ok_or("a motif")?;
+        assert_eq!(motif.colour, Some([0.1, 0.2, 0.3]));
+        assert!(motif.opacity.abs() < f32::EPSILON, "a zero opacity is kept");
+        let by_diffuse = decal(
+            "MeshDecal",
+            "%STENCIL_MAP",
+            r#"<Texture Map="TexSlot1" File="a/b_diff.tif"/>"#,
+            params,
+        )?;
+        assert!(by_diffuse.stencil().is_some());
+        assert!(by_diffuse.stencil_motif().is_none());
+        Ok(())
+    }
+
+    #[test]
+    fn a_slot_one_file_that_is_no_diffuse_map_leaves_the_stencil_map_in_charge() -> Result {
+        let textures = r#"<Texture Map="TexSlot1" File="a/b_id.tif"/><Texture Map="TexSlot7" File="a/b_stencil.tif"/>"#;
+        let material = decal("MeshDecal", "%STENCIL_MAP", textures, "")?;
+        assert!(!material.has_diffuse_map());
+        assert!(material.stencil_texture().is_some());
+        let lower = decal(
+            "MeshDecal",
+            "%STENCIL_MAP",
+            r#"<Texture Map="texslot1" File="a/b_diff.tif"/>"#,
+            "",
+        )?;
+        assert!(lower.has_diffuse_map(), "slot names fold case");
         Ok(())
     }
 
@@ -217,6 +272,11 @@ mod tests {
         assert_eq!(
             stencil.texture_role("TexSlot8", "a/b_a.tif"),
             TextureRole::Other
+        );
+        assert_eq!(
+            stencil.texture_role("texslot7", " a/b_a.tif "),
+            TextureRole::Stencil,
+            "slot names fold case and files are trimmed"
         );
         let plain = decal("MeshDecal", "", xml, "")?;
         assert_eq!(

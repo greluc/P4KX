@@ -15,7 +15,23 @@ use rayon::prelude::*;
 
 type TestResult = Result<(), Box<dyn Error>>;
 
-/// Returns the shape of `material`: its tint parameter, palette, slots with their roles.
+/// Returns what draws `material`, a stencil decal: exactly one of its stencil map, its diffuse map
+/// or nothing; `None` when the rules overlap or leave a gap.
+fn classes(material: &Material) -> Option<&'static str> {
+    match (
+        material.stencil_texture().is_some(),
+        material.has_diffuse_map(),
+        material.is_stencil_without_motif(),
+    ) {
+        (true, false, false) => Some("by_stencil_map"),
+        (false, true, false) => Some("by_diffuse_map"),
+        (false, false, true) => Some("no_motif"),
+        _ => None,
+    }
+}
+
+/// Returns the shape of `material`: what draws it, its tint parameter, palette, slots with their
+/// roles.
 fn shape(material: &Material) -> String {
     let slots: Vec<String> = material
         .textures
@@ -33,8 +49,9 @@ fn shape(material: &Material) -> String {
         .collect();
     let stencil = material.stencil();
     format!(
-        "{} tint_override={:?} palette={} layers={} colour={} [{}]",
+        "{} {} tint_override={:?} palette={} layers={} colour={} [{}]",
         material.shader,
+        classes(material).unwrap_or("INVALID"),
         stencil.map(|stencil| stencil.palette_tint),
         material.palette.is_some(),
         material.layers.len(),
@@ -49,7 +66,7 @@ fn shape(material: &Material) -> String {
     reason = "the census table is the measurement; the test prints it"
 )]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
-fn the_stencil_decals_name_their_stencil_map_in_one_slot() -> TestResult {
+fn every_stencil_decal_is_drawn_by_exactly_one_of_its_maps_or_nothing() -> TestResult {
     let archive = Archive::open_with_key(real_archive_path()?, Some(real_archive_key()?))?;
     let mtl: Vec<&Entry> = archive
         .entries()
@@ -87,5 +104,9 @@ fn the_stencil_decals_name_their_stencil_map_in_one_slot() -> TestResult {
         println!("{count:>6}  {key}");
     }
     assert!(!census.is_empty(), "the Archive has stencil decals");
+    assert!(
+        census.keys().all(|key| !key.contains(" INVALID ")),
+        "every stencil decal is drawn by exactly one of its stencil map, its diffuse map or nothing"
+    );
     Ok(())
 }

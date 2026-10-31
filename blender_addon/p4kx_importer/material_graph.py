@@ -94,14 +94,17 @@ class _Maker(LayerBlending, GlassSurface):
     def _colourless_decal(self) -> bool:
         """Returns whether the material is a decal that draws no colour.
 
-        That is a mesh decal without any texture slot, a stencil decal with neither a stencil nor
-        a diffuse map (its motif is a livery's emblem the game fills in), a ``DECAL`` material
-        whose ``DecalDiffuseOpacity`` is 0 and which only adds relief.
+        That is a mesh decal without any texture slot, a stencil decal the package states as not
+        drawn (its motif is a livery's emblem the game fills in, or its maps were not written)
+        or whose map cannot be loaded here, a ``DECAL`` material whose ``DecalDiffuseOpacity`` is
+        0 and which only adds relief.
         """
         desc = self.desc
         if self.family == "decal" and not desc.textures:
             return True
-        if desc.stencil and not desc.slot("stencil") and not desc.slot("diffuse"):
+        if desc.stencil and not (
+            desc.stencil.drawn and (desc.slot("stencil") or desc.slot("diffuse"))
+        ):
             return True
         opacity = desc.number("DecalDiffuseOpacity")
         return "DECAL" in desc.gen_mask and opacity is not None and opacity <= 0.0

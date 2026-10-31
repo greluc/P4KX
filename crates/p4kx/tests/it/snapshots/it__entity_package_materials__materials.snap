@@ -403,11 +403,7 @@ expression: "pretty(&manifest, \"materials\")?"
       0.04
     ],
     "stencil": {
-      "colour": [
-        0.1,
-        0.2,
-        0.3
-      ],
+      "drawn": true,
       "opacity": 1.0
     },
     "surface_type": "",

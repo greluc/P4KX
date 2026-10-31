@@ -4,7 +4,7 @@
 use crate::{DnaMatrix, DnaRig, ExpressionMorphs, RigError};
 
 /// The deltas smaller than this on every axis, 0.1 micrometre, are dropped from a target.
-const NEGLIGIBLE: f32 = 1e-7;
+pub(crate) const NEGLIGIBLE: f32 = 1e-7;
 
 /// The expression blendshapes of a Character's head: the blendshapes of the stock heads of the rig
 /// mixed by the Character's DNA.

@@ -15,8 +15,12 @@ pub(crate) enum RootGeometryError {
     Unreadable { entity: String, reason: String },
 }
 
-/// Fails when the root part of `assembly` has no model because its geometry file is missing or
-/// unreadable; a part below the root that cannot be drawn is an Issue and no error.
+/// Fails when the root part of `assembly` has no model because its geometry file is missing
+/// (`GeometryMissing`) or unreadable (`GeometryUnreadable`).
+///
+/// A root that names no geometry (`NoGeometry`) or whose body geometry is missing
+/// (`BodyGeometryMissing`) is no error, and neither is a part below the root that cannot be
+/// drawn: those stay Issues.
 pub(crate) fn check(assembly: &Assembly) -> Result<(), RootGeometryError> {
     if assembly.root().is_none_or(|root| root.model().is_some()) {
         return Ok(());

@@ -51,17 +51,19 @@ pub(crate) const DIFFERENCES: u8 = 1;
 /// texture, a chunk the chunk file or a LOD the model does not have, has a Filter that matches no
 /// Entry or Record, has Filter text that is too long or has too many wildcards, an empty
 /// exclusion Filter, or exclusion Filters that leave out every Entry the Filter matches, names an
-/// output that is one of its inputs or lies inside a Star Citizen installation, names a package output folder that exists and holds something else than an
-/// earlier package, names an armour `--loadout` that is neither an Entity nor an XML Loadout that
-/// can be read, has an invalid Query or a Query or field-statistics output that does not fit
-/// --json, names a Loadout change (`--exclude`, `--replace`) that is malformed, names a port the
-/// Loadout lacks or contradicts another, names a Record dcb refs does not find, or gives CHF JSON
-/// that is invalid or cannot be written as CHF, asks loc for a language the Archive holds no global.ini for, or looks up a localisation key
-/// that has no text, asks actionmap export for an Archive without a default profile, or names a
-/// prefab library or prefab the Archive lacks.
+/// output that is one of its inputs or lies inside a Star Citizen installation, names a
+/// package output folder that exists and holds something else than an earlier package, names an
+/// armour `--loadout` that is neither an Entity nor an XML Loadout that can be read, has an
+/// invalid Query or a Query or field-statistics output that does not fit --json, names a Loadout change (`--exclude`, `--replace`) that is
+/// malformed, names a port the Loadout lacks or contradicts another, names a Record dcb refs does
+/// not find, or gives CHF JSON that is invalid or cannot be written as CHF, asks loc for a language the Archive holds no
+/// global.ini for, or looks up a localisation key that has no text, asks actionmap export for an
+/// Archive without a default profile, names an Entity whose own geometry the Archive lacks, or
+/// names a prefab library or prefab the Archive lacks.
 pub(crate) const INVALID_INPUT: u8 = 2;
 /// The Archive, a container in it, an Entry's data, the input file or a model companion cannot be
-/// opened or read, is no valid chunk file, model or CHF file, or is too large to read into memory.
+/// opened or read, is no valid chunk file, model or CHF file, or is too large to read into memory;
+/// also the geometry of an exported Entity that cannot be read.
 pub(crate) const ARCHIVE_ERROR: u8 = 3;
 /// The Archive changed on disk after it was opened, so the Extraction stopped.
 pub(crate) const ARCHIVE_CHANGED: u8 = 4;
@@ -77,12 +79,11 @@ pub(crate) const INTERRUPTED: u8 = 130;
 /// The exit-code section of the help text.
 pub(crate) const EXIT_CODES_HELP: &str = "Exit codes:
   0  success: every requested Entry was extracted or already existed; verify: every Entry matched
-     its checksum; compare: no differences,
-     also for the --diff Entry
+     its checksum; compare: no differences, also for the --diff Entry
   1  partial failure: some Entries or Records failed or were cancelled, the data of an Entry
-     does not match its checksum (verify, extract --verify), the target or the
-     settings cannot be written, a texture is invalid or cannot be merged, decoded or written,
-     e.g. because its format is not supported, a sound or soundbank is invalid or cannot be
+     does not match its checksum (verify, extract --verify), the target or the settings cannot
+     be written, a texture is invalid or cannot be merged, decoded or written, e.g. because its
+     format is not supported, a sound or soundbank is invalid or cannot be
      converted or written, e.g. a corrupt WEM or BNK or a codec without a decoder, a tag or
      definition of a UI movie cannot be read or written, e.g. a truncated bitmap tag or a
      missing external texture, a screen that ui render --screen draws without some widgets
@@ -98,22 +99,22 @@ pub(crate) const EXIT_CODES_HELP: &str = "Exit codes:
   2  invalid input: bad arguments, an Entry path the Archive does not contain (for --diff:
      neither Archive contains), a Filter that matches no Entry or Record or whose --exclude
      Filters leave nothing, Filter text that is too long or has too many wildcards, a Channel
-     path that does not exist or was never added, a texture, sound, soundbank, chunk file, UI movie
-     file, model or geometry companion that does not exist, the geometry of the Entity that
-     entity glb or entity package exports when it does not exist, a mip level the texture, a chunk
-     the chunk file or a LOD the model does not have, an output that is one of its inputs or
-     lies inside a Star Citizen installation (the tool never writes there), a package folder
-     that exists and holds something else than an earlier package, --json without --out
-     for cryxml or chf to-json, a catalog --out ending in .gz, an invalid Query, --json with another
-     --format and without --out for dcb query, --json with --format table for dcb refs or
-     grep, --json with another format than json for dcb fields, an empty text for grep, a GUID
-     or record path for dcb refs that no Record has, an Entity that no Record or several Records
-     match, an armour --loadout that is neither an Entity nor an XML Loadout that can be read,
-     a Loadout change (--exclude, --replace) that is malformed, names a port the
-     Loadout lacks or contradicts another, an audio trigger no ATL definition has, an audio
-     language the Archive holds no
-     folder for, or a CHF JSON file that is invalid, has an unknown version or holds values a
-     CHF file cannot store, a CHF file for chf glb or character package that holds no face DNA
+     path that does not exist or was never added, a texture, sound, soundbank, chunk file, UI
+     movie file, model or geometry companion that does not exist, the geometry of the Entity
+     that entity glb or entity package exports when it does not exist (nothing is written), a
+     mip level the texture, a chunk the chunk file or a LOD the model does not have, an output
+     that is one of its inputs or lies inside a Star Citizen installation (the tool never writes
+     there), a package folder that exists and holds something else than an earlier package,
+     --json without --out for cryxml or chf to-json, a catalog --out ending in .gz, an invalid
+     Query, --json with another --format and without --out for dcb query, --json with --format
+     table for dcb refs or grep, --json with another format than json for dcb fields, an empty
+     text for grep, a GUID or record path for dcb refs that no Record has, an Entity that no
+     Record or several Records match, an armour --loadout that is neither an Entity nor an XML
+     Loadout that can be read, a Loadout change (--exclude, --replace) that is malformed, names
+     a port the Loadout lacks or contradicts another, an audio trigger no ATL definition has, an
+     audio language the Archive holds no folder for, or a CHF JSON file that is invalid, has an
+     unknown version or holds values a CHF file cannot store, a CHF file for chf glb or
+     character package that holds no face DNA
      or whose DNA belongs to an unknown head rig, a language the Archive holds no global.ini
      for, or a localisation key that has no text in the language or its fallback, an Archive
      without defaultProfile.xml for actionmap export, --csv-raw with another format for
@@ -122,10 +123,10 @@ pub(crate) const EXIT_CODES_HELP: &str = "Exit codes:
      library or prefab the Archive lacks
   3  the Archive or the input file cannot be read: missing, not an Archive, not CryXml, not a
      chunk or CHF file or UI movie, corrupt, a corrupt model or companion (for entity glb and
-     entity package the geometry of the Entity itself, or its .chrm companion, that cannot be
-     read), with a CHF CRC-32C
-     mismatch or unknown CHF version, a sound, soundbank, chunk file or UI movie too large to
-     read into memory, or with unreadable Entry data, also a socpak container that cannot be
+     entity package the geometry of the Entity itself, its .chrm or .skinm companion or the
+     character definition that names no model, which cannot be read; nothing is written), with
+     a CHF CRC-32C mismatch or unknown CHF version, a sound, soundbank, chunk file or UI movie
+     too large to read into memory, or with unreadable Entry data, also a socpak container that cannot be
      opened, a --diff Entry that cannot be read or holds corrupt CryXml, a global.ini of the
      catalog that is corrupt or cannot be read, a defaultProfile.xml that is no XML, is too large
      or cannot be read, a prefab library that cannot be read, or the skeleton of a body variant
@@ -180,7 +181,7 @@ fn code_for(error: &anyhow::Error) -> u8 {
         || error.downcast_ref::<UnreadableChfInput>().is_some()
         || error.downcast_ref::<InvalidChf>().is_some()
         || is_text_or_profile_error(error)
-        || is_unreadable_skeleton_or_prefab_library(error)
+        || is_unreadable_assembly_source(error)
         || matches!(
             error.downcast_ref::<CatalogError>(),
             Some(CatalogError::Texts { .. })
@@ -206,10 +207,10 @@ fn code_for(error: &anyhow::Error) -> u8 {
         || texture::is_invalid_input(error)
         || model::is_invalid_input(error)
         || is_output_or_query_error(error)
+        || is_root_geometry_error(error, true)
         || error.downcast_ref::<EntityLookupError>().is_some()
         || is_screen_error(error, |error| !matches!(error, ScreenError::DataForge(_)))
-        || error.downcast_ref::<UnknownTrigger>().is_some()
-        || error.downcast_ref::<UnknownAudioLanguage>().is_some()
+        || is_unknown_audio_input(error)
         || error.downcast_ref::<InvalidChfJson>().is_some()
         || crate::catalog_input::is_invalid_input(error)
         || error.downcast_ref::<LanguageNotInArchive>().is_some()
@@ -244,14 +245,27 @@ fn is_loadout_or_screen_forge_error(error: &anyhow::Error) -> bool {
         || is_screen_error(error, |error| matches!(error, ScreenError::DataForge(_)))
 }
 
-fn is_unreadable_skeleton_or_prefab_library(error: &anyhow::Error) -> bool {
+fn is_unknown_audio_input(error: &anyhow::Error) -> bool {
+    error.downcast_ref::<UnknownTrigger>().is_some()
+        || error.downcast_ref::<UnknownAudioLanguage>().is_some()
+}
+
+/// Returns whether `error` is a source of an Assembly that cannot be read: the skeleton of a body
+/// variant, a prefab library or the geometry of the exported Entity itself.
+fn is_unreadable_assembly_source(error: &anyhow::Error) -> bool {
     matches!(
         error.downcast_ref::<AssemblyError>(),
         Some(AssemblyError::Body { .. })
-    ) || matches!(
-        error.downcast_ref::<RootGeometryError>(),
-        Some(RootGeometryError::Unreadable { .. })
     ) || crate::prefab::is_archive_error(error)
+        || is_root_geometry_error(error, false)
+}
+
+/// Returns whether `error` is a root geometry that does not exist (`missing`) or that cannot be
+/// read (`!missing`).
+fn is_root_geometry_error(error: &anyhow::Error, missing: bool) -> bool {
+    error
+        .downcast_ref::<RootGeometryError>()
+        .is_some_and(|error| matches!(error, RootGeometryError::Missing { .. }) == missing)
 }
 
 fn is_export_conflict(error: &anyhow::Error) -> bool {
@@ -280,10 +294,6 @@ fn is_output_or_query_error(error: &anyhow::Error) -> bool {
         || error.downcast_ref::<UnknownTag>().is_some()
         || error.downcast_ref::<OutputIsArchive>().is_some()
         || error.downcast_ref::<GlbOutputIsArchive>().is_some()
-        || matches!(
-            error.downcast_ref::<RootGeometryError>(),
-            Some(RootGeometryError::Missing { .. })
-        )
         || matches!(
             error.downcast_ref::<OffscreenError>(),
             Some(OffscreenError::Empty | OffscreenError::TooLarge { .. })

@@ -7,7 +7,10 @@ use std::error::Error;
 
 use p4kx_chunks::ChunkFile;
 use p4kx_gltf::{GlbOptions, GlbSummary, Scene, TextureLoader, write_scene_glb_with};
-use p4kx_model::{CompanionError, CompanionPath, LodSelection, MaterialStatus, Model, Transform};
+use p4kx_model::{
+    CompanionError, CompanionPath, LodSelection, MaterialReading, MaterialStatus, Model,
+    PositionBox, Transform,
+};
 use p4kx_testkit::{CheckedGlb, TestModel, TestMtl, TestMtlMaterial, check_glb};
 
 pub(crate) type TestResult = Result<(), Box<dyn Error>>;
@@ -23,11 +26,13 @@ pub(crate) fn read_cube() -> Result<Model, Box<dyn Error>> {
             _ => None,
         })
     };
-    Ok(Model::read_without_materials(
+    Ok(Model::read_with_materials(
         "cube.cgf",
         &ChunkFile::parse(cube.cgf())?,
         &mut companions,
         LodSelection::All,
+        PositionBox::default(),
+        MaterialReading::Skipped,
     )?)
 }
 

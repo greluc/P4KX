@@ -220,6 +220,34 @@ fn stopping_the_window_waits_for_the_export_and_removes_partial_files() -> TestR
 }
 
 #[test]
+fn the_summary_counts_the_layer_files_the_archive_lacks() -> TestResult {
+    let material = TestMtlMaterial::new("hull")
+        .layer_with(&[("Name", "A"), ("Path", "materials/layers/lost_a.mtl")])
+        .layer_with(&[("Name", "B"), ("Path", "materials/layers/lost_b.mtl")]);
+    let mut files = entries();
+    files.push(TestEntry::zstd(
+        "Data\\objects\\test\\cube.mtl",
+        TestMtl::single(&material).cryxml(),
+    ));
+    let site = Site {
+        entries: files,
+        installation: false,
+        key: false,
+    };
+    let (folder, mut harness): Window = opened_at(Language::BritishEnglish, ready(), site, |b| b)?;
+    select(&mut harness, "cube.cgf")?;
+
+    assert!(
+        start(&mut harness, &folder.path().join("cube.glb"))?,
+        "started"
+    );
+    finished(&mut harness)?;
+
+    assert_eq!(summary(harness.state())?.missing_layers(), 2);
+    Ok(())
+}
+
+#[test]
 fn exporting_with_textures_lists_the_textures_the_archive_lacks() -> TestResult {
     let material = TestMtlMaterial::new("hull").texture("TexSlot1", "textures/missing_diff.tif");
     let mut files = entries();

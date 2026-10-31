@@ -126,11 +126,11 @@ refused clip costs no memory. Run `--anim` with the names wanted for more.
 
 ## What is not in it
 
-- Slot 17 of the rig, the per-vertex attenuation of the blendshapes, and the comparison with the
-  `BShapesGpu` chunk of the skin (#533): not made, the targets are the cells of slot 19 as in
-  ADR-0091. ADR-0281 compares the chunk with the cells for the base head and uses it for heads
-  without a DNA rig.
-- The expressions below LOD 0 and the joints of the lower levels (#533).
+- Slot 17 of the rig, the per-vertex attenuation of the blendshapes: not applied, the targets are
+  the cells of slot 19 as in ADR-0091 (ADR-0293). ADR-0281 compares the `BShapesGpu` chunk with
+  the cells for the base head and uses it for heads without a DNA rig.
+- The joints of the lower levels. Their morph targets are those of level 0 carried over
+  (ADR-0293).
 - The wrinkle maps that sections G and H of the rig logic drive.
 - Verification of the Euler order and the multiplication side against the engine (#627; the sign
   is settled, see the amendment of #565).

@@ -7,7 +7,10 @@ use std::error::Error;
 
 use p4kx_chunks::ChunkFile;
 use p4kx_gltf::{GlbOptions, GltfError, Scene, SceneNode, ScenePart, write_scene_glb};
-use p4kx_model::{CompanionError, CompanionPath, LodSelection, MaterialStatus, Model, Transform};
+use p4kx_model::{
+    CompanionError, CompanionPath, LodSelection, MaterialReading, MaterialStatus, Model,
+    PositionBox, Transform,
+};
 use p4kx_testkit::gltf::scene as gltf_node;
 use p4kx_testkit::{CheckedGlb, TestModel, TestMtl, TestMtlMaterial, check_glb};
 
@@ -32,11 +35,13 @@ fn companions(
 }
 
 fn read(model: &TestModel) -> Result<Model, Box<dyn Error>> {
-    Ok(Model::read_without_materials(
+    Ok(Model::read_with_materials(
         "cube.cgf",
         &ChunkFile::parse(model.cgf())?,
         &mut companions(model, None),
         LodSelection::All,
+        PositionBox::default(),
+        MaterialReading::Skipped,
     )?)
 }
 

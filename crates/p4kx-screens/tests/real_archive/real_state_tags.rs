@@ -18,9 +18,11 @@ type TestResult = Result<(), Box<dyn Error>>;
 const MFD: &str = "libs/foundry/records/ui/buildingblocks/ships/displays/mfdscreens/mc_mfdcomponents/screens/general/m_mfd_screen";
 const BRAND: &str = "aegs";
 /// The texts the powered MFD draws on LIVE once entries that select by the parent colour them:
-/// 13, the header and the counters among them.
+/// 13, the header and the counters among them; the floor leaves room for a changed Archive. The
+/// report holds no text, so the header itself is covered by these counts and by the PNG.
 const MIN_TEXTS_POWERED: usize = 10;
 const NO_COLOUR: &str = "text has no colour";
+/// 6 on LIVE; 16 without the parent entries.
 const MAX_WITHOUT_COLOUR: usize = 10;
 
 fn assert_texts_coloured(report: &Report) {

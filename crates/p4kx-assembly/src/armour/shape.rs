@@ -7,6 +7,7 @@ use p4kx_model::{Mesh, Model};
 
 use super::expressions::{Expressions, Morphs, logic_of, morphs};
 use super::facial::{Facial, facial};
+use super::lod_morphs::from_level_zero;
 use super::normals::carry_normals;
 use crate::{IssueKind, ModelFailure, ModelProvider};
 
@@ -144,8 +145,8 @@ pub(super) fn shaped(
         .neutral_morphs()
         .and_then(|morphs| morphs.decode(&matrix))
         .map_err(failed)?;
-    let mut shaped = model.clone();
-    let lod = shaped
+    let mut reshaped = model.clone();
+    let lod = reshaped
         .lods
         .first_mut()
         .ok_or("the model has no level of detail")?;
@@ -158,21 +159,42 @@ pub(super) fn shaped(
     apply(mesh, &moves).map_err(|problem| format!("{rig_path}: {problem}"))?;
     let wants_morphs = *expressions != Expressions::None;
     let wants_face = face && level == 0;
-    let logic = (wants_morphs || wants_face).then(|| logic_of(path, models));
-    let morphs = logic.as_ref().filter(|_| wants_morphs).map(|logic| {
-        with_logic(logic, |logic| {
-            morphs(&rig, &matrix, mesh, logic, expressions)
+    let logic = (level == 0 && (wants_morphs || wants_face)).then(|| logic_of(path, models));
+    let morphs = if level == 0 {
+        logic.as_ref().filter(|_| wants_morphs).map(|logic| {
+            with_logic(logic, |logic| {
+                morphs(&rig, &matrix, mesh, logic, expressions)
+            })
         })
-    });
+    } else {
+        wants_morphs.then(|| lower_morphs(path, dna, (&*mesh, expressions), models))
+    };
     let face = logic.as_ref().filter(|_| wants_face).map(|logic| {
         with_logic(logic, |logic| {
             facial(model, logic, &rig, &matrix).map(|found| (found, rig_path.clone()))
         })
     });
     Ok(Shaped {
-        model: shaped,
+        model: reshaped,
         morphs,
         face,
+    })
+}
+
+/// Makes the morph targets of a head at a level below 0, whose rig has no expression data, by
+/// carrying those of the shaped head at level 0 to `mesh`.
+fn lower_morphs(
+    path: &str,
+    dna: &Dna,
+    (mesh, expressions): (&Mesh, &Expressions),
+    models: &dyn ModelProvider,
+) -> Result<Morphs, String> {
+    from_level_zero(path, models, (mesh, expressions), |base| {
+        let made = shaped(&base, path, dna, expressions, models, false)?;
+        let morphs = made
+            .morphs
+            .ok_or_else(|| "the head at level 0 made no morph targets".to_owned())??;
+        Ok((made.model, morphs))
     })
 }
 

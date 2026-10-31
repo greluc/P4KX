@@ -5,9 +5,13 @@
 
 use p4kx_dataforge::DataForge;
 use p4kx_screens::{Composed, ScreenComposer, Variable};
-use p4kx_testkit::{TestCanvas, TestDim, TestModifier, TestOp, TestStyleEntry, TestWidget};
+use p4kx_testkit::{
+    TestCanvas, TestDim, TestModifier, TestOp, TestStyleEntry, TestWidget, clone_modifiers,
+};
 
-use crate::support::{RED, SCREEN, TestResult, database, empty_at, guid_text, red_at, stage};
+use crate::support::{
+    RED, SCREEN, TestResult, database, empty_at, guid_text, pixel, red_at, stage,
+};
 
 fn canvas() -> TestCanvas {
     TestCanvas::new(SCREEN, "bound_sizes", 40.0, 10.0)
@@ -106,6 +110,137 @@ fn a_bound_depth_stays_listed_as_not_evaluated() -> TestResult {
             .any(|entry| entry.element == "Binding" && entry.reason.contains("layout fields")),
         "{:?}",
         composed.report().unsupported
+    );
+    Ok(())
+}
+
+fn unbound_image() -> Result<p4kx_gfx::RgbaImage, Box<dyn std::error::Error>> {
+    Ok(compose(&canvas().widget(bar()), &[])?
+        .rasterize(&stage())?
+        .image)
+}
+
+#[test]
+fn every_kind_of_bound_layout_number_is_evaluated() -> TestResult {
+    let unbound = unbound_image()?;
+    let visible = [
+        "AnchorX",
+        "PivotX",
+        "MarginLeft",
+        "ScaleX",
+        "BorderTopLeftRadius",
+    ];
+    let hidden = ["PaddingLeft", "FlexColumnSpacing"];
+    for field in visible.into_iter().chain(hidden) {
+        let composed = compose(&sized(canvas(), field), &[])?;
+        let listed = composed
+            .report()
+            .unsupported
+            .iter()
+            .any(|entry| entry.element == "Binding" && entry.reason.contains(field));
+        assert!(!listed, "{field} is listed as not evaluated");
+        let image = composed.rasterize(&stage())?.image;
+        assert_eq!(
+            image.pixels() != unbound.pixels(),
+            visible.contains(&field),
+            "{field}"
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn a_number_that_is_not_finite_or_out_of_range_keeps_the_authored_value() -> TestResult {
+    let unbound = unbound_image()?;
+    for (field, value) in [
+        ("SizeX", f32::NAN),
+        ("SizeX", f32::INFINITY),
+        ("SizeX", 1.0e30),
+        ("SizeX", -5.0),
+        ("AnchorX", 1.0e30),
+    ] {
+        let composed = compose(
+            &canvas()
+                .operation("n", TestOp::NumParam("n", value))
+                .widget(bar())
+                .operation("bind", TestOp::NumField("bar", field, "n")),
+            &[],
+        )?;
+        let image = composed.rasterize(&stage())?.image;
+        assert_eq!(
+            pixel(&image, 25, 5),
+            pixel(&unbound, 25, 5),
+            "{field} {value}"
+        );
+        assert_eq!(image.pixels(), unbound.pixels(), "{field} {value}");
+        assert!(
+            composed
+                .report()
+                .unsupported
+                .iter()
+                .any(|entry| entry.element == "Binding" && entry.reason.contains(field)),
+            "{field} {value}: {:?}",
+            composed.report().unsupported
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn a_value_that_is_not_a_number_is_listed_and_the_widget_keeps_its_size() -> TestResult {
+    let composed = compose(
+        &canvas()
+            .operation("flag", TestOp::BoolVar)
+            .widget(bar())
+            .operation("bind", TestOp::NumField("bar", "SizeX", "flag")),
+        &[],
+    )?;
+    let image = composed.rasterize(&stage())?.image;
+    assert_eq!(image.pixels(), unbound_image()?.pixels());
+    assert!(
+        composed
+            .report()
+            .unsupported
+            .iter()
+            .any(|entry| entry.reason.contains("a value that is not a number")),
+        "{:?}",
+        composed.report().unsupported
+    );
+    Ok(())
+}
+
+#[test]
+fn a_modifier_of_a_clone_beats_the_size_bound_on_its_template() -> TestResult {
+    let template = || {
+        canvas()
+            .operation("flag", TestOp::BoolVar)
+            .operation("size", TestOp::NumFromBool("flag", 30.0, 20.0))
+            .template(
+                TestWidget::display("tmpl")
+                    .size(TestDim::Fixed(10.0), TestDim::Fixed(10.0))
+                    .background(RED),
+            )
+            .operation("bind", TestOp::NumField("tmpl", "SizeX", "size"))
+    };
+    let plain = compose(
+        &template().widget(TestWidget::clone_of("copy", "tmpl")),
+        &[],
+    )?
+    .rasterize(&stage())?
+    .image;
+    assert!(red_at(&plain, 15, 5), "the bound width of the template");
+    assert!(empty_at(&plain, 25, 5));
+    let narrow = TestWidget::clone_of("copy", "tmpl").with(
+        "modifiers",
+        clone_modifiers(&[TestModifier::Number("SizeX", 5.0)]),
+    );
+    let overridden = compose(&template().widget(narrow), &[])?
+        .rasterize(&stage())?
+        .image;
+    assert!(red_at(&overridden, 2, 5));
+    assert!(
+        empty_at(&overridden, 8, 5),
+        "the clone's 5 beats the bound 20"
     );
     Ok(())
 }

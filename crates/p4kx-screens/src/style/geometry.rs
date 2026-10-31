@@ -6,6 +6,8 @@ use p4kx_dataforge::StructValue;
 use super::flex::FlexModifiers;
 use crate::reader::text;
 
+/// The largest absolute value a bound layout number may have, the limit of a style number.
+const MAX_BOUND: f64 = 1.0e6;
 const ENUM_PREFIX: &str = "BuildingBlocks_FieldModifierEnumeratedType";
 
 /// How a size modifier reads its amount: the `WidthBehavior` and `HeightBehavior` of a widget.
@@ -92,6 +94,15 @@ impl GeometryModifiers {
     /// Returns whether `field` is a numeric field of the geometry that [`Self::number`] takes.
     pub(crate) fn has_field(field: &str) -> bool {
         Self::default().number(field, None)
+    }
+
+    /// Returns whether a binding may set the layout field `field` to `value`: within the range
+    /// the layout holds, and not negative for a size or a bound of one.
+    pub(crate) fn takes(field: &str, value: f64) -> bool {
+        let size = ["Size", "MinSize", "MaxSize"]
+            .iter()
+            .any(|prefix| field.starts_with(prefix));
+        value.abs() <= MAX_BOUND && (value >= 0.0 || !size)
     }
 
     /// Takes the numeric field `field` when it is one of the geometry, `false` otherwise.

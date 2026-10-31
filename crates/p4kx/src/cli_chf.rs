@@ -68,10 +68,10 @@ pub(crate) enum ChfAction {
     /// item's own. The expressions of the head rig, about 400 of its 495 blendshapes, are written
     /// as morph targets of the head, named like the rig's controls, mixed by the character's DNA
     /// and stored sparse; limit them with --expression or leave them out with --no-expressions.
-    /// Only the rig of LOD 0 has expressions, so the other levels are written without unless
-    /// --expression names some, which then fails. The hair, brows, lashes and beard get the same
-    /// morph targets moved to their own vertices, on the first mesh of each at LOD 0 only; the
-    /// eyes and teeth have none. The head rig and the items come from the Archive; a character
+    /// The rigs of the lower levels have no expressions, so --lod 1 and up carry those of LOD 0
+    /// to their own vertices. The hair, brows, lashes and beard get the same morph targets moved
+    /// to their own vertices, on the first mesh of each at LOD 0 only; the eyes and teeth have
+    /// none. The head rig and the items come from the Archive; a character
     /// without face DNA or for an unknown head rig is invalid input.
     #[command(after_help = EXIT_CODES_HELP)]
     Glb(ChfGlbArgs),

@@ -14,6 +14,7 @@ mod cube;
 mod deep_text;
 mod details;
 mod interior;
+mod layer_cache;
 mod layer_surfaces;
 mod lods;
 mod material_library_lookup;

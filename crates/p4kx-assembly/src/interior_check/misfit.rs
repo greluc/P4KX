@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use std::collections::HashSet;
-
 use super::{HardpointKind, InteriorFit};
 
 /// How far in metres a room model of the root Entity may protrude beyond its model's box.
@@ -11,21 +9,20 @@ use super::{HardpointKind, InteriorFit};
 /// moved 3 m along the hull protrudes by about 3 m.
 pub const HULL_SLACK: f32 = 1.0;
 
-/// A rule a correct placement of the containers breaks. The fields named `controller`, `seat` and
-/// `grid` index [`InteriorFit::hardpoints`]; `container` indexes [`InteriorFit::containers`].
+/// A rule a correct placement of the containers breaks. The fields named `controller` and `grid`
+/// index [`InteriorFit::hardpoints`]; `container` indexes [`InteriorFit::containers`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum Misfit {
-    /// The flight controller of the root vehicle and its pilot seat lie in no common container.
-    CockpitSplit {
+    /// The flight controller of the root vehicle lies farther than the tolerance from every static
+    /// model of every container.
+    ControllerOutsideRooms {
         /// The controller, an index into the hardpoints.
         controller: usize,
-        /// Its pilot seat, an index into the hardpoints.
-        seat: usize,
     },
-    /// A cargo grid lies in no container that is free of cockpit hardpoints, so no room of its
-    /// own holds it.
-    CargoOutsideCargoRoom {
+    /// A cargo grid of the root vehicle lies farther than the tolerance from every static model
+    /// although another grid of it lies inside one.
+    CargoGridOutsideRooms {
         /// The cargo grid, an index into the hardpoints.
         grid: usize,
     },
@@ -44,14 +41,19 @@ impl InteriorFit {
     /// Returns the rules the placement breaks, `tolerance` metres being how far a hardpoint may
     /// lie outside a model box and still count as in it:
     ///
-    /// - the flight controller of the root vehicle and its pilot seat lie in the same container;
-    ///   a docked ship's controller sits at that ship's origin and is not checked;
-    /// - every cargo grid lies in a container that holds no cockpit hardpoint, that is no flight
-    ///   controller and no pilot seat;
+    /// - the flight controller of the root vehicle lies within `tolerance` of a static model; a
+    ///   docked ship's controller sits at that ship's origin and is not checked;
+    /// - when some cargo grid of the root vehicle lies inside a static model, every one lies within
+    ///   `tolerance` of one: a ship none of whose grids lies inside carries its cargo outside any
+    ///   room (the open struts of the Hull C, 0.96 m or more from every model) and is not checked,
+    ///   whatever the tolerance;
     /// - the room models of every container of the root Entity lie within [`HULL_SLACK`] of the
     ///   box of the root Entity's model (containers of attached Entities, such as a docked ship,
     ///   are left out), so a section moved along the hull out of it is caught even when every
     ///   hardpoint still lies in some room.
+    ///
+    /// No rule names a pilot seat, a cockpit container or a cargo container: the census of real
+    /// ships found none of them identifiable by structure (ADR-0086).
     ///
     /// A hardpoint lies in a container when it is within `tolerance` of the box of a single static
     /// model of it ([`ContainerFit::models`](super::ContainerFit::models)), not of the union of
@@ -59,9 +61,8 @@ impl InteriorFit {
     /// ([`ContainerFit::rooms`](super::ContainerFit::rooms)).
     #[must_use]
     pub fn misfits(&self, tolerance: f32) -> Vec<Misfit> {
-        let pairs = self.pilot_pairs();
-        let mut misfits = self.cockpit_splits(&pairs, tolerance);
-        misfits.extend(self.cargo_outside(&pairs, tolerance));
+        let mut misfits = self.controllers_outside(tolerance);
+        misfits.extend(self.cargo_grids_outside(tolerance));
         misfits.extend(self.rooms_outside_hull());
         misfits
     }
@@ -83,53 +84,27 @@ impl InteriorFit {
             .collect()
     }
 
-    /// Returns whether container `container` holds hardpoint `hardpoint` within `tolerance`.
-    fn holds(&self, container: usize, hardpoint: usize, tolerance: f32) -> bool {
-        self.containers
-            .get(container)
-            .zip(self.hardpoints.get(hardpoint))
-            .is_some_and(|(container, fit)| container.holds(fit.hardpoint.position, tolerance))
-    }
-
-    fn cockpit_splits(&self, pairs: &[(usize, usize)], tolerance: f32) -> Vec<Misfit> {
-        pairs
-            .iter()
-            .filter(|&&(controller, _)| {
-                self.hardpoints
-                    .get(controller)
-                    .is_some_and(|fit| fit.hardpoint.vehicle.is_empty())
-            })
-            .filter(|&&(controller, seat)| {
-                !(0..self.containers.len()).any(|container| {
-                    self.holds(container, controller, tolerance)
-                        && self.holds(container, seat, tolerance)
-                })
-            })
-            .map(|&(controller, seat)| Misfit::CockpitSplit { controller, seat })
+    fn controllers_outside(&self, tolerance: f32) -> Vec<Misfit> {
+        self.indexed(HardpointKind::Controller)
+            .filter(|(_, fit)| fit.hardpoint.vehicle.is_empty() && !fit.is_within(tolerance))
+            .map(|(controller, _)| Misfit::ControllerOutsideRooms { controller })
             .collect()
     }
 
-    fn cargo_outside(&self, pairs: &[(usize, usize)], tolerance: f32) -> Vec<Misfit> {
-        let cockpit: HashSet<usize> = self
-            .indexed(HardpointKind::Controller)
-            .map(|(index, _)| index)
-            .chain(pairs.iter().map(|&(_, seat)| seat))
-            .collect();
-        let cockpit_containers: HashSet<usize> = (0..self.containers.len())
-            .filter(|&container| {
-                cockpit
-                    .iter()
-                    .any(|&hardpoint| self.holds(container, hardpoint, tolerance))
-            })
-            .collect();
-        self.indexed(HardpointKind::CargoGrid)
-            .filter(|&(grid, _)| {
-                !(0..self.containers.len()).any(|container| {
-                    !cockpit_containers.contains(&container)
-                        && self.holds(container, grid, tolerance)
-                })
-            })
-            .map(|(grid, _)| Misfit::CargoOutsideCargoRoom { grid })
+    /// The cargo grids of the root vehicle farther than `tolerance` from every static model, when
+    /// at least one of them lies inside one. Whether the ship is checked at all does not depend on
+    /// `tolerance`.
+    fn cargo_grids_outside(&self, tolerance: f32) -> Vec<Misfit> {
+        let root_grids = || {
+            self.indexed(HardpointKind::CargoGrid)
+                .filter(|(_, fit)| fit.hardpoint.vehicle.is_empty())
+        };
+        if !root_grids().any(|(_, fit)| fit.is_inside()) {
+            return Vec::new();
+        }
+        root_grids()
+            .filter(|(_, fit)| !fit.is_within(tolerance))
+            .map(|(grid, _)| Misfit::CargoGridOutsideRooms { grid })
             .collect()
     }
 }

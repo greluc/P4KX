@@ -48,7 +48,7 @@ use p4kx_gltf::{
     GlbOptions, GlbSummary, GltfError, MorphTarget, RigMount, RigPiece, TextureLoader,
     write_rigged_glb, write_rigged_glb_with,
 };
-use p4kx_model::{MaterialStatus, Model};
+use p4kx_model::{MaterialStatus, Model, UnresolvedLayers};
 
 pub use animate::{CharacterAnimations, MAX_ANIMATION_VALUES};
 pub use body::BodyVariant;
@@ -201,6 +201,13 @@ impl Armour {
             .iter()
             .filter_map(flat_layers::flat_layers)
             .collect()
+    }
+
+    /// Returns the layer files that the material libraries of the parts could not resolve; their
+    /// materials keep the colours of their own file.
+    #[must_use]
+    pub fn unresolved_layers(&self) -> UnresolvedLayers {
+        UnresolvedLayers::of(self.parts.iter().map(ArmourPart::materials))
     }
 
     /// Returns the level of detail the models were read at.

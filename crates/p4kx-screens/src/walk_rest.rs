@@ -29,12 +29,9 @@ const LAYOUT_FIELDS: [&str; 10] = [
     "MaxSize",
 ];
 
-/// Names why a bound field is left out: state tags and layout fields in groups, any other by
-/// its name.
+/// Names why a bound field is left out: layout fields in a group, any other by its name.
 fn left_out_reason(field: &str) -> String {
-    if field.ends_with("StateTag") {
-        "bound state tags are not evaluated at rest".to_owned()
-    } else if field.ends_with("Behavior")
+    if field.ends_with("Behavior")
         || field.starts_with("Flex")
         || LAYOUT_FIELDS.iter().any(|prefix| field.starts_with(prefix))
     {
@@ -247,27 +244,32 @@ impl Walk<'_, '_, '_, '_> {
     pub(crate) fn subject_of(
         &self,
         canvas: &Canvas,
-        widget: &Widget,
+        (index, widget): (usize, &Widget),
         (position, kids): (usize, &[usize]),
     ) -> Subject {
-        let subject = self.subject_at(widget, position);
+        let subject = self.subject_at(index, widget, position);
         if !self.shape.child {
             return subject;
         }
         let kids = kids
             .iter()
-            .filter_map(|&kid| canvas.widgets.get(kid))
+            .filter_map(|&kid| Some((kid, canvas.widgets.get(kid)?)))
             .enumerate()
-            .map(|(at, kid)| self.subject_at(kid, at))
+            .map(|(at, (kid, widget))| self.subject_at(kid, widget, at))
             .collect();
         subject.with_kids(kids)
     }
 
-    fn subject_at(&self, widget: &Widget, position: usize) -> Subject {
+    /// Returns widget `index` with its own tags, those of its standard look and the state tags
+    /// the bindings of its canvas give it.
+    fn subject_at(&self, index: usize, widget: &Widget, position: usize) -> Subject {
         let mut subject = Subject::of(&widget.type_name, &widget.tags).at(position);
         subject
             .tags
             .extend(elements::standard_tags(widget, self.tags));
+        if let Some(state) = self.rests.last() {
+            subject.tags.extend_from_slice(state.state_tags(index));
+        }
         subject
     }
 

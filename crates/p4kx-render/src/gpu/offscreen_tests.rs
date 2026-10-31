@@ -18,7 +18,7 @@ pub(super) fn open(test: &str) -> Option<Probe> {
     clippy::cast_precision_loss,
     reason = "a test size is far below the 2^24 an f32 holds exactly"
 )]
-fn frame(size: [u32; 2]) -> Frame {
+pub(super) fn frame(size: [u32; 2]) -> Frame {
     let scene = Arc::new(ship());
     let mut camera = Camera::framing(scene.bounds());
     let aspect = size[0] as f32 / size[1].max(1) as f32;

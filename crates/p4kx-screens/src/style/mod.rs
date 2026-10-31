@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
+mod animation;
 mod condition;
 mod entry;
 mod flex;
@@ -15,5 +16,5 @@ pub(crate) use entry::{Entry, Modifiers, inline_entries, modifiers, parse_entrie
 pub(crate) use geometry::{Behaviour, GeometryModifiers};
 pub(crate) use matching::{Subject, TagPaths};
 pub(crate) use picture::PictureModifiers;
-pub(crate) use sheet::{CanvasStyles, StyleCache, merge, resolve};
+pub(crate) use sheet::{CanvasStyles, StyleCache, merge, resolve, resolve_text};
 pub(crate) use text::TextModifiers;

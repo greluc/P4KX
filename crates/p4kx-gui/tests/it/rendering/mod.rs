@@ -123,7 +123,7 @@ pub(crate) fn pixels(rect: egui::Rect) -> [u32; 4] {
     [rect.left(), rect.top(), rect.right(), rect.bottom()].map(|edge| edge as u32)
 }
 
-fn save(name: &str, width: u32, height: u32, image: &[u8]) -> TestResult {
+pub(crate) fn save(name: &str, width: u32, height: u32, image: &[u8]) -> TestResult {
     let Some(folder) = std::env::var_os("P4KX_RENDER_DIR").map(PathBuf::from) else {
         return Ok(());
     };

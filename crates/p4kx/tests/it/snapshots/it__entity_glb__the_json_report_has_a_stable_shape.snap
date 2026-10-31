@@ -4,6 +4,7 @@ expression: "serde_json::to_string_pretty(&shaped)?"
 ---
 {
   "archive": "<archive>",
+  "bones": 0,
   "bytes": 7232,
   "default_material_ids": 0,
   "entity": "TEST_Ship",
@@ -86,6 +87,7 @@ expression: "serde_json::to_string_pretty(&shaped)?"
   "shared_materials": 2,
   "shared_meshes": 1,
   "shared_textures": 0,
+  "skinned_meshes": 0,
   "skipped": 2,
   "texture_fallbacks": [],
   "texture_pixels": 0,

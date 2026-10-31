@@ -33,6 +33,8 @@ pub(crate) fn int(structure: &StructValue<'_>, name: &str) -> Option<i32> {
         Value::UInt16(value) => Some(i32::from(*value)),
         Value::UInt8(value) => Some(i32::from(*value)),
         Value::UInt32(value) => i32::try_from(*value).ok(),
+        Value::Int64(value) => i32::try_from(*value).ok(),
+        Value::UInt64(value) => i32::try_from(*value).ok(),
         _ => None,
     }
 }

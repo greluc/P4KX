@@ -213,6 +213,31 @@ fn the_resolver_judges_the_diffuse_map_of_a_candidate_only() -> TestResult {
 }
 
 #[test]
+fn a_candidate_without_a_diffuse_map_is_not_asked_and_stays_hidden() -> TestResult {
+    let file = TestMtl::multi(&[TestMtlMaterial::new("no_diffuse")
+        .shader("MeshDecal")
+        .string_gen_mask(POM_MASK)
+        .diffuse([1.0; 3])
+        .public_param("ETintModeType", "0")
+        .texture("TexSlot4", DISPLACEMENT)]);
+    let mut resolver = Resolver {
+        library: file.cryxml(),
+        grey: Some(false),
+        asked: Vec::new(),
+    };
+    let status = MaterialStatus::load(Some("objects/test/hull"), &mut resolver);
+    let material = status
+        .library()
+        .and_then(|library| library.material(0))
+        .ok_or("the material did not load")?;
+    assert_eq!(resolver.asked.len(), 0, "{:?}", resolver.asked);
+    assert_eq!(material.diffuse_map_is_grey, None);
+    assert!(material.is_relief_decal());
+    assert!(material.hidden());
+    Ok(())
+}
+
+#[test]
 fn a_coloured_diffuse_map_keeps_the_decal_drawn() -> TestResult {
     let (materials, _) = load_with(Some(false))?;
     assert!(!materials[0].is_relief_decal());

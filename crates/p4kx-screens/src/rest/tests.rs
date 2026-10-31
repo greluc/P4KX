@@ -2,8 +2,11 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 use super::Rest;
-use super::eval::AtRest;
-use super::graph::{Arith, Binding, Cmp, FieldKind, Node, Operations};
+use p4kx_dataforge::Guid;
+
+use super::graph::{Binding, FieldKind, Node, Operations};
+use super::ops::{Arith, Cmp};
+use super::state::AtRest;
 use crate::variables::Variable;
 
 fn binding(field: &str, kind: FieldKind, input: usize) -> Binding {
@@ -236,6 +239,130 @@ fn a_variable_that_does_not_fit_its_kind_is_unknown() {
             .unknown()
             .iter()
             .any(|(_, _, why)| why.contains("powerstate") && why.contains("not a number"))
+    );
+}
+
+fn tag(byte: u8) -> Guid {
+    Guid::from_stored([byte; 16])
+}
+
+fn state_tag(input: usize) -> Binding {
+    binding("PrimaryStateTag", FieldKind::Text, input)
+}
+
+#[test]
+fn a_boolean_picks_the_state_tag() {
+    let choice = Node::TagChoice {
+        tags: [Some(tag(1)), Some(tag(2))],
+        branches: [None, None],
+        input: Some(0),
+    };
+    let operations = graph(vec![flag(), choice], vec![state_tag(1)]);
+    assert_eq!(
+        AtRest::of(&operations, &[], &[]).state_tags(0),
+        [tag(2)],
+        "false takes the second tag"
+    );
+    let on = [Variable::new("flag", "true").expect("variable")];
+    assert_eq!(AtRest::of(&operations, &[], &on).state_tags(0), [tag(1)]);
+}
+
+#[test]
+fn a_branch_without_a_tag_gives_none() {
+    let choice = Node::TagChoice {
+        tags: [Some(tag(1)), None],
+        branches: [None, None],
+        input: Some(0),
+    };
+    let operations = graph(vec![flag(), choice], vec![state_tag(1)]);
+    let state = AtRest::of(&operations, &[], &[]);
+    assert_eq!(state.state_tags(0).first(), None);
+    assert_eq!(state.unknown().first(), None);
+}
+
+#[test]
+fn an_integer_switch_picks_its_pair_or_the_default() {
+    let switch = Node::TagSwitch {
+        pairs: vec![(1.0, Some(tag(3)))],
+        default: Some(tag(4)),
+        input: Some(0),
+    };
+    let operations = graph(
+        vec![variable("level", Rest::Num(0.0)), switch],
+        vec![state_tag(1)],
+    );
+    let set = |value: &str| [Variable::new("level", value).expect("variable")];
+    assert_eq!(
+        AtRest::of(&operations, &[], &set("1")).state_tags(0),
+        [tag(3)]
+    );
+    assert_eq!(
+        AtRest::of(&operations, &[], &set("2")).state_tags(0),
+        [tag(4)]
+    );
+}
+
+#[test]
+fn a_tag_travels_through_a_string_parameter() {
+    let operations = graph(
+        vec![
+            flag(),
+            Node::Param {
+                parameter: "ParamInput0".to_owned(),
+                default: Rest::Text(String::new()),
+            },
+            Node::TagChoice {
+                tags: [None, None],
+                branches: [Some(1), Some(1)],
+                input: Some(0),
+            },
+        ],
+        vec![state_tag(2)],
+    );
+    let given = [("ParamInput0".to_owned(), Rest::Tag(Some(tag(5))))];
+    assert_eq!(AtRest::of(&operations, &given, &[]).state_tags(0), [tag(5)]);
+    assert_eq!(
+        AtRest::of(&operations, &[], &[]).state_tags(0).first(),
+        None
+    );
+}
+
+#[test]
+fn a_tag_the_game_names_at_run_time_is_unknown() {
+    let operations = graph(
+        vec![Node::Param {
+            parameter: "ParamInput0".to_owned(),
+            default: Rest::Text("UI.Style.Some".to_owned()),
+        }],
+        vec![state_tag(0)],
+    );
+    let state = AtRest::of(&operations, &[], &[]);
+    assert_eq!(state.state_tags(0).first(), None);
+    assert_eq!(state.unknown().len(), 1);
+}
+
+#[test]
+fn a_tag_read_as_a_text_is_a_typed_unknown() {
+    let operations = graph(
+        vec![
+            Node::Param {
+                parameter: "ParamInput0".to_owned(),
+                default: Rest::Text(String::new()),
+            },
+            Node::TextEmpty(Some(0)),
+        ],
+        vec![binding("IsActive", FieldKind::Boolean, 1)],
+    );
+    let given = [("ParamInput0".to_owned(), Rest::Tag(Some(tag(5))))];
+    let state = AtRest::of(&operations, &given, &[]);
+    assert_eq!(state.active(0), None);
+    assert!(
+        state
+            .unknown()
+            .iter()
+            .any(|(_, _, why)| why.contains("not a text")),
+        "{:?}",
+        state.unknown()
     );
 }
 

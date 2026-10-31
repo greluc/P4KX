@@ -7,13 +7,17 @@
 
 mod eval;
 mod graph;
+mod ops;
+mod state;
 #[cfg(test)]
 mod tests;
 
 use std::rc::Rc;
 
-pub(crate) use eval::{AtRest, key_of};
+use p4kx_dataforge::Guid;
+
 pub(crate) use graph::Operations;
+pub(crate) use state::{AtRest, key_of};
 
 /// A value of the operations graph.
 #[derive(Debug, Clone, PartialEq)]
@@ -21,6 +25,8 @@ pub(crate) enum Rest {
     Bool(bool),
     Num(f64),
     Text(String),
+    /// A tag, or none: what a tag node gives a state tag field or a string parameter.
+    Tag(Option<Guid>),
 }
 
 /// The typed values a `WidgetCanvas` hands to the component parameters of its canvas.

@@ -258,6 +258,22 @@ pub(super) fn lists(ui: &mut Ui, texts: &Texts, summary: &ExtractionSummary) {
         (heading, &lines.lines, Some(&lines.reasons)),
         true,
     );
+    let heading = T::SummaryRecordsRenamed;
+    let renamed = failure_lines(
+        ui,
+        texts,
+        (summary, heading),
+        summary.records_renamed(),
+        |note| {
+            let args = [
+                ("path", note.record_path.clone().into()),
+                ("guid", note.guid.clone().into()),
+                ("reason", note.reason.clone().into()),
+            ];
+            (texts.format(T::SummaryRecordRenamed, &args), 0)
+        },
+    );
+    list(ui, texts, (heading, &renamed.lines, None), true);
     list(
         ui,
         texts,

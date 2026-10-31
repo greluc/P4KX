@@ -132,6 +132,10 @@ pub enum ExtractionText {
     SummaryRecordsFailed,
     /// One Record that was not written; takes `path`, `guid` and `reason`.
     SummaryRecordFailure,
+    /// The heading of the Records written under another file name; takes `number`.
+    SummaryRecordsRenamed,
+    /// One Record written under another file name; takes `path`, `guid` and `reason`.
+    SummaryRecordRenamed,
     /// The title of the window shown when the Extraction could not run.
     FailedTitle,
     /// The target could not be prepared; takes `path` and `reason`.
@@ -142,7 +146,7 @@ pub enum ExtractionText {
 
 impl ExtractionText {
     /// Every text, for checks of the Fluent files.
-    pub const ALL: [Self; 65] = [
+    pub const ALL: [Self; 67] = [
         Self::ActionSelected,
         Self::ActionShown,
         Self::ActionAll,
@@ -205,6 +209,8 @@ impl ExtractionText {
         Self::SummaryFailure,
         Self::SummaryRecordsFailed,
         Self::SummaryRecordFailure,
+        Self::SummaryRecordsRenamed,
+        Self::SummaryRecordRenamed,
         Self::FailedTitle,
         Self::Failed,
         Self::Stopped,
@@ -277,6 +283,8 @@ impl ExtractionText {
             Self::SummaryFailure => "extraction-summary-failure",
             Self::SummaryRecordsFailed => "extraction-summary-records-failed",
             Self::SummaryRecordFailure => "extraction-summary-record-failure",
+            Self::SummaryRecordsRenamed => "extraction-summary-records-renamed",
+            Self::SummaryRecordRenamed => "extraction-summary-record-renamed",
             Self::FailedTitle => "extraction-failed-title",
             Self::Failed => "extraction-failed",
             Self::Stopped => "extraction-stopped",

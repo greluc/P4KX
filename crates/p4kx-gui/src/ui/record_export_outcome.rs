@@ -169,8 +169,10 @@ struct Laid {
     notes: Vec<(String, egui::Color32)>,
     failures: Vec<String>,
     reasons: Vec<usize>,
+    renamed: Vec<String>,
     skipped: Vec<String>,
     failed_heading: String,
+    renamed_heading: String,
     skipped_heading: String,
 }
 
@@ -213,10 +215,26 @@ impl Laid {
             notes: notes(texts, summary),
             failures,
             reasons,
+            renamed: summary
+                .renamed()
+                .iter()
+                .map(|note| {
+                    let args = [
+                        ("path", note.record_path.clone().into()),
+                        ("guid", note.guid.clone().into()),
+                        ("reason", note.reason.clone().into()),
+                    ];
+                    texts.format(T::SummaryRename, &args)
+                })
+                .collect(),
             skipped: summary.skipped().to_vec(),
             failed_heading: texts.format(
                 T::SummaryFailed,
                 &[("number", number(texts, summary.failures().len()))],
+            ),
+            renamed_heading: texts.format(
+                T::SummaryRenamed,
+                &[("number", number(texts, summary.renamed().len()))],
             ),
             skipped_heading: texts.format(
                 T::SummarySkipped,
@@ -279,6 +297,13 @@ fn finished(ui: &mut Ui, laid: &Laid) {
         (&laid.failed_heading, "failed"),
         &laid.failures,
         Some(&laid.reasons),
+        true,
+    );
+    list(
+        ui,
+        (&laid.renamed_heading, "renamed"),
+        &laid.renamed,
+        None,
         true,
     );
     list(

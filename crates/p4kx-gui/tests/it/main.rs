@@ -138,6 +138,7 @@ mod record_tags;
 mod record_tags_render;
 mod record_tree;
 mod record_tree_window;
+mod renamed_records_window;
 mod rendering;
 mod search;
 mod search_window;

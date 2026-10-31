@@ -4,7 +4,7 @@
 use std::path::{Path, PathBuf};
 
 use p4kx_export::RecordForm;
-use p4kx_extraction::RecordFailure;
+use p4kx_extraction::{RecordFailure, RecordRenamed};
 
 use crate::model::describe;
 
@@ -29,6 +29,27 @@ impl FailedRecord {
     }
 }
 
+/// One Record written, but under a file that does not follow its name or record path.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RenamedRecord {
+    /// The record path as the DataForge states it.
+    pub record_path: String,
+    /// The GUID in canonical form.
+    pub guid: String,
+    /// Why the file differs.
+    pub reason: String,
+}
+
+impl RenamedRecord {
+    pub(crate) fn of(renamed: &RecordRenamed) -> Self {
+        Self {
+            record_path: renamed.record_path().to_owned(),
+            guid: renamed.guid().to_string(),
+            reason: renamed.cause().to_string(),
+        }
+    }
+}
+
 /// The outcome of a finished Record export.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RecordExportSummary {
@@ -38,6 +59,7 @@ pub struct RecordExportSummary {
     written: usize,
     skipped: Vec<String>,
     failures: Vec<FailedRecord>,
+    renamed: Vec<RenamedRecord>,
     cancelled: usize,
     error_values: usize,
     records_with_errors: usize,
@@ -58,6 +80,7 @@ impl RecordExportSummary {
             written: summary.written(),
             skipped: summary.skipped().to_vec(),
             failures: summary.failures().iter().map(FailedRecord::of).collect(),
+            renamed: summary.renamed().iter().map(RenamedRecord::of).collect(),
             cancelled: summary.cancelled(),
             error_values: summary.error_values(),
             records_with_errors: summary.records_with_errors(),
@@ -81,6 +104,7 @@ impl RecordExportSummary {
             written: 0,
             skipped: Vec::new(),
             failures: Vec::new(),
+            renamed: Vec::new(),
             cancelled: if interrupted { selected } else { 0 },
             error_values: 0,
             records_with_errors: 0,
@@ -132,6 +156,13 @@ impl RecordExportSummary {
     #[must_use]
     pub fn failures(&self) -> &[FailedRecord] {
         &self.failures
+    }
+
+    /// Returns the Records written under a file that differs from their name or record path; they
+    /// do not count as failed.
+    #[must_use]
+    pub fn renamed(&self) -> &[RenamedRecord] {
+        &self.renamed
     }
 
     /// Returns the number of Records not written because the export was cancelled.

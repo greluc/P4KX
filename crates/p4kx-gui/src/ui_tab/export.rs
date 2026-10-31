@@ -169,7 +169,7 @@ pub(super) fn start(
 }
 
 fn run(index: &EntryIndex, request: &Request, cancel: &CancelToken) -> Outcome {
-    if is_same_file(&request.file, index.archive().path()) {
+    if is_same_file(&request.file, index.path()) {
         return Outcome::IsArchive;
     }
     if index.watch().check().is_err() {
@@ -255,10 +255,10 @@ fn write_screen(
     let source = index.forge().read(index, || {})?;
     checkpoint(cancel)?;
     let forge = source.entry.open().map_err(|e| reason(&e))?;
-    let texts = request
-        .texts
-        .clone()
-        .unwrap_or_else(|| Arc::new(still::load_texts(index, &forge, key.language)));
+    let texts = match request.texts.clone() {
+        Some(texts) => texts,
+        None => Arc::new(still::load_texts(index, &forge, key.language)?),
+    };
     checkpoint(cancel)?;
     let asked = StillRequest {
         screen: canvas,

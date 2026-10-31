@@ -7,8 +7,8 @@ use std::path::Path;
 
 use p4kx_dataforge::{SNIFF_LEN, looks_like_dataforge};
 
-use crate::dataforge::check_size;
-use crate::{ArchiveChanged, DataForgeEntry, DataForgeLoadError};
+use crate::dataforge::check_size_within;
+use crate::{ArchiveChanged, DataForgeEntry, DataForgeLoadError, MAX_DATAFORGE_SIZE};
 
 /// Returns whether the file at `path` starts like a DataForge database, whatever its name.
 ///
@@ -49,6 +49,16 @@ impl DataForgeEntry {
         file: &Path,
         stop: &dyn Fn() -> bool,
     ) -> Result<Self, DataForgeLoadError> {
+        Self::read_file_within(file, MAX_DATAFORGE_SIZE, stop)
+    }
+
+    /// Reads the DataForge file like [`DataForgeEntry::read_file_until`], refusing a file larger
+    /// than `limit` bytes.
+    pub(crate) fn read_file_within(
+        file: &Path,
+        limit: u64,
+        stop: &dyn Fn() -> bool,
+    ) -> Result<Self, DataForgeLoadError> {
         let name = file
             .file_name()
             .unwrap_or(file.as_os_str())
@@ -61,12 +71,46 @@ impl DataForgeEntry {
         let handle = File::open(file).map_err(read)?;
         let opened = handle.metadata().map_err(read)?;
         let size = opened.len();
-        check_size(&name, size)?;
+        check_size_within(&name, size, limit)?;
         let entry = Self::read_stream(name.clone(), size, handle, stop)?;
         let now = std::fs::metadata(file).map_err(read)?;
         if now.len() != size || now.modified().ok() != opened.modified().ok() {
             return Err(DataForgeLoadError::ArchiveChanged(ArchiveChanged::of(file)));
         }
         Ok(entry)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::error::Error;
+
+    use super::*;
+
+    #[test]
+    fn a_file_over_the_limit_is_refused_before_it_is_read() -> Result<(), Box<dyn Error>> {
+        let dir = tempfile::tempdir()?;
+        let file = dir.path().join("big.dcb");
+        std::fs::write(&file, [0_u8; 17])?;
+
+        let result = DataForgeEntry::read_file_within(&file, 16, &|| false);
+
+        assert!(matches!(
+            result,
+            Err(DataForgeLoadError::TooLarge { size: 17, limit: 16, ref path }) if path == "big.dcb"
+        ));
+        Ok(())
+    }
+
+    #[test]
+    fn a_file_at_the_limit_is_read() -> Result<(), Box<dyn Error>> {
+        let dir = tempfile::tempdir()?;
+        let file = dir.path().join("exact.dcb");
+        std::fs::write(&file, [0_u8; 16])?;
+
+        let entry = DataForgeEntry::read_file_within(&file, 16, &|| false)?;
+
+        assert_eq!(entry.path(), "exact.dcb");
+        Ok(())
     }
 }

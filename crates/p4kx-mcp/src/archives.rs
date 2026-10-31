@@ -8,12 +8,13 @@ use std::time::SystemTime;
 use p4kx_assembly::audio::{ArchiveAudio, AudioIndex};
 use p4kx_channels::ChannelKind;
 use p4kx_extraction::{
-    Archive, DataForge, EntryTree, LoadedDataForge, PathIndex, PathKeys, is_dataforge_file,
+    Archive, DataForge, DataForgeSource, EntryTree, FileStamp, PathIndex, PathKeys,
+    is_dataforge_file,
 };
 
 use crate::container::Containers;
 use crate::error::ToolError;
-use crate::forge_file::{FileVersion, ForgeFile, ForgeSource};
+use crate::forge_file::{ForgeFile, ForgeSource};
 use crate::forge_state::ForgeState;
 use crate::gate::Gate;
 use crate::keys::KeyChoice;
@@ -156,7 +157,7 @@ impl Opened {
     {
         let archive = self.archive.path().display().to_string();
         self.forge
-            .with(|| LoadedDataForge::load(&self.archive), archive, work)
+            .with(|| self.forge_source().load(), archive, work)
     }
 
     /// Returns the selection of the last Query run if it was of `query`.
@@ -171,7 +172,11 @@ impl Opened {
 
     /// Reads the DataForge if that has not happened yet, without running any work on it.
     pub(crate) fn load_dataforge(&self) -> Result<(), ToolError> {
-        self.forge.load(|| LoadedDataForge::load(&self.archive))
+        self.forge.load(|| self.forge_source().load())
+    }
+
+    const fn forge_source(&self) -> DataForgeSource<'_> {
+        DataForgeSource::Archive(&self.archive)
     }
 }
 
@@ -212,18 +217,18 @@ impl Archives {
     /// Returns the DataForge file at `path`, kept while the file stays unchanged.
     fn file(&self, path: &Path) -> Arc<ForgeFile> {
         let key = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
-        let version = FileVersion::of(&key);
+        let stamp = FileStamp::of(&key).ok();
         let mut files = self.files.lock().unwrap_or_else(PoisonError::into_inner);
         if let Some(index) = files
             .iter()
-            .position(|(known, file)| *known == key && file.is_version(version))
+            .position(|(known, file)| *known == key && file.is_stamp(stamp))
         {
             let item = files.remove(index);
             let file = Arc::clone(&item.1);
             files.insert(0, item);
             return file;
         }
-        let file = Arc::new(ForgeFile::new(path.to_path_buf(), version));
+        let file = Arc::new(ForgeFile::new(path.to_path_buf(), stamp));
         files.retain(|(known, _)| *known != key);
         files.insert(0, (key, Arc::clone(&file)));
         files.truncate(CAPACITY);

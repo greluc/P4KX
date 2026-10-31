@@ -97,7 +97,7 @@ pub use entities::{
     EntitiesStatus, EntitiesTab, EntityFilter, EntityList, EntityRole, EntityRow, LoadoutRow,
     LoadoutSession, LoadoutView, ReplaceChooser, ResolveFailure, RowChange,
 };
-pub use entry_index::EntryIndex;
+pub use entry_index::{EntryIndex, NoEntries};
 pub use extraction::{
     Confirmation, Extraction, ExtractionScope, ExtractionSetup, ExtractionStatus,
     ExtractionSummary, FailedEntry, RecordCounts, TargetKind,

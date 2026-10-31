@@ -64,7 +64,7 @@ fn item(ui: &mut Ui, text: String, colour: Color32) {
 
 fn browser_items(ui: &mut Ui, texts: &Texts, browser: &Browser) {
     let language = texts.language();
-    let archive = browser.archive_index().archive();
+    let opened = browser.archive_index();
     let entries_text = if browser.place() == Place::Archive {
         Text::StatusEntries
     } else {
@@ -75,10 +75,13 @@ fn browser_items(ui: &mut Ui, texts: &Texts, browser: &Browser) {
         |value: usize| -> FluentValue<'static> { format::number(count(value), language).into() };
     ui.scope(|ui| {
         ui.set_max_width(STATUS_PATH_MAX_WIDTH);
-        item(ui, archive.path().display().to_string(), palette::GRAY_1);
+        item(ui, opened.path().display().to_string(), palette::GRAY_1);
     });
+    if opened.is_dataforge_file() {
+        return;
+    }
     let parts = [
-        build_label(texts, archive.build()),
+        build_label(texts, opened.build_of_archive()),
         texts.format(
             entries_text,
             &[

@@ -5,8 +5,7 @@
 
 use std::collections::BTreeMap;
 use std::error::Error;
-use std::fs::{self, File};
-use std::io::Write;
+use std::fs;
 use std::path::{Path, PathBuf};
 
 use p4kx_testkit::{
@@ -330,14 +329,17 @@ fn a_file_of_an_unsupported_version_exits_with_code_5() -> TestResult {
 }
 
 #[test]
-fn a_file_over_the_size_limit_exits_with_code_5() -> TestResult {
+fn a_dataforge_over_the_size_limit_exits_with_code_5() -> TestResult {
     let fixture = fixture()?;
-    let mut file = File::create(&fixture.file)?;
-    file.write_all(&database().build())?;
-    file.set_len(LIMIT + 1)?;
-    drop(file);
+    let oversize = fixture.root.join("Oversize.p4k");
+    ArchiveBuilder::new()
+        .entry(
+            TestEntry::stored("Data\\Game2.dcb", database().build())
+                .with_uncompressed_size(LIMIT + 1),
+        )
+        .write_to(&oversize)?;
 
-    let message = run(&["info"], &fixture.file, &[], 5)?;
+    let message = run(&["info"], &oversize, &[], 5)?;
 
     assert!(message.contains("more than the limit"), "{message}");
     Ok(())

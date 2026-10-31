@@ -7,8 +7,13 @@ use std::error::Error;
 use std::fs;
 use std::path::PathBuf;
 
-use p4kx_gui::{Browser, Language, Model, RecordTree, RecordTreeStatus, WorkTab};
-use p4kx_testkit::{DataForgeBuilder, TestRecord, TestStruct};
+use egui_kittest::Harness;
+use egui_kittest::kittest::Queryable;
+use p4kx_gui::{
+    Browser, ExtractionScope, Language, Model, NoEntries, PreviewTab, RecordTree, RecordTreeStatus,
+    WorkTab, ui,
+};
+use p4kx_testkit::{ArchiveBuilder, DataForgeBuilder, TestEntry, TestRecord, TestStruct};
 use tempfile::TempDir;
 
 use crate::waiting::wait_polling;
@@ -75,6 +80,7 @@ fn the_tabs_that_read_entries_and_the_catalog_are_off_for_a_file() -> TestResult
     assert!(!model.catalog_available(), "the catalog reads Entries");
     for tab in [
         WorkTab::Localization,
+        WorkTab::Search,
         WorkTab::Entities,
         WorkTab::Sounds,
         WorkTab::Characters,
@@ -82,14 +88,82 @@ fn the_tabs_that_read_entries_and_the_catalog_are_off_for_a_file() -> TestResult
     ] {
         assert!(tab.needs_entries(), "{tab:?}");
     }
-    for tab in [
-        WorkTab::Archive,
-        WorkTab::Query,
-        WorkTab::Tags,
-        WorkTab::Search,
-    ] {
+    for tab in [WorkTab::Archive, WorkTab::Query, WorkTab::Tags] {
         assert!(!tab.needs_entries(), "{tab:?}");
     }
+    Ok(())
+}
+
+#[test]
+fn a_file_has_no_archive_so_no_job_that_reads_entries_can_run() -> TestResult {
+    let (_dir, path, model) = opened("Game2.dcb", &database().build())?;
+    let browser = model.browser().ok_or("nothing is open")?;
+    let index = browser.archive_index();
+
+    assert!(index.archive().is_none(), "no Archive stands in for it");
+    assert_eq!(index.entries_archive().err(), Some(NoEntries));
+    assert_eq!(index.path(), path.as_path());
+    assert!(index.build_of_archive().is_none());
+    assert_eq!(model.scope_len(ExtractionScope::All), 0);
+    assert_eq!(index.dataforge_name().as_deref(), Some("Game2.dcb"));
+    assert_eq!(index.dataforge_size(), fs::metadata(&path)?.len());
+    Ok(())
+}
+
+#[test]
+fn a_file_shows_only_its_dataforge_node() -> TestResult {
+    let (_dir, _, model) = opened("Game2.dcb", &database().build())?;
+    let browser = model.browser().ok_or("nothing is open")?;
+
+    assert!(browser.tree_rows().is_empty(), "no folder of Entries");
+    assert!(browser.shows_records(), "the list is the Record search");
+    assert_eq!(model.preview_tab(), PreviewTab::DataForge);
+    Ok(())
+}
+
+fn window(model: Model) -> Harness<'static, Model> {
+    Harness::builder()
+        .with_context_setup(p4kx_gui::theme::apply)
+        .with_size([1400.0, 800.0])
+        .build_ui_state(
+            |ui, model: &mut Model| {
+                ui::show(ui, model);
+            },
+            model,
+        )
+}
+
+#[test]
+fn the_window_of_a_file_has_no_entry_status_and_that_of_an_archive_has() -> TestResult {
+    let (_dir, _, file) = opened("Game2.dcb", &database().build())?;
+    let mut file = window(file);
+    file.run_steps(3);
+
+    assert!(file.query_by_label_contains("Build unknown").is_none());
+    assert!(file.query_by_label("0 Entries").is_none());
+    assert_eq!(
+        file.query_all_by_label("Search").count(),
+        0,
+        "no Search tab"
+    );
+
+    let dir = tempfile::tempdir()?;
+    let path = dir.path().join("Data.p4k");
+    ArchiveBuilder::new()
+        .entry(TestEntry::stored("Data\\a.txt", "a"))
+        .write_to(&path)?;
+    let mut archive = Model::new(Language::BritishEnglish);
+    archive.open(path, || {});
+    wait_until(&mut archive, |model| model.browser().is_some())?;
+    let mut archive = window(archive);
+    archive.run_steps(3);
+
+    archive.get_by_label_contains("Build unknown");
+    archive.get_by_label("1 Entry");
+    assert!(
+        archive.query_all_by_label("Search").count() > 0,
+        "a Search tab"
+    );
     Ok(())
 }
 

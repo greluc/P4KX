@@ -96,7 +96,10 @@ fn read(index: &Arc<EntryIndex>, stop: &AtomicBool, send: &dyn Fn(Outcome) -> bo
     if !send(Outcome::Catalogue(Arc::new(catalogue))) {
         return false;
     }
-    let Some(groups) = read_variant_groups(index.archive(), &forge, &stopped) else {
+    let Some(groups) = index
+        .archive()
+        .and_then(|archive| read_variant_groups(archive, &forge, &stopped))
+    else {
         return send(Outcome::Failed(None));
     };
     if index.watch().check().is_err() {

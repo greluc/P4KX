@@ -80,6 +80,8 @@ fn the_derived_closed_sets_are_strings_that_list_their_known_values() {
     for name in [
         "FactLayer",
         "StandingLevel",
+        "GiverSource",
+        "BlueprintSource",
         "SpawnLevel",
         "HaulingSource",
         "HaulingItemKind",

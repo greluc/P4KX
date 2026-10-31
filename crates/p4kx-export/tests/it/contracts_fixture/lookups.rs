@@ -5,11 +5,11 @@ use p4kx_testkit::{DataForgeBuilder, TestInstance, TestRecord, TestValue};
 
 use super::{
     AFFINITY, BOUNTY, BROKER, DELIVERY, FACTION, FACTION_SCOPE, LOC_A, LOC_B, LOSS, OBJ_PLANET,
-    OBJ_STAR, OBJ_STATION, OBJ_SYSTEM, RANK_FIFTY, RANK_TWO_HUNDRED, TYPE_PLANET, TYPE_STAR,
-    TYPE_STATION, TYPE_SYSTEM,
+    OBJ_STAR, OBJ_STATION, OBJ_SYSTEM, RANK_FIFTY, RANK_TWO_HUNDRED, RIVAL, STRAY_FACTION,
+    TYPE_PLANET, TYPE_STAR, TYPE_STATION, TYPE_SYSTEM,
 };
 
-fn flags(set: [bool; 5]) -> TestValue {
+pub(super) fn flags(set: [bool; 5]) -> TestValue {
     TestValue::Array(
         set.into_iter()
             .map(|value| {
@@ -43,9 +43,13 @@ pub(super) fn bounty_params() -> TestValue {
 }
 
 pub(super) fn amount(scope: u128, reward: u128) -> TestValue {
+    amount_of(FACTION, scope, reward)
+}
+
+pub(super) fn amount_of(faction: u128, scope: u128, reward: u128) -> TestValue {
     TestValue::Struct(
         TestInstance::new("ReputationAmount")
-            .value("factionReputation", TestValue::Reference(FACTION))
+            .value("factionReputation", TestValue::Reference(faction))
             .value("reputationScope", TestValue::Reference(scope))
             .value("reward", TestValue::Reference(reward)),
     )
@@ -177,6 +181,12 @@ pub(super) fn reputation(builder: DataForgeBuilder) -> DataForgeBuilder {
             "factions/factionreputation/acme",
         )
         .value("displayName", TestValue::text("@faction_acme")),
+        plain_record(STRAY_FACTION, "FactionReputation", "factions/stray/odd"),
+        plain_record(
+            RIVAL,
+            "FactionReputation",
+            "factions/factionreputation/rival",
+        ),
         plain_record(BROKER, "MissionBrokerEntry", "missionbroker/haul")
             .value("title", TestValue::text("@title_broker"))
             .value("description", TestValue::text("@desc_broker"))

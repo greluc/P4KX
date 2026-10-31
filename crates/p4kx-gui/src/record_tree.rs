@@ -284,6 +284,11 @@ impl RecordTree {
         self.load(index, wake);
     }
 
+    /// Selects the DataForge node itself without loading it.
+    pub(crate) const fn select_root(&mut self) {
+        self.selected = Some(ROOT);
+    }
+
     /// Ends the selection.
     pub(crate) const fn clear_selection(&mut self) {
         self.selected = None;

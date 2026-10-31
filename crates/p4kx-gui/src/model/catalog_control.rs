@@ -57,7 +57,7 @@ impl Model {
             self.catalog.run = Some(refused_gzip(file));
             return false;
         }
-        if is_same_file(&file, browser.archive_index().archive().path()) {
+        if is_same_file(&file, browser.archive_index().path()) {
             self.catalog.run = Some(refused(file));
             return false;
         }

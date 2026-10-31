@@ -15,7 +15,7 @@ use p4kx_settings::ModelMaterials;
 use super::package;
 use super::task::{Polled, Task};
 use crate::assembly_export::{Observed, PartIssue, StoppableTextures, failure_of};
-use crate::{AssemblyExportForm, EntryIndex, ModelExportFailure};
+use crate::{AssemblyExportForm, EntryIndex, ModelExportFailure, NoEntries};
 
 /// Where the Character comes from, as the manifest of a package records it.
 #[derive(Debug, Clone, Default)]
@@ -138,6 +138,12 @@ pub(super) enum Ended {
     Written(Box<CharacterExportSummary>),
     Cancelled,
     Failed(ModelExportFailure),
+}
+
+impl From<NoEntries> for Ended {
+    fn from(error: NoEntries) -> Self {
+        Self::Failed(error.into())
+    }
 }
 
 #[derive(Debug)]
@@ -300,7 +306,10 @@ fn run(index: &EntryIndex, request: &Request, cancel: &CancelToken, written: &At
     if request.form == AssemblyExportForm::Package {
         return package::write(index, request, cancel);
     }
-    let models = ArchiveModels::new(index.archive());
+    let Ok(archive) = index.entries_archive() else {
+        return NoEntries.into();
+    };
+    let models = ArchiveModels::new(archive);
     let archive_textures = models.textures();
     let textures = StoppableTextures {
         textures: &archive_textures,

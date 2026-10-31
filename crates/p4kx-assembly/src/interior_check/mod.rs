@@ -138,51 +138,12 @@ impl InteriorFit {
             .filter(move |fit| fit.hardpoint.kind == kind)
     }
 
-    /// Returns the pilot seats: for each controller, the seat of the same vehicle nearest to it,
-    /// once each. A controller with no such seat at a finite position has none.
-    #[must_use]
-    pub fn pilot_seats(&self) -> Vec<&HardpointFit> {
-        self.pilot_pairs()
-            .into_iter()
-            .filter_map(|(_, seat)| self.hardpoints.get(seat))
-            .collect()
-    }
-
-    /// Returns each controller with its pilot seat, as indices into [`Self::hardpoints`]; a seat
-    /// near several controllers is listed with the first.
-    pub(crate) fn pilot_pairs(&self) -> Vec<(usize, usize)> {
-        let mut pairs: Vec<(usize, usize)> = Vec::new();
-        for (controller, at) in self.indexed(HardpointKind::Controller) {
-            let nearest = self
-                .indexed(HardpointKind::Seat)
-                .filter(|(_, seat)| seat.hardpoint.vehicle == at.hardpoint.vehicle)
-                .filter_map(|(index, seat)| {
-                    Some((
-                        index,
-                        squared_distance(at.hardpoint.position, seat.hardpoint.position)?,
-                    ))
-                })
-                .min_by(|(_, a), (_, b)| a.total_cmp(b));
-            if let Some((seat, _)) = nearest
-                && !pairs.iter().any(|(_, known)| *known == seat)
-            {
-                pairs.push((controller, seat));
-            }
-        }
-        pairs
-    }
-
     fn indexed(&self, kind: HardpointKind) -> impl Iterator<Item = (usize, &HardpointFit)> {
         self.hardpoints
             .iter()
             .enumerate()
             .filter(move |(_, fit)| fit.hardpoint.kind == kind)
     }
-}
-
-fn squared_distance(a: [f32; 3], b: [f32; 3]) -> Option<f32> {
-    let squared: f32 = a.iter().zip(b).map(|(x, y)| (x - y) * (x - y)).sum();
-    squared.is_finite().then_some(squared)
 }
 
 #[cfg(test)]

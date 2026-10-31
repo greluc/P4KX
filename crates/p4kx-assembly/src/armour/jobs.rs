@@ -132,6 +132,7 @@ pub(super) fn gather(
             .map(|note| piece_issue(piece, note_kind(note))),
     );
     let (path, material, palette) = match &piece.source {
+        Source::Body => return,
         Source::Failed(reason) => {
             let kind = IssueKind::PieceNotFound {
                 reason: reason.clone(),
@@ -232,8 +233,17 @@ fn chosen_material(
         .map(str::to_owned)
 }
 
-/// Returns the skins to wear: the body and what each piece contributes, at most `max_parts` of
-/// them; the jobs beyond are listed in `issues`.
+/// Gives the body job, the first of `jobs`, the material library and the look of the
+/// [`Piece::body`] `piece`. Only the first such piece of an Armour restyles the body.
+fn restyle_body(jobs: &mut [Job], piece: &Piece) {
+    if let Some(body) = jobs.first_mut() {
+        body.material.clone_from(&piece.material);
+        body.look.clone_from(&piece.look);
+    }
+}
+
+/// Returns the skins to wear: the body, always first, and what each piece contributes, at most
+/// `max_parts` of them; the jobs beyond are listed in `issues`.
 pub(super) fn planned(
     variant: BodyVariant,
     pieces: &[Piece],
@@ -243,11 +253,19 @@ pub(super) fn planned(
 ) -> Vec<Job> {
     let mut jobs = vec![Job::body(variant.skin())];
     let shown = hidden::worn(pieces, issues);
+    let mut restyled = false;
     for piece in pieces
         .iter()
         .zip(shown)
         .filter_map(|(piece, shown)| shown.then_some(piece))
     {
+        if matches!(piece.source, Source::Body) {
+            if restyled {
+                continue;
+            }
+            restyled = true;
+            restyle_body(&mut jobs, piece);
+        }
         gather(piece, variant, models, &mut jobs, issues);
     }
     if jobs.len() > max_parts {

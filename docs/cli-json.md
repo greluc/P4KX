@@ -2344,7 +2344,7 @@ character's head port that has geometry for the body variant (`origin` `head`): 
 `eyelashes_itemport`, `beard_itemport`, `universal_scalp_itemport`, and a port this tool does not
 know `port_<hash>`. The eyes and the teeth are shaped by the DNA like the head; the other items
 follow the shaped head (ADR-0090). The materials the character chose are applied (its head
-material, skin tone, iris colour and hair melanin and dye), and `--materials textures`, the
+and body material, skin tone, iris colour and hair melanin and dye), and `--materials textures`, the
 default, embeds the textures of the materials as PNG images at the mip level `--texture-mip N`
 (default 1); `--materials colours` writes plain colours. `textured_materials`, `textures`,
 `texture_pixels` and `texture_fallbacks` are those of `p4kx entity glb`: a texture that cannot be
@@ -2364,9 +2364,10 @@ the head rig its DNA names, on the piece `head`; ADR-0197). The normals and tang
 head are turned with its new surface (ADR-0197).
 
 The piece named `head` has `morph_targets`: the number of expressions written. They are the
-expressions of the head rig that move a vertex of the character's face, all of them by default at
-`--lod 0`, only the ones named by `--expression NAME` (repeatable) otherwise, none with
-`--no-expressions` and at other levels, whose rigs have none. The hair, brows, lashes and beard
+expressions of the head rig that move a vertex of the character's face, all of them by default,
+only the ones named by `--expression NAME` (repeatable) otherwise, none with `--no-expressions`.
+At `--lod 1` and up, whose rigs have none, the targets of level 0 are carried to the vertices of
+the level (ADR-0293). The hair, brows, lashes and beard
 have a target for each expression that moves one of their vertices by at least a fifth of the
 target's largest move, named like the head's and moved as they follow the neutral shape
 (ADR-0200); the teeth and eyes have none. Only the first mesh of such a piece at LOD 0 gets

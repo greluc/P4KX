@@ -4,6 +4,7 @@
 //! The Character assembly of armour: a default body of a [`BodyVariant`] with its skeleton and
 //! the [`Piece`]s of armour and clothing worn on it.
 
+mod anchor;
 mod animate;
 mod body;
 mod body_zones;
@@ -21,6 +22,7 @@ mod head_move;
 mod hidden;
 mod jobs;
 mod loadout;
+mod lod_morphs;
 mod look;
 mod materials;
 mod mount;
@@ -33,6 +35,7 @@ mod sample;
 mod shape;
 mod uncover;
 mod unused;
+mod vec3;
 mod wearable;
 mod zones;
 

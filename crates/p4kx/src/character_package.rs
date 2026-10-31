@@ -62,7 +62,7 @@ fn package(args: &CharacterPackageArgs, as_json: bool) -> Result<()> {
     let forge = entry.open()?;
     let files = Files::open(ArchiveFiles::new(&archive), args.loadout.as_deref())?;
     let mut resolver = LoadoutResolver::new(&forge).with_files(&files);
-    let expressions = expressions_choice(args.lod, &args.expressions, args.no_expressions);
+    let expressions = expressions_choice(&args.expressions, args.no_expressions);
     let mut selection = Selection::gather(
         &mut resolver,
         &files,

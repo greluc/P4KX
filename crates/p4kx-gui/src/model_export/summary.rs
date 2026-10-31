@@ -21,6 +21,7 @@ pub struct ModelExportSummary {
     missing_textures: Vec<MissingTexture>,
     material_problem: Option<MaterialProblem>,
     unnamed_sub_materials: usize,
+    missing_layers: usize,
     animations_asked: bool,
     unread_animations: Vec<AnimationNote>,
     unread_animations_total: usize,
@@ -118,6 +119,10 @@ impl ModelExportSummary {
                 .materials
                 .library()
                 .map_or(0, |library| library.unknown_entries),
+            missing_layers: model
+                .materials
+                .library()
+                .map_or(0, |library| library.unresolved_layers.len()),
             animations_asked,
             unread_animations_total: animations.unread.len() + unmatched.len(),
             unread_animations: animations
@@ -223,6 +228,13 @@ impl ModelExportSummary {
     #[must_use]
     pub const fn unnamed_sub_materials(&self) -> usize {
         self.unnamed_sub_materials
+    }
+
+    /// Returns how many layer files of the material library are missing or unreadable; their
+    /// materials keep the colours of their own file.
+    #[must_use]
+    pub const fn missing_layers(&self) -> usize {
+        self.missing_layers
     }
 }
 

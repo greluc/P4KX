@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use crate::mtl_texture::texture_suffix;
+use crate::mtl_texture::{DIFFUSE_SLOT, texture_suffix};
 use crate::{CompanionResolver, Material, MaterialLibrary};
 
+/// The least value of every channel of a white diffuse colour.
 const WHITE_FROM: f32 = 0.99;
-const DIFFUSE_SLOT: &str = "TexSlot1";
 
 impl Material {
     /// Returns whether the material is a parallax relief decal: a `MeshDecal` with

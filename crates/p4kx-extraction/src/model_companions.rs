@@ -8,7 +8,6 @@ use std::path::{Path, PathBuf};
 use p4kx_model::{CompanionError, CompanionPath, CompanionResolver};
 use thiserror::Error;
 
-use crate::Texture;
 use crate::chunk_source::MAX_CHUNK_FILE_LEN;
 use crate::entry_path::relative_path;
 use crate::path_index::PathIndex;
@@ -16,12 +15,6 @@ use crate::sound::read_capped;
 
 /// The largest `.mtl` file a model's material library is read from, in bytes.
 const MAX_MATERIAL_LEN: u64 = 16 << 20;
-
-/// The mip level of a texture whose colour is judged; a texture with fewer levels gives its last.
-const GREY_PROBE_MIP: u32 = 3;
-
-/// The mean saturation up to which a texture counts as grey.
-const MAX_GREY_SATURATION: f32 = 0.05;
 
 /// A companion a resolver refuses to read.
 #[derive(Debug, Error)]
@@ -67,12 +60,7 @@ impl CompanionResolver for ArchiveCompanions<'_, '_> {
     }
 
     fn texture_is_grey(&mut self, file: &str) -> Option<bool> {
-        let path = p4kx_gltf::texture_path(file)?;
-        let entry = format!("Data\\{}", path.replace('/', "\\"));
-        let texture = Texture::from_index(self.index, &entry).ok()?;
-        let last = texture.header().mip_count().saturating_sub(1);
-        let image = texture.decode_mip(last.min(GREY_PROBE_MIP)).ok()?;
-        Some(image.mean_saturation() <= MAX_GREY_SATURATION)
+        self.index.texture_is_grey(file)
     }
 }
 

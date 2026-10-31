@@ -26,6 +26,7 @@ mod materials;
 mod mount;
 mod normals;
 mod npc;
+mod own_face;
 mod piece;
 mod read_models;
 mod sample;

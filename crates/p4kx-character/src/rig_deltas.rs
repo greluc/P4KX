@@ -13,6 +13,11 @@ const INDEX_BITS: u32 = 9;
 const INDEX_MASK: u32 = (1 << INDEX_BITS) - 1;
 const STEPS: f64 = 4_194_303.0;
 
+/// Returns the value of one step of a coefficient of a delta set that spans `scale`.
+pub(crate) fn step_of(scale: f64) -> f64 {
+    scale / STEPS
+}
+
 /// Which of the two delta sets of a head.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DeltaSet {
@@ -53,10 +58,10 @@ impl VariantHeader {
     /// Returns the value of one step of a coefficient of `set`.
     #[must_use]
     pub fn step(&self, set: DeltaSet) -> f64 {
-        match set {
-            DeltaSet::Main => self.main_scale / STEPS,
-            DeltaSet::Secondary => self.secondary_scale / STEPS,
-        }
+        step_of(match set {
+            DeltaSet::Main => self.main_scale,
+            DeltaSet::Secondary => self.secondary_scale,
+        })
     }
 
     const fn offset(&self, set: DeltaSet) -> u64 {
@@ -153,6 +158,17 @@ pub struct DeltaRecords<'a> {
     file: &'a [u8],
     cursor: usize,
     remaining: u32,
+}
+
+impl<'a> DeltaRecords<'a> {
+    /// Returns the iterator over `count` records that start at the beginning of `section`.
+    pub(crate) const fn over(section: &'a [u8], count: u32) -> Self {
+        Self {
+            file: section,
+            cursor: 0,
+            remaining: count,
+        }
+    }
 }
 
 /// One record: an output and the blendshapes that move it.

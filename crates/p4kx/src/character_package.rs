@@ -8,7 +8,7 @@ use anyhow::Result;
 use p4kx_assembly::character::{CHF_SIZE, Chf};
 use p4kx_assembly::{
     AnimationFolders, ArchiveFiles, ArchiveModels, Armour, AssemblyOptions, BodyVariant,
-    ForgeItems, ForgePalettes, Head, LoadoutResolver, Piece, character_animations,
+    Expressions, ForgeItems, ForgePalettes, Head, LoadoutResolver, Piece, character_animations,
 };
 use p4kx_blender::{
     CharacterScene, PackageInfo, PackageSummary, check_output, write_character_package,
@@ -62,14 +62,16 @@ fn package(args: &CharacterPackageArgs, as_json: bool) -> Result<()> {
     let forge = entry.open()?;
     let files = Files::open(ArchiveFiles::new(&archive), args.loadout.as_deref())?;
     let mut resolver = LoadoutResolver::new(&forge).with_files(&files);
+    let expressions = expressions_choice(args.lod, &args.expressions, args.no_expressions);
     let mut selection = Selection::gather(
         &mut resolver,
         &files,
         (&args.pieces, args.loadout.as_deref()),
+        &expressions,
     )?;
     let head = chf
         .as_ref()
-        .map(|chf| dress(args, chf, &mut resolver))
+        .map(|chf| dress(&expressions, chf, &mut resolver))
         .transpose()?;
     let (variant, pieces) = worn(args, &mut selection, head.as_ref());
     let models = ArchiveModels::new(&archive);
@@ -180,15 +182,10 @@ fn read_chf(path: &Path) -> Result<Chf> {
     })?)
 }
 
-fn dress(
-    args: &CharacterPackageArgs,
-    chf: &Chf,
-    resolver: &mut LoadoutResolver<'_>,
-) -> Result<Head> {
-    let expressions = expressions_choice(args.lod, &args.expressions, args.no_expressions);
+fn dress(expressions: &Expressions, chf: &Chf, resolver: &mut LoadoutResolver<'_>) -> Result<Head> {
     Ok(
         Head::dressed(&chf.character, &mut ForgeItems::new(resolver))?
-            .with_expressions(&expressions),
+            .with_expressions(expressions),
     )
 }
 

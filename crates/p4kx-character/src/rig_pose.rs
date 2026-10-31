@@ -86,13 +86,45 @@ impl FaceRig {
                 add_records(records, (step, &folds), set_rows, blendshapes)?;
             }
         }
+        Ok(Self::assembled(logic, joints, rows))
+    }
+
+    /// Prepares the rig logic of the head a `RigLogic` rig carries its own delta records for, as
+    /// a story character's `.RigLogic` file does; there is no DNA to mix, so the records apply
+    /// as they are and the joints keep their bind poses from the head's skin.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`RigError::LogicWithoutDeltas`] when the rig carries no delta records.
+    pub fn from_logic(logic: &RigLogic) -> Result<Self, RigError> {
+        let joints = logic.joint_hashes().len();
+        let folds = vec![1.0_f32; joints];
+        let blendshapes = logic.blendshapes();
+        let mut rows = [
+            vec![Vec::<(u16, f64)>::new(); joints * AXES],
+            vec![Vec::<(u16, f64)>::new(); joints * AXES],
+        ];
+        for (set, set_rows) in [DeltaSet::Main, DeltaSet::Secondary]
+            .into_iter()
+            .zip(&mut rows)
+        {
+            let (Some(records), Some(step)) = (logic.joint_records(set), logic.joint_step(set))
+            else {
+                return Err(RigError::LogicWithoutDeltas);
+            };
+            add_records(records, (step, &folds), set_rows, blendshapes)?;
+        }
+        Ok(Self::assembled(logic, joints, rows))
+    }
+
+    fn assembled(logic: &RigLogic, joints: usize, rows: [Vec<Vec<(u16, f64)>>; 2]) -> Self {
         let [translations, rotations] = rows.map(|set| set.into_iter().map(merged).collect());
-        Ok(Self {
+        Self {
             logic: logic.clone(),
             joints,
             translations,
             rotations,
-        })
+        }
     }
 
     /// Returns the rig logic chunk the rig was made with.

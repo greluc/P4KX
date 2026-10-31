@@ -16,6 +16,7 @@ use p4kx_extraction::{
 use serde::Serialize;
 
 use crate::armour_loadout::{Files, HeadJson, LoadoutJson, ReplacedJson, Selection};
+use crate::chf_glb::expressions_choice;
 use crate::cli_armour::{ArmourGlbArgs, BodyArg};
 use crate::cli_chf::ChfMaterialsArg;
 use crate::entity_glb::GlbOutputIsArchive;
@@ -62,6 +63,18 @@ struct GlbJson<'a> {
     issues: Vec<IssueJson<'a>>,
 }
 
+/// Resolves the pieces and the Loadout the arguments name; the head of the Loadout's character is
+/// written with the expressions they ask for.
+fn gather<'a>(
+    resolver: &mut LoadoutResolver<'_>,
+    files: &Files<'_>,
+    args: &'a ArmourGlbArgs,
+) -> Result<Selection<'a>> {
+    let names = (args.pieces.as_slice(), args.loadout.as_deref());
+    let expressions = expressions_choice(args.lod, &args.expressions, args.no_expressions);
+    Selection::gather(resolver, files, names, &expressions)
+}
+
 /// Runs `p4kx armour glb`.
 pub(crate) fn run(args: &ArmourGlbArgs, as_json: bool) -> Result<()> {
     if is_same_file(&args.out, &args.archive) {
@@ -72,8 +85,7 @@ pub(crate) fn run(args: &ArmourGlbArgs, as_json: bool) -> Result<()> {
     let forge = entry.open()?;
     let files = Files::open(ArchiveFiles::new(&archive), args.loadout.as_deref())?;
     let mut resolver = LoadoutResolver::new(&forge).with_files(&files);
-    let names = (args.pieces.as_slice(), args.loadout.as_deref());
-    let selection = Selection::gather(&mut resolver, &files, names)?;
+    let selection = gather(&mut resolver, &files, args)?;
     let variant = args
         .body
         .map(BodyVariant::from)

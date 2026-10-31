@@ -31,6 +31,11 @@ pub(crate) fn struct_items<'v, 'f>(
     items.iter().filter_map(as_struct)
 }
 
+/// Returns whether the array field `name` holds at least one element.
+pub(crate) fn has_items(structure: &StructValue<'_>, name: &str) -> bool {
+    matches!(structure.field(name), Some(Value::Array(items)) if !items.is_empty())
+}
+
 /// Returns the text of a string, localisation key or enum field, or an empty string.
 pub(crate) fn text<'f>(structure: &StructValue<'f>, name: &str) -> &'f str {
     structure.field(name).map_or("", value_text)

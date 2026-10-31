@@ -211,6 +211,7 @@ impl<'f> LoadoutResolver<'f> {
                             ),
                             Err(error) => Piece::failed(name.clone(), error.to_string()),
                         };
+                        let piece = piece.at_port(port.name());
                         pieces.push(match holder.mount(port) {
                             Some(mount) => piece.mounted(mount),
                             None => piece,

@@ -126,7 +126,9 @@ impl LoadoutResolver<'_> {
         let spec = self.spec(item.guid);
         let spec = match spec.as_ref() {
             Ok(spec) => spec,
-            Err(error) => return Some(Piece::failed(port.name(), error.to_string())),
+            Err(error) => {
+                return Some(Piece::failed(port.name(), error.to_string()).at_port(port.name()));
+            }
         };
         let wearable = Wearable::from_spec(spec);
         if wearable.geometry().is_none() && wearable.variants().is_empty() {
@@ -151,6 +153,7 @@ impl LoadoutResolver<'_> {
         Some(
             Piece::wearable(wearable)
                 .named(port.name())
+                .at_port(port.name())
                 .selected_by(flags_of(port, shared))
                 .with_material_tags(tags),
         )

@@ -24,6 +24,7 @@ mod real_chf_hashes;
 mod real_chf_names;
 mod real_chf_tail;
 mod real_child_containers;
+mod real_clothing_hidden;
 mod real_container_census;
 mod real_creature_census;
 mod real_creature_ports;

@@ -49,6 +49,7 @@ pub struct EntityNode {
     pub(crate) container: Option<Guid>,
     pub(crate) object_containers: Arc<[ObjectContainerRef]>,
     pub(crate) zones: Arc<[ZoneChunk]>,
+    pub(crate) animation_database: Option<Arc<str>>,
     pub(crate) hidden_ports: Arc<[String]>,
 }
 

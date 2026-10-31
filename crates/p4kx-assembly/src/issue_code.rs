@@ -63,6 +63,7 @@ impl IssueKind {
             Self::FaceJointsFailed { .. } => "face_joints_failed",
             Self::FaceAnimationFailed { .. } => "face_animation_failed",
             Self::AnimationNotUsed { .. } => "animation_not_used",
+            Self::AnimationsUnavailable { .. } => "animations_unavailable",
         }
     }
 

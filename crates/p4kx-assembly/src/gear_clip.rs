@@ -9,14 +9,14 @@ use crate::markup::{self, Budget};
 use crate::{ArchiveModels, ModelFailure, ModelProvider};
 
 /// The most bytes of a skeleton's parameter file that are read.
-const MAX_CHRPARAMS_BYTES: u64 = 1 << 20;
+pub(crate) const MAX_CHRPARAMS_BYTES: u64 = 1 << 20;
 
-/// What a skeleton's parameter file (`.chrparams`) lists: the folder and database its animations
-/// are stored in, and the animations by name and file.
+/// What a skeleton's parameter file (`.chrparams`) lists: the folders and databases its animations
+/// are stored in, in file order, and the animations by name and file.
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) struct ChrParams {
-    pub(crate) folder: Option<String>,
-    pub(crate) database: Option<String>,
+    pub(crate) folders: Vec<String>,
+    pub(crate) databases: Vec<String>,
     pub(crate) clips: Vec<(String, String)>,
 }
 
@@ -32,8 +32,8 @@ pub(crate) fn read_params(bytes: &[u8]) -> Result<ChrParams, String> {
         return Err(format!("the root element is {}, not Params", root.name));
     }
     let mut params = ChrParams {
-        folder: None,
-        database: None,
+        folders: Vec::new(),
+        databases: Vec::new(),
         clips: Vec::new(),
     };
     for list in root.children_named("AnimationList") {
@@ -42,8 +42,8 @@ pub(crate) fn read_params(bytes: &[u8]) -> Result<ChrParams, String> {
                 continue;
             };
             match name {
-                "#filepath" => params.folder = Some(file.replace('\\', "/")),
-                "$TracksDatabase" => params.database = Some(file.replace('\\', "/")),
+                "#filepath" => params.folders.push(file.replace('\\', "/")),
+                "$TracksDatabase" => params.databases.push(file.replace('\\', "/")),
                 _ => params.clips.push((name.to_owned(), file.to_owned())),
             }
         }
@@ -66,7 +66,7 @@ impl ChrParams {
 }
 
 /// Returns `path` with the extension `.chrparams`.
-fn params_path(skeleton: &str) -> String {
+pub(crate) fn params_path(skeleton: &str) -> String {
     let stem = skeleton.rsplit_once('.').map_or(skeleton, |(stem, _)| stem);
     format!("{stem}.chrparams")
 }
@@ -105,10 +105,11 @@ impl ArchiveModels<'_> {
 
     fn read_clip(&self, params: &ChrParams, clip: &str) -> Result<Animation, ModelFailure> {
         let extra: Vec<String> = params
-            .database
-            .iter()
+            .databases
+            .last()
+            .into_iter()
             .filter_map(|database| self.entry_of(database))
-            .chain(params.folder.iter().filter_map(|folder| {
+            .chain(params.folders.last().into_iter().filter_map(|folder| {
                 self.entry_of(&format!("{}/{clip}", folder.trim_end_matches('/')))
             }))
             .collect();
@@ -147,11 +148,8 @@ mod tests {
     #[test]
     fn the_extending_clip_is_the_one_that_deploys() {
         let params = read_params(PARAMS.as_bytes()).expect("params");
-        assert_eq!(params.folder.as_deref(), Some("Animations/Ships/Gear"));
-        assert_eq!(
-            params.database.as_deref(),
-            Some("Animations/Ships/Gear.dba")
-        );
+        assert_eq!(params.folders, ["Animations/Ships/Gear"]);
+        assert_eq!(params.databases, ["Animations/Ships/Gear.dba"]);
         assert_eq!(params.deploy_clip(), Some("front_extend.caf"));
     }
 

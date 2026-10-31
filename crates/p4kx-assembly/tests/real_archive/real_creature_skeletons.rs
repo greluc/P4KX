@@ -7,6 +7,7 @@
 
 #![expect(clippy::print_stdout, reason = "the counts are the output")]
 
+use std::collections::BTreeMap;
 use std::error::Error;
 
 use p4kx_assembly::{
@@ -16,6 +17,16 @@ use p4kx_assembly::{
 use p4kx_extraction::{Archive, DataForgeEntry};
 use p4kx_gltf::GlbOptions;
 use p4kx_testkit::{check_glb, real_archive_key, real_archive_path};
+
+/// The folders of the character models whose Entities are skinned; the animated parts of
+/// weapons, gadgets, ships and buildings are not.
+const SKINNED_FOLDERS: [&str; 5] = [
+    "objects/characters/banu",
+    "objects/characters/creatures",
+    "objects/characters/mobiglas",
+    "objects/characters/powersuit",
+    "objects/characters/vanduul",
+];
 
 type TestResult = Result<(), Box<dyn Error>>;
 
@@ -52,6 +63,14 @@ fn check(assembly: &Assembly, class: &str) -> Result<Option<String>, Box<dyn Err
     }))
 }
 
+/// Returns the first three folders of `path` below `Data`, lower-cased.
+fn folder_of(path: &str) -> String {
+    let path = path.replace('\\', "/").to_ascii_lowercase();
+    let path = path.trim_start_matches('/');
+    let path = path.strip_prefix("data/").unwrap_or(path);
+    path.split('/').take(3).collect::<Vec<_>>().join("/")
+}
+
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn creatures_with_a_skeleton_are_skinned_and_the_others_stay_static() -> TestResult {
@@ -64,7 +83,7 @@ fn creatures_with_a_skeleton_are_skinned_and_the_others_stay_static() -> TestRes
     let mut resolver = LoadoutResolver::new(&forge)
         .with_files(&files)
         .stopping_at_docked_vehicles();
-    let (mut skinned, mut statics) = (0_usize, 0_usize);
+    let mut folders: BTreeMap<String, (usize, usize)> = BTreeMap::new();
     let mut example = None;
     for record in forge
         .records()
@@ -81,18 +100,34 @@ fn creatures_with_a_skeleton_are_skinned_and_the_others_stay_static() -> TestRes
         }
         let assembly =
             Assembly::build_with_palettes(&tree, &models, &palettes, &AssemblyOptions::default())?;
+        let folder = folder_of(tree.geometry().map_or("", Geometry::path));
+        let counts = folders.entry(folder).or_default();
         match check(&assembly, tree.class_name())? {
             Some(line) => {
-                skinned += 1;
+                counts.0 += 1;
                 example.get_or_insert(line);
             }
-            None => statics += 1,
+            None => counts.1 += 1,
         }
     }
-    println!("skinned creatures: {skinned}, static: {statics}; e.g. {example:?}");
+    for (folder, (skinned, statics)) in &folders {
+        println!("{folder}: {skinned} skinned, {statics} static");
+    }
+    println!("e.g. {example:?}");
+    let skinned_folders: Vec<&str> = folders
+        .iter()
+        .filter(|(_, (skinned, _))| *skinned > 0)
+        .map(|(folder, _)| folder.as_str())
+        .collect();
+    for folder in &skinned_folders {
+        assert!(
+            SKINNED_FOLDERS.contains(folder),
+            "{folder}: skinned, but no creature folder"
+        );
+    }
     assert!(
-        skinned > 0,
-        "a creature whose skins are bound to its skeleton"
+        skinned_folders.contains(&"objects/characters/creatures"),
+        "the creatures are skinned: {skinned_folders:?}"
     );
     Ok(())
 }

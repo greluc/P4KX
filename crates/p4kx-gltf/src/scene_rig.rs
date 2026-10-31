@@ -41,9 +41,7 @@ impl<'m> SceneRig<'m> {
             influences,
         })
     }
-}
 
-impl SceneRig<'_> {
     /// Returns what the layout needs to weight the skinned meshes to the skeleton.
     pub(crate) fn skeletal(&self) -> Skeletal<'_> {
         Skeletal {

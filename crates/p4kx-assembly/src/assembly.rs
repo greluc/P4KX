@@ -296,10 +296,11 @@ impl Assembly {
 
     /// Writes the Assembly as a GLB file to `out`: a node per part named `<port>/<entity>` below
     /// the node of its parent part, placed by its transform, with the nodes of its model below it,
-    /// and a node per bone attachment of a part below the part's node;
-    /// the skins of a creature Entity, whose root geometry is a character file with a skeleton,
-    /// are written bound to that skeleton, with its bones as nodes. `out` should be buffered. `options.lod` should be the level the Assembly was built at.
-    /// The materials are plain colours, drawn with the palette of each part; see
+    /// and a node per bone attachment of a part below the part's node.
+    /// The skins of a creature Entity, whose root geometry is a character file below
+    /// `Objects/Characters` with a skeleton, are written bound to that skeleton, with its bones as
+    /// nodes. `out` should be buffered. `options.lod` should be the level the Assembly was built
+    /// at. The materials are plain colours, drawn with the palette of each part; see
     /// [`Self::write_glb_with`] for textures.
     ///
     /// # Errors
@@ -319,8 +320,9 @@ impl Assembly {
     ///
     /// The mip level of `options` applies to every texture. An image several parts use is
     /// embedded once; the images of a part with a palette are shared with the parts of other
-    /// palettes unless a specular map bakes the colours into the image. A texture that cannot be loaded leaves the material's plain
-    /// colour and is listed in [`GlbSummary::texture_fallbacks`].
+    /// palettes unless a specular map bakes the colours into the image. A texture that cannot be
+    /// loaded leaves the material's plain colour and is listed in
+    /// [`GlbSummary::texture_fallbacks`].
     ///
     /// # Errors
     ///

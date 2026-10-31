@@ -264,7 +264,8 @@ order is attached. The same Archive always gives the same document.
  "modelled_parts": 55, "hidden_parts": 16, "palettes": 12, "nodes": 899, "meshes": 249, "primitives": 948,
  "materials": 204, "textured_materials": 0, "textures": 0, "texture_pixels": 0,
  "texture_fallbacks": [], "default_material_ids": 0, "hidden_primitives": 0, "bones": 0,
- "skinned_meshes": 0, "lod_fallbacks": 0, "shared_meshes": 33, "shared_materials": 103, "shared_textures": 0, "vertices": 744831,
+ "skinned_meshes": 0, "lod_fallbacks": 0, "shared_meshes": 33, "shared_materials": 103,
+ "shared_textures": 0, "vertices": 744831,
  "triangles": 818426, "bytes": 44750744, "skipped": 0, "placements": [Placement, …],
  "issues": [Issue, …]}
 ```

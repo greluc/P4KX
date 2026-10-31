@@ -5,12 +5,12 @@
 
 use crate::assembly_support::{TestResult, assemble, fixture};
 
-use p4kx_assembly::Assembly;
+use p4kx_assembly::{Assembly, Placement};
 use p4kx_extraction::Archive;
 use p4kx_gltf::{GlbOptions, GlbSummary};
 use p4kx_testkit::{
-    CREATURE, CREATURE_DEFINITION, CREATURE_NO_SKELETON, CREATURE_SHORT_SKELETON, CheckedGlb,
-    check_glb, creature_entries,
+    CREATURE, CREATURE_DEFINITION, CREATURE_HORNED, CREATURE_NO_SKELETON, CREATURE_SHORT_SKELETON,
+    CheckedGlb, RIGGED_PROP, check_glb, creature_entries,
 };
 
 fn export(class: &str) -> Result<(Assembly, CheckedGlb, GlbSummary), Box<dyn std::error::Error>> {
@@ -79,5 +79,33 @@ fn a_missing_skeleton_leaves_the_creature_static_with_its_note() -> TestResult {
     assert_eq!(glb.document.skins().len(), 0);
     assert_eq!((summary.bones, summary.skinned_meshes), (0, 0));
     assert!(glb.document.meshes().len() > 0, "the skin is still drawn");
+    Ok(())
+}
+
+#[test]
+fn a_rigid_part_on_a_bone_port_stays_at_its_bone_beside_the_skinned_body() -> TestResult {
+    let (assembly, glb, summary) = export(CREATURE_HORNED)?;
+
+    let horn = assembly.part_at("Horn_ItemPort").ok_or("the horn")?;
+    assert_eq!(horn.placement(), &Placement::Helper("tip".to_owned()));
+    assert_eq!(codes(&assembly), Vec::<(&str, &str)>::new());
+    assert_eq!((summary.bones, summary.skinned_meshes), (3, 1));
+    assert_eq!(glb.document.skins().len(), 1);
+    let skinned = glb
+        .document
+        .nodes()
+        .filter(|node| node.skin().is_some())
+        .count();
+    assert_eq!(skinned, 1, "only the body is skinned, not the horn");
+    Ok(())
+}
+
+#[test]
+fn a_rigged_entity_outside_the_characters_folder_stays_static() -> TestResult {
+    let (assembly, glb, summary) = export(RIGGED_PROP)?;
+
+    assert_eq!(codes(&assembly), Vec::<(&str, &str)>::new());
+    assert_eq!(glb.document.skins().len(), 0);
+    assert_eq!((summary.bones, summary.skinned_meshes), (0, 0));
     Ok(())
 }

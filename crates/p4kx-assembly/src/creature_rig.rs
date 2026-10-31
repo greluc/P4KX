@@ -6,22 +6,24 @@
 
 use p4kx_model::{Bone, BoneMatch, Model};
 
-use crate::geometry::is_rigged_path_outside_human_rigs;
+use crate::geometry::is_creature_path;
 use crate::{Issue, IssueKind, Part};
 
 /// Returns the bones of the root part's model at the level `level` of detail, or `None` when the
-/// root's geometry is no character file outside the human rigs, its skeleton file is missing or
-/// unreadable, or its model has no bones.
+/// root's geometry is no creature file (a character file below `Objects/Characters` outside the
+/// human rigs), its skeleton file is missing or unreadable, or its model has no bones.
+///
+/// The bones are in the root's space, which is the Assembly's: the root sits at the identity and
+/// a skin part is placed at the identity too (ADR-0224), so the skins agree with the bones. A
+/// skinned mesh ignores the transform of its node in glTF, so the port offset of a skin part has
+/// no effect.
 pub(crate) fn skeleton_of<'a>(
     parts: &'a [Part],
     issues: &[Issue],
     level: u32,
 ) -> Option<&'a [Bone]> {
     let root = parts.first()?;
-    if !root
-        .geometry
-        .as_deref()
-        .is_some_and(is_rigged_path_outside_human_rigs)
+    if !root.geometry.as_deref().is_some_and(is_creature_path)
         || issues.iter().any(|issue| {
             issue.path.is_empty()
                 && matches!(

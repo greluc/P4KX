@@ -130,7 +130,9 @@ impl<'m> Scene<'m> {
     /// `JOINTS_n` and `WEIGHTS_n` on every skinned mesh, with its bones turned into the
     /// skeleton's; a bone the skeleton lacks takes its nearest ancestor that it has. The
     /// vertices of a skin are in the skeleton's space, so the node of a skinned mesh is a root
-    /// without transform. Nothing is added when no model has a skinned mesh.
+    /// without transform: the transforms of the scene nodes above it do not apply to it. The
+    /// bones are written as roots in the scene's space, so the caller keeps the skins and the
+    /// skeleton's own model at the identity. Nothing is added when no model has a skinned mesh.
     #[must_use]
     pub const fn with_skeleton(mut self, skeleton: &'m [Bone]) -> Self {
         self.skeleton = Some(skeleton);
@@ -138,8 +140,7 @@ impl<'m> Scene<'m> {
     }
 
     /// Returns the skeleton the skinned meshes are bound to, if the scene has one.
-    #[must_use]
-    pub const fn skeleton(&self) -> Option<&'m [Bone]> {
+    pub(crate) const fn skeleton(&self) -> Option<&'m [Bone]> {
         self.skeleton
     }
 

@@ -20,6 +20,12 @@ pub const CREATURE_DEFINITION: &str = "Test_Creature_Definition";
 /// Like [`CREATURE_DEFINITION`], but the skeleton file it names is not in the Archive.
 pub const CREATURE_NO_SKELETON: &str = "Test_Creature_NoSkeleton";
 
+/// Like [`CREATURE`], with a rigid horn on a bone port at the bone `tip` beside the skinned body.
+pub const CREATURE_HORNED: &str = "Test_Creature_Horned";
+
+/// A rigged Entity outside the characters folder, a prop with a skeleton file and the same skin.
+pub const RIGGED_PROP: &str = "Test_Rigged_Prop";
+
 const FOLDER: &str = "Objects/Characters/Creatures/Test";
 
 fn definition(skeleton: &str) -> String {
@@ -65,6 +71,20 @@ fn database() -> DataForgeBuilder {
         "entities/Test_Creature_Skin.xml",
     )
     .geometry(format!("{FOLDER}/creature.skin"), None);
+    let horned = TestEntity::new(0x5, CREATURE_HORNED, "entities/Test_Creature_Horned.xml")
+        .geometry(format!("{FOLDER}/creature_skel.chr"), None)
+        .port(TestPort::new("Body_ItemPort").skin())
+        .port(TestPort::new("Horn_ItemPort").helper("tip", [0.0; 3], [0.0; 3]))
+        .loadout(TestLoadout::Manual(vec![
+            TestLoadoutEntry::class("Body_ItemPort", "Test_Creature_Skin"),
+            TestLoadoutEntry::class("Horn_ItemPort", "Test_Creature_Horn"),
+        ]));
+    let horn = TestEntity::new(
+        0x11,
+        "Test_Creature_Horn",
+        "entities/Test_Creature_Horn.xml",
+    )
+    .geometry("Objects/Test/horn.cgf", None);
     [
         creature(0x1, CREATURE, &format!("{FOLDER}/creature_skel.chr")),
         creature(
@@ -82,6 +102,9 @@ fn database() -> DataForgeBuilder {
             CREATURE_NO_SKELETON,
             &format!("{FOLDER}/no_skeleton.cdf"),
         ),
+        creature(0x6, RIGGED_PROP, "Objects/Props/Test/prop_skel.chr"),
+        horned,
+        horn,
         skin,
     ]
     .iter()
@@ -92,11 +115,13 @@ fn database() -> DataForgeBuilder {
 
 /// Returns the Entries of a synthetic Archive that holds creatures with a skeleton and a skin.
 ///
-/// The four creatures [`CREATURE`], [`CREATURE_SHORT_SKELETON`], [`CREATURE_DEFINITION`] and
-/// [`CREATURE_NO_SKELETON`] each hold the same two-bone skin on the skin port `Body_ItemPort`.
+/// The creatures [`CREATURE`], [`CREATURE_SHORT_SKELETON`], [`CREATURE_DEFINITION`],
+/// [`CREATURE_NO_SKELETON`] and [`CREATURE_HORNED`], and the prop [`RIGGED_PROP`], each hold the
+/// same two-bone skin on the skin port `Body_ItemPort`.
 #[must_use]
 pub fn creature_entries() -> Vec<TestEntry> {
     let skin = TestModel::two_bone_skin();
+    let horn = TestModel::cube().scaled(0.25);
     let entry = |name: &str, bytes: Vec<u8>| {
         TestEntry::stored(
             format!("Data\\{}", format!("{FOLDER}/{name}").replace('/', "\\")),
@@ -117,6 +142,16 @@ pub fn creature_entries() -> Vec<TestEntry> {
             "short_skel.chr",
             skeleton_file(vec![bone("pelvis", None), bone("root", Some(0))]),
         ),
+        TestEntry::stored(
+            r"Data\Objects\Props\Test\prop_skel.chr",
+            skeleton_file(vec![
+                bone("pelvis", None),
+                bone("root", Some(0)),
+                bone("tip", Some(1)),
+            ]),
+        ),
+        TestEntry::stored(r"Data\Objects\Test\horn.cgf", horn.cgf()),
+        TestEntry::stored(r"Data\Objects\Test\horn.cgfm", horn.cgfm()),
         entry("creature.skin", skin.cgf()),
         entry("creature.skinm", skin.cgfm()),
         entry(

@@ -41,6 +41,9 @@ every texture and `--no-vertex-colours` leaves the vertex colours out of the mes
 `--interior` adds the Entity's Interior as for `entity glb --interior` (ADR-0086), see
 [Interiors and lights](#interiors-and-lights).
 
+A creature Entity is written as static meshes in a package, without bones or weights, although
+`entity glb` binds its skins to its skeleton (ADR-0275); the skinned form is #926.
+
 `p4kx interior package <archive> <container>... --out <folder>` writes the Interior of a socpak
 container on its own, with `--lod`, `--texture-mip` and `--no-vertex-colours`: the same nodes,
 props and lights as `entity package --interior`, see

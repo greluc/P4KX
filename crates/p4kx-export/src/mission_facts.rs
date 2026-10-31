@@ -137,12 +137,13 @@ impl SharedFacts {
     }
 }
 
-const fn at<T>(value: T, layer: FactLayer) -> Stated<T> {
+/// Returns `value` stated by `layer`.
+pub(crate) const fn at<T>(value: T, layer: FactLayer) -> Stated<T> {
     Stated { value, layer }
 }
 
 /// Returns the value of the nearest layer in `levels` that `read` finds, else `base`.
-fn stated<T>(
+pub(crate) fn stated<T>(
     levels: &Levels<'_, '_>,
     read: impl Fn(&Layer<'_>) -> Option<T>,
     base: Option<Stated<T>>,

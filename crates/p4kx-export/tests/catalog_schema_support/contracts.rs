@@ -46,23 +46,37 @@ pub(super) fn contracts() -> serde_json::Value {
             "minStandingGuid": "62000000-0000-4000-8000-000000000001",
             "maxStandingGuid": null
         }],
-        "cooldownLayer": "handler",
-        "hasPersonalCooldown": true,
-        "personalCooldownTime": 2880.0,
-        "personalCooldownTimeVariation": 60.0,
-        "abandonedCooldownTime": 30.0,
-        "abandonedCooldownTimeVariation": null,
         "fixedRewards": [{"currency": "UEC", "amount": 40000, "max": 0, "plusBonuses": false}],
         "haulingOrders": orders()
     });
-    if let (Some(entry), Some(facts)) = (entry.as_object_mut(), facts().as_object()) {
-        entry.extend(facts.clone());
+    for extra in [facts(), cooldown()] {
+        if let (Some(entry), Some(extra)) = (entry.as_object_mut(), extra.as_object()) {
+            entry.extend(extra.clone());
+        }
     }
     if let (Some(target), serde_json::Value::Object(links)) = (entry.as_object_mut(), spawn_links())
     {
         target.extend(links);
     }
     json!([entry])
+}
+
+fn cooldown() -> serde_json::Value {
+    json!({
+        "cooldownLayer": "contract",
+        "cooldownLayers": {
+            "hasPersonalCooldown": "handler",
+            "personalCooldownTime": "contract",
+            "personalCooldownTimeVariation": "handler",
+            "abandonedCooldownTime": "handler",
+            "abandonedCooldownTimeVariation": null
+        },
+        "hasPersonalCooldown": true,
+        "personalCooldownTime": 2880.0,
+        "personalCooldownTimeVariation": 60.0,
+        "abandonedCooldownTime": 30.0,
+        "abandonedCooldownTimeVariation": null
+    })
 }
 
 fn places() -> serde_json::Value {

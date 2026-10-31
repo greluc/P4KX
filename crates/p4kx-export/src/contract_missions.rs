@@ -9,7 +9,7 @@ use crate::contract_facts::ContractFacts;
 use crate::contract_hauling::HaulingOrder;
 use crate::contract_reward::FixedReward;
 use crate::guid_text::CatalogGuid;
-use crate::mission_cooldown::CooldownLayer;
+use crate::mission_cooldown::ContractCooldown;
 use crate::spawn_model::{LocationPrerequisite, LocationQueryLink, ShipSpawnLink};
 
 /// A contract or one of its sub contracts, with the overrides of sub contract, contract and
@@ -88,24 +88,9 @@ pub(crate) struct ContractEntry<'a> {
     /// The `ContractPrerequisite_Reputation` prerequisites of the handler, the contract and the
     /// sub contract, in that order and as stored. The catalog does not decide how they combine.
     pub(crate) standing_requirements: Vec<StandingRequirement>,
-    /// The level the five cooldown fields below are read from: `handler`, the
-    /// `defaultAvailability` of the handler, the only level that states them; `null` when it
-    /// states none. A contract and a sub contract share the handler's values.
-    pub(crate) cooldown_layer: Option<CooldownLayer>,
-    /// Whether the contract has a personal cooldown (`hasPersonalCooldown`), `null` when absent.
-    pub(crate) has_personal_cooldown: Option<bool>,
-    /// The `personalCooldownTime`, as stored; `null` when absent. The Archive does not state the
-    /// unit; the value range (up to 2880) fits minutes.
-    pub(crate) personal_cooldown_time: Option<f32>,
-    /// The `personalCooldownTimeVariation`, as stored, in the unit of `personalCooldownTime`;
-    /// `null` when absent.
-    pub(crate) personal_cooldown_time_variation: Option<f32>,
-    /// The `abandonedCooldownTime`, as stored: the cooldown after the player abandons the
-    /// contract, in the unit of `personalCooldownTime`; `null` when absent.
-    pub(crate) abandoned_cooldown_time: Option<f32>,
-    /// The `abandonedCooldownTimeVariation`, as stored, in the unit of `personalCooldownTime`;
-    /// `null` when absent.
-    pub(crate) abandoned_cooldown_time_variation: Option<f32>,
+    /// The cooldown fields and the level that states them.
+    #[serde(flatten)]
+    pub(crate) cooldown: ContractCooldown,
     /// What the contract has to haul: per `missionVariableName` the hauling orders property of the
     /// nearest level (sub contract, contract, handler, template), then the orders of the hauling
     /// objectives of the template, else of the `MissionBrokerEntry`. Empty for a contract that

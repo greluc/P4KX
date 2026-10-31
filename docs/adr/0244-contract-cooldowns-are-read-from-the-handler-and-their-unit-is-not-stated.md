@@ -1,6 +1,8 @@
 # Contract cooldowns are read from the handler, and their unit is not stated
 
-Decided for issue #832. Evidence: LIVE 4.10, the Archive's DataForge field statistics.
+Decided for issue #832. Evidence: LIVE 4.10, the Archive's DataForge field statistics. Amended by
+ADR-0271: contracts and sub contracts do override the cooldown through name-keyed parameter
+overrides, so the fields resolve through the layer order of the contract facts.
 
 ## Decision
 
@@ -12,7 +14,7 @@ Decided for issue #832. Evidence: LIVE 4.10, the Archive's DataForge field stati
   (`Career`, `List`, `Legacy`, `LinearSeries`, `PVPBountyDef`, `ServiceBeacon`,
   `TutorialSeriesDef`). A contract and a sub contract have no cooldown field on LIVE 4.10, so the
   catalog reads the handler only and `cooldownLayer` is `handler` or `null`. A nearer layer would
-  be added if the game ever states one.
+  be added if the game ever states one. Superseded by ADR-0271: parameter overrides state them.
 - The unit is not stated. The fields are `Single` values; a search for the unit found no type, no
   attribute and no game text that shows the time (the localisation texts that mention a
   cooldown concern quantum drives, ping scans and EMPs). The catalog therefore keeps the numbers

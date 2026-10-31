@@ -208,7 +208,7 @@ fn a_layer_is_described_as_a_material_of_its_own_and_referenced_by_id() -> TestR
     };
 
     let base = written.by_id(primary.material.as_deref().ok_or("base")?)?;
-    assert_eq!(base.library, "Objects/Test/layers/base");
+    assert_eq!(base.library, "objects/test/layers/base");
     assert_eq!(base.index, None, "a layer file is one material");
     assert_eq!(base.shader, "Layer");
     assert_eq!(parameter(base, "TintMode"), Some("0"));

@@ -4,6 +4,7 @@
 use std::sync::Arc;
 
 use egui::{Frame, Panel, Rect, Ui, vec2};
+use p4kx_extraction::Archive;
 
 use crate::theme::desktop::NOTICE_ICON;
 use crate::theme::palette;
@@ -11,8 +12,6 @@ use crate::theme::tokens::{FS_SM, SPACE_3, Weight};
 use crate::widgets::frames;
 use crate::widgets::indicator::warning_icon;
 use crate::widgets::text::plain;
-use p4kx_extraction::Archive;
-
 use crate::{Model, Text};
 
 fn notice_text(ui: &Ui, model: &Model, count: usize) -> Arc<str> {

@@ -10,9 +10,13 @@ and ADR-0249 (a DataForge file is recognised by its content).
   server and the window (`ForgeCache`) read, load, watch and name a DataForge through it. The
   MCP server keeps its per-file caches around it and the window keeps its cache of indexes; only
   the question "where do the bytes come from" is shared.
+- **`DataForgeSource` is not `EntrySource`.** `DataForgeSource` says where the bytes of one
+  DataForge come from; ADR-0272's `EntrySource` and `FolderSource` list and open many files for
+  an Extraction. They stay apart: an Extraction picks its DataForge file from what its source
+  lists, while the window and the CLI read one DataForge without listing anything.
 - **No Archive without Entries.** `Archive::stand_in` is removed; no constructor makes an Archive
-  that has no Entries. `ArchiveWatch::of_file` watches a plain file by size and modification time,
-  without a Build.
+  that has no Entries. `ArchiveWatch::of_file` watches a plain file by its `FileStamp` (size and
+  modification time), without a Build; the MCP file cache validates against the same stamp.
 - **`EntryIndex` of a file has no Archive.** `EntryIndex::archive()` returns `Option<&Archive>`.
   A job that reads Entries takes `EntryIndex::entries_archive()`, which fails with `NoEntries`
   for a file, so no such job runs against an empty Archive; the failure types of the jobs convert

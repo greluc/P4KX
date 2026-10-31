@@ -218,3 +218,21 @@ fn same_path(left: &str, right: &str) -> bool {
     };
     left.len() == right.len() && left.bytes().map(key).eq(right.bytes().map(key))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_limit_of_a_read_is_two_gibibytes_and_is_reported() {
+        assert_eq!(MAX_DATAFORGE_SIZE, 2 << 30);
+        assert!(check_size("a", MAX_DATAFORGE_SIZE).is_ok());
+        assert!(matches!(
+            check_size("a", MAX_DATAFORGE_SIZE + 1),
+            Err(DataForgeLoadError::TooLarge {
+                limit: MAX_DATAFORGE_SIZE,
+                ..
+            })
+        ));
+    }
+}

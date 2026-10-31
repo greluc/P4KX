@@ -236,4 +236,4 @@ pub use ui_render::{MAX_UI_RENDER_BITMAP_PIXELS, UiBitmapFailure, UiRender};
 pub use ui_screen_texts::ScreenTexts;
 pub use ui_svg::UiSvg;
 pub use verify::{VerificationReport, VerifyOptions, verify};
-pub use watch::{ArchiveChanged, ArchiveWatch, DEFAULT_WATCH_INTERVAL};
+pub use watch::{ArchiveChanged, ArchiveWatch, DEFAULT_WATCH_INTERVAL, FileStamp};

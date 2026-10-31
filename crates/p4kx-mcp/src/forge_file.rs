@@ -5,58 +5,39 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::SystemTime;
 
-use p4kx_extraction::{DataForge, DataForgeSource};
+use p4kx_extraction::{DataForge, DataForgeSource, FileStamp};
 
 use crate::archives::Opened;
 use crate::error::ToolError;
 use crate::forge_state::ForgeState;
-
-/// What identifies a version of a file on disk: its size and modification time.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct FileVersion {
-    len: u64,
-    modified: Option<SystemTime>,
-}
-
-impl FileVersion {
-    /// Returns the version of the file at `path` as it is now, or the empty version when it
-    /// cannot be looked at.
-    pub(crate) fn of(path: &Path) -> Self {
-        std::fs::metadata(path).map_or(
-            Self {
-                len: 0,
-                modified: None,
-            },
-            |metadata| Self {
-                len: metadata.len(),
-                modified: metadata.modified().ok(),
-            },
-        )
-    }
-}
 
 /// A DataForge file on disk, such as a `Game2.dcb`, with its DataForge read on first use and
 /// kept while the file stays unchanged.
 #[derive(Debug)]
 pub(crate) struct ForgeFile {
     path: PathBuf,
-    version: FileVersion,
+    stamp: Option<FileStamp>,
     forge: ForgeState,
 }
 
 impl ForgeFile {
-    /// Creates the handle of the file at `path`, which has `version`.
-    pub(crate) fn new(path: PathBuf, version: FileVersion) -> Self {
+    /// Creates the handle of the file at `path`, whose stamp was `stamp` when it was looked at,
+    /// or `None` when it could not be.
+    pub(crate) fn new(path: PathBuf, stamp: Option<FileStamp>) -> Self {
         Self {
             path,
-            version,
+            stamp,
             forge: ForgeState::default(),
         }
     }
 
     /// Returns whether the file on disk is still the one this handle was made for.
-    pub(crate) fn is_version(&self, version: FileVersion) -> bool {
-        self.version == version
+    pub(crate) fn is_stamp(&self, stamp: Option<FileStamp>) -> bool {
+        self.stamp == stamp
+    }
+
+    fn forge_source(&self) -> DataForgeSource<'_> {
+        DataForgeSource::File(&self.path)
     }
 }
 
@@ -75,7 +56,12 @@ impl ForgeSource {
     pub(crate) fn version(&self) -> (&Path, u64, Option<SystemTime>) {
         match self {
             Self::Archive(opened) => opened.version(),
-            Self::File(file) => (&file.path, file.version.len, file.version.modified),
+            Self::File(file) => {
+                let (len, modified) = file
+                    .stamp
+                    .map_or((0, None), |stamp| (stamp.size(), stamp.modified()));
+                (&file.path, len, modified)
+            }
         }
     }
 
@@ -89,7 +75,7 @@ impl ForgeSource {
         match self {
             Self::Archive(opened) => opened.with_dataforge(work),
             Self::File(file) => file.forge.with(
-                || DataForgeSource::File(&file.path).load(),
+                || file.forge_source().load(),
                 file.path.display().to_string(),
                 work,
             ),
@@ -100,7 +86,7 @@ impl ForgeSource {
     pub(crate) fn load_dataforge(&self) -> Result<(), ToolError> {
         match self {
             Self::Archive(opened) => opened.load_dataforge(),
-            Self::File(file) => file.forge.load(|| DataForgeSource::File(&file.path).load()),
+            Self::File(file) => file.forge.load(|| file.forge_source().load()),
         }
     }
 

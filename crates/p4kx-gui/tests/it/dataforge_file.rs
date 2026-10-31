@@ -141,6 +141,11 @@ fn the_window_of_a_file_has_no_entry_status_and_that_of_an_archive_has() -> Test
 
     assert!(file.query_by_label_contains("Build unknown").is_none());
     assert!(file.query_by_label("0 Entries").is_none());
+    assert_eq!(
+        file.query_all_by_label("Search").count(),
+        0,
+        "no Search tab"
+    );
 
     let dir = tempfile::tempdir()?;
     let path = dir.path().join("Data.p4k");
@@ -155,6 +160,10 @@ fn the_window_of_a_file_has_no_entry_status_and_that_of_an_archive_has() -> Test
 
     archive.get_by_label_contains("Build unknown");
     archive.get_by_label("1 Entry");
+    assert!(
+        archive.query_all_by_label("Search").count() > 0,
+        "a Search tab"
+    );
     Ok(())
 }
 

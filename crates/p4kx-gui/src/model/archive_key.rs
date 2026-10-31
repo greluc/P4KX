@@ -288,12 +288,14 @@ impl Model {
         let spawned = thread::Builder::new()
             .name("key-check".to_owned())
             .spawn(move || {
-                let problem = match index.entries_archive().map(|a| a.verify_key(&checked)) {
-                    Ok(Ok(_)) => None,
-                    Ok(Err(ArchiveError::WrongKey { .. })) => Some(KeyProblem::Wrong),
-                    Ok(Err(error)) => Some(KeyProblem::Check(describe(&error))),
-                    Err(error) => Some(KeyProblem::Check(describe(&error))),
-                };
+                let problem =
+                    index
+                        .archive()
+                        .and_then(|archive| match archive.verify_key(&checked) {
+                            Ok(_) => None,
+                            Err(ArchiveError::WrongKey { .. }) => Some(KeyProblem::Wrong),
+                            Err(error) => Some(KeyProblem::Check(describe(&error))),
+                        });
                 if sender.send((checked, problem)).is_ok() {
                     notify();
                 }

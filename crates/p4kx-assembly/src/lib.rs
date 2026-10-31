@@ -98,6 +98,7 @@ mod interior;
 mod interior_check;
 mod issue;
 mod issue_code;
+mod issue_record;
 mod issue_text;
 mod loadout_entry;
 mod markup;
@@ -158,7 +159,8 @@ pub use interior_check::{
     AnimatedPart, ContainerFit, HULL_SLACK, Hardpoint, HardpointFit, HardpointKind, InteriorFit,
     Misfit, ROOM_VOLUME_SHARE, WorldBox,
 };
-pub use issue::{Issue, IssueKind};
+pub use issue::IssueKind;
+pub use issue_record::Issue;
 pub use loadout_entry::LoadoutEntry;
 pub use model_cache::{CachedModels, DEFAULT_MODEL_CACHE_BYTES, ModelCache};
 pub use node_body::CharacterBody;

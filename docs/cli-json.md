@@ -2377,7 +2377,10 @@ target's largest move, named like the head's and moved as they follow the neutra
 (ADR-0200); the teeth and eyes have none. Only the first mesh of such a piece at LOD 0 gets
 targets: a piece with several meshes adds the note `follow_morphs_first_mesh_only`, and
 `follow_weights_skipped` says that a facial animation sets no weights for a piece whose targets do
-not match the head's. A facial animation's budget counts the hair weights too. A name the rig lacks adds
+not match the head's. These pieces are also bound to the facial joints of the head
+(ADR-0299); `follow_joints_skipped` says that one is not, because the head mesh has no weights or
+the bones would not fit 16-bit joint indices, and it keeps its own bones.
+A facial animation's budget counts the hair weights too. A name the rig lacks adds
 `unknown_expression`, a named one that moves no vertex `empty_expression`, and expressions that
 cannot be made (the rig of the level has no expression morphs, the names of the skin do not fit
 the rig) add `morphs_failed`; the head is kept, the GLB is written and the command exits with code

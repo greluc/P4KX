@@ -75,18 +75,37 @@ pub struct UiRenderSettings {
     pub format: UiRenderFormat,
     /// The game state a screen is drawn in.
     pub power: UiRenderPower,
-    /// The game variables typed beside the state, as `NAME=VALUE` settings; at most
-    /// [`MAX_VARIABLES_BYTES`] bytes are kept when it is read.
+    /// The game variables typed beside the state, as `NAME=VALUE` settings separated by blanks or
+    /// commas. When it is read, a text longer than [`MAX_VARIABLES_BYTES`] bytes is cut with
+    /// [`bound_variables`]: at the last separator before the limit, empty without one.
     #[serde(deserialize_with = "bounded")]
     pub variables: String,
 }
 
-fn bounded<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<String, D::Error> {
-    let mut text = String::deserialize(deserializer)?;
-    let end = (0..=MAX_VARIABLES_BYTES.min(text.len()))
+const fn is_separator(c: char) -> bool {
+    c.is_whitespace() || c == ','
+}
+
+/// Returns `text` held to [`MAX_VARIABLES_BYTES`] bytes: a longer text is cut at the last blank or
+/// comma before the limit, so that no setting is cut in two, and is empty when it has none.
+#[must_use]
+pub fn bound_variables(text: &str) -> &str {
+    if text.len() <= MAX_VARIABLES_BYTES {
+        return text;
+    }
+    let head = (0..=MAX_VARIABLES_BYTES)
         .rev()
         .find(|&at| text.is_char_boundary(at))
         .unwrap_or(0);
-    text.truncate(end);
-    Ok(text)
+    if text[head..].starts_with(is_separator) {
+        return &text[..head];
+    }
+    text[..head]
+        .rfind(is_separator)
+        .map_or("", |at| &text[..at])
+}
+
+fn bounded<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<String, D::Error> {
+    let text = String::deserialize(deserializer)?;
+    Ok(bound_variables(&text).to_owned())
 }

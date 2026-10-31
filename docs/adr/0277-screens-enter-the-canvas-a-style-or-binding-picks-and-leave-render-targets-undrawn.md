@@ -55,12 +55,15 @@ Found on LIVE with `p4kx dcb export` over the Records below `ui/buildingblocks`:
   name. A setting without namespace reaches every canvas, as before. A setting whose namespace no
   canvas of the screen has, or whose canvas does not read the name, is `unknown` in the report
   with the namespace in its name. The canvas stands for the namespace the game sets at run time,
-  which no Record holds; two canvases of the same name are not told apart.
+  which no Record holds; two canvases of the same name are not told apart. A setting holds at most
+  one `::`: `a::b::c` and `a:::b` are refused.
 - **The UI tab keeps the state and the typed variables.** `[ui] power` (`at-rest`, `powered-on`)
   and `variables` (the typed text) are stored in the settings file next to size, background and
-  format. The text is stored when the field is left and read back at most
-  `MAX_VARIABLES_BYTES` (4096) bytes long, cut at a character boundary; an unknown state reads as
-  at rest. The typed text is parsed as before, with the bounds of ADR-0259.
+  format. The text is stored when the field is left after a change, and again when the window
+  closes. It is held to `MAX_VARIABLES_BYTES` (4096) bytes, in the field and when read back: a
+  longer text is cut at the last blank or comma before the limit, so that no setting is cut in
+  two, and becomes empty when it has none. An unknown state reads as at rest. The typed text is
+  parsed as before, with the bounds of ADR-0259.
 
 ## What this makes of the Avenger Titan on LIVE (`--brand aegs`, `powerstate=1`)
 

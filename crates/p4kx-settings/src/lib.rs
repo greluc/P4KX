@@ -29,5 +29,5 @@ pub use settings::{
 };
 pub use ui_render::{
     MAX_VARIABLES_BYTES, UiRenderBackground, UiRenderFormat, UiRenderPower, UiRenderSettings,
-    UiRenderSize,
+    UiRenderSize, bound_variables,
 };

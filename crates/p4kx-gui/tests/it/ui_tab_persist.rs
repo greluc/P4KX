@@ -4,7 +4,7 @@
 //! The game state and the typed game variables of the UI tab are kept across sessions.
 
 use p4kx_gui::{Language, Model, UiPower};
-use p4kx_settings::{Settings, UiRenderPower};
+use p4kx_settings::{MAX_VARIABLES_BYTES, Settings, UiRenderPower};
 
 #[test]
 fn the_state_and_the_typed_variables_survive_a_session() -> Result<(), Box<dyn std::error::Error>> {
@@ -31,4 +31,13 @@ fn the_state_and_the_typed_variables_survive_a_session() -> Result<(), Box<dyn s
         "canvas::isradar=1 powerstate=0"
     );
     Ok(())
+}
+
+#[test]
+fn the_typed_variables_are_held_to_the_byte_limit_without_cutting_a_setting() {
+    let mut model = Model::new(Language::BritishEnglish);
+    model.ui_mut().set_variables_text(&"äa=1 ".repeat(5000));
+    let text = model.ui().variables_text();
+    assert!(text.len() <= MAX_VARIABLES_BYTES);
+    assert!(text.ends_with("äa=1"));
 }

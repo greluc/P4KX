@@ -122,61 +122,63 @@ pub enum TestModifier {
     Enumerated(&'static str, &'static str),
 }
 
-impl TestModifier {
-    pub(crate) fn value(self) -> TestValue {
-        let (kind, field, value) = match self {
-            Self::Number(field, value) => ("Number", field, TestValue::Single(value)),
-            Self::Background(colour) => ("Color", "BackgroundColor", colour.value()),
-            Self::Fill(colour) => ("Color", "FillColor", colour.value()),
-            Self::Stroke(colour) => ("Color", "StrokeColor", colour.value()),
-            Self::EnableBackground(on) => ("Boolean", "EnableBackground", TestValue::Bool(on)),
-            Self::Active(on) => ("Boolean", "IsActive", TestValue::Bool(on)),
-            Self::WordWrap(on) => ("Boolean", "WordWrap", TestValue::Bool(on)),
-            Self::Alpha(alpha) => ("Number", "Alpha", TestValue::Single(alpha)),
-            Self::FontSize(size) => ("Number", "FontSize", TestValue::Single(size)),
-            Self::LetterSpacing(space) => ("Number", "LetterSpacing", TestValue::Single(space)),
-            Self::LineSpacing(space) => ("Number", "LineSpacing", TestValue::Single(space)),
-            Self::Text(text) => ("Localization", "Text", TestValue::text(text)),
-            Self::ImagePath(path) => ("String", "ImagePath", TestValue::text(path)),
-            Self::SvgPath(path) => ("String", "SvgPath", TestValue::text(path)),
-            Self::ColourOverlay(on) => ("Boolean", "EnableColorOverlay", TestValue::Bool(on)),
-            Self::FontStyle(_)
-            | Self::Canvas(_)
-            | Self::Horizontal(_)
-            | Self::Vertical(_)
-            | Self::Case(_)
-            | Self::Enumerated(..) => return self.typed_value(),
-        };
-        let key = if kind == "Color" { "color" } else { "value" };
-        TestValue::Struct(
-            TestInstance::new(format!("BuildingBlocks_FieldModifier{kind}"))
-                .value("field", TestValue::text(field))
-                .value(key, value),
-        )
-    }
+/// How a modifier is written: a named field of a kind, or a typed struct inside `field`.
+enum Shape {
+    Field(&'static str, &'static str, TestValue),
+    Typed(&'static str, String, TestValue),
 }
 
 impl TestModifier {
-    /// Returns a record reference or enumerated modifier, whose field is a struct of its own.
-    fn typed_value(self) -> TestValue {
+    fn shape(self) -> Shape {
         let enumerated =
-            |inner: &str, name: &str| typed("Enumerated", inner, TestValue::text(name));
+            |inner: &str, name| Shape::Typed("Enumerated", inner.to_owned(), TestValue::text(name));
+        let record = |inner: &str, guid| {
+            Shape::Typed("RecordRef", inner.to_owned(), TestValue::Reference(guid))
+        };
         match self {
-            Self::FontStyle(guid) => typed(
-                "RecordRef",
-                "RecordRefTypeFontStyleRecord",
-                TestValue::Reference(guid),
-            ),
-            Self::Canvas(guid) => typed(
-                "RecordRef",
-                "RecordRefTypeCanvasReferenceRecord",
-                TestValue::Reference(guid),
-            ),
+            Self::Number(field, value) => Shape::Field("Number", field, TestValue::Single(value)),
+            Self::Background(colour) => Shape::Field("Color", "BackgroundColor", colour.value()),
+            Self::Fill(colour) => Shape::Field("Color", "FillColor", colour.value()),
+            Self::Stroke(colour) => Shape::Field("Color", "StrokeColor", colour.value()),
+            Self::EnableBackground(on) => {
+                Shape::Field("Boolean", "EnableBackground", TestValue::Bool(on))
+            }
+            Self::Active(on) => Shape::Field("Boolean", "IsActive", TestValue::Bool(on)),
+            Self::WordWrap(on) => Shape::Field("Boolean", "WordWrap", TestValue::Bool(on)),
+            Self::Alpha(alpha) => Shape::Field("Number", "Alpha", TestValue::Single(alpha)),
+            Self::FontSize(size) => Shape::Field("Number", "FontSize", TestValue::Single(size)),
+            Self::LetterSpacing(space) => {
+                Shape::Field("Number", "LetterSpacing", TestValue::Single(space))
+            }
+            Self::LineSpacing(space) => {
+                Shape::Field("Number", "LineSpacing", TestValue::Single(space))
+            }
+            Self::Text(text) => Shape::Field("Localization", "Text", TestValue::text(text)),
+            Self::ImagePath(path) => Shape::Field("String", "ImagePath", TestValue::text(path)),
+            Self::SvgPath(path) => Shape::Field("String", "SvgPath", TestValue::text(path)),
+            Self::ColourOverlay(on) => {
+                Shape::Field("Boolean", "EnableColorOverlay", TestValue::Bool(on))
+            }
+            Self::FontStyle(guid) => record("RecordRefTypeFontStyleRecord", guid),
+            Self::Canvas(guid) => record("RecordRefTypeCanvasReferenceRecord", guid),
             Self::Horizontal(name) => enumerated("EnumeratedTypeHorizontalAlignment", name),
             Self::Vertical(name) => enumerated("EnumeratedTypeVerticalAlignment", name),
             Self::Case(name) => enumerated("EnumeratedTypeCaseModifier", name),
             Self::Enumerated(kind, name) => enumerated(&format!("EnumeratedType{kind}"), name),
-            _ => unreachable!("only the typed modifiers reach here"),
+        }
+    }
+
+    pub(crate) fn value(self) -> TestValue {
+        match self.shape() {
+            Shape::Typed(kind, inner, value) => typed(kind, &inner, value),
+            Shape::Field(kind, field, value) => {
+                let key = if kind == "Color" { "color" } else { "value" };
+                TestValue::Struct(
+                    TestInstance::new(format!("BuildingBlocks_FieldModifier{kind}"))
+                        .value("field", TestValue::text(field))
+                        .value(key, value),
+                )
+            }
         }
     }
 }

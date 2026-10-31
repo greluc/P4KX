@@ -82,8 +82,10 @@ impl Variable {
         let (name, value) = (name.trim(), value.trim());
         let (namespace, path) = split_namespace(name);
         let bad_namespace = namespace.is_some_and(|space| space.is_empty() || space.contains('/'));
-        if bad_namespace || path.trim_matches('/').is_empty() || name.chars().any(char::is_control)
-        {
+        let bad_path = path.trim_matches('/').is_empty()
+            || path.contains(NAMESPACE_SEPARATOR)
+            || path.starts_with(':');
+        if bad_namespace || bad_path || name.chars().any(char::is_control) {
             return Err(VariableError::BadName);
         }
         if name.len() > MAX_NAME_BYTES {
@@ -252,7 +254,14 @@ mod tests {
 
     #[test]
     fn a_namespace_that_is_empty_or_a_path_is_refused() {
-        for setting in ["::power=1", "a/b::power=1", "canvas::=1", "canvas::/=1"] {
+        for setting in [
+            "::power=1",
+            "a/b::power=1",
+            "canvas::=1",
+            "canvas::/=1",
+            "a::b::c=1",
+            "a:::b=1",
+        ] {
             assert_eq!(
                 setting.parse::<Variable>(),
                 Err(VariableError::BadName),

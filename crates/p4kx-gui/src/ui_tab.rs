@@ -144,8 +144,12 @@ impl UiTab {
 
     /// Draws screens with the game variables in `text`, `NAME=VALUE` settings separated by blanks
     /// or commas, after those of the state.
+    ///
+    /// The text is held to [`p4kx_settings::MAX_VARIABLES_BYTES`] bytes: a longer one is cut at
+    /// the last separator before the limit, so that no setting is cut in two, and is empty when
+    /// it has none.
     pub fn set_variables_text(&mut self, text: &str) {
-        text.clone_into(&mut self.variables);
+        p4kx_settings::bound_variables(text).clone_into(&mut self.variables);
     }
 
     /// Returns the typed settings that are no `NAME=VALUE`.

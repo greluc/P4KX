@@ -1763,7 +1763,9 @@ A name may follow a namespace and `::`, as in `mapdisplaymaster::isradar=1` (ADR
 setting then reaches the bindings of that canvas only, named by the last segment of its Record
 path, case ignored; a name without namespace reaches every canvas. The namespace is a canvas name
 without `/`; one that names no canvas of the screen is reported as unknown, like any name, with the
-namespace in the name. A canvas widget's canvas that a style entry or a `StringFromBooleanCanvas`
+namespace in the name. A setting holds at most one `::`; `a::b::c` and `a:::b` are refused (exit
+code 2). Canvases of the same Record name are not told apart: a namespace reaches all of them.
+A canvas widget's canvas that a style entry or a `StringFromBooleanCanvas`
 binding picks is entered (ADR-0277); a canvas that only run-time data names is listed as
 `Binding`. Screens the game renders into a texture (the star map) are not drawn and stay listed.
 

@@ -192,14 +192,17 @@ impl Walk<'_, '_, '_, '_> {
             .unwrap_or(widget.active)
     }
 
-    /// Returns the canvas widget `index` holds: a style entry beats the bound
-    /// `CanvasReferenceRecord`, which beats the field of the widget.
+    /// Returns the canvas the canvas widget `index` holds, `None` for any other widget: a style
+    /// entry beats the bound `CanvasReferenceRecord`, which beats the field of the widget.
     pub(crate) fn canvas_of(
         &self,
         index: usize,
         widget: &Widget,
         style: &Modifiers,
     ) -> Option<Guid> {
+        if !elements::is_canvas_widget(widget) {
+            return None;
+        }
         style
             .canvas
             .or_else(|| self.rests.last().and_then(|state| state.canvas(index)))

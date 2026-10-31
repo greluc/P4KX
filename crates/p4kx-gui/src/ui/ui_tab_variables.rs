@@ -3,7 +3,6 @@
 
 use egui::{Align2, Frame, Id, Margin, TextEdit, Ui, vec2};
 use fluent_bundle::FluentValue;
-use p4kx_settings::MAX_VARIABLES_BYTES;
 
 use super::search::eyebrow;
 use crate::theme::desktop::{SEARCH_WIDTH, TOOLBAR_PADDING};
@@ -15,7 +14,8 @@ use crate::widgets::text::plain;
 use crate::{Model, UiText};
 
 /// Shows the field for more game variables of a screen, and the settings in it that are no
-/// `NAME=VALUE`; returns whether the field was left, so that the text is stored.
+/// `NAME=VALUE`; returns whether the field was left after a change, so that the text is stored.
+/// The text is also stored when the window closes, from the model, which holds every change.
 pub(super) fn show(ui: &mut Ui, model: &mut Model) -> bool {
     let texts = model.texts();
     let label = eyebrow(&texts.get(UiText::VariablesLabel));
@@ -39,8 +39,18 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model) -> bool {
     if edited.changed {
         model.ui_mut().set_variables_text(&text);
     }
+    let dirty = ui.make_persistent_id(DIRTY);
+    if edited.changed {
+        ui.data_mut(|data| data.insert_temp(dirty, true));
+    }
     edited.left
+        && ui
+            .data_mut(|data| data.remove_temp::<bool>(dirty))
+            .unwrap_or(false)
 }
+
+/// Remembers that the text changed since the field was last left.
+const DIRTY: &str = "ui-variables-dirty";
 
 /// What happened to the field in this frame.
 #[derive(Debug, Default, Clone, Copy)]
@@ -63,7 +73,6 @@ fn edit(ui: &mut Ui, text: &mut String, hint: &str, label: Id) -> Edited {
         }))
         .min_size(vec2(SEARCH_WIDTH.min(ui.available_width()), TOUCH_TARGET))
         .desired_width(ui.available_width())
-        .char_limit(MAX_VARIABLES_BYTES)
         .align(Align2::LEFT_CENTER);
     let response = ui.add(edit).labelled_by(label);
     field::paint_frame(ui, frame, response.rect, response.has_focus());

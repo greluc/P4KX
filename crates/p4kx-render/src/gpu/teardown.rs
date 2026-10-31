@@ -12,8 +12,8 @@ use std::time::Duration;
 use super::Renderer;
 
 /// How long the caller waits for the whole teardown: the queue going idle and the release of
-/// every GPU object, all of which run on the worker. A measured teardown takes 40 to 120 ms; the
-/// limit leaves room for a loaded machine.
+/// every GPU object, all of which run on the worker. A measured teardown takes 35 ms to 3.5 s,
+/// depending on the load of the machine.
 pub(super) const TEARDOWN_LIMIT: Duration = Duration::from_secs(15);
 
 /// The idle wait on the worker, below [`TEARDOWN_LIMIT`] so that an idle wait that runs out is
@@ -30,6 +30,7 @@ pub fn abandoned_teardowns() -> usize {
 }
 
 /// The stages of a teardown, in the order the worker runs them.
+#[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Stage {
     /// Waiting for the submitted work to finish.
@@ -73,6 +74,7 @@ impl StageCell {
 }
 
 /// How a teardown ended.
+#[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Released {
     /// The queue went idle and the device was released within the limit.
@@ -126,23 +128,55 @@ impl Gpu {
     /// made on.
     pub(super) fn release(self) -> Released {
         release_within(self, TEARDOWN_LIMIT, |gpu, stage| {
-            drop(gpu.device.poll(wgpu::PollType::Wait {
-                submission_index: None,
-                timeout: Some(IDLE_WAIT),
-            }));
             let Self {
                 renderer,
                 queue,
                 device,
             } = gpu;
-            stage.enter(Stage::Renderer);
-            drop(renderer);
-            stage.enter(Stage::Queue);
-            drop(queue);
-            stage.enter(Stage::Device);
-            drop(device);
+            run_stages(
+                device,
+                stage,
+                wait_idle,
+                |device| {
+                    drop(renderer);
+                    wait_idle(device);
+                },
+                || drop(queue),
+                |device| {
+                    drop(device);
+                },
+            );
         })
     }
+}
+
+/// Waits for the submitted work and for the deferred frees that follow a drop, within
+/// [`IDLE_WAIT`].
+fn wait_idle(device: &wgpu::Device) {
+    drop(device.poll(wgpu::PollType::Wait {
+        submission_index: None,
+        timeout: Some(IDLE_WAIT),
+    }));
+}
+
+/// Runs the four stages of a teardown in order and enters each stage before its work: `idle` and
+/// `renderer` borrow the device, `queue` runs next, and `finish` consumes the device last.
+fn run_stages<D>(
+    device: D,
+    stage: &StageCell,
+    idle: impl FnOnce(&D),
+    renderer: impl FnOnce(&D),
+    queue: impl FnOnce(),
+    finish: impl FnOnce(D),
+) {
+    stage.enter(Stage::Idle);
+    idle(&device);
+    stage.enter(Stage::Renderer);
+    renderer(&device);
+    stage.enter(Stage::Queue);
+    queue();
+    stage.enter(Stage::Device);
+    finish(device);
 }
 
 #[cfg(test)]
@@ -171,6 +205,47 @@ mod tests {
         let released = release_within(vec![1_u8], Duration::from_secs(5), |value, _| drop(value));
 
         assert_eq!(released, Released::Dropped);
+    }
+
+    #[test]
+    fn the_stages_run_their_work_in_order_and_are_entered_before_it() {
+        let log: Arc<Mutex<Vec<(&'static str, Stage)>>> = Arc::default();
+        let stage = StageCell::new();
+        let record = |name: &'static str| {
+            let log = Arc::clone(&log);
+            let stage = stage.clone();
+            move || {
+                log.lock()
+                    .unwrap_or_else(PoisonError::into_inner)
+                    .push((name, stage.current()));
+            }
+        };
+        let (idle, renderer, queue, finish) = (
+            record("idle"),
+            record("renderer"),
+            record("queue"),
+            record("device"),
+        );
+
+        run_stages(
+            (),
+            &stage,
+            |()| idle(),
+            |()| renderer(),
+            queue,
+            |()| finish(),
+        );
+
+        let log = log.lock().unwrap_or_else(PoisonError::into_inner).clone();
+        assert_eq!(
+            log,
+            [
+                ("idle", Stage::Idle),
+                ("renderer", Stage::Renderer),
+                ("queue", Stage::Queue),
+                ("device", Stage::Device),
+            ]
+        );
     }
 
     #[test]

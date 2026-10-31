@@ -58,27 +58,25 @@ fn closing_the_offscreen_device_on_the_real_adapter_drops_it() {
 
 #[test]
 #[ignore = "real adapter: set P4KX_REAL_GPU_RUNS and pass --ignored"]
-#[expect(
-    clippy::needless_collect,
-    reason = "every thread must have started before the first is joined"
-)]
 fn closing_devices_on_several_threads_at_once_drops_them_all() {
     let guard = arm("closing_devices_on_several_threads_at_once");
     guard.phase("threads");
-    let released: Vec<Released> = thread::scope(|scope| {
-        let workers: Vec<_> = (0..THREADS)
-            .map(|_| {
-                scope.spawn(|| {
-                    (0..runs())
-                        .map(|_| drawn_offscreen().close())
-                        .collect::<Vec<_>>()
-                })
-            })
-            .collect();
-        workers
-            .into_iter()
-            .flat_map(|worker| worker.join().expect("a worker"))
-            .collect()
+    let mut released: Vec<Released> = Vec::new();
+    thread::scope(|scope| {
+        let mut workers = Vec::with_capacity(THREADS);
+        for _ in 0..THREADS {
+            workers.push(scope.spawn(|| {
+                (0..runs())
+                    .map(|_| drawn_offscreen().close())
+                    .collect::<Vec<_>>()
+            }));
+        }
+        for (index, worker) in workers.into_iter().enumerate() {
+            let closed = worker
+                .join()
+                .unwrap_or_else(|_| panic!("thread {index} panicked"));
+            released.extend(closed);
+        }
     });
     assert!(
         released

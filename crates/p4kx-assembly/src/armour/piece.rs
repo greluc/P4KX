@@ -90,6 +90,7 @@ pub struct Piece {
     pub(crate) variant_tags: Vec<String>,
     pub(crate) bespoke: Option<Bespoke>,
     pub(crate) mount: Option<Mount>,
+    pub(crate) port: Option<String>,
 }
 
 /// Where the skins of a story character's own head are, see [`Piece::bespoke`].
@@ -115,6 +116,31 @@ impl Piece {
             variant_tags: Vec::new(),
             bespoke: None,
             mount: None,
+            port: None,
+        }
+    }
+
+    /// Says the piece sits at the Loadout port `port`, so that a worn piece whose Record hides
+    /// the port, see [`Wearable::hidden_ports`], leaves it out of the [`Armour`](super::Armour).
+    #[must_use]
+    pub fn at_port(mut self, port: impl Into<String>) -> Self {
+        self.port = Some(port.into());
+        self
+    }
+
+    /// Returns the name of the port the piece sits at, if it was given.
+    #[must_use]
+    pub fn port(&self) -> Option<&str> {
+        self.port.as_deref()
+    }
+
+    /// Returns the ports whose items the piece hides when it is worn, see
+    /// [`Wearable::hidden_ports`]; none for a piece that is not an Entity.
+    #[must_use]
+    pub fn hidden_ports(&self) -> &[String] {
+        match &self.source {
+            Source::Wearable(wearable) => wearable.hidden_ports(),
+            _ => &[],
         }
     }
 

@@ -33,4 +33,5 @@ Records.
 `entity glb`, `entity package`, the hologram export and the GUI's Assembly views show no skin
 through the clothing of an NPC. Ships and vehicles are unchanged. The limits of ADR-0140 stay:
 `HiddenParts` and conditions are not applied, and a Record with more than 256 chunks is not
-reported as truncated in the Assembly.
+reported as truncated in the Assembly. ADR-0279 reads a condition that names no port and no tag as
+no restriction, which holds here too; `HiddenParts` stay open (#943).

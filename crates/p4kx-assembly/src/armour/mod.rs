@@ -18,6 +18,7 @@ mod follow_morphs;
 mod forge_items;
 mod head;
 mod head_move;
+mod hidden;
 mod jobs;
 mod loadout;
 mod look;

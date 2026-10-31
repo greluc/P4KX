@@ -19,7 +19,7 @@ use crate::assembly_support::{TestResult, fixture};
 
 /// Returns where each zone of `variant` is: left zones at negative X, right ones at positive X,
 /// feet at the ground, everything else at the height of the torso.
-fn places(variant: BodyVariant) -> Vec<[f32; 2]> {
+pub(crate) fn places(variant: BodyVariant) -> Vec<[f32; 2]> {
     variant
         .zone_names()
         .iter()

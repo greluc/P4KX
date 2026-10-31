@@ -91,7 +91,7 @@ fn wait_until_open(harness: &mut Harness<'_, State>) -> TestResult {
 
 fn open_archive(harness: &Harness<'_, State>) -> Option<PathBuf> {
     let browser = harness.state().0.browser()?;
-    Some(browser.index().archive().path().to_path_buf())
+    Some(browser.index().path().to_path_buf())
 }
 
 #[test]

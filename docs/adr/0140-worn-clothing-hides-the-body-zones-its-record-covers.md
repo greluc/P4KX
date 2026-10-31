@@ -73,9 +73,12 @@ belly, the thighs and the shorts showed through the shirt and the pants.
 
 - **Clothing under clothing.** The zones of a garment's own skin are not hidden by a garment on
   a higher layer; the garments' skins carry no zone names (only their static models do).
-- **`HiddenParts`.** The ports a piece hides are not applied: the hat that hides the hair, the
-  suit that hides the clothing. It changes which pieces an export holds and is a follow-up.
-- **Conditions.** `VisibilityConditions` are not evaluated.
+  ADR-0279 hides whole garments by `HiddenParts` and records why a partly covered garment stays
+  whole.
+- **`HiddenParts`.** Applied by ADR-0279: the hat that hides the hair, the suit that hides the
+  clothing.
+- **Conditions.** ADR-0279 evaluates a condition that names no port and no tag and reports the
+  conditional chunks that name a zone of the body.
 - **Layer textures.** The clothing's materials use the shader `LayerBlend_V2`, which has no
   diffuse map: its colour comes from the tint palette and the layer maps (wear `TexSlot11`,
   blend `TexSlot12`, `TexSlot13`) beside the normal map. They stay flat colours of their layers

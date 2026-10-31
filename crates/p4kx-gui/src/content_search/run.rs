@@ -11,9 +11,9 @@ use p4kx_search::{Needle, SearchOptions, Source, Sources, search_in};
 
 use super::ContentResult;
 use super::lane::Lane;
-use crate::EntryIndex;
 use crate::forge_cache::ReadFailure;
 use crate::model::describe;
+use crate::{EntryIndex, NoEntries};
 
 /// How a search ended.
 #[derive(Debug)]
@@ -99,6 +99,9 @@ impl Job {
         if self.index.watch().check().is_err() {
             return Outcome::ArchiveChanged;
         }
+        let Ok(archive) = self.index.entries_archive() else {
+            return Outcome::Failed(Some(NoEntries.to_string()));
+        };
         let started = Instant::now();
         let stop = || self.cancelled.load(Ordering::Relaxed);
         let cached = if self.options.sources.contains(Source::Records)
@@ -118,13 +121,8 @@ impl Job {
             Some(Err(error)) => return Outcome::Failed(Some(describe(&error))),
             None => None,
         };
-        let Some(report) = search_in(
-            self.index.archive(),
-            forge.as_ref(),
-            &self.needle,
-            &self.options,
-            &stop,
-        ) else {
+        let Some(report) = search_in(archive, forge.as_ref(), &self.needle, &self.options, &stop)
+        else {
             return Outcome::Cancelled;
         };
         if self.index.watch().check().is_err() {

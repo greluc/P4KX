@@ -16,14 +16,7 @@ use crate::{Extraction, Model, Text};
 fn archive_path(model: &Model) -> String {
     model
         .browser()
-        .map(|browser| {
-            browser
-                .archive_index()
-                .archive()
-                .path()
-                .display()
-                .to_string()
-        })
+        .map(|browser| browser.archive_index().path().display().to_string())
         .unwrap_or_default()
 }
 

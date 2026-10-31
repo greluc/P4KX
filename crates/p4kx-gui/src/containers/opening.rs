@@ -124,10 +124,10 @@ fn open(parent: &EntryIndex, entry: u32, cancelled: &AtomicBool) -> Outcome {
     if parent.watch().check().is_err() {
         return Outcome::ArchiveChanged;
     }
-    let Some(entry) = parent.entry(entry) else {
+    let (Some(archive), Some(entry)) = (parent.archive(), parent.entry(entry)) else {
         return Outcome::Failed(String::new());
     };
-    let container = match parent.archive().open_container(entry) {
+    let container = match archive.open_container(entry) {
         Ok(container) => container,
         Err(error) => return Outcome::Failed(describe(&error)),
     };

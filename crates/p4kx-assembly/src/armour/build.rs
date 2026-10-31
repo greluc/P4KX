@@ -1,21 +1,20 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use std::collections::{BTreeSet, HashMap, HashSet};
+use std::collections::HashSet;
 use std::sync::Arc;
 
 use p4kx_gltf::MorphTarget;
 use p4kx_model::{MaterialStatus, Model};
-use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
 use super::face_build::{Face, Found, settled};
 use super::head_move::{HeadMove, Worn, check_follows, followed, level_zero_meshes};
 use super::jobs::{Job, issue, planned};
+use super::materials::{drawn_with, read_libraries};
 use super::read_models::{Loaded, choose, read_models};
 use super::shape::shaped;
-use super::zones::{covered, without_covered};
-use super::{Armour, ArmourPart, BodyVariant, Look, Piece};
-use crate::build::file_key;
+use super::zones::{Coverage, without_covered};
+use super::{Armour, ArmourPart, BodyVariant, Piece};
 use crate::build_palettes::Palettes;
 use crate::{
     AssemblyError, AssemblyOptions, Issue, IssueKind, ModelFailure, ModelProvider, PaletteProvider,
@@ -24,8 +23,6 @@ use crate::{
 
 /// The name of the piece the pieces that follow the head follow.
 const HEAD: &str = "head";
-
-type Libraries = HashMap<String, Arc<MaterialStatus>>;
 
 struct Body {
     skeleton: Model,
@@ -89,7 +86,7 @@ impl Armour {
         let chosen = choose(&jobs, &loaded, options.max_vertices, &mut issues);
         let libraries = read_libraries(&jobs, &chosen, models);
         let unnamed = Arc::new(MaterialStatus::Unnamed);
-        let covering = covering(&jobs, &chosen);
+        let covering = covering(&jobs, &chosen, variant);
         let (mut reported, mut tints) = (HashSet::new(), Palettes::new(palettes));
         let mut parts = Vec::with_capacity(chosen.len());
         let mut head: Option<HeadMove> = None;
@@ -102,9 +99,9 @@ impl Armour {
             };
             let model = without_covered(job, dressed.model, variant, &covering, &mut issues);
             let face = dressed.face.take();
-            heads.extend(Found::of(parts.len(), &job.path, job.shape.as_ref(), face));
+            heads.extend(Found::of(parts.len(), job.shape.as_ref(), face));
             if job.bespoke {
-                heads.push(Found::bespoke(parts.len(), &job.path));
+                heads.push(Found::bespoke(parts.len()));
             }
             part_jobs.push(job);
             let materials = drawn_with(
@@ -163,12 +160,13 @@ fn part_of(
 }
 
 /// Returns the body zones the worn clothing of the jobs that have a model covers.
-fn covering<'j>(jobs: &'j [Job], chosen: &[Option<&Loaded>]) -> BTreeSet<&'j str> {
-    covered(
+fn covering<'j>(jobs: &'j [Job], chosen: &[Option<&Loaded>], variant: BodyVariant) -> Coverage<'j> {
+    Coverage::of(
         jobs.iter()
             .zip(chosen)
             .filter(|(_, found)| found.is_some())
             .flat_map(|(job, _)| job.zones.iter()),
+        variant,
     )
 }
 
@@ -207,63 +205,6 @@ fn worn(
             follows: Vec::new(),
         },
     })
-}
-
-/// Returns the materials a job is drawn with: its library, with the choices of its Character
-/// applied and the tint palette of its geometry. A library that cannot be read is listed once.
-fn drawn_with(
-    job: &Job,
-    found: &Loaded,
-    (libraries, unnamed): (&Libraries, &Arc<MaterialStatus>),
-    (reported, tints): (&mut HashSet<String>, &mut Palettes<'_>),
-    issues: &mut Vec<Issue>,
-) -> Arc<MaterialStatus> {
-    let key = library_key(job, found);
-    let library = key
-        .as_ref()
-        .and_then(|key| libraries.get(key))
-        .map_or_else(|| Arc::clone(unnamed), Arc::clone);
-    if let (Some(key), Some(reason)) = (key, library.problem().or_else(|| library.layer_problem()))
-        && reported.insert(key)
-    {
-        issues.push(issue(job, IssueKind::MaterialLibrary { reason }));
-    }
-    let painted = painted(tints, library, job, issues);
-    let natural = Look::natural();
-    job.look
-        .as_ref()
-        .unwrap_or(&natural)
-        .apply(&painted)
-        .map_or(painted, Arc::new)
-}
-
-/// Returns `materials` drawn with the tint palette of the job's geometry, else the default
-/// palette of their library, so that layers with a `PaletteTint` take the palette's entries;
-/// unchanged, and no palette resolved, when no material takes one.
-fn painted(
-    tints: &mut Palettes<'_>,
-    materials: Arc<MaterialStatus>,
-    job: &Job,
-    issues: &mut Vec<Issue>,
-) -> Arc<MaterialStatus> {
-    let Some(library) = materials
-        .library()
-        .filter(|library| library.materials.iter().any(|m| m.palette.is_some()))
-    else {
-        return materials;
-    };
-    let (palette, unresolved) = tints.of_named(job.palette.as_ref(), &materials);
-    issues.extend(unresolved.into_iter().map(|kind| issue(job, kind)));
-    let Some(palette) = palette else {
-        return materials;
-    };
-    let mut library = library.clone();
-    for material in &mut library.materials {
-        if let Some(tinted) = palette.apply(material) {
-            *material = tinted;
-        }
-    }
-    Arc::new(MaterialStatus::Loaded(library))
 }
 
 /// Returns the model of a job as it is worn, shaped by the job's DNA if it has one, and its morph
@@ -323,51 +264,4 @@ fn load_body(
         skeleton: model,
         skeleton_file: skeleton_file.to_owned(),
     })
-}
-
-/// Returns the key under which the library of a job is cached: a bare name is relative to the
-/// model's folder, any other name is the same for every model.
-fn library_key(job: &Job, loaded: &Loaded) -> Option<String> {
-    let name = library_name(job, loaded)?;
-    let key = file_key(name);
-    let key = key.strip_suffix(".mtl").unwrap_or(&key).to_owned();
-    if key.contains('\\') {
-        Some(key)
-    } else {
-        let folder = loaded
-            .entry
-            .rsplit_once(['\\', '/'])
-            .map_or("", |(folder, _)| folder);
-        Some(format!("{}\\{key}", folder.to_ascii_lowercase()))
-    }
-}
-
-fn library_name<'a>(job: &'a Job, loaded: &'a Loaded) -> Option<&'a str> {
-    job.material
-        .as_deref()
-        .or(loaded.model.material_library.as_deref())
-}
-
-/// Reads every distinct material library the jobs draw with once, in parallel.
-fn read_libraries(
-    jobs: &[Job],
-    chosen: &[Option<&Loaded>],
-    provider: &dyn ModelProvider,
-) -> Libraries {
-    let mut seen = HashSet::new();
-    let wanted: Vec<(String, &str, &str)> = jobs
-        .iter()
-        .zip(chosen)
-        .filter_map(|(job, loaded)| {
-            let loaded = (*loaded)?;
-            let name = library_name(job, loaded)?;
-            let key = library_key(job, loaded)?;
-            seen.insert(key.clone())
-                .then_some((key, loaded.entry.as_str(), name))
-        })
-        .collect();
-    wanted
-        .par_iter()
-        .map(|(key, entry, name)| (key.clone(), Arc::new(provider.library(entry, name))))
-        .collect()
 }

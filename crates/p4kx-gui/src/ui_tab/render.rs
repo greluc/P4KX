@@ -179,11 +179,12 @@ pub(super) fn open_movie<'a>(
     path: &str,
     language: Option<TextLanguage>,
 ) -> Result<(UiMovie<'a>, Vec<String>), Fail> {
-    let movie = UiMovie::from_archive(index.archive(), path).map_err(|e| reason(&e))?;
+    let archive = index.entries_archive().map_err(|e| reason(&e))?;
+    let movie = UiMovie::from_archive(archive, path).map_err(|e| reason(&e))?;
     let Some(language) = language else {
         return Ok((movie, Vec::new()));
     };
-    Ok(match LocalizationEntry::read(index.archive(), language) {
+    Ok(match LocalizationEntry::read(archive, language) {
         Ok(texts) => (movie.with_texts(texts), Vec::new()),
         Err(error) => (movie, vec![error.to_string()]),
     })
@@ -223,7 +224,10 @@ fn screen(
     let source = index.forge().read(index, || {})?;
     checkpoint(cancel)?;
     let forge = source.entry.open().map_err(|e| reason(&e))?;
-    let texts = cached.unwrap_or_else(|| Arc::new(still::load_texts(index, &forge, key.language)));
+    let texts = match cached {
+        Some(texts) => texts,
+        None => Arc::new(still::load_texts(index, &forge, key.language)?),
+    };
     checkpoint(cancel)?;
     let request = StillRequest {
         screen: canvas,

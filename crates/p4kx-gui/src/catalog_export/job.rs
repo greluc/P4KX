@@ -233,9 +233,10 @@ struct Job {
 
 impl Job {
     fn run(&self) -> RunResult {
-        if is_same_file(&self.file, self.index.archive().path()) {
+        if is_same_file(&self.file, self.index.path()) {
             return Ok(Outcome::IsArchive);
         }
+        let archive = self.index.entries_archive().map_err(|e| e.to_string())?;
         let source = self
             .index
             .forge()
@@ -257,7 +258,7 @@ impl Job {
             public_patches: Some(&patches),
         };
         let created = write_catalog_from(
-            self.index.archive(),
+            archive,
             &source.entry,
             &options,
             Compression::for_path(&self.file),

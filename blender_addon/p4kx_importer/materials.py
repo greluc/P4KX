@@ -45,6 +45,10 @@ class ImageCache:
             self._images[texture_id] = self._load(texture) if texture else None
         return self._images[texture_id]
 
+    def loads(self, texture_id: str) -> bool:
+        """Returns whether the file of a texture loads; loads it on the first call."""
+        return self.get(texture_id) is not None
+
     def _load(self, texture: Texture) -> bpy.types.Image | None:
         try:
             path = resolve_file(self._package.root, texture.file)
@@ -71,7 +75,9 @@ def apply_materials(
         [(entry.index, entry.name) for entry in mesh.materials],
         [(name, index_of(m.get(INDEX_PROPERTY))) for name, m in materials.items()],
     )
-    context = _context(package, package.palettes.get(mesh.palette_id) if mesh.palette_id else None)
+    context = _context(
+        package, images, package.palettes.get(mesh.palette_id) if mesh.palette_id else None
+    )
     for entry in mesh.materials:
         blender = materials.get(pairs.get(entry.index, ""))
         if blender is None:
@@ -185,13 +191,14 @@ def apply_textures(
     is the graph of a neutral ``Illum`` material with those textures, so a specular map follows
     the same rule as everywhere else.
     """
-    spec = build_graph(basic_description(described, package), _context(package))
+    spec = build_graph(basic_description(described, package), _context(package, images))
     build_tree(material, spec, images)
 
 
-def _context(package: Package, palette: Palette | None = None) -> BuildContext:
+def _context(package: Package, images: ImageCache, palette: Palette | None = None) -> BuildContext:
     return BuildContext(
         package.material_descriptions,
         palette,
         {texture.id: texture.alpha for texture in package.textures.values()},
+        images.loads,
     )

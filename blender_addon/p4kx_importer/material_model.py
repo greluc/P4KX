@@ -11,7 +11,8 @@ from __future__ import annotations
 
 import math
 import re
-from dataclasses import dataclass, field
+from collections.abc import Callable
+from dataclasses import dataclass, field, replace
 from typing import Any
 
 _MATERIAL_ID = re.compile(r"^x[0-9]{4,}$")
@@ -103,6 +104,8 @@ class MaterialDesc:
 
     ``stated_vertex_colours`` is the package's ``reads_vertex_colours`` (format 1.4), ``None`` in
     an older package; read it through ``material_surface.reads_vertex_colours``.
+    ``layer_shares`` is the package's ``layer_shares`` (format 1.5), one share per layer, ``None``
+    in an older package or when it does not match the layers.
     """
 
     id: str
@@ -125,6 +128,7 @@ class MaterialDesc:
     layers: tuple[Layer, ...] = ()
     parameters: dict[str, str] = field(default_factory=dict)
     stated_vertex_colours: bool | None = None
+    layer_shares: tuple[float, ...] | None = None
 
     def slot(self, usage: str) -> TextureSlot | None:
         """Returns the first texture slot of ``usage`` that has a written texture."""
@@ -133,6 +137,24 @@ class MaterialDesc:
     def number(self, name: str) -> float | None:
         """Returns the shader parameter ``name`` as a finite number, or ``None``."""
         return _number(self.parameters.get(name))
+
+    def colour_parameter(self, name: str) -> Colour | None:
+        """Returns the shader parameter ``name`` as a colour (``r,g,b``), or ``None``.
+
+        The value is the file's text: exactly three comma-separated finite numbers, else ``None``.
+        """
+        value = self.parameters.get(name)
+        if value is None:
+            return None
+        return _colour([_number(part) for part in value.split(",")], None)
+
+    def with_textures_only(self, loadable: Callable[[str], bool]) -> MaterialDesc:
+        """Returns the description without the slots whose texture ``loadable`` refuses.
+
+        A slot without a texture id (a placeholder) stays; it already reads as unwritten.
+        """
+        kept = tuple(s for s in self.textures if s.texture is None or loadable(s.texture))
+        return self if len(kept) == len(self.textures) else replace(self, textures=kept)
 
 
 def parse_materials(items: object, warnings: list[str]) -> dict[str, MaterialDesc]:
@@ -178,6 +200,7 @@ def _material(item: object) -> MaterialDesc | None:
     alpha_mode = item.get("alpha_mode")
     palette = item.get("palette")
     stated = item.get("reads_vertex_colours")
+    layers = tuple(layer for layer in map(_layer, _list(item.get("layers"))) if layer)
     return MaterialDesc(
         id=material_id,
         name=_string(item.get("name")),
@@ -196,10 +219,21 @@ def _material(item: object) -> MaterialDesc | None:
         alpha_mode=alpha_mode if alpha_mode in ALPHA_MODES else "opaque",
         palette=palette if palette in PALETTE_ENTRIES else None,
         textures=tuple(s for s in map(_slot, _list(item.get("textures"))) if s is not None),
-        layers=tuple(layer for layer in map(_layer, _list(item.get("layers"))) if layer),
+        layers=layers,
         parameters=_parameters(item.get("parameters")),
         stated_vertex_colours=stated if isinstance(stated, bool) else None,
+        layer_shares=_layer_shares(item.get("layer_shares"), len(layers)),
     )
+
+
+def _layer_shares(value: object, count: int) -> tuple[float, ...] | None:
+    """Returns the stated shares when there is one finite share of at least 0 per layer."""
+    if not isinstance(value, list) or len(value) != count:
+        return None
+    shares = [_number(share) for share in value]
+    if any(share is None or share < 0.0 for share in shares):
+        return None
+    return tuple(share for share in shares if share is not None)
 
 
 def _slot(item: object) -> TextureSlot | None:

@@ -47,6 +47,7 @@ pub(crate) fn describe(
         glow: material.glow,
         alpha_mode: alpha_mode(material),
         reads_vertex_colours: material.reads_vertex_colours(),
+        layer_shares: layer_shares(material, |_| false),
         palette: material.palette.and_then(entry),
         default_palette: default_palette.map(str::to_owned),
         textures: material
@@ -59,6 +60,14 @@ pub(crate) fn describe(
         attributes: parameters(&material.other_attributes),
         elements: material.elements.iter().map(element).collect(),
     }
+}
+
+/// Returns the share of each layer of `material` (see [`Material::layer_shares`]), all 0 for the
+/// material's own colours, empty for a material without layers.
+pub(crate) fn layer_shares(material: &Material, resolved: impl Fn(usize) -> bool) -> Vec<f32> {
+    material
+        .layer_shares(resolved)
+        .unwrap_or_else(|| vec![0.0; material.layers.len()])
 }
 
 /// Returns the path of a material library as the manifest gives it: `/` as separator, without a

@@ -63,6 +63,7 @@ mod interior_classes;
 mod interior_layers;
 mod interior_lit;
 mod interior_watch;
+mod layer_cache;
 mod loadout_changes;
 mod loadout_changes_edit;
 mod loadout_edges;

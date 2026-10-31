@@ -8,13 +8,14 @@ use crate::build_lod::read_lod_companions;
 use crate::material::material_library;
 use crate::mesh::split_by_node;
 use crate::model::MESH_TYPES;
-use crate::mtl_load::{ModelMaterials, load_for};
+use crate::mtl_load::load;
 use crate::nmc::read_nodes;
 use crate::skeleton::{read_bones, read_compact_bones};
 use crate::skin::read_skin;
 use crate::{
-    Bone, ChunkUsage, CompanionPath, CompanionResolver, CorruptChunk, Lod, LodSelection, Mesh,
-    Model, ModelChunk, ModelError, ModelFile, ModelIssue, Node, PositionBox, Transform,
+    Bone, ChunkUsage, CompanionPath, CompanionResolver, CorruptChunk, LayerCache, Lod,
+    LodSelection, MaterialReading, Mesh, Model, ModelChunk, ModelError, ModelFile, ModelIssue,
+    Node, PositionBox, Transform,
 };
 
 const MATERIAL_TYPES: [ChunkType; 2] = [ivo::MTL_NAME_320, ivo::MTL_NAME];
@@ -58,7 +59,7 @@ pub(crate) fn build<B: AsRef<[u8]>>(
     file: &ChunkFile<B>,
     companions: &mut dyn CompanionResolver,
     selection: LodSelection,
-    materials: ModelMaterials,
+    materials: MaterialReading,
     position_box: PositionBox,
 ) -> Result<Model, ModelError> {
     let mut read = Vec::new();
@@ -95,7 +96,12 @@ pub(crate) fn build<B: AsRef<[u8]>>(
     let mut chunks = usage(file, ModelFile::Model, &read);
     chunks.extend(companion_chunks);
     let material_library = material.flatten();
-    let materials = load_for(materials, material_library.as_deref(), companions);
+    let materials = load(
+        material_library.as_deref(),
+        companions,
+        materials,
+        &LayerCache::new(),
+    );
     Ok(Model {
         name: name.to_owned(),
         geometry: base_name,

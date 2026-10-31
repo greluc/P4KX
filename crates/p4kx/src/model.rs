@@ -4,7 +4,7 @@
 use std::path::PathBuf;
 
 use anyhow::Result;
-use p4kx_extraction::model::{LodSelection, ModelError};
+use p4kx_extraction::model::{LodSelection, MaterialReading, ModelError, PositionBox};
 use p4kx_extraction::{
     AnimationChoice, AnimationListing, AnimationSet, ConversionError, GltfError, ModelSource,
     PathIndex,
@@ -54,11 +54,18 @@ fn open_listing(source: &ModelFileSource) -> Result<(ModelSource, AnimationListi
     if let Some(entry) = &source.entry {
         let archive = crate::key::open(&source.path)?;
         let index = PathIndex::new(&archive);
-        let model = ModelSource::from_index_plain_materials(&index, entry, LodSelection::All)?;
+        let model = ModelSource::from_index_reading(
+            &index,
+            entry,
+            LodSelection::All,
+            PositionBox::default(),
+            MaterialReading::Plain,
+        )?;
         let listing = AnimationListing::from_archive(&index, entry, &source.animation_sources)?;
         return Ok((model, listing));
     }
-    let model = ModelSource::from_file_plain_materials(&source.path, LodSelection::All)?;
+    let model =
+        ModelSource::from_file_reading(&source.path, LodSelection::All, MaterialReading::Plain)?;
     let extra: Vec<PathBuf> = source.animation_sources.iter().map(PathBuf::from).collect();
     let listing = AnimationListing::from_disk(&source.path, &extra)?;
     Ok((model, listing))

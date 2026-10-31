@@ -5,46 +5,31 @@ use crate::{
     CompanionError, CompanionPath, CompanionResolver, LayerCache, MaterialLibrary, MaterialStatus,
 };
 
-/// How far a material library is read.
-pub(crate) enum Reading<'a> {
-    /// The library only, as a listing needs it.
-    Plain,
-    /// The library with the surfaces of its layers, read through the cache, and its checked
-    /// diffuse maps, as drawing needs it.
-    Drawn(&'a mut LayerCache),
-}
-
-/// What a model read does with the material library the model names.
+/// How much of the material library a model names is read.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum ModelMaterials {
-    /// Leaves it unread.
+pub enum MaterialReading {
+    /// Not at all: the status is [`MaterialStatus::Skipped`].
     Skipped,
-    /// Reads the library only.
+    /// The library only, as a listing needs it: the layers keep no
+    /// [`LayerSurface`](crate::LayerSurface) and no diffuse map is checked.
     Plain,
-    /// Reads the library as a caller that draws needs it.
+    /// The library with the surfaces of its layers and its checked diffuse maps, as a caller that
+    /// draws needs it.
     Drawn,
 }
 
-/// Reads the library `name` of a model as `materials` says.
-pub(crate) fn load_for(
-    materials: ModelMaterials,
-    name: Option<&str>,
-    companions: &mut dyn CompanionResolver,
-) -> MaterialStatus {
-    match materials {
-        ModelMaterials::Skipped => MaterialStatus::Skipped,
-        ModelMaterials::Plain => load(name, companions, Reading::Plain),
-        ModelMaterials::Drawn => load(name, companions, Reading::Drawn(&mut LayerCache::new())),
-    }
-}
-
-/// Fetches and reads the material library `name` through `companions`; a library that is
-/// missing, unsafe to ask for or unreadable is a status, not a failure of the model.
+/// Fetches and reads the material library `name` through `companions` as `reading` says, taking
+/// the layer files from `cache`; a library that is missing, unsafe to ask for or unreadable is a
+/// status, not a failure of the model.
 pub(crate) fn load(
     name: Option<&str>,
     companions: &mut dyn CompanionResolver,
-    reading: Reading<'_>,
+    reading: MaterialReading,
+    cache: &LayerCache,
 ) -> MaterialStatus {
+    if reading == MaterialReading::Skipped {
+        return MaterialStatus::Skipped;
+    }
     let Some(name) = name else {
         return MaterialStatus::Unnamed;
     };
@@ -63,7 +48,7 @@ pub(crate) fn load(
         },
         Ok(Some(bytes)) => match MaterialLibrary::parse(name, &bytes) {
             Ok(mut library) => {
-                if let Reading::Drawn(cache) = reading {
+                if reading == MaterialReading::Drawn {
                     crate::mtl_layers::resolve(&mut library, companions, cache);
                     crate::mtl_relief::check_diffuse_maps(&mut library, companions);
                 }

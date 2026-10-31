@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-//! The layer files shared by the loads of several libraries, their byte budget, and the plain
-//! read that leaves them unread.
+//! The layer files shared by the loads of several libraries, their limits, and the plain read
+//! that leaves them unread.
 
 use std::cell::Cell;
 use std::error::Error;
 
 use p4kx_chunks::ChunkFile;
 use p4kx_model::{
-    CompanionError, CompanionPath, LayerCache, LodSelection, MAX_LAYER_BYTES, MaterialLibrary,
-    MaterialStatus, Model,
+    CompanionError, CompanionPath, LayerCache, LayerLimits, LodSelection, MaterialLibrary,
+    MaterialReading, MaterialStatus, Model, PositionBox,
 };
 use p4kx_testkit::{TestModel, TestMtl, TestMtlMaterial};
 
@@ -21,11 +21,16 @@ const SECOND: &str = "objects/test/second";
 const SET: &str = "materials/layers/set";
 
 fn hull(submaterial: &str) -> Vec<u8> {
-    let material = TestMtlMaterial::new("hull").layer_with(&[
-        ("Name", "L"),
-        ("Path", "materials/layers/set.mtl"),
-        ("Submtl", submaterial),
-    ]);
+    layering(&[("materials/layers/set.mtl", submaterial)])
+}
+
+/// Returns a library of one material with a layer for each of the `(path, Submtl)` pairs.
+fn layering(layers: &[(&str, &str)]) -> Vec<u8> {
+    let material = layers
+        .iter()
+        .fold(TestMtlMaterial::new("hull"), |material, (path, name)| {
+            material.layer_with(&[("Name", "L"), ("Path", path), ("Submtl", name)])
+        });
     TestMtl::single(&material).cryxml()
 }
 
@@ -37,14 +42,23 @@ fn set() -> Vec<u8> {
     .cryxml()
 }
 
-fn diffuse_of(status: &MaterialStatus) -> Result<Option<[f32; 3]>, Box<dyn Error>> {
+/// Returns the diffuse colour of the surface of each layer of the first material.
+fn diffuse_of(status: &MaterialStatus) -> Result<Vec<Option<[f32; 3]>>, Box<dyn Error>> {
     let library = status.library().ok_or("loaded")?;
-    let layer = library
-        .materials
-        .first()
-        .and_then(|material| material.layers.first())
-        .ok_or("layer")?;
-    Ok(layer.surface.as_ref().map(|surface| surface.diffuse))
+    let material = library.materials.first().ok_or("material")?;
+    Ok(material
+        .layers
+        .iter()
+        .map(|layer| layer.surface.as_ref().map(|surface| surface.diffuse))
+        .collect())
+}
+
+fn load(
+    name: &str,
+    companions: &mut dyn p4kx_model::CompanionResolver,
+    cache: &LayerCache,
+) -> MaterialStatus {
+    MaterialStatus::load_with(Some(name), companions, MaterialReading::Drawn, cache)
 }
 
 #[test]
@@ -61,14 +75,19 @@ fn a_layer_file_shared_by_two_libraries_is_fetched_once() -> TestResult {
             _ => None,
         })
     };
-    let mut cache = LayerCache::new();
+    let cache = LayerCache::new();
 
-    let first = MaterialStatus::load_cached(Some(FIRST), &mut companions, &mut cache);
-    let second = MaterialStatus::load_cached(Some(SECOND), &mut companions, &mut cache);
+    let first = load(FIRST, &mut companions, &cache);
+    let second = load(SECOND, &mut companions, &cache);
 
-    assert_eq!(diffuse_of(&first)?, Some([0.1; 3]), "first");
-    assert_eq!(diffuse_of(&second)?, Some([0.9; 3]), "another sub-material");
+    assert_eq!(diffuse_of(&first)?, [Some([0.1; 3])], "first");
+    assert_eq!(
+        diffuse_of(&second)?,
+        [Some([0.9; 3])],
+        "another sub-material"
+    );
     assert_eq!(fetched.get(), 1, "one fetch and one parse for both");
+    assert_eq!(cache.len(), 1, "one file kept");
     Ok(())
 }
 
@@ -93,37 +112,107 @@ fn without_a_shared_cache_each_load_fetches_the_file() {
 }
 
 #[test]
-fn the_bytes_one_load_makes_the_reader_fetch_are_limited() -> TestResult {
-    let big = vec![0_u8; MAX_LAYER_BYTES / 2 + 1];
-    let layers = ["a", "b", "c"].map(|name| format!("materials/layers/{name}.mtl"));
-    let material = layers
-        .iter()
-        .fold(TestMtlMaterial::new("hull"), |material, path| {
-            material.layer_with(&[("Name", "L"), ("Path", path)])
-        });
-    let library = TestMtl::single(&material).cryxml();
+fn one_load_stops_fetching_once_its_bytes_are_reached_and_the_skipped_file_is_retried() -> TestResult
+{
+    let layer = set();
+    let limits = LayerLimits {
+        bytes_per_load: layer.len(),
+        ..LayerLimits::default()
+    };
     let fetched = Cell::new(0);
     let mut companions = |path: CompanionPath<'_>| -> Result<Option<Vec<u8>>, CompanionError> {
         Ok(match path {
-            CompanionPath::Material(FIRST) => Some(library.clone()),
+            CompanionPath::Material(FIRST) => Some(layering(&[
+                ("materials/layers/a.mtl", "first"),
+                ("materials/layers/b.mtl", "first"),
+            ])),
+            CompanionPath::Material(SECOND) => Some(layering(&[("materials/layers/b.mtl", "")])),
             CompanionPath::Material(_) => {
                 fetched.set(fetched.get() + 1);
-                Some(big.clone())
+                Some(layer.clone())
             }
             _ => None,
         })
     };
+    let cache = LayerCache::with_limits(limits);
 
-    let status = MaterialStatus::load(Some(FIRST), &mut companions);
+    let first = load(FIRST, &mut companions, &cache);
 
-    let library = status.library().ok_or("loaded")?;
-    assert_eq!(fetched.get(), 2, "the third file is over the budget");
-    assert_eq!(
-        library.unresolved_layers.len(),
-        3,
-        "none parses, all listed"
-    );
+    let library = first.library().ok_or("loaded")?;
+    assert_eq!(fetched.get(), 1, "the second file is over the budget");
+    assert_eq!(diffuse_of(&first)?, [Some([0.1; 3]), None]);
+    assert_eq!(library.unresolved_layers, ["materials/layers/b.mtl"]);
+    assert_eq!(cache.len(), 1, "the skipped file is not cached");
+
+    let second = load(SECOND, &mut companions, &cache);
+
+    assert_eq!(fetched.get(), 2, "the next load fetches it");
+    assert_eq!(diffuse_of(&second)?, [Some([0.1; 3])]);
     Ok(())
+}
+
+#[test]
+fn which_layers_resolve_does_not_depend_on_what_the_cache_holds() -> TestResult {
+    let limits = LayerLimits {
+        files_per_load: 1,
+        ..LayerLimits::default()
+    };
+    let mut companions = |path: CompanionPath<'_>| -> Result<Option<Vec<u8>>, CompanionError> {
+        Ok(match path {
+            CompanionPath::Material(FIRST) => Some(layering(&[
+                ("materials/layers/a.mtl", ""),
+                ("materials/layers/b.mtl", ""),
+            ])),
+            CompanionPath::Material(_) => Some(set()),
+            _ => None,
+        })
+    };
+    let cold = LayerCache::with_limits(limits);
+    let warm = LayerCache::with_limits(limits);
+    let mut warming = |path: CompanionPath<'_>| -> Result<Option<Vec<u8>>, CompanionError> {
+        Ok(match path {
+            CompanionPath::Material(SECOND) => Some(layering(&[("materials/layers/b.mtl", "")])),
+            CompanionPath::Material(_) => Some(set()),
+            _ => None,
+        })
+    };
+    load(SECOND, &mut warming, &warm);
+    assert_eq!(warm.len(), 1, "b is cached");
+
+    let from_cold = load(FIRST, &mut companions, &cold);
+    let from_warm = load(FIRST, &mut companions, &warm);
+
+    assert_eq!(diffuse_of(&from_cold)?, diffuse_of(&from_warm)?);
+    assert_eq!(diffuse_of(&from_warm)?, [Some([0.1; 3]), None], "a, not b");
+    Ok(())
+}
+
+#[test]
+fn a_full_cache_starts_over() {
+    let fetched = Cell::new(0);
+    let mut companions = |path: CompanionPath<'_>| -> Result<Option<Vec<u8>>, CompanionError> {
+        Ok(match path {
+            CompanionPath::Material(FIRST) => Some(layering(&[("materials/layers/a.mtl", "")])),
+            CompanionPath::Material(SECOND) => Some(layering(&[("materials/layers/b.mtl", "")])),
+            CompanionPath::Material(_) => {
+                fetched.set(fetched.get() + 1);
+                Some(set())
+            }
+            _ => None,
+        })
+    };
+    let cache = LayerCache::with_limits(LayerLimits {
+        cached_files: 1,
+        ..LayerLimits::default()
+    });
+
+    load(FIRST, &mut companions, &cache);
+    load(SECOND, &mut companions, &cache);
+    assert_eq!(cache.len(), 1, "a made room for b");
+    load(FIRST, &mut companions, &cache);
+
+    assert_eq!(fetched.get(), 3, "a was fetched again");
+    assert!(!cache.is_empty());
 }
 
 #[test]
@@ -140,17 +229,37 @@ fn a_plain_load_reads_no_layer_file() -> TestResult {
         })
     };
 
-    let status = MaterialStatus::load_plain(Some(FIRST), &mut companions);
+    let status = MaterialStatus::load_with(
+        Some(FIRST),
+        &mut companions,
+        MaterialReading::Plain,
+        &LayerCache::new(),
+    );
 
     let library = status.library().ok_or("loaded")?;
     assert_eq!(fetched.get(), 0, "nothing is asked for");
     assert!(library.unresolved_layers.is_empty(), "nothing is reported");
-    assert_eq!(diffuse_of(&status)?, None, "no surface");
+    assert_eq!(diffuse_of(&status)?, [None], "no surface");
     Ok(())
 }
 
 #[test]
-fn a_model_read_with_plain_materials_reads_no_layer_file_and_a_drawn_read_does() -> TestResult {
+fn a_skipped_load_reads_nothing() {
+    let mut companions =
+        |_: CompanionPath<'_>| -> Result<Option<Vec<u8>>, CompanionError> { Ok(None) };
+
+    let status = MaterialStatus::load_with(
+        Some(FIRST),
+        &mut companions,
+        MaterialReading::Skipped,
+        &LayerCache::new(),
+    );
+
+    assert_eq!(status, MaterialStatus::Skipped);
+}
+
+#[test]
+fn a_model_reads_plain_materials_without_layer_files_and_drawn_ones_with() -> TestResult {
     let cube = TestModel::cube().with_material_library(FIRST);
     let (cgfm, library) = (cube.cgfm(), hull("first"));
     let file = ChunkFile::parse(cube.cgf())?;
@@ -166,14 +275,27 @@ fn a_model_read_with_plain_materials_reads_no_layer_file_and_a_drawn_read_does()
             _ => None,
         })
     };
+    let read = |companions: &mut dyn p4kx_model::CompanionResolver, reading| {
+        Model::read_with_materials(
+            "cube.cgf",
+            &file,
+            companions,
+            LodSelection::All,
+            PositionBox::default(),
+            reading,
+        )
+    };
 
-    let plain = Model::read_plain_materials("cube.cgf", &file, &mut companions, LodSelection::All)?;
+    let plain = read(&mut companions, MaterialReading::Plain)?;
     assert_eq!(fetched.get(), 0, "no layer file for a listing");
-    assert_eq!(diffuse_of(&plain.materials)?, None, "no surface");
+    assert_eq!(diffuse_of(&plain.materials)?, [None], "no surface");
 
-    let drawn = Model::read("cube.cgf", &file, &mut companions)?;
+    let skipped = read(&mut companions, MaterialReading::Skipped)?;
+    assert_eq!(skipped.materials, MaterialStatus::Skipped, "not read");
+
+    let drawn = read(&mut companions, MaterialReading::Drawn)?;
     assert_eq!(fetched.get(), 1, "one layer file for drawing");
-    assert_eq!(diffuse_of(&drawn.materials)?, Some([0.1; 3]), "surface");
+    assert_eq!(diffuse_of(&drawn.materials)?, [Some([0.1; 3])], "surface");
     Ok(())
 }
 

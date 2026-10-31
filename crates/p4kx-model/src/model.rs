@@ -5,10 +5,9 @@ use p4kx_chunks::{ChunkFile, ChunkType, Container, ivo};
 
 use crate::build::build;
 use crate::crch::build as build_crch;
-use crate::mtl_load::ModelMaterials;
 use crate::{
-    Bone, CompanionResolver, Influences, MaterialStatus, ModelError, ModelIssue, PositionBox,
-    Transform,
+    Bone, CompanionResolver, Influences, MaterialReading, MaterialStatus, ModelError, ModelIssue,
+    PositionBox, Transform,
 };
 
 /// A model read from a chunk file and its companions, in `CryEngine` coordinates: Z up, metres.
@@ -310,23 +309,33 @@ impl Model {
         lods: LodSelection,
         position_box: PositionBox,
     ) -> Result<Self, ModelError> {
-        Self::read_selecting(
+        Self::read_with_materials(
             name,
             file,
             companions,
             lods,
-            ModelMaterials::Drawn,
             position_box,
+            MaterialReading::Drawn,
         )
     }
 
-    pub(crate) fn read_selecting<B: AsRef<[u8]>>(
+    /// Reads the model like [`Self::read_with_box`], reading the material library the model names
+    /// as `materials` says: [`MaterialReading::Skipped`] leaves it unread, so [`Self::materials`]
+    /// is [`MaterialStatus::Skipped`] and [`Self::material_library`] still holds the name, for a
+    /// caller that chooses and caches the library itself, see [`MaterialStatus::load_with`];
+    /// [`MaterialReading::Plain`] reads it without the layer files and diffuse maps that only a
+    /// caller that draws needs.
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::read_with`].
+    pub fn read_with_materials<B: AsRef<[u8]>>(
         name: &str,
         file: &ChunkFile<B>,
         companions: &mut dyn CompanionResolver,
         lods: LodSelection,
-        materials: ModelMaterials,
         position_box: PositionBox,
+        materials: MaterialReading,
     ) -> Result<Self, ModelError> {
         match file.container() {
             Container::Ivo => build(name, file, companions, lods, materials, position_box),

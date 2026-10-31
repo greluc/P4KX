@@ -3,7 +3,7 @@
 
 use std::collections::HashSet;
 
-use crate::mtl_layer_cache::{Budget, MAX_LAYER_FILES};
+use crate::mtl_layer_cache::MAX_LAYER_FILES;
 use crate::mtl_parse::{scalar, vector};
 use crate::{CompanionResolver, LayerCache, Material, MaterialLayer, MaterialLibrary, TextureSlot};
 
@@ -57,9 +57,9 @@ impl Material {
 pub(crate) fn resolve(
     library: &mut MaterialLibrary,
     companions: &mut dyn CompanionResolver,
-    cache: &mut LayerCache,
+    cache: &LayerCache,
 ) {
-    let mut budget = Budget::new();
+    let mut budget = cache.budget();
     let mut unresolved: Vec<String> = Vec::new();
     let mut listed: HashSet<String> = HashSet::new();
     for material in &mut library.materials {

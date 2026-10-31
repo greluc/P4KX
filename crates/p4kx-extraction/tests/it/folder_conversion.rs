@@ -9,8 +9,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use p4kx_extraction::{
-    Archive, ConflictPolicy, EntryFailure, ExtractOptions, ExtractionReport, Filter, FolderError,
-    FolderFileError, FolderSource, RecordExportReport, convert_folder, extract,
+    Archive, ConflictPolicy, EntryFailure, Exclusion, ExtractOptions, ExtractionReport, Filter,
+    FolderError, FolderFileError, FolderSource, RecordExportReport, convert_folder, extract,
 };
 use p4kx_testkit::{
     ArchiveBuilder, CryXmlByteOrder, CryXmlSignature, DataForgeBuilder, SplitDds, TestCodec,
@@ -107,9 +107,10 @@ impl Fixture {
             policy: ConflictPolicy::Overwrite,
             ..ExtractOptions::default()
         };
+        let selection = source.select(filter, &Exclusion::default());
         Ok(convert_folder(
             &source,
-            filter,
+            &selection,
             copy_other,
             &self.folder(name),
             &options,
@@ -233,6 +234,81 @@ fn a_filter_selects_the_files_by_their_relative_path() -> TestResult {
     Ok(())
 }
 
+impl Fixture {
+    fn convert_excluding(
+        &self,
+        input: &Path,
+        exclude: &[&str],
+    ) -> Result<ExtractionReport, Box<dyn Error>> {
+        let source = FolderSource::scan(input, None)?;
+        let options = ExtractOptions {
+            policy: ConflictPolicy::Overwrite,
+            ..ExtractOptions::default()
+        };
+        let selection = source.select(None, &Exclusion::parse(exclude)?);
+        Ok(convert_folder(
+            &source,
+            &selection,
+            false,
+            &self.folder("out"),
+            &options,
+        )?)
+    }
+}
+
+#[test]
+fn an_excluded_texture_header_leaves_out_its_parts() -> TestResult {
+    let fixture = Fixture::new()?;
+    let raw = fixture.extract("raw", false)?;
+
+    let report = fixture.convert_excluding(&raw, &["rock_diff.dds", "*.wem"])?;
+
+    assert!(report.is_complete(), "complete: {report:?}");
+    let names: Vec<_> = tree(&fixture.folder("out"))?.into_keys().collect();
+    assert!(
+        names.iter().all(|name| !name.contains("rock_diff")),
+        "no texture file, stray parts included: {names:?}"
+    );
+    assert!(
+        names.iter().all(|name| !name.contains("5.wav")),
+        "the sound is left out: {names:?}"
+    );
+    assert!(
+        names.contains(&"Data/Ships/gladius.xml".to_owned()),
+        "{names:?}"
+    );
+    Ok(())
+}
+
+#[test]
+fn an_excluded_part_is_not_written_but_still_builds_its_texture() -> TestResult {
+    let fixture = Fixture::new()?;
+    let raw = fixture.extract("raw", false)?;
+    let source = FolderSource::scan(&raw, None)?;
+    let exclusion = Exclusion::parse(["rock_diff.dds.2"])?;
+
+    let counts = source.select(None, &exclusion);
+    let report = fixture.convert_excluding(&raw, &["rock_diff.dds.2"])?;
+
+    assert_eq!(counts.excluded_parts(), 1, "{counts:?}");
+    assert_eq!(
+        counts.len() + 1,
+        counts.matched(),
+        "one file left out: {counts:?}"
+    );
+    assert!(report.is_complete(), "complete: {report:?}");
+    let names: Vec<_> = tree(&fixture.folder("out"))?.into_keys().collect();
+    assert!(
+        names.iter().any(|name| name.ends_with("rock_diff.png")),
+        "the texture is built from all its parts: {names:?}"
+    );
+    assert!(
+        names.iter().all(|name| !name.ends_with(".dds.2")),
+        "the part is not written: {names:?}"
+    );
+    Ok(())
+}
+
 #[test]
 fn overlapping_input_and_output_folders_are_refused_and_nothing_is_written() -> TestResult {
     let fixture = Fixture::new()?;
@@ -246,7 +322,8 @@ fn overlapping_input_and_output_folders_are_refused_and_nothing_is_written() -> 
         raw.join("inside"),
         fixture.dir.path().to_path_buf(),
     ] {
-        let refused = convert_folder(&source, None, true, &target, &options);
+        let all = source.select(None, &Exclusion::default());
+        let refused = convert_folder(&source, &all, true, &target, &options);
         assert!(
             matches!(refused, Err(FolderError::Overlap { .. })),
             "{}: {refused:?}",

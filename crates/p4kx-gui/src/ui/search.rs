@@ -3,6 +3,7 @@
 
 use egui::{Align, Frame, Id, Layout, Margin, Rect, TextEdit, Ui, pos2, vec2};
 
+use super::filter_text::filter_problem;
 use super::{extraction, wrapped_actions};
 use crate::theme::desktop::{
     ICON, SEARCH_ICON_INSET, SEARCH_PADDING_LEFT, SEARCH_WIDTH, TOOLBAR_PADDING,
@@ -28,6 +29,7 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model) {
     let label = eyebrow(&texts.get(Text::SearchLabel));
     let hint = texts.get(Text::SearchHint);
     let filters = eyebrow(&texts.get(Text::QuickFilters));
+    let problem = filter_problem(texts, &text);
     let mut changed = false;
     let toolbar = Frame::NONE
         .inner_margin(Margin::same(px(TOOLBAR_PADDING)))
@@ -38,13 +40,14 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model) {
                 let label = ui.label(label);
                 stacked = !extraction::fit_beside(ui, model, SEARCH_WIDTH);
                 if stacked {
-                    changed |= field(ui, &mut text, &hint, label.id);
+                    changed |= filter_field(ui, &mut text, (&hint, label.id), problem.as_deref());
                     return;
                 }
                 ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                     extraction::actions(ui, model);
                     ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
-                        changed |= field(ui, &mut text, &hint, label.id);
+                        changed |=
+                            filter_field(ui, &mut text, (&hint, label.id), problem.as_deref());
                     });
                 });
             });
@@ -83,6 +86,22 @@ pub(super) fn field(ui: &mut Ui, text: &mut String, hint: &str, label: Id) -> bo
     field_response(ui, text, hint, label).changed()
 }
 
+/// Shows the search field of a Filter like [`field`]; with a `problem` the frame is that of an
+/// error and the text appears on hover.
+pub(super) fn filter_field(
+    ui: &mut Ui,
+    text: &mut String,
+    (hint, label): (&str, Id),
+    problem: Option<&str>,
+) -> bool {
+    let response = edit(ui, text, hint, label, problem.is_some());
+    let changed = response.changed();
+    if let Some(problem) = problem {
+        response.on_hover_text(problem);
+    }
+    changed
+}
+
 /// Shows the search field like [`field`] and returns its response.
 pub(super) fn field_response(
     ui: &mut Ui,
@@ -90,6 +109,10 @@ pub(super) fn field_response(
     hint: &str,
     label: Id,
 ) -> egui::Response {
+    edit(ui, text, hint, label, false)
+}
+
+fn edit(ui: &mut Ui, text: &mut String, hint: &str, label: Id, refused: bool) -> egui::Response {
     let bloom = field::bloom_slot(ui);
     let frame = field::frame_slot(ui);
     let edit = TextEdit::singleline(text)
@@ -105,7 +128,11 @@ pub(super) fn field_response(
         .desired_width(ui.available_width())
         .align(egui::Align2::LEFT_CENTER);
     let response = ui.add(edit).labelled_by(label);
-    field::paint_frame(ui, frame, response.rect, response.has_focus());
+    if refused {
+        field::paint_error_frame(ui, frame, response.rect);
+    } else {
+        field::paint_frame(ui, frame, response.rect, response.has_focus());
+    }
     if response.has_focus() {
         field::paint_bloom(ui, bloom, response.rect);
     }

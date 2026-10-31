@@ -74,6 +74,22 @@ fn the_selected_record_folder_is_exported_as_json_files() -> TestResult {
 }
 
 #[test]
+fn a_record_path_filter_that_is_refused_is_not_exported() -> TestResult {
+    let (_dir, mut model, out) = opened(&database())?;
+
+    model.begin_record_export();
+    choose(&mut model, &out, RecordForm::Ndjson)?;
+    for text in ["a".repeat(2000), "*a".repeat(40)] {
+        let setup = model.record_export_setup_mut().ok_or("no setup")?;
+        setup.set_filter(&text);
+        assert!(setup.filter_error().is_some(), "{} bytes", text.len());
+        assert!(!setup.is_ready(), "not ready with {} bytes", text.len());
+        assert!(!model.submit_record_export(|| {}), "not started");
+    }
+    Ok(())
+}
+
+#[test]
 fn a_record_path_filter_is_exported_as_one_ndjson_file() -> TestResult {
     let (_dir, mut model, out) = opened(&database())?;
 

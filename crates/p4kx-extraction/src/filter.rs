@@ -80,6 +80,16 @@ impl Filter {
     ///
     /// Returns [`FilterError::TooLong`] or [`FilterError::TooManyWildcards`].
     pub fn parse(text: &str) -> Result<Self, FilterError> {
+        Self::check(text)?;
+        Ok(Self::new(text))
+    }
+
+    /// Checks `text` against the limits of [`Filter::parse`] without building the Filter.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`FilterError::TooLong`] or [`FilterError::TooManyWildcards`].
+    pub fn check(text: &str) -> Result<(), FilterError> {
         if text.len() > MAX_FILTER_LEN {
             return Err(FilterError::TooLong { len: text.len() });
         }
@@ -90,7 +100,7 @@ impl Filter {
         if count > MAX_FILTER_WILDCARDS {
             return Err(FilterError::TooManyWildcards { count });
         }
-        Ok(Self::new(text))
+        Ok(())
     }
 
     /// Returns the text the Filter was created from.

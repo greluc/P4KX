@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use p4kx_comparison::{CancelToken, Comparison, EntryChange, EntryCounts, Filter, OwnedComparison};
+use p4kx_comparison::{CancelToken, EntryChange, Filter, OwnedComparison};
 
 use super::ComparisonSide;
 use super::diff::EntryDiff;
@@ -16,42 +16,8 @@ use super::record_view::{ComparisonList, RecordChangeView};
 use super::report::{self, ReportJob, ReportStatus};
 use super::schema_view::SchemaView;
 use super::selection::{ChangeSelection, selected_len};
+use super::summary::Summary;
 use crate::SortDirection;
-
-/// The counts of the changes below one top-level directory.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct DirectorySummary {
-    /// The top-level directory as the first change below it spells it; empty for the root.
-    pub directory: String,
-    /// The counts below it.
-    pub counts: EntryCounts,
-}
-
-/// The counts of a Comparison per change kind and per top-level directory.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
-pub struct Summary {
-    /// The counts per change kind.
-    pub counts: EntryCounts,
-    /// The counts per top-level directory, ordered by directory ignoring case.
-    pub directories: Vec<DirectorySummary>,
-}
-
-impl Summary {
-    /// Takes the counts of `comparison`.
-    pub(crate) fn of(comparison: &Comparison<'_>) -> Self {
-        Self {
-            counts: comparison.entry_counts(),
-            directories: comparison
-                .directory_counts()
-                .into_iter()
-                .map(|directory| DirectorySummary {
-                    directory: directory.directory.to_owned(),
-                    counts: directory.counts,
-                })
-                .collect(),
-        }
-    }
-}
 
 static GENERATIONS: AtomicU64 = AtomicU64::new(0);
 
@@ -165,17 +131,27 @@ impl ComparisonView {
     /// `wake` from it once the result is ready; empty text shows every change at once.
     pub fn set_filter(&mut self, text: &str, wake: impl Fn() + Clone + Send + 'static) {
         text.clone_into(&mut self.filter_text);
-        if let Some(records) = &mut self.records {
-            records.set_filter((!text.is_empty()).then(|| Filter::new(text)), wake.clone());
-        }
         self.pending = None;
         if text.is_empty() {
+            if let Some(records) = &mut self.records {
+                records.set_filter(None, wake);
+            }
             self.matched = None;
             self.revision = self.revision.wrapping_add(1);
             self.refresh_shown();
             return;
         }
-        match filter_job::start(&self.comparison, &Filter::new(text), wake) {
+        let Ok(filter) = Filter::parse(text) else {
+            if let Some(records) = &mut self.records {
+                records.show_none();
+            }
+            self.show_matched(filter_job::none(&self.comparison));
+            return;
+        };
+        if let Some(records) = &mut self.records {
+            records.set_filter(Some(filter.clone()), wake.clone());
+        }
+        match filter_job::start(&self.comparison, &filter, wake) {
             Started::Running(job) => self.pending = Some(job),
             Started::Finished(matched) => self.show_matched(matched),
         }
@@ -277,12 +253,19 @@ impl ComparisonView {
 
     /// Writes the JSON report of the shown changes to `path` on a background thread, the same
     /// report `p4kx compare --report` writes with the current Filter; `wake` is called from that
-    /// thread once it ended. Nothing starts while a report is being saved.
+    /// thread once it ended. Nothing starts while a report is being saved or while the Filter text
+    /// is refused.
     pub fn save_report(&mut self, path: PathBuf, wake: impl Fn() + Send + 'static) {
         if self.is_saving() {
             return;
         }
-        let filter = (!self.filter_text.is_empty()).then(|| Filter::new(&self.filter_text));
+        let filter = if self.filter_text.is_empty() {
+            None
+        } else if let Ok(filter) = Filter::parse(&self.filter_text) {
+            Some(filter)
+        } else {
+            return;
+        };
         self.report = Some(report::start(&self.comparison, filter, path, wake));
     }
 

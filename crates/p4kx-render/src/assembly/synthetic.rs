@@ -149,6 +149,7 @@ fn groups(first_sphere: u32, sphere_indices: u32) -> Vec<Group> {
 /// Returns the ship: an ellipsoid hull of a smooth sphere mesh, and a canopy, two wings, a fin and
 /// two engines of one cube mesh.
 pub(crate) fn ship() -> AssemblyScene {
+    p4kx_testkit::watchdog::start();
     let (mut vertices, mut indices) = cube();
     let first_sphere = u32::try_from(indices.len()).unwrap_or_default();
     let (round, round_indices) = sphere(u32::try_from(vertices.len()).unwrap_or_default());

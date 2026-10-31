@@ -60,8 +60,8 @@ fn scan<'f>(
         let Some(record) = forge.record(index) else {
             continue;
         };
-        if let Some(filter) = &options.filter
-            && !record.record_path().is_ok_and(|path| filter.matches(path))
+        if (options.filter.is_some() || !options.exclusion.is_empty())
+            && !record.record_path().is_ok_and(|path| options.accepts(path))
         {
             continue;
         }

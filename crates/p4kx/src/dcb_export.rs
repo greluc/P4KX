@@ -242,7 +242,7 @@ fn select_records<'f>(forge: &'f DataForge<'_>, filter: Option<&str>) -> Result<
     let Some(text) = filter else {
         return Ok(forge.records().collect());
     };
-    let filter = Filter::new(text);
+    let filter = Filter::parse(text)?;
     let selected: Vec<_> = forge
         .records()
         .filter(|record| record.record_path().is_ok_and(|path| filter.matches(path)))

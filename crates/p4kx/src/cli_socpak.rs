@@ -33,6 +33,10 @@ pub(crate) enum SocpakAction {
         /// Extracts only the Entries the Filter matches, with the rules of `p4kx search`.
         #[arg(long, value_name = "FILTER")]
         filter: Option<String>,
+        /// Leaves out every Entry this Filter matches, with the rules of `p4kx extract --exclude`;
+        /// repeatable, also without --filter.
+        #[arg(long, value_name = "FILTER")]
+        exclude: Vec<String>,
         /// Target folder; created if missing, files already in it are handled by --conflict.
         /// Defaults to a new folder SC-EXPORT-<Channel>-<Build version>-<timestamp> in the
         /// current directory.
@@ -61,6 +65,10 @@ pub(crate) enum SocpakAction {
         /// Checks only the Entries the Filter matches, with the rules of `p4kx search`.
         #[arg(long, value_name = "FILTER")]
         filter: Option<String>,
+        /// Leaves out every Entry this Filter matches, with the rules of `p4kx verify --exclude`;
+        /// repeatable.
+        #[arg(long, value_name = "FILTER")]
+        exclude: Vec<String>,
     },
 }
 

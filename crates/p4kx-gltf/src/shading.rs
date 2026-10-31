@@ -161,33 +161,19 @@ fn mix(into: &mut [f32; 3], from: [f32; 3], share: f32) {
 /// `None` when the material is shaded by its own colours.
 pub(crate) fn shaded_layers(material: &Material) -> Option<Vec<Shaded>> {
     let layers = &material.layers;
-    let wear = material.wear_blend().clamp(0.0, 1.0);
-    let others = layers.len().saturating_sub(1).max(1);
-    #[expect(clippy::cast_precision_loss, reason = "at most 64 layers")]
-    let others = others as f32;
-    let weight = |at: usize| if at == 0 { 1.0 - wear } else { wear / others };
-    let resolved = || {
+    let shares =
+        material.layer_shares(|at| layers.get(at).is_some_and(|layer| layer.surface.is_some()))?;
+    Some(
         layers
             .iter()
+            .zip(shares)
             .enumerate()
-            .filter_map(|(at, layer)| Some((at, layer, layer.surface.as_ref()?)))
-    };
-    let (first, _, _) = resolved().next()?;
-    let total: f32 = resolved().map(|(at, _, _)| weight(at)).sum();
-    let only = total <= f32::EPSILON;
-    if only && first != 0 {
-        return None;
-    }
-    Some(
-        resolved()
-            .map(|(at, layer, surface)| Shaded {
-                at,
-                share: if only {
-                    f32::from(u8::from(at == first))
-                } else {
-                    weight(at) / total
-                },
-                layer: shade(layer, surface),
+            .filter_map(|(at, (layer, share))| {
+                Some(Shaded {
+                    at,
+                    share,
+                    layer: shade(layer, layer.surface.as_ref()?),
+                })
             })
             .collect(),
     )

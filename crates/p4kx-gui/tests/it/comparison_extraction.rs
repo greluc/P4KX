@@ -19,7 +19,7 @@ use p4kx_gui::{
 };
 use p4kx_testkit::{ArchiveBuilder, TestEntry};
 
-fn poll_until(model: &mut Model, done: impl Fn(&Model) -> bool) -> TestResult {
+pub(crate) fn poll_until(model: &mut Model, done: impl Fn(&Model) -> bool) -> TestResult {
     wait_polling_described(
         model,
         "the work to finish",
@@ -37,7 +37,7 @@ fn settled(model: &Model) -> bool {
     matches!(model.comparison().status(), ComparisonStatus::Finished(view) if !view.is_filtering())
 }
 
-fn compared(pair: &Pair, filter: &str) -> Result<Model, Box<dyn Error>> {
+pub(crate) fn compared(pair: &Pair, filter: &str) -> Result<Model, Box<dyn Error>> {
     let mut model = Model::new(Language::BritishEnglish);
     let tab = model.comparison_mut();
     tab.set_archive(ComparisonSide::Old, pair.old.clone());
@@ -83,7 +83,7 @@ fn at(out: &Path, path: &str) -> PathBuf {
         .fold(out.to_path_buf(), |dir, part| dir.join(part))
 }
 
-fn written(out: &Path) -> Result<BTreeMap<String, usize>, Box<dyn Error>> {
+pub(crate) fn written(out: &Path) -> Result<BTreeMap<String, usize>, Box<dyn Error>> {
     let mut files = BTreeMap::new();
     let mut folders = vec![out.to_path_buf()];
     while let Some(folder) = folders.pop() {

@@ -4,10 +4,8 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use super::deadline::arm;
-use super::{
-    Adapters, AssemblyDraw, Colours, Frame, Hologram, Look, Offscreen, Picture, Shading, Subject,
-};
+use super::probe::{self, Probe};
+use super::{Adapters, AssemblyDraw, Colours, Frame, Hologram, Look, Picture, Shading, Subject};
 use crate::assembly::AssemblyScene;
 use crate::assembly::synthetic::{ship, stacked};
 use crate::{Camera, DrawList, HologramView};
@@ -18,7 +16,6 @@ const ALPHA_FLOOR: u8 = 8;
 const TRANSPARENT: [u8; 4] = [0, 0, 0, 0];
 const CHANNEL_TOLERANCE: u8 = 10;
 const DIFFERING_ONE_IN: usize = 20;
-const REQUIRE: &str = "P4KX_REQUIRE_SOFTWARE_ADAPTER";
 const BLESS: &str = "P4KX_BLESS_REFERENCE";
 const SAVE: &str = "P4KX_RENDER_DIR";
 
@@ -78,23 +75,8 @@ fn frame_of(
     }
 }
 
-#[expect(
-    clippy::print_stderr,
-    reason = "tells the test run why a test checked nothing"
-)]
-fn software(test: &str) -> Option<Offscreen> {
-    arm(test);
-    match Offscreen::new(Adapters::Software) {
-        Ok(offscreen) => Some(offscreen),
-        Err(error) => {
-            assert!(
-                std::env::var_os(REQUIRE).is_none(),
-                "{test}: {REQUIRE} is set but there is no software adapter: {error}"
-            );
-            eprintln!("{test}: no software adapter ({error}), nothing checked");
-            None
-        }
-    }
+fn software(test: &str) -> Option<Probe> {
+    probe::open(test, Adapters::Software)
 }
 
 fn pixel(picture: &Picture, x: u32, y: u32) -> [u8; 4] {

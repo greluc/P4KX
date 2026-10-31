@@ -9,7 +9,7 @@ use std::fs;
 use std::path::Path;
 
 use p4kx_extraction::{
-    ConflictPolicy, ExtractOptions, ExtractionReport, FolderSource, RecordExportReport,
+    ConflictPolicy, Exclusion, ExtractOptions, ExtractionReport, FolderSource, RecordExportReport,
     convert_folder,
 };
 use p4kx_testkit::{DataForgeBuilder, TestRecord, TestStruct, TestType, TestValue};
@@ -40,7 +40,8 @@ fn convert(input: &Path, out: &Path) -> Result<ExtractionReport, Box<dyn Error>>
         policy: ConflictPolicy::Overwrite,
         ..ExtractOptions::default()
     };
-    Ok(convert_folder(&source, None, false, out, &options)?)
+    let selection = source.select(None, &Exclusion::default());
+    Ok(convert_folder(&source, &selection, false, out, &options)?)
 }
 
 #[test]

@@ -6,7 +6,7 @@ use std::path::PathBuf;
 
 use p4kx_assembly::{EntityLookupError, LoadoutError};
 use p4kx_extraction::model::MaterialError;
-use p4kx_extraction::{ArchiveError, ConversionError, DataForgeError, EntryReadError};
+use p4kx_extraction::{ArchiveError, ConversionError, DataForgeError, EntryReadError, FilterError};
 use p4kx_settings::{KeyChoiceError, SettingsError};
 use thiserror::Error;
 
@@ -49,6 +49,9 @@ pub(crate) enum ToolError {
         /// The cap in bytes.
         max: usize,
     },
+    /// A Filter is too long or has too many wildcards.
+    #[error("the Filter is not accepted")]
+    Filter(#[from] FilterError),
     /// The cursor is not one this tool returned for this listing.
     #[error("the cursor `{0}` is not one this listing returned")]
     BadCursor(String),

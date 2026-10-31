@@ -9,7 +9,7 @@ use p4kx_gltf::{DrawnMaterial, drawn_materials, texture_path};
 use p4kx_model::{Material, MaterialLayer, MaterialLibrary, MaterialStatus, TintPalette};
 
 use crate::TextureUse;
-use crate::describe::{describe, library_path};
+use crate::describe::{describe, layer_shares, library_path};
 use crate::items::Item;
 use crate::manifest::{Issue, IssueOrigin};
 use crate::manifest_materials::MaterialDescription;
@@ -182,6 +182,7 @@ impl Collected {
             parent.followed_at = Some(depth);
         }
         self.cut.remove(&at);
+        let mut resolved = vec![false; material.layers.len()];
         for (number, layer) in material.layers.iter().enumerate() {
             let found = self.layer_material(material, layer, models, depth);
             if let Some(found) = found
@@ -191,7 +192,15 @@ impl Collected {
                     .and_then(|parent| parent.description.layers.get_mut(number))
             {
                 slot.material = Some(id_of(found));
+                if let Some(flag) = resolved.get_mut(number) {
+                    *flag = true;
+                }
             }
+        }
+        if let Some(parent) = self.descriptions.get_mut(at) {
+            parent.description.layer_shares = layer_shares(material, |number| {
+                resolved.get(number).copied().unwrap_or(false)
+            });
         }
     }
 

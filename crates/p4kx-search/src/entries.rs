@@ -101,7 +101,9 @@ fn candidates<'a>(archive: &'a Archive, options: &SearchOptions) -> Vec<&'a Entr
                 .filter
                 .as_ref()
                 .map_or_else(|| has_text_extension(path), |filter| filter.matches(path));
-            selected && !(leave_ini && Language::from_global_ini_path(path).is_some())
+            selected
+                && !options.exclusion.matches(path)
+                && !(leave_ini && Language::from_global_ini_path(path).is_some())
         })
         .collect();
     found.par_sort_unstable_by(|left, right| path_order(left.path(), right.path()));

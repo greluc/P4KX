@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use p4kx_extraction::{DataForge, Filter};
+use p4kx_extraction::{DataForge, Exclusion, Filter};
 use p4kx_search::{Needle, RecordHit, SearchOptions, search_records};
 
 use crate::common::{NEVER, TestResult, forge_bytes};
@@ -129,6 +129,21 @@ fn a_filter_narrows_the_record_paths() -> TestResult {
     assert_eq!(
         found.stats.records_scanned, 2,
         "filtered Records are not read"
+    );
+    Ok(())
+}
+
+#[test]
+fn an_exclusion_leaves_out_record_paths() -> TestResult {
+    let options = SearchOptions {
+        exclusion: Exclusion::parse(["*/ships/*"])?,
+        ..SearchOptions::default()
+    };
+    let (hits, _) = search("hauler", &options)?;
+    assert_eq!(
+        fields(&hits),
+        [("Gear.Strasse", "role")],
+        "the ships are left out"
     );
     Ok(())
 }

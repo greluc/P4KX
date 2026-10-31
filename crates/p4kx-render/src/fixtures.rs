@@ -3,12 +3,14 @@
 
 use p4kx_extraction::chunks::ChunkFile;
 use p4kx_extraction::model::{Animation, CompanionError, CompanionPath, Model};
+use p4kx_testkit::watchdog;
 use p4kx_testkit::{TestAnimation, TestModel, TestSkeleton, TestTrack};
 
 pub(super) const QUARTER_TURN_Z: [f32; 4] = [0.0, 0.0, 0.707_106_77, 0.707_106_77];
 pub(super) const BIND_TIP: [f32; 4] = [0.5, 0.5, 0.5, 0.5];
 
 fn read(source: &TestModel, name: &str, companion: &str) -> Model {
+    watchdog::start();
     let mut companions = |path: CompanionPath<'_>| -> Result<Option<Vec<u8>>, CompanionError> {
         Ok(match path {
             CompanionPath::Sibling(sibling) if sibling == companion => Some(source.cgfm()),
@@ -29,6 +31,7 @@ pub(super) fn door_model() -> Model {
 }
 
 pub(super) fn swing(name: &str, last_frame: u16) -> Animation {
+    watchdog::start();
     let tip = TestSkeleton::controller_id(1);
     let animation = TestAnimation::new(name, 30)
         .track(TestTrack::new(tip).rotations(&[(0, BIND_TIP), (last_frame, QUARTER_TURN_Z)]));
@@ -38,6 +41,7 @@ pub(super) fn swing(name: &str, last_frame: u16) -> Animation {
 }
 
 pub(super) fn unrelated(name: &str) -> Animation {
+    watchdog::start();
     let animation = TestAnimation::new(name, 30)
         .track(TestTrack::new(0xDEAD_BEEF).rotations(&[(0, BIND_TIP), (10, QUARTER_TURN_Z)]));
     let file = ChunkFile::parse(animation.caf()).unwrap_or_else(|error| panic!("the caf: {error}"));

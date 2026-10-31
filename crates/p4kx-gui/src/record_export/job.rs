@@ -28,8 +28,8 @@ use crate::{EntryIndex, TargetKind};
 pub(crate) enum Selection {
     /// The Records at these positions in definition order.
     Records(Arc<[u32]>),
-    /// The Records whose record path matches this Filter text.
-    Filter(String),
+    /// The Records whose record path matches this Filter.
+    Filter(Filter),
 }
 
 /// What a Record export writes and where.
@@ -284,13 +284,11 @@ fn select<'f>(all: &[Record<'f>], selection: &Selection) -> Vec<Record<'f>> {
                 .filter_map(|&position| all.get(position as usize).copied())
                 .collect()
         }
-        Selection::Filter(text) => {
-            let filter = Filter::new(text);
-            all.par_iter()
-                .filter(|record| record.record_path().is_ok_and(|path| filter.matches(path)))
-                .copied()
-                .collect()
-        }
+        Selection::Filter(filter) => all
+            .par_iter()
+            .filter(|record| record.record_path().is_ok_and(|path| filter.matches(path)))
+            .copied()
+            .collect(),
     }
 }
 

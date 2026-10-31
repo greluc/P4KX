@@ -31,7 +31,7 @@ pub enum ExtractionScope {
     /// Every Entry of the Archive.
     All,
     /// The added and changed Entries of one side of the finished Comparison that its Filter
-    /// selects; removed Entries never.
+    /// selects and the exclusion leaves in; removed Entries never.
     Changes(ComparisonSide),
 }
 

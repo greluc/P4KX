@@ -61,6 +61,7 @@ pub struct ExtractionSummary {
     records: Option<RecordCounts>,
     record_failures: Vec<FailedRecord>,
     excluded_parts: usize,
+    not_converted: usize,
 }
 
 impl ExtractionSummary {
@@ -80,6 +81,7 @@ impl ExtractionSummary {
                 .map(|records| records.failures().iter().map(FailedRecord::of).collect())
                 .unwrap_or_default(),
             excluded_parts: 0,
+            not_converted: report.not_converted(),
         }
     }
 
@@ -151,6 +153,13 @@ impl ExtractionSummary {
     #[must_use]
     pub const fn excluded_parts(&self) -> usize {
         self.excluded_parts
+    }
+
+    /// Returns the number of files a folder conversion left out because they have nothing to
+    /// convert.
+    #[must_use]
+    pub const fn not_converted(&self) -> usize {
+        self.not_converted
     }
 
     pub(crate) const fn with_excluded_parts(mut self, excluded_parts: usize) -> Self {

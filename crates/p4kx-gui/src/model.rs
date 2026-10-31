@@ -17,6 +17,7 @@ mod catalog_control;
 mod characters_control;
 mod content_navigation;
 mod extraction_control;
+mod folder_conversion_control;
 mod game_watch;
 mod model_export_control;
 mod record_export_control;
@@ -82,6 +83,7 @@ pub struct Model {
     extraction_audio: ExtractionAudio,
     extraction_setup: Option<ExtractionSetup>,
     extraction: Option<Extraction>,
+    conversion_input: Option<PathBuf>,
     update: UpdateState,
     work_tab: WorkTab,
     comparison: ComparisonTab,
@@ -164,6 +166,7 @@ impl Model {
             extraction_audio: ExtractionAudio::default(),
             extraction_setup: None,
             extraction: None,
+            conversion_input: None,
             update: UpdateState::default(),
             work_tab: WorkTab::default(),
             comparison: ComparisonTab::default(),

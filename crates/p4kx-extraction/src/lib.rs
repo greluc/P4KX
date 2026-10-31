@@ -102,6 +102,7 @@ mod ui_svg;
 mod verify;
 mod watch;
 mod write;
+mod write_compare;
 mod written_paths;
 
 pub use animation_listing::AnimationListing;

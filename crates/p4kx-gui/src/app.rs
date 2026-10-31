@@ -329,6 +329,7 @@ impl eframe::App for App {
         self.model.comparison_mut().cancel();
         self.model.query_mut().cancel();
         self.save_settings();
+        crate::exit_guard::arm();
     }
 }
 

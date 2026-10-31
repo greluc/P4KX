@@ -3,20 +3,13 @@
 
 use std::io::Write;
 use std::sync::Arc;
-use std::sync::mpsc;
-use std::time::Duration;
 
 use thiserror::Error;
 
-use super::device::{block_on_for, guarded};
-use super::limits::check_buffer;
-use super::straight::{straighten, under};
+use super::device::block_on_for;
+use super::readback::{BYTES_PER_PIXEL, DEVICE_WAIT};
+use super::teardown::Gpu;
 use super::{Frame, GpuReport, Renderer, Unavailable};
-
-const DEVICE_WAIT: Duration = Duration::from_secs(60);
-
-const ALIGNMENT: u32 = wgpu::COPY_BYTES_PER_ROW_ALIGNMENT;
-const BYTES_PER_PIXEL: u32 = 4;
 
 /// Which graphics adapter to draw on.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -128,9 +121,8 @@ impl Picture {
 /// back.
 #[derive(Debug)]
 pub struct Offscreen {
-    device: wgpu::Device,
-    queue: wgpu::Queue,
-    renderer: Renderer,
+    gpu: Option<Gpu>,
+    report: Arc<GpuReport>,
     adapter: String,
 }
 
@@ -161,10 +153,14 @@ impl Offscreen {
             &adapter,
             wgpu::TextureFormat::Rgba8UnormSrgb,
         )?;
+        let report = renderer.report();
         Ok(Self {
-            device,
-            queue,
-            renderer,
+            gpu: Some(Gpu {
+                renderer,
+                queue,
+                device,
+            }),
+            report,
             adapter: format!("{} ({:?})", info.name, info.backend),
         })
     }
@@ -178,7 +174,7 @@ impl Offscreen {
     /// Returns what the renderer learned about the device and the scenes.
     #[must_use]
     pub fn report(&self) -> Arc<GpuReport> {
-        self.renderer.report()
+        Arc::clone(&self.report)
     }
 
     /// Draws `frame` and returns the picture.
@@ -188,11 +184,14 @@ impl Offscreen {
     /// Returns [`OffscreenError`] when the size is empty or beyond the device, the device is
     /// lost, the scene does not fit its buffers or the drawing or the read-back fails.
     pub fn draw(&mut self, frame: &Frame) -> Result<Picture, OffscreenError> {
+        let Some(gpu) = self.gpu.as_mut() else {
+            return Err(OffscreenError::Lost);
+        };
         let [width, height] = frame.size;
         if width == 0 || height == 0 {
             return Err(OffscreenError::Empty);
         }
-        let limit = self.device.limits().max_texture_dimension_2d;
+        let limit = gpu.device.limits().max_texture_dimension_2d;
         if width > limit || height > limit {
             return Err(OffscreenError::TooLarge {
                 width,
@@ -200,13 +199,13 @@ impl Offscreen {
                 limit,
             });
         }
-        if !self.renderer.supports(&frame.shading) {
+        if !gpu.renderer.supports(&frame.shading) {
             return Err(OffscreenError::Shading);
         }
         let serial = frame.subject.serial();
-        let commands = self.renderer.prepare(&self.device, &self.queue, frame);
-        self.queue.submit(commands);
-        let report = self.renderer.report();
+        let commands = gpu.renderer.prepare(&gpu.device, &gpu.queue, frame);
+        gpu.queue.submit(commands);
+        let report = &self.report;
         if report.is_lost() {
             return Err(OffscreenError::Lost);
         }
@@ -216,118 +215,17 @@ impl Offscreen {
         if report.has_failed(serial) {
             return Err(OffscreenError::Failed);
         }
-        self.read_back(serial)
+        gpu.read_back(serial)
     }
+}
 
-    fn read_back(&self, serial: u64) -> Result<Picture, OffscreenError> {
-        let renderer = &self.renderer;
-        let (Some(target), Some(drawn)) = (
-            renderer.target.as_ref(),
-            renderer.drawn.filter(|drawn| drawn.serial == serial),
-        ) else {
-            return Err(OffscreenError::Failed);
-        };
-        let width = drawn.size[0].min(target.extent[0]);
-        let height = drawn.size[1].min(target.extent[1]);
-        let row = width.saturating_mul(BYTES_PER_PIXEL);
-        let padded = row.next_multiple_of(ALIGNMENT);
-        let buffer = self.copy_picture(&target.picture, (width, height, padded))?;
-        let mapped = self.map(&buffer, (padded as usize, row as usize));
-        buffer.destroy();
-        let mut rgba = mapped?;
-        if drawn.shading.is_premultiplied() {
-            under(&mut rgba, drawn.colours.background);
-            straighten(&mut rgba);
+impl Drop for Offscreen {
+    /// Waits for the queue to go idle and drops the device on a worker thread, so that a driver
+    /// that never answers cannot block the caller.
+    fn drop(&mut self) {
+        if let Some(gpu) = self.gpu.take() {
+            gpu.release();
         }
-        Picture::from_rgba(width, height, rgba)
-            .ok_or_else(|| OffscreenError::Readback("the rows are shorter than the picture".into()))
-    }
-
-    fn copy_picture(
-        &self,
-        picture: &wgpu::Texture,
-        (width, height, padded): (u32, u32, u32),
-    ) -> Result<wgpu::Buffer, OffscreenError> {
-        let bytes = u64::from(padded) * u64::from(height);
-        check_buffer(bytes, self.device.limits().max_buffer_size)
-            .map_err(|_| OffscreenError::Rejected)?;
-        let (buffer, failed) = guarded(&self.device, || {
-            let buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
-                label: Some("p4kx-offscreen-readback"),
-                size: bytes,
-                usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
-                mapped_at_creation: false,
-            });
-            let mut encoder = self
-                .device
-                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                    label: Some("p4kx-offscreen-readback"),
-                });
-            encoder.copy_texture_to_buffer(
-                wgpu::TexelCopyTextureInfo {
-                    texture: picture,
-                    mip_level: 0,
-                    origin: wgpu::Origin3d::ZERO,
-                    aspect: wgpu::TextureAspect::All,
-                },
-                wgpu::TexelCopyBufferInfo {
-                    buffer: &buffer,
-                    layout: wgpu::TexelCopyBufferLayout {
-                        offset: 0,
-                        bytes_per_row: Some(padded),
-                        rows_per_image: Some(height),
-                    },
-                },
-                wgpu::Extent3d {
-                    width,
-                    height,
-                    depth_or_array_layers: 1,
-                },
-            );
-            self.queue.submit([encoder.finish()]);
-            buffer
-        });
-        if failed {
-            buffer.destroy();
-            return Err(OffscreenError::Failed);
-        }
-        Ok(buffer)
-    }
-
-    fn map(
-        &self,
-        buffer: &wgpu::Buffer,
-        (padded, row): (usize, usize),
-    ) -> Result<Vec<u8>, OffscreenError> {
-        let readback =
-            |error: &dyn std::error::Error| OffscreenError::Readback(error.to_string().into());
-        let (sender, receiver) = mpsc::channel();
-        buffer
-            .slice(..)
-            .map_async(wgpu::MapMode::Read, move |result| {
-                drop(sender.send(result));
-            });
-        self.device
-            .poll(wgpu::PollType::Wait {
-                submission_index: None,
-                timeout: Some(DEVICE_WAIT),
-            })
-            .map_err(|error| readback(&error))?;
-        receiver
-            .recv_timeout(DEVICE_WAIT)
-            .map_err(|error| readback(&error))?
-            .map_err(|error| readback(&error))?;
-        let view = buffer
-            .slice(..)
-            .get_mapped_range()
-            .map_err(|error| readback(&error))?;
-        let mut rgba = Vec::with_capacity(view.len() / padded.max(1) * row);
-        for padded_row in view.chunks_exact(padded.max(1)) {
-            rgba.extend_from_slice(padded_row.get(..row).unwrap_or_default());
-        }
-        drop(view);
-        buffer.unmap();
-        Ok(rgba)
     }
 }
 

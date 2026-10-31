@@ -22,6 +22,7 @@ pub mod dwm;
 mod entities;
 mod entry_groups;
 mod entry_index;
+mod exit_guard;
 mod extraction;
 mod forge_cache;
 mod format;

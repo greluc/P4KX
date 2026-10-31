@@ -17,6 +17,9 @@ mod offscreen_tests;
 mod pipelines;
 #[cfg(test)]
 mod probe;
+mod readback;
+#[cfg(test)]
+mod real_gpu_tests;
 mod report;
 mod resources;
 mod shading;
@@ -26,6 +29,7 @@ mod skeleton_tests;
 mod slot;
 mod straight;
 mod target;
+mod teardown;
 #[cfg(test)]
 mod tests;
 

@@ -269,9 +269,16 @@ order is attached. The same Archive always gives the same document.
  "texture_fallbacks": [], "default_material_ids": 0, "hidden_primitives": 0, "bones": 0,
  "skinned_meshes": 0, "lod_fallbacks": 0, "shared_meshes": 33, "shared_materials": 103,
  "shared_textures": 0, "vertices": 744831,
- "triangles": 818426, "bytes": 44750744, "skipped": 0, "placements": [Placement, …],
- "issues": [Issue, …]}
+ "triangles": 818426, "bytes": 44750744, "skipped": 0, "unresolved_layers": 0,
+ "placements": [Placement, …], "issues": [Issue, …]}
 ```
+
+`unresolved_layers` counts the layer files of the material libraries of all parts, their bone
+attachments and the Interior that the Archive lacks, that cannot be read or that exceed the load
+budget ([ADR-0291](adr/0291-layer-files-are-read-once-per-model-set-within-a-byte-budget.md)); a
+file that several libraries name counts once, and the materials that name it keep the colours of
+their own file. `first_unresolved_layer` is the first such path, as the layer names it; it is absent
+when `unresolved_layers` is 0.
 
 `<entity>` is named as for `p4kx entity loadout`, with the same exit codes. A docked vehicle is
 one part without the parts of its own Loadout; `--expand-docked-vehicles` places those too. A
@@ -463,8 +470,12 @@ or wrong exits with code 7.
  "modelled_parts": 36, "props": 21, "lights": 46, "nodes": 205, "meshes": 37, "primitives": 158,
  "materials": 32, "default_material_ids": 0, "hidden_primitives": 12, "lod_fallbacks": 0,
  "shared_meshes": 8, "shared_materials": 118, "shared_textures": 0, "vertices": 170632,
- "triangles": 159528, "bytes": 9931796, "skipped": 1, "issues": [Issue, …]}
+ "triangles": 159528, "bytes": 9931796, "skipped": 1, "unresolved_layers": 0,
+ "issues": [Issue, …]}
 ```
+
+`unresolved_layers` and `first_unresolved_layer` are those of `p4kx entity glb`, for the material
+libraries of the parts.
 
 `containers` are the Entry paths of the chain as for `p4kx socpak list`, with the same exit codes
 (an Entry the Archive lacks is 2, a container that cannot be opened 3). `parts` counts the root
@@ -584,13 +595,16 @@ Archive lacks is exit code 2, a library that cannot be read 3; issues leave the 
  "nodes": 223, "bones": 220, "meshes": 3, "skinned_meshes": 3, "primitives": 51,
  "materials": 19, "textured_materials": 0, "textures": 0, "texture_pixels": 0,
  "vertices": 43317, "triangles": 68932, "bytes": 3671144, "skipped": 0,
+ "unresolved_layers": 0,
  "animations": [{"name": "…", "duration_seconds": 3.27, "additive": false, "channels": 233,
                  "keys": 10714, "skipped_tracks": []}],
  "issues": [Issue, …]}
 ```
 
 `--materials textures` (default `colours`) and `--texture-mip N` embed the textures as for
-`p4kx chf glb`, counted in `textured_materials`, `textures` and `texture_pixels`. `files` of
+`p4kx chf glb`, counted in `textured_materials`, `textures` and `texture_pixels`.
+`unresolved_layers` and `first_unresolved_layer` are those of `p4kx entity glb`, for the
+material libraries of the parts. `files` of
 `loadout` lists the XML Loadout files the Loadout is made of in the order they are laid over each
 other: an Entity whose default Loadout is an outfit gives its base Loadout and the Loadouts of its
 outfits that apply (ADR-0109, ADR-0181), and `outfit` beside `files` (absent for any other

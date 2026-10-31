@@ -160,8 +160,6 @@ jobs:
     name: Khronos glTF-Validator
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    env:
-      P4KX_VALIDATOR_DIR: ${{ runner.temp }}/validator-glbs
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -176,9 +174,9 @@ jobs:
       - name: Install the pinned validator from the lockfile, without install scripts
         run: npm ci --ignore-scripts --prefix .github/glb-validator
       - name: Write the GLBs of the synthetic fixtures
-        run: cargo test --locked -p p4kx-gltf --test it the_synthetic_glbs_are_written_for_the_validator
+        run: P4KX_VALIDATOR_DIR="$RUNNER_TEMP/validator-glbs" cargo test --locked -p p4kx-gltf --test it the_synthetic_glbs_are_written_for_the_validator
       - name: Validate them, failing on any error
-        run: node .github/glb-validator/validate.mjs "$P4KX_VALIDATOR_DIR"
+        run: node .github/glb-validator/validate.mjs "$RUNNER_TEMP/validator-glbs"
 
   check:
     name: Check (${{ matrix.os }})

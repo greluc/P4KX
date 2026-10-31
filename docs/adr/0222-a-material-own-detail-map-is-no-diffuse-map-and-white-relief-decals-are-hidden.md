@@ -1,8 +1,8 @@
 # A material's own detail map is no diffuse map, and white relief decals are hidden
 
 Decided for issue #757. It amends ADR-0212 (decals that draw no colour), ADR-0207 (the packed
-detail map overlays through red only) and ADR-0100 (the add-on's surface mapping); ADR-0225 refines the relief-decal rule. Evidence: the
-LIVE Archive, `AEGS_Hammerhead` and `AEGS_Gladius` as Blender packages, compared against the owner's
+detail map overlays through red only) and ADR-0100 (the add-on's surface mapping); ADR-0225 refines the relief-decal rule. Evidence: the LIVE
+Archive, `AEGS_Hammerhead` and `AEGS_Gladius` as Blender packages, compared against the owner's
 in-game screenshot of the Hammerhead.
 
 ## What the data says

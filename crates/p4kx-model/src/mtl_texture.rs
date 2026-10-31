@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
+/// The material slot of the diffuse map.
+pub(crate) const DIFFUSE_SLOT: &str = "TexSlot1";
+
 /// Returns the last `_` part of a texture file's name without extension that is not a plain
-/// number, as written: `ddna` for `a/b_ddna.tif`, `detail` for `a/b_detail_01.tif`.
+/// number, as written:`ddna` for `a/b_ddna.tif`, `detail` for `a/b_detail_01.tif`.
 ///
 /// Only tails of plain digits are skipped (`_01`, not `_01a` or `_v2`). A name made of numbers and
 /// `_` only gives its last part.

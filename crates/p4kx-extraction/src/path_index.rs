@@ -7,17 +7,20 @@ use p4kx_archive::{Archive, Entry};
 use rayon::prelude::*;
 
 use crate::entry_path::same_entry_path;
+use crate::texture_grey::GreyVerdicts;
 
 const FNV_OFFSET: u64 = 0xCBF2_9CE4_8422_2325;
 const FNV_PRIME: u64 = 0x0000_0100_0000_01B3;
 
 /// The Entries of an Archive looked up by path, ignoring ASCII case and the separator kind.
 ///
-/// Building the index hashes every path once; each lookup is then a binary search.
+/// Building the index hashes every path once; each lookup is then a binary search. The index also
+/// keeps the colour verdicts of the textures it has judged.
 #[derive(Debug)]
 pub struct PathIndex<'a> {
     archive: &'a Archive,
     keys: Cow<'a, [(u64, u32)]>,
+    pub(crate) grey: GreyVerdicts,
 }
 
 /// The sorted path hashes of an Archive's Entries, kept apart from the Archive so one build serves
@@ -50,6 +53,7 @@ impl PathKeys {
         PathIndex {
             archive,
             keys: Cow::Borrowed(&self.keys),
+            grey: GreyVerdicts::default(),
         }
     }
 }
@@ -61,6 +65,7 @@ impl<'a> PathIndex<'a> {
         Self {
             archive,
             keys: Cow::Owned(PathKeys::new(archive).keys),
+            grey: GreyVerdicts::default(),
         }
     }
 

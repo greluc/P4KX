@@ -120,6 +120,7 @@ impl Assembly {
             });
         }
         creature_rig::note_fit(&parts, options.lod, &mut issues);
+        creature_rig::note_loadout(tree, &mut issues);
         Ok(Self {
             parts,
             issues,

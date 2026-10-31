@@ -3,7 +3,8 @@
 
 use crate::{
     DataForgeBuilder, TestBone, TestEntity, TestEntry, TestLoadout, TestLoadoutEntry, TestModel,
-    TestNode, TestPort, TestSkeleton, entity_schema, model_cube::cube_nodes,
+    TestNode, TestPort, TestRecord, TestSkeleton, assortment_record, entity_schema,
+    model_cube::cube_nodes,
 };
 
 /// A creature whose root geometry is a skeleton file (`.chr`) with the bones `pelvis`, `root`
@@ -34,10 +35,18 @@ pub const CREATURE_COLLAR_LOST: &str = "Test_Creature_CollarLost";
 /// its helper names still decides.
 pub const CREATURE_COLLAR_NODED: &str = "Test_Creature_CollarNoded";
 
+/// Like [`CREATURE`], but its body port is unset in the Record and its default Loadout is
+/// generated at random from an assortment whose first body alternative is the skin.
+pub const CREATURE_ASSORTED: &str = "Test_Creature_Assorted";
+
+/// Like [`CREATURE`], but its body port is unset and its Loadout is an XML file no one reads.
+pub const CREATURE_LOADOUT_LOST: &str = "Test_Creature_LoadoutLost";
+
 /// A rigged Entity outside the characters folder, a prop with a skeleton file and the same skin.
 pub const RIGGED_PROP: &str = "Test_Rigged_Prop";
 
 const FOLDER: &str = "Objects/Characters/Creatures/Test";
+const ASSORTMENT: u128 = 0x100;
 
 fn definition(skeleton: &str) -> String {
     format!(
@@ -120,9 +129,48 @@ fn database() -> DataForgeBuilder {
     ]
     .into_iter()
     .chain(collar_entities())
+    .chain(unset_body_entities())
     .fold(entity_schema(DataForgeBuilder::new()), |builder, entity| {
         builder.record(entity.record())
     })
+    .record(creature_assortment())
+}
+
+/// Returns the assortment of [`CREATURE_ASSORTED`]: one group whose first alternative is the skin
+/// and whose second is the horn.
+fn creature_assortment() -> TestRecord {
+    let body = |class| TestLoadout::Manual(vec![TestLoadoutEntry::class("Body_ItemPort", class)]);
+    assortment_record(
+        ASSORTMENT,
+        "test_creature",
+        &[(
+            "Body",
+            vec![body("Test_Creature_Skin"), body("Test_Creature_Horn")],
+        )],
+    )
+}
+
+/// Returns the creatures [`CREATURE_ASSORTED`] and [`CREATURE_LOADOUT_LOST`], whose body port the
+/// Record leaves unset.
+fn unset_body_entities() -> [TestEntity; 2] {
+    let creature = |id, class: &str, loadout| {
+        TestEntity::new(id, class, format!("entities/{class}.xml"))
+            .geometry(format!("{FOLDER}/creature_skel.chr"), None)
+            .port(TestPort::new("Body_ItemPort").skin())
+            .loadout(loadout)
+    };
+    [
+        creature(
+            0xa,
+            CREATURE_ASSORTED,
+            TestLoadout::RandomGenerated(vec![ASSORTMENT]),
+        ),
+        creature(
+            0xb,
+            CREATURE_LOADOUT_LOST,
+            TestLoadout::Xml("Scripts/Loadouts/Creatures/lost.xml".to_owned()),
+        ),
+    ]
 }
 
 /// Returns the creatures [`CREATURE_COLLARED`] and [`CREATURE_COLLAR_LOST`] with the skins that

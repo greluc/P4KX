@@ -112,12 +112,14 @@ impl Dressing<'_> {
         let name = port_name(item.port);
         let wearable = match items.wearable(forge_guid(item.item)) {
             Ok(wearable) => wearable,
-            Err(reason) => return Some(Piece::failed(name, reason)),
+            Err(reason) => return Some(Piece::failed(name.clone(), reason).at_port(name)),
         };
         if wearable.geometry().is_none() && wearable.variants().is_empty() {
             return None;
         }
-        let mut piece = Piece::wearable(wearable).named(name.clone());
+        let mut piece = Piece::wearable(wearable)
+            .named(name.clone())
+            .at_port(name.clone());
         piece = if name == EYES_PORT {
             piece.shaped(self.dna.clone())
         } else {

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use std::collections::{BTreeSet, HashMap, HashSet};
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use p4kx_gltf::MorphTarget;
@@ -13,7 +13,7 @@ use super::head_move::{HeadMove, Worn, check_follows, followed, level_zero_meshe
 use super::jobs::{Job, issue, planned};
 use super::read_models::{Loaded, choose, read_models};
 use super::shape::shaped;
-use super::zones::{covered, without_covered};
+use super::zones::{Coverage, without_covered};
 use super::{Armour, ArmourPart, BodyVariant, Look, Piece};
 use crate::build::file_key;
 use crate::build_palettes::Palettes;
@@ -89,7 +89,7 @@ impl Armour {
         let chosen = choose(&jobs, &loaded, options.max_vertices, &mut issues);
         let libraries = read_libraries(&jobs, &chosen, models);
         let unnamed = Arc::new(MaterialStatus::Unnamed);
-        let covering = covering(&jobs, &chosen);
+        let covering = covering(&jobs, &chosen, variant);
         let (mut reported, mut tints) = (HashSet::new(), Palettes::new(palettes));
         let mut parts = Vec::with_capacity(chosen.len());
         let mut head: Option<HeadMove> = None;
@@ -163,12 +163,13 @@ fn part_of(
 }
 
 /// Returns the body zones the worn clothing of the jobs that have a model covers.
-fn covering<'j>(jobs: &'j [Job], chosen: &[Option<&Loaded>]) -> BTreeSet<&'j str> {
-    covered(
+fn covering<'j>(jobs: &'j [Job], chosen: &[Option<&Loaded>], variant: BodyVariant) -> Coverage<'j> {
+    Coverage::of(
         jobs.iter()
             .zip(chosen)
             .filter(|(_, found)| found.is_some())
             .flat_map(|(job, _)| job.zones.iter()),
+        variant,
     )
 }
 

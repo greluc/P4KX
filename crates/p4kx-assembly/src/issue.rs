@@ -256,6 +256,17 @@ pub enum IssueKind {
     /// triangles are left out.
     #[error("the body cannot be cut by zone: {0}")]
     BodyZonesUnknown(String),
+    /// Clothing covers these body zones only under conditions that are not evaluated.
+    #[error("the body zones {} are covered only under unevaluated conditions", .0.join(", "))]
+    ClothingConditionsUndecided(Vec<String>),
+    /// Another worn piece hides the port the piece sits at, so the piece is left out.
+    #[error("the piece at the port {port} is hidden by {by} and left out")]
+    PartHidden {
+        /// The port the piece sits at.
+        port: String,
+        /// The name of the piece whose Record hides the port.
+        by: String,
+    },
     /// This many layered materials of the part have no diffuse map, neither their own nor one in
     /// a layer, and are drawn in the colours of their layers.
     #[error(

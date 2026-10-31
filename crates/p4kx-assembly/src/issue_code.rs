@@ -40,6 +40,8 @@ impl IssueKind {
             Self::LightUnsupported { .. } => "light_unsupported",
             Self::BodyZonesHidden(_) => "body_zones_hidden",
             Self::BodyZonesUnknown(_) => "body_zones_unknown",
+            Self::ClothingConditionsUndecided(_) => "clothing_conditions_undecided",
+            Self::PartHidden { .. } => "part_hidden",
             Self::LayersWithoutDiffuse(_) => "layers_without_diffuse",
             Self::PieceNotFound { .. } => "piece_not_found",
             Self::NoWornGeometry => "no_worn_geometry",

@@ -11,7 +11,7 @@ use super::uncover::uncover;
 
 use super::jobs::{Job, issue};
 use super::{BodyVariant, PartOrigin};
-use crate::read::{struct_items, text, unsigned, unsigned_list};
+use crate::read::{has_items, struct_items, text, unsigned, unsigned_list};
 use crate::{Issue, IssueKind};
 
 const CLOTHING: &str = "SCItemClothingParams";
@@ -48,45 +48,74 @@ impl ZoneChunk {
         &self.visible_layers
     }
 
-    /// Returns whether the Record makes the zone depend on conditions (the ports that hold
-    /// items), which are not evaluated.
+    /// Returns whether the Record makes the zone depend on conditions that are not evaluated:
+    /// ports that must hold items, or tags the items must or must not carry. A condition that
+    /// names no port and no tag restricts nothing and does not count.
     #[must_use]
     pub const fn conditional(&self) -> bool {
         self.conditional
     }
 
+    fn hides_body(&self) -> bool {
+        self.layer > BODY_LAYER && !self.visible_layers.contains(&BODY_LAYER)
+    }
+
     fn covers_body(&self) -> bool {
-        self.layer > BODY_LAYER && !self.conditional && !self.visible_layers.contains(&BODY_LAYER)
+        self.hides_body() && !self.conditional
     }
 }
 
-/// The zones an Entity covers, at most [`MAX_CHUNKS`] of them.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub(crate) struct ZoneList {
-    pub(crate) chunks: Arc<[ZoneChunk]>,
-    pub(crate) truncated: bool,
+/// The condition fields of `SCItemClothingPortVisibilityConditionParams` that restrict a chunk.
+const RESTRICTIONS: [&str; 4] = ["Ports", "DisableTags", "SkipTags", "ActiveTags"];
+
+/// Returns whether the `VisibilityConditions` of `chunk` restrict it: one of them names a port
+/// or a tag.
+fn restricted(chunk: &StructValue<'_>) -> bool {
+    struct_items(chunk, "VisibilityConditions")
+        .flat_map(|condition| struct_items(condition, "PortVisibility"))
+        .any(|entry| RESTRICTIONS.iter().any(|field| has_items(entry, field)))
 }
 
-/// Reads the zones the `SCItemClothingParams` among `components` cover.
+/// What the `SCItemClothingParams` of an Entity say: the body zones it covers and the ports whose
+/// items it hides.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub(crate) struct ZoneList {
+    /// The zones, at most [`MAX_CHUNKS`] of them.
+    pub(crate) chunks: Arc<[ZoneChunk]>,
+    pub(crate) truncated: bool,
+    /// The names of the ports, in lower case, whose items are not drawn when the Entity is worn.
+    pub(crate) hidden_ports: Arc<[String]>,
+}
+
+/// Reads the zones and hidden ports of the `SCItemClothingParams` among `components`.
 pub(crate) fn read_zones(components: &[&StructValue<'_>]) -> ZoneList {
-    let mut chunks: Vec<ZoneChunk> = components
-        .iter()
-        .filter(|component| component.type_name() == CLOTHING)
+    let clothing = || {
+        components
+            .iter()
+            .filter(|component| component.type_name() == CLOTHING)
+    };
+    let mut chunks: Vec<ZoneChunk> = clothing()
         .flat_map(|component| struct_items(component, "Chunks"))
         .map(|chunk| ZoneChunk {
             zone: text(chunk, "MeshChunk").to_ascii_lowercase(),
             layer: unsigned(chunk, "Layer").unwrap_or(BODY_LAYER),
             visible_layers: unsigned_list(chunk, "VisibleLayers"),
-            conditional: struct_items(chunk, "VisibilityConditions").next().is_some(),
+            conditional: restricted(chunk),
         })
         .filter(|chunk| !chunk.zone.is_empty())
         .take(MAX_CHUNKS + 1)
         .collect();
     let truncated = chunks.len() > MAX_CHUNKS;
     chunks.truncate(MAX_CHUNKS);
+    let hidden_ports = clothing()
+        .flat_map(|component| struct_items(component, "HiddenParts"))
+        .map(|part| text(part, "PortName").to_ascii_lowercase())
+        .filter(|port| !port.is_empty())
+        .collect();
     ZoneList {
         chunks: chunks.into(),
         truncated,
+        hidden_ports,
     }
 }
 
@@ -100,20 +129,62 @@ pub(crate) fn covered<'c>(chunks: impl IntoIterator<Item = &'c ZoneChunk>) -> BT
         .collect()
 }
 
+/// Returns the zones of `variant`'s body that a conditional chunk of `chunks` would cover if its
+/// conditions held and that no other chunk covers: the zones whose cut depends on conditions that
+/// are not evaluated.
+pub(crate) fn undecided<'c>(
+    chunks: impl IntoIterator<Item = &'c ZoneChunk>,
+    variant: BodyVariant,
+    covered: &BTreeSet<&str>,
+) -> BTreeSet<&'c str> {
+    chunks
+        .into_iter()
+        .filter(|chunk| chunk.hides_body() && chunk.conditional)
+        .map(|chunk| chunk.zone.as_str())
+        .filter(|zone| {
+            variant.zone_names().iter().any(|name| name == zone) && !covered.contains(zone)
+        })
+        .collect()
+}
+
+/// The zones of the body that worn clothing covers, and those it would cover if conditions that
+/// are not evaluated held.
+pub(super) struct Coverage<'c> {
+    pub(super) covered: BTreeSet<&'c str>,
+    pub(super) undecided: BTreeSet<&'c str>,
+}
+
+impl<'c> Coverage<'c> {
+    /// Returns the coverage of the `chunks` of the worn Entities on the body of `variant`.
+    pub(super) fn of(
+        chunks: impl IntoIterator<Item = &'c ZoneChunk> + Clone,
+        variant: BodyVariant,
+    ) -> Self {
+        let covered = covered(chunks.clone());
+        let undecided = undecided(chunks, variant, &covered);
+        Self { covered, undecided }
+    }
+}
+
 /// Returns the model of `job` as it is worn: the body without the zones that clothing covers,
-/// reported in `issues`; any other model as it is.
+/// reported in `issues` with the zones whose cover is undecided; any other model as it is.
 pub(super) fn without_covered(
     job: &Job,
     model: Arc<Model>,
     variant: BodyVariant,
-    covered: &BTreeSet<&str>,
+    coverage: &Coverage<'_>,
     issues: &mut Vec<Issue>,
 ) -> Arc<Model> {
     if job.origin != PartOrigin::Body {
         return model;
     }
-    let (model, kind) = uncovered(model, variant, covered);
+    let (model, kind) = uncovered(model, variant, &coverage.covered);
     issues.extend(kind.map(|kind| issue(job, kind)));
+    if !coverage.undecided.is_empty() {
+        let zones = coverage.undecided.iter().map(|zone| (*zone).to_owned());
+        let kind = IssueKind::ClothingConditionsUndecided(zones.collect());
+        issues.push(issue(job, kind));
+    }
     model
 }
 
@@ -139,7 +210,7 @@ pub(crate) fn uncovered(
 
 #[cfg(test)]
 mod tests {
-    use super::{ZoneChunk, covered};
+    use super::{BodyVariant, ZoneChunk, covered, undecided};
 
     fn chunk(zone: &str, layer: u32, visible: &[u32], conditional: bool) -> ZoneChunk {
         ZoneChunk {
@@ -181,5 +252,20 @@ mod tests {
             chunk("torso02_zone", 2, &[], true),
         ];
         assert!(covered(&chunks).is_empty());
+    }
+
+    #[test]
+    fn a_conditional_chunk_on_a_body_zone_is_undecided_unless_another_covers_it() {
+        let chunks = [
+            chunk("hips_zone", 2, &[], true),
+            chunk("torso02_zone", 2, &[], true),
+            chunk("torso01_zone", 2, &[], true),
+            chunk("torso01_zone", 1, &[], false),
+            chunk("theta_core_zone", 2, &[], true),
+            chunk("l_arm01_zone", 2, &[0], true),
+        ];
+        let covered = covered(&chunks);
+        let open = undecided(&chunks, BodyVariant::Male, &covered);
+        assert_eq!(open.into_iter().collect::<Vec<_>>(), ["torso02_zone"]);
     }
 }

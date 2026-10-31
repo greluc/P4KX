@@ -5,7 +5,7 @@ use crate::entity_armour::{
     FEMALE_ARMOUR, FEMALE_BODY, MALE_ARMOUR, MALE_BODY, armour_database, armour_female_skeleton,
     armour_files, armour_male_skeleton, skin_entries,
 };
-use crate::entity_clothing::{TestZoneChunk, clothing_component};
+use crate::entity_clothing::{TestZoneChunk, clothing_component, clothing_component_hiding};
 use crate::{TestEntity, TestEntry, TestModel, TestMtl, TestMtlMaterial};
 
 const LIBRARY: &str = "Data\\objects\\test\\cube";
@@ -30,6 +30,27 @@ pub(crate) fn zone_shirt(chunks: &[TestZoneChunk]) -> TestEntity {
 #[must_use]
 pub fn zone_entries(bodies: [&[[f32; 2]]; 2], chunks: &[TestZoneChunk]) -> Vec<TestEntry> {
     zone_entries_with(bodies, &zone_shirt(chunks), &[])
+}
+
+/// The class name of the jacket of [`jacketed_entries`].
+pub const ZONE_JACKET: &str = "TEST_ZoneJacket";
+
+/// Returns the Entries of [`zone_entries`] with the jacket [`ZONE_JACKET`] (`Char_Clothing_Torso_1`)
+/// besides the shirt: the shirt covers `shirt`, the jacket covers `jacket` and hides the items at
+/// the ports `hides`.
+#[must_use]
+pub fn jacketed_entries(
+    bodies: [&[[f32; 2]]; 2],
+    shirt: &[TestZoneChunk],
+    jacket: &[TestZoneChunk],
+    hides: &[&str],
+) -> Vec<TestEntry> {
+    let jacket = TestEntity::new(0x34, ZONE_JACKET, "entities/scitem/test_zone_jacket.xml")
+        .attach_type("Char_Clothing_Torso_1")
+        .geometry_variant("Male", format!("{MALE_ARMOUR}/m_suit.skin"), None)
+        .geometry_variant("Female", format!("{FEMALE_ARMOUR}/f_suit.skin"), None)
+        .component(clothing_component_hiding(jacket, hides));
+    zone_entries_with(bodies, &zone_shirt(shirt), &[jacket])
 }
 
 /// Returns the Entries of [`zone_entries`] with `shirt` as the shirt, whose database also holds

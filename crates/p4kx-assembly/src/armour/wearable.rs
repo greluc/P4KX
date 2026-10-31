@@ -62,6 +62,21 @@ impl Wearable {
         &self.zones.chunks
     }
 
+    /// Returns the names of the ports, in lower case, whose items are not drawn when the Entity is
+    /// worn, from the `HiddenParts` of the Record's `SCItemClothingParams`: a hat hides the hair.
+    #[must_use]
+    pub fn hidden_ports(&self) -> &[String] {
+        &self.zones.hidden_ports
+    }
+
+    /// Returns whether the Entity hides the item at `port`, ignoring ASCII case.
+    pub(crate) fn hides(&self, port: &str) -> bool {
+        self.zones
+            .hidden_ports
+            .iter()
+            .any(|hidden| hidden.eq_ignore_ascii_case(port))
+    }
+
     /// Returns the tags of the Entity's `AttachDef`, e.g. `hairVar_Brown` for a hair colour.
     #[must_use]
     pub fn tags(&self) -> &[String] {

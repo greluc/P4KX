@@ -312,4 +312,11 @@ impl HardpointFit {
     pub fn is_within(&self, tolerance: f32) -> bool {
         self.distance.is_some_and(|distance| distance <= tolerance)
     }
+
+    /// Returns whether the hardpoint lies inside the box of a static model, on its surface
+    /// included.
+    #[must_use]
+    pub fn is_inside(&self) -> bool {
+        self.is_within(0.0)
+    }
 }

@@ -8,7 +8,13 @@ from __future__ import annotations
 from .graph_groups import LAYER_BLEND, WEAR
 from .graph_spec import Ref
 from .material_model import Colour, Layer, MaterialDesc
-from .material_surface import MASKED_LAYERS, MAX_BLENDED_LAYERS, BuildContext, Surface
+from .material_surface import (
+    MASKED_LAYERS,
+    MAX_BLENDED_LAYERS,
+    BuildContext,
+    Surface,
+    reads_vertex_colours,
+)
 
 Resolved = tuple[int, Layer, MaterialDesc]
 
@@ -40,7 +46,7 @@ class LayerBlending:
                 f"only the first {MAX_BLENDED_LAYERS + 1} are blended."
             )
             pairs = pairs[:MAX_BLENDED_LAYERS]
-        if not pairs:
+        if not pairs or not (desc.slot("mask") or reads_vertex_colours(desc)):
             return foundation
         channels = self._blend_channels()
         wear = self._wear_for([layer for layer, _ in pairs])

@@ -94,6 +94,31 @@ mod tests {
     }
 
     #[test]
+    fn the_model_rule_for_vertex_colours_sees_the_same_diffuse_maps()
+    -> Result<(), Box<dyn std::error::Error>> {
+        for suffix in [
+            "diff", "ddna", "ddn", "spec", "mask", "opac", "blend", "detail", "wear", "ao",
+            "displ", "disp", "gloss", "id", "scalp", "dir", "dirm", "hal", "other",
+        ] {
+            let file = format!("a/b_{suffix}.tif");
+            let xml = format!(
+                r#"<Material><SubMaterials><Material Name="m" Shader="HardSurface">
+                <Textures><Texture Map="TexSlot1" File="{file}"/></Textures>
+                <MatLayers><Layer Name="l" Path="a/l.mtl"/></MatLayers></Material></SubMaterials></Material>"#
+            );
+            let library = MaterialLibrary::parse("a", xml.as_bytes())?;
+            let material = library.materials.first().ok_or("a material")?;
+            let blend_map = matches!(suffix, "blend" | "mask" | "opac");
+            assert_eq!(
+                material.reads_vertex_colours(),
+                classify("TexSlot1", &file) == TextureUse::Diffuse && !blend_map,
+                "{suffix}"
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
     fn only_ddna_carries_the_smoothness() {
         assert!(has_smoothness("a/b_ddna.tif"));
         assert!(!has_smoothness("a/b_ddn.tif"));

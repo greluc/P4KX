@@ -30,6 +30,8 @@ pub(crate) struct Block<'m> {
 pub(crate) struct PrimitiveLayout {
     pub(crate) indices: usize,
     pub(crate) material_id: u16,
+    /// Whether the primitive carries the mesh's vertex colours as `COLOR_0`.
+    pub(crate) colours: bool,
 }
 
 /// The blocks of one mesh and the bounds of its converted positions.
@@ -201,13 +203,17 @@ impl<'m> Layout<'m> {
             .as_ref()
             .filter(|tangents| tangents.len() == mesh.positions.len())
             .map(|tangents| self.push(BlockData::Tangents(tangents)));
+        let reading = |id: u16| colours_wanted && materials.reads_vertex_colours(id);
         let colours = mesh
             .colours
             .as_ref()
-            .filter(|colours| colours_wanted && colours.len() == mesh.positions.len())
+            .filter(|colours| colours.len() == mesh.positions.len())
+            .filter(|_| primitives.iter().any(|&(_, id)| reading(id)))
             .map(|colours| self.push(BlockData::Colours(colours)));
         let (joints, weights) = self.plan_skin(mesh, binds, remapped);
-        let primitives = self.plan_primitives(&primitives, mesh.positions.len());
+        let primitives = self.plan_primitives(&primitives, mesh.positions.len(), |id| {
+            colours.is_some() && reading(id)
+        });
         self.meshes.push(MeshLayout {
             part,
             node: mesh.node,
@@ -229,6 +235,7 @@ impl<'m> Layout<'m> {
         &mut self,
         primitives: &[(&'m [u32], u16)],
         vertices: usize,
+        colours: impl Fn(u16) -> bool,
     ) -> Vec<PrimitiveLayout> {
         let short = u16::try_from(vertices).is_ok();
         primitives
@@ -240,6 +247,7 @@ impl<'m> Layout<'m> {
                     BlockData::Wide(indices)
                 }),
                 material_id,
+                colours: colours(material_id),
             })
             .collect()
     }

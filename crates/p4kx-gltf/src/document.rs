@@ -260,19 +260,23 @@ fn push_mesh(
         let accessor = push_accessor(root, buffer, &tangents, None);
         attributes.insert(Valid(Semantic::Tangents), accessor);
     }
-    if let Some(colours) = mesh.colours.and_then(block) {
-        let accessor = push_accessor(root, buffer, &colours, None);
-        attributes.insert(Valid(Semantic::Colors(0)), accessor);
-    }
     push_skin_attributes(root, buffer, layout, mesh, &mut attributes);
+    let colours = mesh
+        .colours
+        .and_then(block)
+        .map(|colours| push_accessor(root, buffer, &colours, None));
     let targets = push_targets(root, buffer, layout, mesh);
     let primitives = mesh
         .primitives
         .iter()
         .filter_map(|primitive| {
             let indices = block(primitive.indices)?;
+            let mut attributes = attributes.clone();
+            if let Some(colours) = colours.filter(|_| primitive.colours) {
+                attributes.insert(Valid(Semantic::Colors(0)), colours);
+            }
             Some(Primitive {
-                attributes: attributes.clone(),
+                attributes,
                 indices: Some(push_accessor(root, buffer, &indices, None)),
                 material: materials.and_then(|ids| ids.get(&primitive.material_id).copied()),
                 mode: Valid(Mode::Triangles),

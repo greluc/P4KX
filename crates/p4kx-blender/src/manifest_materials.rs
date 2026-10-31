@@ -184,6 +184,11 @@ pub struct MaterialDescription {
     pub glow: f32,
     /// How the material is blended, derived from `opacity`, `alpha_test` and the shader.
     pub alpha_mode: AlphaMode,
+    /// Whether the material reads the vertex colours of its mesh (1.4): glass with
+    /// `PER_VERTEX_TINT`, and a layered surface without a blend map. The GLB meshes carry
+    /// `COLOR_0` on the primitives of such materials only.
+    #[serde(default)]
+    pub reads_vertex_colours: bool,
     /// The palette entry the material takes: that of its first layer with a `PaletteTint` from 1
     /// to 3, or the glass colour of a glass material that uses the tint palette.
     #[serde(default, skip_serializing_if = "Option::is_none")]

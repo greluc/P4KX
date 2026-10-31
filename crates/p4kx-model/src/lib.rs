@@ -63,6 +63,7 @@ mod mtl_raw;
 mod mtl_relief;
 mod mtl_render_to_texture;
 mod mtl_texture;
+mod mtl_vertex_colours;
 mod mtl_xml;
 mod nmc;
 mod object_container;

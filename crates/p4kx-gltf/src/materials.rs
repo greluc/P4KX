@@ -133,6 +133,12 @@ impl<'m> MaterialPlan<'m> {
         self.slots.get(&id).is_some_and(Option::is_none)
     }
 
+    /// Returns whether the material drawn with `id` reads the vertex colours of its mesh.
+    pub(crate) fn reads_vertex_colours(&self, id: u16) -> bool {
+        self.slot(id)
+            .is_some_and(|slot| self.material(slot).reads_vertex_colours())
+    }
+
     /// Returns the slot of `id`, or `None` when nothing is drawn with it.
     pub(crate) fn slot(&self, id: u16) -> Option<Slot> {
         self.slots.get(&id).copied().flatten()

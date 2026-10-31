@@ -299,6 +299,25 @@ def test_the_vertex_colour_node_names_the_attribute_the_gltf_import_writes() -> 
     assert graph.node(colours.key).props == {"layer_name": "Color"}
 
 
+def test_the_package_statement_decides_whether_glass_reads_the_vertex_colours() -> None:
+    stated = single([description("x0001", "GlassPBR", gen_mask=["PER_VERTEX_TINT"], reads_vertex_colours=False)])
+    assert "ShaderNodeVertexColor" not in stated.kinds()
+    other = single([description("x0001", "GlassPBR", gen_mask=["NORMAL_MAP"], reads_vertex_colours=True)])
+    assert "ShaderNodeVertexColor" in other.kinds()
+
+
+def test_a_layered_surface_the_package_says_ignores_the_vertex_colours_is_not_blended() -> None:
+    layers = [{"name": "a", "material": "x0002"}, {"name": "b", "material": "x0002"}]
+    for stated, blended in ((False, False), (True, True)):
+        raw = [
+            description("x0001", "HardSurface", layers=layers, reads_vertex_colours=stated),
+            description("x0002", "Layer", diffuse=[0.3, 0.3, 0.3]),
+        ]
+        graph = single(raw)
+        assert ("ShaderNodeVertexColor" in graph.kinds()) is blended
+        assert (LAYER_BLEND in graph.groups()) is blended
+
+
 def test_the_glass_shader_name_is_tinted_like_glasspbr() -> None:
     graph = single([description("x0001", "Glass", gen_mask=["PER_VERTEX_TINT"])])
     colours = graph.linked("bsdf", "Base Color")

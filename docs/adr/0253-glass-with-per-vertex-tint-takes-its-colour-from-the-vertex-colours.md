@@ -25,11 +25,17 @@ the hull and stay unused for glass.
 - The node reads the attribute `Color`, which Blender's glTF import writes for `COLOR_0`. Glass on
   a mesh without that attribute drops the tint and keeps its plain colour, because the node would
   read black.
-- The GLB has no rule of its own. glTF multiplies `COLOR_0` into the base colour, so `PER_VERTEX_TINT`
-  glass is tinted there. The limit: the writer writes `COLOR_0` for every primitive of a mesh that has
-  vertex colours, so glass without the flag, such as `glass_ext` next to mask colours, is also tinted
-  and faded by mask data in glTF viewers, while the add-on ignores it. The add-on needs `COLOR_0` for
-  layered surfaces, so the fix is writing it per primitive (#877).
+- One rule decides which materials read the vertex colours: `Material::reads_vertex_colours` in
+  p4kx-model. It is true for `GlassPBR` and `Glass` with `PER_VERTEX_TINT`, and for a layered surface
+  (`HardSurface`, `Illum`, `LayerBlend`, `LayerBlend_V2`, `Layer`, `Simple`) that has no blend map
+  (a `_blend`, `_mask` or `_opac` texture) and at least one layer to blend over its base.
+- The GLB writer writes `COLOR_0` per primitive, only where the primitive's material reads the
+  vertex colours; a mesh with no such primitive has no colour data at all. glTF multiplies `COLOR_0`
+  into the base colour, so glass without the flag, such as `glass_ext` next to mask colours, is no
+  longer tinted or faded by mask data in glTF viewers (#877).
+- The package states the rule's result as `reads_vertex_colours` in every material description
+  (format 1.4), and the add-on builds its vertex-colour nodes from it, so the two outputs cannot
+  drift. A package before 1.4 has no statement; the add-on then applies the rule it had before.
 
 ## Consequences
 

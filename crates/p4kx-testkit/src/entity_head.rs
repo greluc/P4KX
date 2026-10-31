@@ -30,14 +30,20 @@ pub const MALE_HEAD_FOLDER: &str =
 pub const MALE_RIG: &str = "protos_human_male_face_t1_pu";
 
 pub(crate) fn head_skin() -> TestModel {
+    head_skin_on(&armour_male_skeleton(), 2, &head_logic())
+}
+
+/// Returns the synthetic head skin on `skeleton`, every vertex weighted to the bone `bone`, with
+/// the `RigLogic` chunk `logic`.
+pub(crate) fn head_skin_on(skeleton: &TestSkeleton, bone: u16, logic: &TestRigLogic) -> TestModel {
     TestModel::cube()
         .with_positions(TestPositions::Float)
         .with_normals(TestNormals::Compressed)
         .with_nodes(Vec::new())
-        .with_skeleton(&armour_male_skeleton())
-        .with_bone_map(false, vec![vec![(2, 255)]; HEAD_VERTICES])
+        .with_skeleton(skeleton)
+        .with_bone_map(false, vec![vec![(bone, 255)]; HEAD_VERTICES])
         .with_index(0, 5)
-        .with_chunk(RIG_LOGIC_CHUNK, head_logic().build())
+        .with_chunk(RIG_LOGIC_CHUNK, logic.build())
 }
 
 /// The rig logic of the synthetic head skin: the blendshapes of [`TestRigLogic::small`] and the

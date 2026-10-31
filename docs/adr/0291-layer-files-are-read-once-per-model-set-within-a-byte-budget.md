@@ -38,5 +38,6 @@ and the MCP model tools), `Drawn` reads them (every drawing caller, and the defa
 
 ## Consequences
 
-The CLI JSON and GUI summaries of Assemblies do not list `unresolved_layers` yet (the Assembly
-reports them as issues); follow-up: #960.
+The Assembly reports unresolved layer files as issues; the CLI JSON of the entity, armour and
+Interior exports and the GUI summary of the Assembly export also count them, through
+`UnresolvedLayers` (#960).

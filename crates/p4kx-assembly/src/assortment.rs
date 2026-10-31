@@ -1,13 +1,15 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-//! Loadouts generated from `SLoadoutAssortment` Records: the first alternative of each group.
+//! Loadouts generated from `SLoadoutAssortment` Records: the first alternative of each group
+//! whose Requirement is not known to fail.
 
 use std::sync::Arc;
 
 use p4kx_dataforge::{Guid, Record, StructValue, TreeBuilder, Value};
 
 use crate::LoadoutError;
+use crate::assortment_requirement::{Verdict, evaluate};
 use crate::read::{as_struct, struct_items, text};
 use crate::resolver::{Entries, LoadoutResolver};
 use crate::spec::{LoadoutSpec, TargetSpec, read_loadout, reference_target};
@@ -46,9 +48,50 @@ pub(crate) fn read_assortments(loadout: &StructValue<'_>) -> Option<LoadoutSpec>
     (!guids.is_empty()).then_some(LoadoutSpec::Assortments(guids))
 }
 
+/// The Requirements of one assortment that the Archive cannot decide.
+#[derive(Default)]
+struct Undecided {
+    assortment: bool,
+    groups: Vec<String>,
+}
+
+impl Undecided {
+    /// Returns whether the assortment, or its group `group`, is used given its Requirement
+    /// `field`; an undecided Requirement is used and remembered.
+    fn applies(&mut self, group: Option<&str>, field: Option<&Value<'_>>) -> bool {
+        match evaluate(field) {
+            Verdict::Met => true,
+            Verdict::Unmet => false,
+            Verdict::Undecided => {
+                match group {
+                    None => self.assortment = true,
+                    Some(name) if !self.groups.iter().any(|known| known == name) => {
+                        self.groups.push(name.to_owned());
+                    }
+                    Some(_) => {}
+                }
+                true
+            }
+        }
+    }
+
+    fn into_note(self, guid: Guid) -> Option<LoadoutError> {
+        (self.assortment || !self.groups.is_empty()).then_some(
+            LoadoutError::AssortmentRequirement {
+                guid,
+                assortment: self.assortment,
+                groups: self.groups,
+            },
+        )
+    }
+}
+
 /// Reads one assortment Record: the first alternative of every group, in the order of the groups.
 ///
 /// The game picks one alternative per group at random; the first is the deterministic default.
+/// An assortment or group whose Requirement the Archive decides as unmet gives nothing; one that
+/// depends on spawn tags still gives its groups and is one `assortment_requirement` note.
+///
 /// A group without alternatives gives nothing; a first alternative that is no Loadout is an issue
 /// and the group gives nothing, the later alternatives are not tried.
 fn read_assorted<'f>(builder: &mut TreeBuilder<'f>, record: &Record<'f>) -> Assorted {
@@ -72,25 +115,36 @@ fn read_assorted<'f>(builder: &mut TreeBuilder<'f>, record: &Record<'f>) -> Asso
     let path: Arc<str> = Arc::from(tree.record_path());
     let mut layers = Vec::new();
     let mut issues = Vec::new();
+    let mut undecided = Undecided::default();
+    if !undecided.applies(None, tree.field("Requirement")) {
+        return Assorted::new(layers, issues);
+    }
     if let Some(Value::Array(groups)) = tree.field("GroupedLoadouts") {
         for group in groups.iter().filter_map(as_struct) {
+            let name = text(group, "Group");
+            if !undecided.applies(Some(name), group.field("Requirement")) {
+                continue;
+            }
             let Some(first) = struct_items(group, "Loadouts").next() else {
                 continue;
             };
             match read_loadout(first, &path) {
                 Some(loadout) => layers.push(loadout),
                 None => issues.push(unusable(format!(
-                    "the first alternative of the group {} is no Loadout",
-                    text(group, "Group")
+                    "the first alternative of the group {name} is no Loadout"
                 ))),
             }
         }
     }
+    issues.extend(undecided.into_note(guid));
     Assorted::new(layers, issues)
 }
 
 impl LoadoutResolver<'_> {
     /// Returns the assortment `guid`, read once per resolver.
+    ///
+    /// The cache is keyed by GUID and holds the first alternatives only; an option to pick another
+    /// alternative needs the pick in the key, or the cache must keep every alternative.
     fn assorted(&mut self, guid: Guid) -> Result<Assorted, LoadoutError> {
         if let Some(assorted) = self.assortments.get(&guid) {
             return Ok(assorted.clone());

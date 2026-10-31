@@ -61,7 +61,7 @@ pub(crate) fn skin_entries(path: &str, model: &TestModel) -> [TestEntry; 2] {
     ]
 }
 
-fn skeleton_entry(path: &str, skeleton: &TestSkeleton) -> TestEntry {
+pub(crate) fn skeleton_entry(path: &str, skeleton: &TestSkeleton) -> TestEntry {
     let model = TestModel::cube().helpers_only().with_skeleton(skeleton);
     TestEntry::stored(format!("{path}.chr"), model.cgf())
 }

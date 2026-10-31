@@ -132,7 +132,8 @@ pub use extract::extract;
 pub use filter::{Filter, FilterError, MAX_FILTER_LEN, MAX_FILTER_WILDCARDS};
 pub use folder_convert::convert_folder;
 pub use folder_source::{
-    FolderError, FolderFileError, FolderSource, MAX_FOLDER_DEPTH, MAX_FOLDER_ENTRIES,
+    FolderError, FolderFileError, FolderSelection, FolderSource, MAX_FOLDER_DEPTH,
+    MAX_FOLDER_ENTRIES,
 };
 pub use loaded_dataforge::{DataForgeStopped, LoadedDataForge};
 pub use localization::{LocalizationEntry, LocalizationLoadError};

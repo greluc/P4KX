@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use std::sync::{Mutex, PoisonError};
 
 use p4kx_extraction::{
-    CancelToken, ConflictPolicy, ExtractOptions, FolderError, FolderSource, Progress,
+    CancelToken, ConflictPolicy, Exclusion, ExtractOptions, FolderError, FolderSource, Progress,
     convert_folder,
 };
 use p4kx_settings::{ExtractionAudio, ExtractionTextures};
@@ -68,7 +68,8 @@ fn run(request: &FolderRequest, cancel: &CancelToken, progress: &Mutex<Progress>
         progress: Some(&on_progress),
         ..ExtractOptions::default()
     };
-    let report = convert_folder(&source, None, false, &request.output, &options)
+    let selection = source.select(None, &Exclusion::default());
+    let report = convert_folder(&source, &selection, false, &request.output, &options)
         .map_err(|error| describe(&error))?;
     Ok(ExtractionSummary::new(request.output.clone(), &report))
 }

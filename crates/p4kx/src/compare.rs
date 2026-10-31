@@ -43,7 +43,7 @@ pub(crate) fn run(args: &CompareArgs, as_json: bool) -> Result<ExitCode> {
     if args.schema {
         return schema::run(&old, &new, as_json);
     }
-    let filter = args.filter.as_deref().map(Filter::new);
+    let filter = args.filter.as_deref().map(Filter::parse).transpose()?;
     let patches = (as_json || args.report.is_some()).then(PublicPatches::standard);
     let options = CompareOptions {
         levels: levels(args),

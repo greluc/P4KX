@@ -249,7 +249,8 @@ _Avoid_: costume
 
 **Bespoke head**:
 The head skins a story character has in the folder of its own head's material library, used in
-place of the generic Protos skins its Record names (ADR-0109).
+place of the generic Protos skins its Record names (ADR-0109). Its face comes from its own
+RigLogic file, skeleton file and head geometry (ADR-0281).
 _Avoid_: custom head, NPC head
 
 **Override**:
@@ -430,11 +431,19 @@ the morphs that turn the base head into that head. A Character's DNA mixes them 
 face.
 _Avoid_: face rig, RigLogic (a different file)
 
+**RigLogic file**:
+The `.RigLogic` file of a head in `Objects/Characters/RigLogic`, named like the head without
+`_head`: the controls and correctives of its rig, the joints it moves and the delta records that
+move them, for that one head. A story character's bespoke head has it in place of a DNA rig
+(ADR-0281); the `RigLogic` chunk of a head skin has the same layout.
+_Avoid_: DNA rig, face rig
+
 **Expression**:
 One facial movement of a head rig, such as a blink or a lip corner pull: a control named in the
-`RigLogic` chunk of the head skin, or a corrective that fires when some controls are active
-together. The DNA rig holds its moves per stock head; a Character's DNA mixes them, and the head is
-exported with them as named morph targets.
+`RigLogic` chunk of the head skin or in the RigLogic file, or a corrective that fires when some
+controls are active together. The DNA rig holds its moves per stock head; a Character's DNA mixes
+them, and the head is exported with them as named morph targets. A bespoke head has them in the
+`BShapesGpu` chunk of its geometry file.
 _Avoid_: face morph, shape key
 
 **Cubemap face**:

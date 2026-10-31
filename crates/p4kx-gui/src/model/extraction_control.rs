@@ -9,7 +9,7 @@ use p4kx_settings::{ExtractionAudio, ExtractionTextures};
 
 use super::Model;
 use crate::extraction::{Confirmation, Source, exclude, start};
-use crate::{Extraction, ExtractionScope, ExtractionSetup};
+use crate::{ComparisonSide, Extraction, ExtractionScope, ExtractionSetup};
 
 impl Model {
     /// Returns the folder last chosen for an Extraction, or `None` when none was.
@@ -135,11 +135,7 @@ impl Model {
             return false;
         }
         let source = match scope {
-            ExtractionScope::Changes(side) => self
-                .comparison
-                .view()
-                .and_then(|view| view.selection(side))
-                .map(|selection| (Source::Changes(selection), 0)),
+            ExtractionScope::Changes(side) => self.changes_source(side),
             _ => self.browser_source(),
         };
         let Some((source, excluded_parts)) = source.filter(|(source, _)| source.len() > 0) else {
@@ -159,6 +155,24 @@ impl Model {
         self.extraction = Some(start(request, wake));
         self.extraction_setup = None;
         true
+    }
+
+    /// Returns the added and changed Entries of `side` of the finished Comparison that its Filter
+    /// selects, without those the exclusion of the setup matches, and the number of excluded parts
+    /// of textures that stay, or `None` when they are not to be extracted yet: none, a Filter being
+    /// applied, or an exclusion that is invalid or leaves none.
+    fn changes_source(&mut self, side: ComparisonSide) -> Option<(Source, usize)> {
+        let selection = self.comparison.view()?.selection(side)?;
+        let setup = self.extraction_setup.as_mut()?;
+        let exclusion = setup.exclusion().ok()?;
+        if exclusion.is_empty() {
+            return Some((Source::Changes(selection), 0));
+        }
+        let Some((selection, excluded_parts)) = selection.leave_out(&exclusion) else {
+            setup.set_leaves_nothing();
+            return None;
+        };
+        Some((Source::Changes(selection), excluded_parts))
     }
 
     /// Returns the Entries of the open Archive the setup covers without those its exclusion

@@ -11,7 +11,7 @@ use rayon::prelude::*;
 use thiserror::Error;
 
 use crate::source::{EntrySource, SourceEntry, SourceReader};
-use crate::{CancelToken, EntryFailure, ExtractionError, Filter};
+use crate::{CancelToken, EntryFailure, Exclusion, ExtractionError, Filter};
 
 /// The most files, folders and rejected names [`FolderSource::scan`] visits; it bounds the memory
 /// of the listing, of the rejected names and of the folders waiting to be read.
@@ -43,6 +43,43 @@ pub enum FolderFileError {
     /// The file resolves to a place outside the input folder when it is opened.
     #[error("the file lies outside the input folder")]
     Outside,
+}
+
+/// The files of a folder that a Filter matches and an exclusion leaves in.
+///
+/// It lists files of the [`FolderSource`] that made it.
+#[derive(Debug, Clone)]
+pub struct FolderSelection<'a> {
+    pub(crate) entries: Vec<SourceEntry<'a>>,
+    matched: usize,
+    excluded_parts: usize,
+}
+
+impl FolderSelection<'_> {
+    /// Returns how many files the Filter matched.
+    #[must_use]
+    pub const fn matched(&self) -> usize {
+        self.matched
+    }
+
+    /// Returns how many files remain after the exclusion.
+    #[must_use]
+    pub const fn len(&self) -> usize {
+        self.entries.len()
+    }
+
+    /// Returns whether no file remains.
+    #[must_use]
+    pub const fn is_empty(&self) -> bool {
+        self.entries.is_empty()
+    }
+
+    /// Returns how many part files of textures whose header remains the exclusion left out; a
+    /// Conversion still reads them.
+    #[must_use]
+    pub const fn excluded_parts(&self) -> usize {
+        self.excluded_parts
+    }
 }
 
 /// Why an input folder cannot be converted.
@@ -178,23 +215,23 @@ impl FolderSource {
         &self.rejected
     }
 
-    /// Returns the files whose path matches `filter`, or every file, in path order.
-    pub(crate) fn select(&self, filter: Option<&Filter>) -> Vec<SourceEntry<'_>> {
-        self.files
+    /// Returns the files whose path matches `filter`, or every file, without those `exclusion`
+    /// leaves out, in path order.
+    #[must_use]
+    pub fn select(&self, filter: Option<&Filter>, exclusion: &Exclusion) -> FolderSelection<'_> {
+        let matching: Vec<SourceEntry<'_>> = self
+            .files
             .iter()
             .enumerate()
             .filter(|(_, file)| filter.is_none_or(|filter| filter.matches(&file.path)))
             .map(|(index, file)| self.entry(index, file))
-            .collect()
-    }
-
-    /// Returns how many files `filter` matches.
-    #[must_use]
-    pub fn count_matching(&self, filter: &Filter) -> usize {
-        self.files
-            .par_iter()
-            .filter(|file| filter.matches(&file.path))
-            .count()
+            .collect();
+        let left = exclusion.leave_out(matching, |entry: &SourceEntry<'_>| entry.path());
+        FolderSelection {
+            matched: left.kept.len().saturating_add(left.removed),
+            excluded_parts: left.parts_of_kept_textures.len(),
+            entries: left.kept,
+        }
     }
 
     /// Returns the failures of the files and folders that were not listed.

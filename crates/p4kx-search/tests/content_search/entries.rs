@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use p4kx_extraction::{Archive, Filter, find_entry, read_text};
+use p4kx_extraction::{Archive, Exclusion, Filter, find_entry, read_text};
 use p4kx_search::{EntryHit, Found, Needle, SearchOptions, Source, Sources, search_entries};
 use p4kx_testkit::{ArchiveBuilder, TestEntry};
 
@@ -98,6 +98,24 @@ fn a_filter_replaces_the_extension_list() -> TestResult {
         lines(&found),
         [("Data\\Scripts\\texture.dds", 1)],
         "an Entry the extension list leaves out"
+    );
+    Ok(())
+}
+
+#[test]
+fn an_exclusion_leaves_out_entries_the_filter_takes() -> TestResult {
+    let fixture = fixture(&archive_builder())?;
+    let options = SearchOptions {
+        filter: Some(Filter::new("Data\\Scripts")),
+        exclusion: Exclusion::parse(["*\\ship.xml", "*.dds"])?,
+        ..SearchOptions::default()
+    };
+    keyed(&fixture);
+    let found = run(&fixture.archive, "gladius", &options)?;
+    assert_eq!(
+        lines(&found),
+        [("Data\\Scripts\\secret.xml", 1)],
+        "ship.xml and texture.dds are left out"
     );
     Ok(())
 }

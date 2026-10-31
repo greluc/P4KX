@@ -21,6 +21,7 @@ mod report;
 mod run;
 mod schema_view;
 mod selection;
+mod summary;
 mod view;
 
 pub use diff::{DiffStatus, EntryDiff};
@@ -35,7 +36,8 @@ pub use record_list::{RecordChangeColumn, RecordChangeList, RecordChangeRow, Rec
 pub use record_view::{ComparisonList, RecordChangeView};
 pub use report::ReportStatus;
 pub use schema_view::{SchemaRow, SchemaRowKind, SchemaView};
-pub use view::{ComparisonView, DirectorySummary, Summary};
+pub use summary::{DirectorySummary, Summary};
+pub use view::ComparisonView;
 
 use run::{Outcome, Run};
 pub(crate) use selection::{ChangeSelection, side_archive};

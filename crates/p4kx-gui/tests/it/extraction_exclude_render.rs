@@ -146,3 +146,33 @@ fn the_exclusion_field_is_drawn_and_turns_red_for_a_filter_that_is_not_accepted(
     }
     Ok(())
 }
+
+#[test]
+fn a_search_field_turns_red_for_filter_text_that_is_refused() -> TestResult {
+    let Some(state) = render_state() else {
+        return Ok(());
+    };
+    let dir = tempfile::tempdir()?;
+    let mut harness = window(
+        WgpuTestRenderer::from_render_state(state),
+        Language::BritishEnglish,
+        dir.path(),
+    )?;
+    let plain = drawn(&mut harness, "search-field.png")?;
+
+    if let Some(browser) = harness.state_mut().browser_mut() {
+        browser.search("*.cga", || {});
+    }
+    let valid = drawn(&mut harness, "search-field-filled.png")?;
+    if let Some(browser) = harness.state_mut().browser_mut() {
+        browser.search(&"*a".repeat(40), || {});
+    }
+    let refused = drawn(&mut harness, "search-field-refused.png")?;
+
+    assert_eq!(valid, plain, "an accepted Filter draws nothing red");
+    assert!(
+        refused > plain + 50,
+        "the border is red: {refused} against {plain} pixels"
+    );
+    Ok(())
+}

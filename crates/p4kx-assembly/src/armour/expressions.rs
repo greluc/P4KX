@@ -1,16 +1,18 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use p4kx_character::{DnaMatrix, DnaRig, ExpressionBlend, ExpressionTarget, RigLogic};
+use p4kx_character::{
+    DnaMatrix, DnaRig, ExpressionBlend, ExpressionTarget, RigLogic, SkinBlendshapes,
+};
 use p4kx_chunks::{ChunkFile, ivo};
 use p4kx_gltf::MorphTarget;
 use p4kx_model::Mesh;
-use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
 use crate::{ModelFailure, ModelProvider};
 
-/// The largest head skin that is read for the names of its expression blendshapes, 64 MiB.
-const MAX_SKIN_LEN: u64 = 64 << 20;
+/// The largest head skin, geometry file or skeleton file that is read for a head's rig, 64 MiB.
+pub(super) const MAX_SKIN_LEN: u64 = 64 << 20;
 const NO_VERTEX: u32 = u32::MAX;
 const CONTROL_PREFIX: &str = "ctl_";
 
@@ -167,9 +169,51 @@ pub(super) fn morphs(
             blend.blendshapes()
         ));
     }
+    Ok(targets_of(&blend, logic, mesh, selection))
+}
+
+/// The blendshapes of a head on the vertices of its geometry stream.
+pub(super) trait BlendshapeSource: Sync {
+    fn vertices(&self) -> usize;
+
+    /// Returns one blendshape; the cost is a pass over all vertices of the stream, so callers run
+    /// it per chosen blendshape, in parallel.
+    fn target(&self, blendshape: usize) -> ExpressionTarget;
+}
+
+impl BlendshapeSource for ExpressionBlend<'_> {
+    fn vertices(&self) -> usize {
+        Self::vertices(self)
+    }
+
+    /// Costs a dense array of the stream's vertices and a pass over the cells of the heads.
+    fn target(&self, blendshape: usize) -> ExpressionTarget {
+        Self::target(self, blendshape)
+    }
+}
+
+impl BlendshapeSource for SkinBlendshapes<'_> {
+    fn vertices(&self) -> usize {
+        Self::vertices(self)
+    }
+
+    /// Costs one pass over the bitmaps of all vertices of the stream.
+    fn target(&self, blendshape: usize) -> ExpressionTarget {
+        Self::target(self, blendshape)
+    }
+}
+
+/// Makes the morph targets `selection` asks for of the head `mesh` from `source`, named by
+/// `logic`; the targets ascend by blendshape and leave out the blendshapes that move no vertex.
+pub(super) fn targets_of(
+    source: &impl BlendshapeSource,
+    logic: &RigLogic,
+    mesh: &Mesh,
+    selection: &Expressions,
+) -> Morphs {
     let (chosen, unknown) = select(logic, selection);
-    let (first, next) = by_stream_vertex(mesh, blend.vertices());
-    let made = make(&blend, &chosen, &first, &next);
+    let (first, next) = by_stream_vertex(mesh, source.vertices());
+    let made = make(source, &chosen, &first, &next);
     let empty = match selection {
         Expressions::Only(_) => made
             .iter()
@@ -194,27 +238,26 @@ pub(super) fn morphs(
             target.name = format!("{}#{count}", target.name);
         }
     }
-    Ok(Morphs {
+    Morphs {
         targets,
         numbers,
         unknown,
         empty,
-    })
+    }
 }
 
 fn make(
-    blend: &ExpressionBlend<'_>,
+    blend: &impl BlendshapeSource,
     chosen: &[(usize, String)],
     first: &[u32],
     next: &[u32],
 ) -> Vec<Option<MorphTarget>> {
     chosen
-        .to_vec()
-        .into_par_iter()
+        .par_iter()
         .map(|(number, name)| {
-            let (vertices, deltas) = on_mesh(&blend.target(number), first, next);
-            (!vertices.is_empty()).then_some(MorphTarget {
-                name,
+            let (vertices, deltas) = on_mesh(&blend.target(*number), first, next);
+            (!vertices.is_empty()).then(|| MorphTarget {
+                name: name.clone(),
                 vertices,
                 deltas,
             })

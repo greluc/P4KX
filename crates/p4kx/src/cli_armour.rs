@@ -50,7 +50,7 @@ pub(crate) enum ArmourAction {
     /// whose model cannot be read is skipped and listed; bones of a piece that the skeleton
     /// lacks follow their nearest parent. Reads every model once, in parallel.
     #[command(after_help = EXIT_CODES_HELP)]
-    Glb(ArmourGlbArgs),
+    Glb(Box<ArmourGlbArgs>),
 }
 
 /// Arguments of `p4kx armour glb`.
@@ -98,6 +98,21 @@ pub(crate) struct ArmourGlbArgs {
     /// Leaves the vertex colours out; viewers multiply the material's base colour by them.
     #[arg(long)]
     pub(crate) no_vertex_colours: bool,
+    /// Writes only the expression with this name as a morph target of the head a --loadout gives
+    /// its character; repeat the option for more. Without it all expressions of a story
+    /// character's own head are written at LOD 0, read from the blendshapes of its geometry; a
+    /// head without a `.RigLogic` file of its own has none. A name is a control of the head rig,
+    /// e.g. `CTL_jaw_open`, or the controls of a corrective joined by `*`, in any case and with or
+    /// without the prefix `CTL_`. A name the head lacks is listed as an issue.
+    #[arg(
+        long = "expression",
+        value_name = "NAME",
+        conflicts_with = "no_expressions"
+    )]
+    pub(crate) expressions: Vec<String>,
+    /// Leaves the expressions out: the head has its neutral face only.
+    #[arg(long)]
+    pub(crate) no_expressions: bool,
     /// Looks for animations only below this folder of the Archive, a path below `Data` such as
     /// `Animations/pu/male/eckhart`, instead of the folders of the body; repeatable, used with
     /// --anim. Without it, a --loadout whose character has a folder of its own animations below

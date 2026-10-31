@@ -109,12 +109,37 @@ pub(crate) fn counted(kind: CountKind, count: u32, offset: u32, position: usize)
 
 /// Returns whether `conditions` require the widget itself to be of the type `kind`, directly or
 /// inside an all-of; types asked of a parent, ancestor or child do not count.
-pub(crate) fn requires_type(conditions: &[Condition], kind: &str) -> bool {
+fn requires_type(conditions: &[Condition], kind: &str) -> bool {
     conditions.iter().any(|condition| match condition {
         Condition::Type(found) => found == kind,
         Condition::AllOf(inner) => requires_type(inner, kind),
         _ => false,
     })
+}
+
+/// Returns whether `conditions` name a type of the widget itself, directly or inside an all-of.
+fn names_type(conditions: &[Condition]) -> bool {
+    conditions.iter().any(|condition| match condition {
+        Condition::Type(_) => true,
+        Condition::AllOf(inner) => names_type(inner),
+        _ => false,
+    })
+}
+
+/// Returns whether `conditions` require a parent that meets some condition, directly or inside
+/// an all-of.
+fn requires_parent(conditions: &[Condition]) -> bool {
+    conditions.iter().any(|condition| match condition {
+        Condition::Parent(_) => true,
+        Condition::AllOf(inner) => requires_parent(inner),
+        _ => false,
+    })
+}
+
+/// Returns whether `conditions` select the text a text field holds, a widget of the type `kind`
+/// below the field: they require that type, or name no type and select by the parent.
+pub(crate) fn selects_text(conditions: &[Condition], kind: &str) -> bool {
+    requires_type(conditions, kind) || (requires_parent(conditions) && !names_type(conditions))
 }
 
 pub(crate) fn collect_unsupported(condition: &Condition, out: &mut Vec<String>) {

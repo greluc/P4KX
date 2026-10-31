@@ -8,6 +8,7 @@ use p4kx_dataforge::Guid;
 use super::Rest;
 use super::graph::{FieldKind, Input, Node, Operations};
 use super::state::{AtRest, PARAMETER, STATE_TAG, key_of};
+use crate::style::GeometryModifiers;
 use crate::variables::Variable;
 
 const MAX_DEPTH: usize = 128;
@@ -314,6 +315,11 @@ impl AtRest {
             let handled = match (binding.kind, binding.field.as_str()) {
                 (FieldKind::Boolean, "Instantiated" | "IsActive")
                 | (FieldKind::Number, "Alpha") => true,
+                (FieldKind::Number | FieldKind::Integer, field)
+                    if GeometryModifiers::has_field(field) =>
+                {
+                    true
+                }
                 (_, field) => field.starts_with(PARAMETER),
             };
             if !handled || binding.kind == FieldKind::Other {

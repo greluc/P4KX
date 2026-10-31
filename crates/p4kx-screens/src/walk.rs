@@ -159,6 +159,11 @@ impl<'s, 'a, 'f, 't> Walk<'s, 'a, 'f, 't> {
         if let Some(part) = self.text_part(widget, &subject) {
             merge(&mut style, &part);
         }
+        if let Some(bound) = self.rests.last().and_then(|state| state.geometry(index)) {
+            let mut geometry = *bound;
+            geometry.merge(&style.geometry);
+            style.geometry = geometry;
+        }
         self.apply_overrides(canvas, index, &mut style);
         let style = Rc::new(style);
         self.resolved.insert(key, Rc::clone(&style));

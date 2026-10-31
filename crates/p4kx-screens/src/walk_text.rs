@@ -10,9 +10,9 @@ use crate::walk::Walk;
 use crate::widget::Widget;
 
 impl Walk<'_, '_, '_, '_> {
-    /// Resolves the entries that select the text a text field holds: those that require the type
-    /// `Text` and look at the field as the parent (`Type Text` below a tag). `None` for any other
-    /// widget.
+    /// Resolves the entries that select the text a text field holds, with the field as its
+    /// parent: those that require the type `Text` and those that name no type and select by the
+    /// parent. `None` for any other widget.
     pub(crate) fn text_part(&mut self, widget: &Widget, field: &Subject) -> Option<Modifiers> {
         if widget.type_name != TEXT_FIELD {
             return None;

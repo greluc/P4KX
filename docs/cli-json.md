@@ -1835,10 +1835,12 @@ widgets it concerns and the names of up to three.
 
 `Binding` lists what the state at rest of a canvas (ADR-0110) could not decide, per canvas once
 for the fields and per set of parameters for the inputs. The bound fields `Instantiated`,
-`IsActive`, `Alpha` and `ParamInput0` to `ParamInput4` that evaluate to a value are applied and not
-listed, and so are the bound state tags (`PrimaryStateTag` to `QuinaryStateTag`), which the styles
-of the widget select on like its own tags (ADR-0287). The reasons are `bound layout fields (size,
-position, anchor, pivot, scale, turn, spacing, flex) are not evaluated at rest`, `bound field
+`IsActive`, `Alpha`, `ParamInput0` to `ParamInput4` and the number fields of the layout (`SizeX`,
+`AnchorY`, `PivotX`, `ScaleX`, `PosX`, `PaddingLeft`, `MinSizeX` and the like, ADR-0296) that
+evaluate to a value are applied and not listed, and so are the bound state tags
+(`PrimaryStateTag` to `QuinaryStateTag`), which the styles of the widget select on like its own
+tags (ADR-0287). The reasons are `bound layout fields (behaviours, depth, flex) are not
+evaluated at rest`, `bound field
 <field> is not evaluated at rest` for any other field, and `the input of the bound field <field>
 is not evaluated: <why>` where the graph that feeds a field of those that are evaluated holds a
 node that is not evaluated (`<kind> is not evaluated`), an input that is not connected, a cycle,

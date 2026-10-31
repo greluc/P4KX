@@ -6,7 +6,7 @@ use std::rc::Rc;
 
 use p4kx_dataforge::{DataForge, Guid};
 
-use super::condition::{Uses, requires_type};
+use super::condition::{Uses, selects_text};
 use super::entry::{Entry, Modifiers, parse_entries};
 use super::matching::{Subject, TagPaths, applies};
 use crate::canvas::Canvas;
@@ -159,8 +159,8 @@ pub(crate) fn resolve(
 }
 
 /// Resolves the entries of `sheets` that select the text a text field holds: those that require
-/// the type `Text` of the widget they select. Untyped entries and inline styles are left to the
-/// field.
+/// the type `Text` of the widget they select and those that name no type and select by the parent
+/// (ADR-0296). Other untyped entries and inline styles are left to the field.
 pub(crate) fn resolve_text(
     sheets: &[Rc<CanvasStyles>],
     (subject, above): (&Subject, &[Subject]),
@@ -176,7 +176,7 @@ pub(crate) fn resolve_text(
             entry
                 .lists
                 .iter()
-                .any(|list| requires_type(list, &subject.kind))
+                .any(|list| selects_text(list, &subject.kind))
         });
     for entry in typed {
         if *budget == 0 {

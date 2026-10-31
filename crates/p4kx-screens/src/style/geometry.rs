@@ -89,6 +89,11 @@ impl GeometryModifiers {
         }
     }
 
+    /// Returns whether `field` is a numeric field of the geometry that [`Self::number`] takes.
+    pub(crate) fn has_field(field: &str) -> bool {
+        Self::default().number(field, None)
+    }
+
     /// Takes the numeric field `field` when it is one of the geometry, `false` otherwise.
     pub(crate) fn number(&mut self, field: &str, value: Option<f32>) -> bool {
         let table: [(&str, &mut [Option<f32>]); 9] = [

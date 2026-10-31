@@ -10,13 +10,36 @@ use p4kx_extraction::{
     Archive, ArchiveImages, DataForgeEntry, Language, LocalizationEntry, UiMovie,
     decode_line_breaks,
 };
-use p4kx_screens::{ImageSources, MAX_SVG_BYTES, ScreenComposer, TextSources, Variable};
+use p4kx_screens::{ImageSources, MAX_SVG_BYTES, Report, ScreenComposer, TextSources, Variable};
 use p4kx_testkit::{real_archive_key, real_archive_path};
 
 type TestResult = Result<(), Box<dyn Error>>;
 
 const MFD: &str = "libs/foundry/records/ui/buildingblocks/ships/displays/mfdscreens/mc_mfdcomponents/screens/general/m_mfd_screen";
 const BRAND: &str = "aegs";
+/// The texts the powered MFD draws on LIVE once entries that select by the parent colour them:
+/// 13, the header and the counters among them.
+const MIN_TEXTS_POWERED: usize = 10;
+const NO_COLOUR: &str = "text has no colour";
+const MAX_WITHOUT_COLOUR: usize = 10;
+
+fn assert_texts_coloured(report: &Report) {
+    assert!(
+        report.texts_drawn >= MIN_TEXTS_POWERED,
+        "{} texts",
+        report.texts_drawn
+    );
+    let without_colour: usize = report
+        .unsupported
+        .iter()
+        .filter(|entry| entry.reason == NO_COLOUR)
+        .map(|entry| entry.count)
+        .sum();
+    assert!(
+        without_colour <= MAX_WITHOUT_COLOUR,
+        "{without_colour} texts without a colour"
+    );
+}
 
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
@@ -65,11 +88,7 @@ fn a_powered_mfd_draws_shapes_and_texts_and_lists_the_textures_the_archive_lacks
         "{} shapes",
         powered.report().shapes
     );
-    assert!(
-        powered.report().texts_drawn > 0,
-        "{} texts",
-        powered.report().texts_drawn
-    );
+    assert_texts_coloured(powered.report());
     assert!(
         powered
             .report()

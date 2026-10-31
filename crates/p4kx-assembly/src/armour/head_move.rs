@@ -9,7 +9,8 @@ use p4kx_model::{Mesh, Model};
 use super::ArmourPart;
 use super::face_build::Face;
 use super::follow::follow;
-use super::follow_joints::HeadSkin;
+use super::follow_blend::HeadSkin;
+use super::follow_joints::bind;
 use super::follow_morphs::{Followed, follow_morphs};
 use crate::{Issue, IssueKind};
 
@@ -28,6 +29,8 @@ pub(super) struct Worn {
     pub(super) morphs: Vec<MorphTarget>,
     pub(super) face: Option<Face>,
     pub(super) follows: Vec<usize>,
+    /// What was not done while the job was worn, for the report.
+    pub(super) kinds: Vec<IssueKind>,
 }
 
 /// Leaves out of the animation the parts that follow the head whose morph targets do not match the
@@ -74,12 +77,23 @@ fn first_mesh(model: &Model) -> Option<&Mesh> {
 
 /// Returns `model` with its vertices following the head as it was shaped, and with morph targets
 /// that follow the expression targets of the head.
+///
+/// The vertices are bound to the joints of the head as well, see [`bind`]; when that cannot be
+/// done, `kinds` of the result says why and the vertices keep their own bones.
 pub(super) fn followed(model: &Arc<Model>, head: &HeadMove) -> Worn {
+    let mut kinds = Vec::new();
     let (model, moved) = match (first_mesh(&head.before), first_mesh(&head.after)) {
         (Some(before), Some(after)) => {
-            let skin = HeadSkin::of(&head.before, before);
+            let mut bound = Model::clone(model);
+            if let Err(reason) =
+                HeadSkin::of(&head.before, before).and_then(|skin| bind(&mut bound, &skin))
+            {
+                kinds.push(IssueKind::FollowJointsSkipped {
+                    reason: reason.to_string(),
+                });
+            }
             (
-                Arc::new(follow(model, before, after, skin.as_ref())),
+                Arc::new(follow(bound, before, after)),
                 follow_morphs(model, before, &head.morphs),
             )
         }
@@ -90,5 +104,6 @@ pub(super) fn followed(model: &Arc<Model>, head: &HeadMove) -> Worn {
         morphs: moved.targets,
         face: None,
         follows: moved.of,
+        kinds,
     }
 }

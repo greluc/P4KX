@@ -9,6 +9,7 @@ use crate::{
     TestBone, TestEntity, TestEntry, TestInstance, TestMtl, TestMtlMaterial, TestRecord,
     TestSkeleton, TestStruct, TestType, TestValue,
 };
+
 /// The GUID of the hair Entity: a skin for the male body, drawn with [`DRESSED_HAIR_MATERIAL`].
 pub const DRESSED_HAIR: u128 = 0x51;
 /// The GUID of the eyes Entity, whose male skin is nested in a sub-node tagged `Protos_head`.
@@ -25,6 +26,8 @@ pub const DRESSED_UNKNOWN_MATERIAL: u128 = 0x62;
 pub const DRESSED_JAW_BONE: &str = "jaw";
 /// The index of [`DRESSED_JAW_BONE`] in the skeleton of the head skin.
 pub const DRESSED_JAW_INDEX: u16 = 3;
+/// How far [`DRESSED_JAW_BONE`] sits above its parent, in metres.
+const JAW_HEIGHT: f32 = 0.1;
 /// The material library of the head that [`DRESSED_HEAD_MATERIAL`] stands for: three
 /// `shader_head` skins with a diffuse map and the average colour `0.5, 0.25, 0.125`.
 pub const DRESSED_HEAD_MATERIAL_FILE: &str =
@@ -180,7 +183,7 @@ pub fn dressed_jaw_entries(rig: Option<Vec<u8>>) -> Vec<TestEntry> {
         name: DRESSED_JAW_BONE.to_owned(),
         parent: Some(2),
         rotation: [0.0, 0.0, 0.0, 1.0],
-        translation: [0.0, 0.0, 0.1],
+        translation: [0.0, 0.0, JAW_HEIGHT],
     });
     let model = head_skin_on(&TestSkeleton::new(bones), DRESSED_JAW_INDEX, &head_logic());
     let mut entries: Vec<TestEntry> = dressed_entries(rig)

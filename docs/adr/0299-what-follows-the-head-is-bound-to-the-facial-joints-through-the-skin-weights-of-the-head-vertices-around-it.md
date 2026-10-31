@@ -20,16 +20,23 @@ opening jaw.
   kernel (`ANCHOR`), so a strand that hangs far from the head keeps its own binding and a
   vertex on the head takes the head's. Each head vertex contributes its weights as fractions of
   their sum, and the result is the weighted sum over the bones.
-- **Skeleton.** The bones of the head skin that the following model lacks are appended to its
-  bones by name (`extend_skeleton`, without offsets), so its influences name them; the export maps
-  them by name to the skeleton extended by the head, as for any skin (ADR-0079).
+- **Skeleton.** The bones of the head skin that a bound vertex uses, and their ancestors in the
+  head skin, are appended to the bones of that level of the following model by name
+  (`extend_skeleton_placed`, without offsets), so its influences name them; the other bones of the
+  head are not appended. The export maps them by name to the skeleton extended by the head, as
+  for any skin (ADR-0079).
 - **Bounds.** A vertex keeps its strongest eight bones (`MAX_INFLUENCES`, two glTF sets) and the
-  weights are written as bytes that add up to 255, the rounding going to the strongest bone. Ties
-  go to the lower bone and the kernel visits the head vertices in a fixed order, so the binding is
-  deterministic. A mesh that is not skinned and a vertex with no head vertex within 10 cm are left
-  as they are.
-- **Scope.** Every mesh of the first level of the following model, at every level of detail, as
-  the neutral follow; the morph targets stay at level 0 (ADR-0200; lower levels are #961).
+  weights are written as bytes that add up to 255, what rounding leaves over or takes too much
+  going to the strongest bone (`Influences::from_weights`). Ties go to the lower bone and the
+  kernel visits the head vertices in a fixed order, so the binding is deterministic. A mesh that
+  is not skinned and a vertex with no head vertex within 10 cm are left as they are.
+- **Scope.** Every mesh of every level of detail the following model holds, each level with its
+  own bones; an Armour built through `ArchiveModels` holds one level, the nearest to the one
+  asked for. The neutral follow and the morph targets stay as they were: the vertices move on the
+  first level only, the targets are made at level 0 (ADR-0200; lower levels are #961).
+- **Report.** `follow_joints_skipped` lists a piece that is not bound because the head mesh has
+  no weights or because the bones of the level and of the head do not fit 16-bit joint indices;
+  the piece keeps its own bones.
 
 ## Measured
 

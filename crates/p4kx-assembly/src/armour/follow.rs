@@ -6,8 +6,6 @@ use std::collections::HashMap;
 use p4kx_model::{Mesh, Model};
 use rayon::prelude::*;
 
-use super::follow_joints::{HeadSkin, bind};
-
 pub(super) type Vec3 = [f32; 3];
 
 /// The distance beyond which a head vertex no longer moves a vertex of hair, in metres.
@@ -161,23 +159,11 @@ fn follow_mesh(mesh: &mut Mesh, field: &Field<'_>) {
 /// counting more, and fades out against a fixed anchor, so hair that hangs far from the head
 /// stays where it was. `before` and `after` must be the same mesh; with different vertex counts
 /// the model is returned as it is.
-///
-/// With the skin `skin` of the head, the vertices are also bound to the head's joints, see
-/// [`bind`].
-pub(super) fn follow(
-    model: &Model,
-    before: &Mesh,
-    after: &Mesh,
-    skin: Option<&HeadSkin<'_>>,
-) -> Model {
-    let mut moved = model.clone();
+pub(super) fn follow(mut moved: Model, before: &Mesh, after: &Mesh) -> Model {
     if before.positions.len() != after.positions.len() {
         return moved;
     }
     let field = Field::new(&before.positions, &after.positions);
-    if let Some(skin) = skin {
-        bind(&mut moved, &field.grid, skin);
-    }
     if let Some(lod) = moved.lods.first_mut() {
         for mesh in &mut lod.meshes {
             follow_mesh(mesh, &field);

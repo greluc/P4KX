@@ -57,7 +57,8 @@ impl Server {
 
     #[tool(
         description = "Search the Records of the Archive's DataForge by record path and type name, both Filters: \
-        with * or ? a glob over the whole text, otherwise a substring; case and separator kind do not matter. \
+        with * or ? a glob over the whole text, otherwise a substring; case and separator kind do not matter; \
+        each Filter is at most 1024 bytes with at most 32 * and ?, otherwise the call is an error. \
         Results are in Record order and page with a cursor. The content may be forwarded by the client to \
         third parties; game texts and media must not be redistributed.",
         output_schema = rmcp::handler::server::tool::schema_for_output::<RecordSearchResult>(),

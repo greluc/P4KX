@@ -53,7 +53,7 @@ pub(crate) fn run(args: &ShipsArgs, as_json: bool) -> Result<ExitCode> {
     };
     crate::guard::ensure_writable(&args.out)?;
     let archive = crate::key::open(&args.archive)?;
-    let filter = args.filter.as_deref().map(Filter::new);
+    let filter = args.filter.as_deref().map(Filter::parse).transpose()?;
     let cancel = cancel_on_interrupt()?;
     let line = ProgressLine::new();
     let show = |progress| line.show_records(progress);

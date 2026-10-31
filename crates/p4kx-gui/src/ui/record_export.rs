@@ -7,7 +7,8 @@ use p4kx_export::{FLAT_CSV_FILE, FLAT_NDJSON_FILE, NDJSON_FILE};
 use super::extraction::{
     POLICIES, folder_field, foot, group_label, new_folder_name, number, refusal_notice,
 };
-use super::search::field;
+use super::filter_text::problem_text;
+use super::search::filter_field;
 use super::{Dialog, Requests, regions};
 use crate::theme::desktop::MODAL_GROUP_GAP;
 use crate::theme::palette;
@@ -179,7 +180,16 @@ fn records(ui: &mut Ui, texts: &Texts, setup: &mut RecordExportSetup) {
     if radio.clicked() {
         setup.set_scope(RecordScope::Filter);
     }
-    if field(ui, setup.filter_mut(), &texts.get(T::FilterHint), radio.id) {
+    let problem = setup
+        .filter_error()
+        .map(|problem| problem_text(texts, &problem));
+    let hint = texts.get(T::FilterHint);
+    if filter_field(
+        ui,
+        setup.filter_mut(),
+        (&hint, radio.id),
+        problem.as_deref(),
+    ) {
         setup.set_scope(RecordScope::Filter);
     }
 }

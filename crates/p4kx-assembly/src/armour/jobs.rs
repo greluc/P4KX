@@ -6,6 +6,7 @@ use std::sync::Arc;
 use p4kx_character::Dna;
 
 use super::head::rig_part;
+use super::hidden;
 use super::piece::{Bespoke, Mount, Note, Source};
 use super::wearable::{Unfit, Worn};
 use super::{BodyVariant, Expressions, Look, PartOrigin, Piece, ZoneChunk};
@@ -241,7 +242,12 @@ pub(super) fn planned(
     issues: &mut Vec<Issue>,
 ) -> Vec<Job> {
     let mut jobs = vec![Job::body(variant.skin())];
-    for piece in pieces {
+    let shown = hidden::worn(pieces, issues);
+    for piece in pieces
+        .iter()
+        .zip(shown)
+        .filter_map(|(piece, shown)| shown.then_some(piece))
+    {
         gather(piece, variant, models, &mut jobs, issues);
     }
     if jobs.len() > max_parts {

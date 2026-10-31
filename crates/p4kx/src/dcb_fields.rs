@@ -53,7 +53,7 @@ pub(crate) fn run(args: &DcbFieldsArgs, as_json: bool) -> Result<ExitCode> {
     let input = ForgeInput::open(&args.archive)?;
     let forge = input.entry().open()?;
     let statistics = statistics(&forge, query.as_ref())?;
-    let filter = args.path.as_deref().map(Filter::new);
+    let filter = args.path.as_deref().map(Filter::parse).transpose()?;
     let fields: Vec<&FieldStat> = statistics
         .fields()
         .iter()

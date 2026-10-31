@@ -6,7 +6,7 @@ use std::process::ExitCode;
 use std::time::{Duration, Instant};
 
 use anyhow::Result;
-use p4kx_extraction::Filter;
+use p4kx_extraction::{Exclusion, Filter};
 use p4kx_search::{
     EmptyNeedle, Needle, SearchError, SearchOptions, SearchReport, SearchStats, Source, Sources,
     search,
@@ -29,7 +29,7 @@ pub(crate) fn run(args: &GrepArgs, as_json: bool) -> Result<ExitCode> {
         (as_json, format) => as_json || format == Some(GrepFormat::Json),
     };
     let needle = Needle::new(&args.text).map_err(EmptySearchText)?;
-    let options = options(args);
+    let options = options(args)?;
     let archive = crate::key::open(&args.archive)?;
     let started = Instant::now();
     let report = search(&archive, &needle, &options, &|| false).map_err(failure)?;
@@ -53,20 +53,26 @@ fn failure(error: SearchError) -> anyhow::Error {
     }
 }
 
-fn options(args: &GrepArgs) -> SearchOptions {
+/// Returns the options the arguments ask for.
+///
+/// # Errors
+///
+/// Returns the [`FilterError`](p4kx_extraction::FilterError) of a Filter that is not accepted.
+fn options(args: &GrepArgs) -> Result<SearchOptions> {
     let sources = if args.sources.is_empty() {
         Sources::ALL
     } else {
         args.sources.iter().copied().map(Source::from).collect()
     };
-    SearchOptions {
+    Ok(SearchOptions {
         sources,
-        filter: args.filter.as_deref().map(Filter::new),
+        filter: args.filter.as_deref().map(Filter::parse).transpose()?,
+        exclusion: Exclusion::parse(&args.exclude)?,
         languages: args.lang.clone(),
         limit: args.limit as usize,
         per_item: args.per_item as usize,
         max_entry_len: args.max_entry_size,
-    }
+    })
 }
 
 /// Writes what the search left out and how long it took to stderr.

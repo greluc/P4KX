@@ -5,8 +5,6 @@
 //! its surface, or reads back.
 
 mod assembly;
-#[cfg(test)]
-mod deadline;
 mod device;
 mod frame;
 mod hologram;
@@ -17,6 +15,8 @@ mod offscreen;
 #[cfg(test)]
 mod offscreen_tests;
 mod pipelines;
+#[cfg(test)]
+mod probe;
 mod report;
 mod resources;
 mod shading;

@@ -639,7 +639,10 @@ the bone of its port is not listed, ADR-0231), both described at the exported le
 `body_zones_hidden` (the reason lists the body zones the worn clothing covers, whose triangles of
 the body are left out, ADR-0140), `body_zones_unknown` (no part, or several, of the character is a `Char_Body` with a model, the
 skin is not one of the variant's body, or the submeshes of the body skin do not fit the zone
-table, so nothing is left out), `layers_without_diffuse` (only with `--materials textures`; the
+table, so nothing is left out), `clothing_conditions_undecided` (the reason lists zones of the body
+that clothing would cover under a condition on ports or tags, which is not evaluated, so the body
+stays whole there, ADR-0279), `part_hidden` (the piece sits at a port that another worn piece hides
+by its `HiddenParts`, so it is left out, ADR-0279; a note, not a skip), `layers_without_diffuse` (only with `--materials textures`; the
 reason counts the layered
 materials of the part that have no diffuse map of their own and none in a layer, and are drawn in their
 layer colours, ADR-0147) and

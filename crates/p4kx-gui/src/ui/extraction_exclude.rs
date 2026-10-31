@@ -2,9 +2,10 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 use egui::{Frame, Margin, TextEdit, Ui, vec2};
-use p4kx_extraction::{FilterError, MAX_EXCLUSIONS, MAX_FILTER_LEN, MAX_FILTER_WILDCARDS};
+use p4kx_extraction::MAX_FILTER_LEN;
 
 use super::extraction::group_label;
+use super::filter_text::problem_text;
 use crate::theme::desktop::{
     MODAL_GROUP_GAP, TEXTAREA_LINE_HEIGHT, TEXTAREA_PADDING_X, TEXTAREA_PADDING_Y,
 };
@@ -70,18 +71,4 @@ pub(super) fn show(ui: &mut Ui, texts: &Texts, setup: &mut ExtractionSetup) -> b
         field::error_note(ui, &texts.get(T::ExcludeNothingLeft));
     }
     accepted
-}
-
-fn problem_text(texts: &Texts, problem: &FilterError) -> String {
-    let limit = |max: usize| [("max", u64::try_from(max).unwrap_or(u64::MAX).into())];
-    match problem {
-        FilterError::TooLong { .. } => texts.format(T::ExcludeTooLong, &limit(MAX_FILTER_LEN)),
-        FilterError::TooManyWildcards { .. } => {
-            texts.format(T::ExcludeTooManyWildcards, &limit(MAX_FILTER_WILDCARDS))
-        }
-        FilterError::TooManyExclusions { .. } => {
-            texts.format(T::ExcludeTooMany, &limit(MAX_EXCLUSIONS))
-        }
-        FilterError::EmptyExclusion => texts.get(T::ExcludeEmpty),
-    }
 }

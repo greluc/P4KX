@@ -22,7 +22,7 @@ pub(crate) struct Written {
 }
 
 impl Written {
-    fn material(&self, name: &str) -> Result<&MaterialDescription, String> {
+    pub(crate) fn material(&self, name: &str) -> Result<&MaterialDescription, String> {
         self.manifest
             .materials
             .iter()

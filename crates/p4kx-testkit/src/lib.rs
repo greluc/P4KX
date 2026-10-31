@@ -117,6 +117,7 @@ mod test_jpeg;
 mod test_key;
 mod timing;
 mod vorbis;
+pub mod watchdog;
 mod wem;
 
 pub use animation::{TestAnimation, TestTrack};
@@ -145,7 +146,7 @@ pub use entity_bone::{
     BONE_THRUSTER, bone_thruster_definition, bone_thruster_entries, bone_thruster_housing,
 };
 pub use entity_cargo::{TestCapacity, closed_container_record, open_container_record};
-pub use entity_clothing::{TestZoneChunk, clothing_component};
+pub use entity_clothing::{TestClothingCondition, TestZoneChunk, clothing_component};
 pub use entity_creature::{
     CREATURE, CREATURE_ASSORTED, CREATURE_COLLAR_LOST, CREATURE_COLLAR_NODED, CREATURE_COLLARED,
     CREATURE_DEFINITION, CREATURE_HORNED, CREATURE_LOADOUT_LOST, CREATURE_NO_SKELETON,
@@ -193,7 +194,9 @@ pub use entity_sample::{SAMPLE_GUN, SAMPLE_MISSING, SAMPLE_MOUNT, SAMPLE_SHIP, s
 pub use entity_schema::{entity_schema, tint_palette_record};
 pub use entity_skin::{SKIN_BODY, skin_attachment_entries};
 pub use entity_vehicle::landing_system_record;
-pub use entity_zones::{ZONE_SHIRT, zone_entries, zone_entries_with_layer_textures};
+pub use entity_zones::{
+    ZONE_JACKET, ZONE_SHIRT, jacketed_entries, zone_entries, zone_entries_with_layer_textures,
+};
 pub use frames::assert_steady_frames;
 pub use gfx::{TestMovie, TestSignature, tag_bytes, zlib};
 pub use gfx_import::{

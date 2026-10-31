@@ -3,19 +3,25 @@
 
 use std::time::Duration;
 
-use super::deadline::{Deadline, arm};
+use p4kx_testkit::watchdog::{Guard, arm};
+
 use super::device::{block_on_for, guarded};
 use super::resources::filled;
 
 const WAIT: Duration = Duration::from_secs(60);
 
-fn device_limited_to(max_buffer_size: u64) -> Option<(wgpu::Device, wgpu::Queue)> {
+fn device_limited_to(max_buffer_size: u64, guard: &Guard) -> Option<(wgpu::Device, wgpu::Queue)> {
+    guard.phase("adapter");
     let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
     let adapter = block_on_for(
-        instance.request_adapter(&wgpu::RequestAdapterOptions::default()),
+        instance.request_adapter(&wgpu::RequestAdapterOptions {
+            force_fallback_adapter: true,
+            ..wgpu::RequestAdapterOptions::default()
+        }),
         WAIT,
     )
     .and_then(Result::ok)?;
+    guard.phase("device");
     let limits = wgpu::Limits {
         max_buffer_size,
         ..wgpu::Limits::default()
@@ -45,29 +51,6 @@ fn a_ready_future_returns_its_output() {
     assert_eq!(block_on_for(async { 7 }, Duration::from_secs(1)), Some(7));
 }
 
-#[test]
-fn a_deadline_that_passes_runs_its_expiry() {
-    let (sender, receiver) = std::sync::mpsc::channel();
-    let _deadline = Deadline::after(Duration::from_millis(20), move || {
-        sender.send(()).unwrap_or_default();
-    });
-
-    assert!(receiver.recv_timeout(Duration::from_secs(30)).is_ok());
-}
-
-#[test]
-fn a_deadline_dropped_in_time_never_runs_its_expiry() {
-    let (sender, receiver) = std::sync::mpsc::channel();
-    drop(Deadline::after(Duration::from_millis(100), move || {
-        sender.send(()).unwrap_or_default();
-    }));
-
-    assert!(
-        receiver.recv_timeout(Duration::from_millis(500)).is_err(),
-        "the expiry stayed silent"
-    );
-}
-
 #[expect(
     clippy::print_stderr,
     reason = "tells the test run why a test checked nothing"
@@ -82,10 +65,11 @@ fn no_adapter(test: &str) {
 
 #[test]
 fn a_buffer_the_device_refuses_fails_in_the_error_scope_instead_of_panicking() {
-    arm("a_buffer_the_device_refuses");
-    let Some((device, queue)) = device_limited_to(1024) else {
+    let guard = arm("a_buffer_the_device_refuses");
+    let Some((device, queue)) = device_limited_to(1024, &guard) else {
         return no_adapter("a_buffer_the_device_refuses");
     };
+    guard.phase("buffer");
 
     let (_buffer, failed) = guarded(&device, || {
         filled(
@@ -95,15 +79,17 @@ fn a_buffer_the_device_refuses_fails_in_the_error_scope_instead_of_panicking() {
         )
     });
 
+    guard.phase("teardown");
     assert!(failed, "the error scope caught the refused buffer");
 }
 
 #[test]
 fn a_buffer_within_the_limit_is_created_and_written_without_an_error() {
-    arm("a_buffer_within_the_limit");
-    let Some((device, queue)) = device_limited_to(1024) else {
+    let guard = arm("a_buffer_within_the_limit");
+    let Some((device, queue)) = device_limited_to(1024, &guard) else {
         return no_adapter("a_buffer_within_the_limit");
     };
+    guard.phase("buffer");
 
     let (buffer, failed) = guarded(&device, || {
         filled(
@@ -113,6 +99,7 @@ fn a_buffer_within_the_limit_is_created_and_written_without_an_error() {
         )
     });
 
+    guard.phase("teardown");
     assert!(!failed, "no error");
     assert_eq!(buffer.size(), 512, "the buffer holds the contents");
 }

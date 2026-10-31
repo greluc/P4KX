@@ -5,7 +5,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import NamedTuple
 
@@ -20,6 +20,11 @@ NODRAW_SHADERS = frozenset({"nodraw", "nodraw_proxy", "proxy"})
 MAX_BLENDED_LAYERS = 4
 MASKED_LAYERS = 4
 TINT_PALETTE_DECAL = "$TintPaletteDecal"
+# Generation-mask flag: the decal draws a stencil; only then its stencil parameters count.
+STENCIL_MAP = "STENCIL_MAP"
+# Decal shader parameters: the stencil colour (``r,g,b``) and its opacity.
+STENCIL_COLOUR = "StencilDiffuseColor"
+STENCIL_OPACITY = "StencilOpacity"
 # Generation-mask flag: the vertex colours tint the material.
 PER_VERTEX_TINT = "PER_VERTEX_TINT"
 # Name Blender's glTF importer gives the attribute of COLOR_0.
@@ -41,11 +46,20 @@ NEUTRAL_SMOOTHNESS_SHADERS = frozenset({"hardsurface", "layerblend_v2", "layer"}
 
 @dataclass(frozen=True, slots=True)
 class BuildContext:
-    """What a graph needs besides the description: layer files, the mesh's palette, alphas."""
+    """What a graph needs besides the description: layer files, the mesh's palette, alphas.
+
+    ``loadable`` says whether the file of a texture id loads; ``None`` means every texture does.
+    A slot of any other texture counts as unwritten, so the graph uses the factors instead.
+    """
 
     materials: Mapping[str, MaterialDesc]
     palette: Palette | None
     texture_alpha: Mapping[str, str]
+    loadable: Callable[[str], bool] | None = None
+
+    def usable(self, desc: MaterialDesc) -> MaterialDesc:
+        """Returns ``desc`` without the texture slots that cannot be loaded."""
+        return desc if self.loadable is None else desc.with_textures_only(self.loadable)
 
 
 class Surface(NamedTuple):

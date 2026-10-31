@@ -91,6 +91,21 @@ fn search(model: &mut Model, text: &str) -> Result<Vec<String>, Box<dyn Error>> 
 }
 
 #[test]
+fn filter_text_that_is_refused_finds_no_record() -> TestResult {
+    let (_dir, mut model) = opened(database().build())?;
+
+    for text in ["a".repeat(2000), "*a".repeat(40)] {
+        let found = search(&mut model, &text)?;
+        assert!(
+            found.is_empty(),
+            "{} bytes find nothing: {found:?}",
+            text.len()
+        );
+    }
+    Ok(())
+}
+
+#[test]
 fn a_part_of_the_record_path_finds_records_in_record_path_order() -> TestResult {
     let (_dir, mut model) = opened(database().build())?;
 

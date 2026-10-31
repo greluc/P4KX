@@ -1244,6 +1244,10 @@ assembly-export-summary-hidden = { $count ->
     [one] Ein Submesh wurde weggelassen, weil sein Material nichts zeichnet.
    *[other] { $number } Submeshes wurden weggelassen, weil ihr Material nichts zeichnet.
   }
+assembly-export-summary-missing-layers = { $count ->
+    [one] Eine Layer-Datei der Materialbibliotheken fehlt oder ist nicht lesbar; ihre Materialien behalten die Farben der eigenen Datei.
+   *[other] { $number } Layer-Dateien der Materialbibliotheken fehlen oder sind nicht lesbar; ihre Materialien behalten die Farben der eigenen Datei.
+  }
 assembly-export-report-heading = Teile, die nicht vollständig aufgelöst werden konnten ({ $number })
 assembly-export-report-all = Alle Teile wurden aufgelöst.
 assembly-export-report-skipped = Ausgelassen: { $path } ({ $name }): { $reason }

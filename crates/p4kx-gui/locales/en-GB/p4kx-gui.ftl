@@ -1244,6 +1244,10 @@ assembly-export-summary-hidden = { $count ->
     [one] One submesh was left out because its material draws nothing.
    *[other] { $number } submeshes were left out because their material draws nothing.
   }
+assembly-export-summary-missing-layers = { $count ->
+    [one] One layer file of the material libraries is missing or unreadable; its materials keep the colours of their own file.
+   *[other] { $number } layer files of the material libraries are missing or unreadable; their materials keep the colours of their own file.
+  }
 assembly-export-report-heading = Parts that could not be resolved in full ({ $number })
 assembly-export-report-all = Every part was resolved.
 assembly-export-report-skipped = Left out: { $path } ({ $name }): { $reason }

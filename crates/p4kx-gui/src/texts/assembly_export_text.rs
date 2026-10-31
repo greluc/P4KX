@@ -128,6 +128,9 @@ pub enum AssemblyExportText {
     SummaryFallbacks,
     /// Submeshes left out because their material draws nothing; takes `count` and `number`.
     SummaryHidden,
+    /// Layer files of the material libraries that are missing or unreadable; takes `count` and
+    /// `number`.
+    SummaryMissingLayers,
     /// The heading of the report of the parts that were not resolved in full; takes `number`.
     ReportHeading,
     /// Shown when every part was resolved.
@@ -140,7 +143,7 @@ pub enum AssemblyExportText {
 
 impl AssemblyExportText {
     /// Every text, for checks of the Fluent files.
-    pub(crate) const ALL: [Self; 63] = [
+    pub(crate) const ALL: [Self; 64] = [
         Self::FormHeading,
         Self::FormGlb,
         Self::FormPackage,
@@ -200,6 +203,7 @@ impl AssemblyExportText {
         Self::SummaryImages,
         Self::SummaryFallbacks,
         Self::SummaryHidden,
+        Self::SummaryMissingLayers,
         Self::ReportHeading,
         Self::ReportAll,
         Self::ReportSkipped,
@@ -270,6 +274,7 @@ impl AssemblyExportText {
             Self::SummaryImages => "assembly-export-summary-images",
             Self::SummaryFallbacks => "assembly-export-summary-fallbacks",
             Self::SummaryHidden => "assembly-export-summary-hidden",
+            Self::SummaryMissingLayers => "assembly-export-summary-missing-layers",
             Self::ReportHeading => "assembly-export-report-heading",
             Self::ReportAll => "assembly-export-report-all",
             Self::ReportSkipped => "assembly-export-report-skipped",

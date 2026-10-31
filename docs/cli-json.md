@@ -292,7 +292,7 @@ and no error; the report lists the ports as `ignored` (absent when empty), as fo
 A replacement that does not fit its port is written all the same and listed in `incompatible` (absent
 when empty), as for `entity loadout`.
 `parts` counts the root Entity, every attached Entity that resolved and every landing gear of those
-Entities ([ADR-0210](adr/0210-landing-gear-are-parts-placed-at-their-bone.md)), `modelled_parts` those with a model, `hidden_parts` those on a port flagged `invisible` or below
+Entities ([ADR-0210](adr/0210-landing-gear-are-parts-placed-at-their-bone.md)), `modelled_parts` those with a model, `hidden_parts` those on a port flagged `invisible`, at a port a worn Entity hides by its `HiddenParts` (ADR-0304), or below
 one (kept, but with no model, no object containers and not drawn), and `nodes` the glTF nodes: one per part and the nodes of each model. A landing gear is written deployed: posed at the end of the clip of its
 skeleton's parameters that extends or deploys it; without one it keeps the pose of its model and an Issue says so. `lod_fallbacks` counts the
 models that lack the requested level and are written at the nearest lower one, or at their
@@ -372,7 +372,12 @@ with exit code 2 or 3 instead and writes nothing, ADR-0255), `sub_geometry_missi
 sub-geometry the port's flags choose is not in the Archive, so the part keeps the main geometry of
 its Entity; a note, `skipped` is false), `body_geometry_missing` (the sub-geometry tagged for the
 body of the character is not in the Archive; the part has no model, the placeholder main geometry
-is not drawn instead; `reason` names the body and the path), `gear_not_deployed` (a landing gear has no clip that
+is not drawn instead; `reason` names the body and the path), `part_hidden` (the worn clothing or
+armour at the port is hidden by the `HiddenParts` of another worn Entity of the same character, so
+the part has no model, ADR-0304; `name` is its class name and `reason` names the port and the part
+that hides it; a part below it is hidden with it, and an attachment that cannot be resolved at, or
+below, such a port is reported as `part_hidden` instead of `unresolved`),
+`gear_not_deployed` (a landing gear has no clip that
 deploys it, or the clip cannot be read or applied to its model; the gear keeps the pose of its
 model; a note, `skipped` is false), `attachments_left_out` (the geometry is
 a character definition, `.cdf`: its skin, else its first attachment, is the part's model, its bone

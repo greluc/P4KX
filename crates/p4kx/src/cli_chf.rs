@@ -70,7 +70,7 @@ pub(crate) enum ChfAction {
     /// and stored sparse; limit them with --expression or leave them out with --no-expressions.
     /// The rigs of the lower levels have no expressions, so --lod 1 and up carry those of LOD 0
     /// to their own vertices. The hair, brows, lashes and beard get the same morph targets moved
-    /// to their own vertices, on the first mesh of each at LOD 0 only; the eyes and teeth have
+    /// to their own vertices, on the first mesh of each, at every level; the eyes and teeth have
     /// none. The hair, brows, lashes and beard are also bound to the facial joints of the head
     /// through the skin weights of the head vertices around them, so a facial animation moves
     /// them with the jaw and the eyelids. The head rig and the items come from the Archive; a

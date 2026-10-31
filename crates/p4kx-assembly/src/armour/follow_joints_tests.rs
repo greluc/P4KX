@@ -6,71 +6,13 @@
 
 use std::sync::Arc;
 
-use p4kx_chunks::ChunkFile;
-use p4kx_model::{CompanionError, CompanionPath, Model};
-use p4kx_testkit::{TestBone, TestModel, TestPositions, TestSkeleton, armour_male_skeleton};
+use p4kx_model::Model;
 
 use super::{bind, plan};
 use crate::IssueKind;
 use crate::armour::follow_blend::{HeadSkin, Unbound};
 use crate::armour::head_move::{HeadMove, followed};
-
-const HEAD: u16 = 2;
-const VERTICES: usize = 24;
-
-fn bone(name: &str, parent: u16) -> TestBone {
-    TestBone {
-        name: name.to_owned(),
-        parent: Some(parent),
-        rotation: [0.0, 0.0, 0.0, 1.0],
-        translation: [0.0, 0.0, 0.1],
-    }
-}
-
-/// The cube as a skin of the male body plus `extra`, every vertex weighted to `bone`.
-fn skin(extra: Vec<TestBone>, bone: Option<u16>) -> TestModel {
-    let mut bones = armour_male_skeleton().bones().to_vec();
-    bones.extend(extra);
-    let cube = TestModel::cube()
-        .with_positions(TestPositions::Float)
-        .with_nodes(Vec::new())
-        .with_skeleton(&TestSkeleton::new(bones));
-    match bone {
-        Some(bone) => cube.with_bone_map(false, vec![vec![(bone, 255)]; VERTICES]),
-        None => cube,
-    }
-}
-
-/// Reads `source` as `<stem>.skin` with its levels of detail.
-fn read(source: &TestModel, stem: &str) -> Result<Model, Box<dyn std::error::Error>> {
-    let mut companions = |path: CompanionPath<'_>| -> Result<Option<Vec<u8>>, CompanionError> {
-        Ok(match path {
-            CompanionPath::Sibling(name) if name == format!("{stem}.skinm") => Some(source.cgfm()),
-            CompanionPath::Sibling(name) if name == format!("{stem}_lod1.skinm") => {
-                source.lod_cgfm(1)
-            }
-            CompanionPath::Sibling(name) if name == format!("{stem}_lod1.skin") => {
-                source.lod_cgf(1)
-            }
-            _ => None,
-        })
-    };
-    Ok(Model::read(
-        &format!("{stem}.skin"),
-        &ChunkFile::parse(source.cgf())?,
-        &mut companions,
-    )?)
-}
-
-fn head_with_jaw() -> Result<Model, Box<dyn std::error::Error>> {
-    let extra = vec![bone("jaw", HEAD), bone("tooth", 3)];
-    read(&skin(extra, Some(3)), "head")
-}
-
-fn hair() -> Result<Model, Box<dyn std::error::Error>> {
-    let source = skin(Vec::new(), Some(HEAD)).with_lod(skin(Vec::new(), Some(HEAD)));
-    read(&source, "hair")
-}
+use crate::armour::test_models::{HEAD, VERTICES, bone, hair, head_with_jaw, read, skin};
 
 fn names(bones: &[p4kx_model::Bone]) -> Vec<&str> {
     bones.iter().map(|bone| bone.name.as_str()).collect()

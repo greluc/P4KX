@@ -62,16 +62,13 @@ pub(super) fn check_follows(parts: &mut [ArmourPart], issues: &mut Vec<Issue>) {
     }
 }
 
-/// Returns the meshes of `model` at level 0.
-pub(super) fn level_zero_meshes(model: &Model) -> usize {
-    model
-        .lods
-        .first()
-        .filter(|lod| lod.level == 0)
-        .map_or(0, |lod| lod.meshes.len())
+/// Returns the meshes of the level of detail `model` was read at.
+pub(super) fn level_meshes(model: &Model) -> usize {
+    model.lods.first().map_or(0, |lod| lod.meshes.len())
 }
 
-fn first_mesh(model: &Model) -> Option<&Mesh> {
+/// Returns the first mesh of the level of detail `model` was read at.
+pub(super) fn first_mesh(model: &Model) -> Option<&Mesh> {
     model.lods.first().and_then(|lod| lod.meshes.first())
 }
 

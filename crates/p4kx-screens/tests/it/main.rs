@@ -3,6 +3,7 @@
 
 //! Integration tests of `p4kx-screens`, built as one test binary.
 
+mod bound_sizes;
 mod canvas_cycles;
 mod canvas_reference;
 mod cascade;
@@ -31,6 +32,7 @@ mod support;
 mod text;
 mod text_limits;
 mod text_part;
+mod text_part_exclusions;
 mod text_reference;
 mod transforms;
 mod variables;

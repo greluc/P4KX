@@ -35,9 +35,7 @@ fn left_out_reason(field: &str) -> String {
         || field.starts_with("Flex")
         || LAYOUT_FIELDS.iter().any(|prefix| field.starts_with(prefix))
     {
-        "bound layout fields (size, position, anchor, pivot, scale, turn, spacing, flex) are not \
-         evaluated at rest"
-            .to_owned()
+        "bound layout fields (behaviours, depth, flex) are not evaluated at rest".to_owned()
     } else {
         format!("bound field {field} is not evaluated at rest")
     }

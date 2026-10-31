@@ -37,11 +37,11 @@ fn install() -> TestResult<Install> {
 }
 
 fn body_class(loadout: &Value) -> Option<&str> {
-    loadout["ports"]
+    let port = loadout["ports"]
         .as_array()?
         .iter()
-        .find(|port| port["path"] == "Body_ItemPort")?["entity"]["class_name"]
-        .as_str()
+        .find(|port| port["path"] == "Body_ItemPort")?;
+    port.get("entity")?.get("class_name")?.as_str()
 }
 
 #[test]

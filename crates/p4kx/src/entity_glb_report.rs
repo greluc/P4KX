@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-//! The text report of `p4kx entity glb`.
+//! The text report of `p4kx entity glb`, and the texture and issue lines that `armour glb` and
+//! `chf glb` print the same way.
 
 use std::io::{self, BufWriter, Write};
 use std::path::Path;
@@ -10,7 +11,7 @@ use p4kx_assembly::{Assembly, EntityNode, Issue, LoadoutChanges};
 use p4kx_extraction::GlbSummary;
 
 use crate::entity_glb_body::print_body;
-use crate::entity_glb_json::painted;
+use crate::entity_glb_placements::painted;
 use crate::query_table::one_line;
 
 fn print_changes(out: &mut impl Write, changes: &LoadoutChanges) -> io::Result<()> {

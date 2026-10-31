@@ -32,3 +32,12 @@ pub(crate) fn placements_json(assembly: &Assembly) -> Vec<PlacementJson<'_>> {
         })
         .collect()
 }
+
+/// Returns the number of parts of `assembly` drawn with a tint palette.
+pub(crate) fn painted(assembly: &Assembly) -> usize {
+    assembly
+        .parts()
+        .iter()
+        .filter(|part| part.palette().is_some())
+        .count()
+}

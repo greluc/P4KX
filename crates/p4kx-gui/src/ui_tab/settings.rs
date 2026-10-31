@@ -2,7 +2,9 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 use p4kx_extraction::gfx::{Background, CanvasSize, RasterOptions, Rgba};
-use p4kx_settings::{UiRenderBackground, UiRenderFormat, UiRenderSettings, UiRenderSize};
+use p4kx_settings::{
+    UiRenderBackground, UiRenderFormat, UiRenderPower, UiRenderSettings, UiRenderSize,
+};
 
 use crate::UiText;
 
@@ -68,24 +70,44 @@ impl From<UiFormat> for UiRenderFormat {
     }
 }
 
-impl From<UiRenderSettings> for UiSettings {
-    fn from(settings: UiRenderSettings) -> Self {
-        Self {
-            size: settings.size.into(),
-            background: settings.background.into(),
-            format: settings.format.into(),
-            ..Self::default()
+impl From<UiRenderPower> for UiPower {
+    fn from(power: UiRenderPower) -> Self {
+        match power {
+            UiRenderPower::PoweredOn => Self::PoweredOn,
+            UiRenderPower::AtRest => Self::AtRest,
         }
     }
 }
 
-/// The settings that persist; the game state is chosen again for each session.
-impl From<UiSettings> for UiRenderSettings {
-    fn from(settings: UiSettings) -> Self {
+impl From<UiPower> for UiRenderPower {
+    fn from(power: UiPower) -> Self {
+        match power {
+            UiPower::PoweredOn => Self::PoweredOn,
+            UiPower::AtRest => Self::AtRest,
+        }
+    }
+}
+
+impl From<&UiRenderSettings> for UiSettings {
+    fn from(settings: &UiRenderSettings) -> Self {
         Self {
             size: settings.size.into(),
             background: settings.background.into(),
             format: settings.format.into(),
+            power: settings.power.into(),
+        }
+    }
+}
+
+impl UiSettings {
+    /// Returns the choices as the settings file stores them, with the typed game `variables`.
+    pub(crate) fn stored(self, variables: &str) -> UiRenderSettings {
+        UiRenderSettings {
+            size: self.size.into(),
+            background: self.background.into(),
+            format: self.format.into(),
+            power: self.power.into(),
+            variables: variables.to_owned(),
         }
     }
 }

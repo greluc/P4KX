@@ -513,7 +513,11 @@ The first argument of nearly every command is the path of a `Data.p4k` Archive, 
   every other widget type without a renderer are left out and listed, with the features the layout
   approximates (exit code 1); no ActionScript is run. Every game variable is zero, so the MFD of a
   cold ship is off; `--var powerstate=1` sets one (repeatable), and the report lists the variables
-  in force and those the screen does not read.
+  in force and those the screen does not read. `--var CANVAS::NAME=VALUE` limits a setting to the
+  canvases of that Record name, which are not told apart when several share it; `a::b::c` is
+  refused (ADR-0277). The canvas a canvas widget holds is the one a style
+  entry or a boolean binding picks (ADR-0277). The UI tab keeps its state and typed variables
+  across sessions.
 - `p4kx chf to-json <file> [--out <file>] [--archive <Data.p4k>]` converts a CHF character file, e.g. one saved by the
   character customiser, to indented JSON on stdout or in `--out`: its inner versions (7 and 8
   are read), body type, face DNA with every face part named, item ports and material choices.

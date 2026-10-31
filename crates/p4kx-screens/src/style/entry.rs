@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use p4kx_dataforge::{StructValue, Value};
+use p4kx_dataforge::{Guid, Reference, StructValue, Value};
 
 use crate::colour::ColorSpec;
-use crate::reader::{as_struct, child, flag, float, items, text};
+use crate::reader::{as_struct, child, flag, float, items, reference, text};
 use crate::style::{GeometryModifiers, PictureModifiers, TextModifiers};
 
 use super::condition::{Condition, Uses, collect_unsupported, conditions};
@@ -19,6 +19,8 @@ pub(crate) struct Modifiers {
     pub(crate) enable_background: Option<bool>,
     pub(crate) active: Option<bool>,
     pub(crate) alpha: Option<f32>,
+    /// The canvas a canvas widget holds (`CanvasReferenceRecord`).
+    pub(crate) canvas: Option<Guid>,
     pub(crate) text: TextModifiers,
     pub(crate) picture: PictureModifiers,
     pub(crate) geometry: GeometryModifiers,
@@ -65,6 +67,7 @@ fn parse_entry(entry: &StructValue<'_>) -> Entry {
 }
 
 const BORDER_SIDES: [&str; 4] = ["Top", "Right", "Bottom", "Left"];
+const CANVAS_REFERENCE: &str = "BuildingBlocks_FieldModifierRecordRefTypeCanvasReferenceRecord";
 
 pub(crate) fn modifiers<'a, 'f: 'a>(
     structs: impl Iterator<Item = &'a StructValue<'f>>,
@@ -78,6 +81,9 @@ pub(crate) fn modifiers<'a, 'f: 'a>(
             if let Some(inner) = child(modifier, "field") {
                 found.text.typed(inner);
                 found.geometry.typed(inner);
+                if inner.type_name() == CANVAS_REFERENCE {
+                    found.canvas = reference(inner, "value").map(Reference::guid);
+                }
             }
             continue;
         }

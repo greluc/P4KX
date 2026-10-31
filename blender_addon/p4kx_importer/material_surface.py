@@ -24,8 +24,9 @@ TINT_PALETTE_DECAL = "$TintPaletteDecal"
 PER_VERTEX_TINT = "PER_VERTEX_TINT"
 # Name Blender's glTF importer gives the attribute of COLOR_0.
 GLTF_COLOUR_ATTRIBUTE = "Color"
-# Alpha of white glass: low enough that EEVEE shows the scene behind it.
-GLASS_CLEAR_ALPHA = 0.15
+# Share of the Principled BSDF (reflection, refraction) in glass; the rest is the tinted transparent
+# surface that EEVEE shows the scene through.
+GLASS_BSDF_SHARE = 0.15
 # Shader parameter: how far the palette's glass colour tints the glass (0 = clear, 1 = full).
 TINT_STRENGTH = "GlassTintStrength"
 MAX_PROPERTIES = 64

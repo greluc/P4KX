@@ -287,10 +287,9 @@ def check_glass_tint() -> None:
     bsdf = next(n for n in plain.node_tree.nodes if n.type == "BSDF_PRINCIPLED")
     colour = tuple(round(v, 4) for v in bsdf.inputs["Base Color"].default_value[:3])
     check(not bsdf.inputs["Base Color"].is_linked and colour == (0.5, 0.25, 1.0), f"plain colour {colour}")
-    grey_in = next(n for n in plain.node_tree.nodes if n.type == "RGBTOBW").inputs["Color"]
-    grey_colour = tuple(round(v, 4) for v in grey_in.default_value[:3])
-    check(not grey_in.is_linked and grey_colour == (0.5, 0.25, 1.0), f"plain alpha input {grey_colour}")
-    check(bsdf.inputs["Alpha"].is_linked, "the plain glass keeps its alpha subtree")
+    tint_in = next(n for n in plain.node_tree.nodes if n.type == "BSDF_TRANSPARENT").inputs["Color"]
+    tint_colour = tuple(round(v, 4) for v in tint_in.default_value[:3])
+    check(not tint_in.is_linked and tint_colour == (0.5, 0.25, 1.0), f"plain transparent tint {tint_colour}")
     check(all(link.is_valid for link in plain.node_tree.links), "the plain glass has no invalid link")
 
 

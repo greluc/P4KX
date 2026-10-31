@@ -1,6 +1,7 @@
 # Glass alpha follows the glass colour
 
 Decided for issue #855. Amends ADR-0100 (the glass row and the alpha rule) and keeps ADR-0253.
+The alpha rule is replaced by ADR-0282.
 
 ## Context
 

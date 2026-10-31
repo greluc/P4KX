@@ -1,13 +1,15 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-//! Loadouts generated from `SLoadoutAssortment` Records: the first alternative of each group.
+//! Loadouts generated from `SLoadoutAssortment` Records: the first alternative of each group
+//! whose Requirement is not known to fail.
 
 use std::sync::Arc;
 
 use p4kx_dataforge::{Guid, Record, StructValue, TreeBuilder, Value};
 
 use crate::LoadoutError;
+use crate::assortment_requirement::{Verdict, evaluate};
 use crate::read::{as_struct, struct_items, text};
 use crate::resolver::{Entries, LoadoutResolver};
 use crate::spec::{LoadoutSpec, TargetSpec, read_loadout, reference_target};
@@ -46,9 +48,33 @@ pub(crate) fn read_assortments(loadout: &StructValue<'_>) -> Option<LoadoutSpec>
     (!guids.is_empty()).then_some(LoadoutSpec::Assortments(guids))
 }
 
+/// Returns whether the assortment `guid`, or its group `group`, is used given its Requirement
+/// `field`; an undecided Requirement is used and adds an issue.
+fn applies(
+    guid: Guid,
+    group: Option<&str>,
+    field: Option<&Value<'_>>,
+    issues: &mut Vec<LoadoutError>,
+) -> bool {
+    match evaluate(field) {
+        Verdict::Met => true,
+        Verdict::Unmet => false,
+        Verdict::Undecided => {
+            let scope = group.map_or_else(
+                || "the assortment".to_owned(),
+                |name| format!("the group {name}"),
+            );
+            issues.push(LoadoutError::AssortmentRequirement { guid, scope });
+            true
+        }
+    }
+}
+
 /// Reads one assortment Record: the first alternative of every group, in the order of the groups.
 ///
 /// The game picks one alternative per group at random; the first is the deterministic default.
+/// An assortment or group whose Requirement the Archive decides as unmet gives nothing; one that
+/// depends on spawn tags still gives its groups and is an `assortment_requirement` issue.
 /// A group without alternatives gives nothing; a first alternative that is no Loadout is an issue
 /// and the group gives nothing, the later alternatives are not tried.
 fn read_assorted<'f>(builder: &mut TreeBuilder<'f>, record: &Record<'f>) -> Assorted {
@@ -72,8 +98,15 @@ fn read_assorted<'f>(builder: &mut TreeBuilder<'f>, record: &Record<'f>) -> Asso
     let path: Arc<str> = Arc::from(tree.record_path());
     let mut layers = Vec::new();
     let mut issues = Vec::new();
+    if !applies(guid, None, tree.field("Requirement"), &mut issues) {
+        return Assorted::new(layers, issues);
+    }
     if let Some(Value::Array(groups)) = tree.field("GroupedLoadouts") {
         for group in groups.iter().filter_map(as_struct) {
+            let name = text(group, "Group");
+            if !applies(guid, Some(name), group.field("Requirement"), &mut issues) {
+                continue;
+            }
             let Some(first) = struct_items(group, "Loadouts").next() else {
                 continue;
             };

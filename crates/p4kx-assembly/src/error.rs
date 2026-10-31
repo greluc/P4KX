@@ -95,6 +95,15 @@ pub enum LoadoutError {
         /// Why it cannot be used.
         reason: String,
     },
+    /// The Requirement of a loadout assortment or of one of its groups depends on tags the Archive
+    /// does not hold; the assortment or group is used as if it applied.
+    #[error("the Requirement of {scope} of the loadout assortment {guid} depends on spawn tags")]
+    AssortmentRequirement {
+        /// The GUID of the assortment Record.
+        guid: Guid,
+        /// What the Requirement belongs to: the assortment or a named group.
+        scope: String,
+    },
     /// The vehicle implementation of an Entity, or its Modification, is not read in full or not
     /// applied as it names; what could be read is still kept.
     #[error("the vehicle implementation {path}: {reason}")]
@@ -124,6 +133,7 @@ impl LoadoutError {
             Self::NoLoadoutFiles { .. } => "no_loadout_files",
             Self::XmlLoadout { .. } => "xml_loadout",
             Self::Assortment { .. } => "assortment",
+            Self::AssortmentRequirement { .. } => "assortment_requirement",
             Self::VehicleImplementation { .. } => "vehicle_implementation",
         }
     }

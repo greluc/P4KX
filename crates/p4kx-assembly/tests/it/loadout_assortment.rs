@@ -11,7 +11,8 @@ use p4kx_assembly::{Attachment, EntityNode, LoadoutFileError, LoadoutFiles, Load
 use p4kx_dataforge::DataForge;
 use p4kx_testkit::{
     CryXmlByteOrder, CryXmlSignature, DataForgeBuilder, TestElement, TestEntity, TestLoadout,
-    TestLoadoutEntry, TestRecord, assortment_record, entity_schema,
+    TestLoadoutEntry, TestRecord, TestRequirement, assortment_record, assortment_record_requiring,
+    entity_schema,
 };
 
 type TestResult = Result<(), Box<dyn Error>>;
@@ -241,6 +242,141 @@ fn a_later_assortment_replaces_the_port_of_an_earlier_one() -> TestResult {
             pair("Egg_ItemPort", "Egg")
         ]
     );
+    Ok(())
+}
+
+const TAG: u128 = 0x500;
+
+fn tagged() -> TestRequirement {
+    TestRequirement::Tags {
+        required: vec![TAG],
+        banned: Vec::new(),
+    }
+}
+
+/// An assortment of two groups with the Requirements `first` and `second`.
+fn requiring(
+    assortment: Option<&TestRequirement>,
+    first: Option<TestRequirement>,
+    second: Option<TestRequirement>,
+) -> TestRecord {
+    assortment_record_requiring(
+        ASSORTMENT,
+        "required",
+        assortment,
+        &[
+            ("Body", first, vec![body("Body_Red")]),
+            ("Legs", second, vec![body("Body_Blue")]),
+        ],
+    )
+}
+
+#[test]
+fn a_requirement_that_restricts_nothing_applies_without_an_issue() -> TestResult {
+    let record = requiring(
+        Some(&TestRequirement::unrestricted()),
+        Some(TestRequirement::unrestricted()),
+        Some(TestRequirement::AnyOf(vec![
+            tagged(),
+            TestRequirement::unrestricted(),
+        ])),
+    );
+    let tree = resolve(generated(&[ASSORTMENT]), None, vec![record])?;
+
+    assert!(tree.issues().is_empty(), "issues: {:?}", tree.issues());
+    assert_eq!(attached(&tree), [pair("Body_ItemPort", "Body_Blue")]);
+    Ok(())
+}
+
+#[test]
+fn a_group_that_depends_on_tags_still_applies_and_is_listed() -> TestResult {
+    let record = requiring(None, Some(tagged()), None);
+    let tree = resolve(generated(&[ASSORTMENT]), None, vec![record])?;
+
+    assert_eq!(kinds(&tree), ["assortment_requirement"]);
+    let reason = tree.issues()[0].to_string();
+    assert!(reason.contains("the group Body"), "{reason}");
+    assert_eq!(attached(&tree), [pair("Body_ItemPort", "Body_Blue")]);
+    Ok(())
+}
+
+#[test]
+fn an_assortment_that_depends_on_tags_still_applies_and_is_listed() -> TestResult {
+    let record = requiring(Some(&tagged()), None, None);
+    let tree = resolve(generated(&[ASSORTMENT]), None, vec![record])?;
+
+    assert_eq!(kinds(&tree), ["assortment_requirement"]);
+    assert!(tree.issues()[0].to_string().contains("the assortment"));
+    assert_eq!(attached(&tree).len(), 1);
+    Ok(())
+}
+
+#[test]
+fn a_group_whose_requirement_fails_gives_nothing() -> TestResult {
+    let never = TestRequirement::Not(Box::new(TestRequirement::unrestricted()));
+    let record = assortment_record_requiring(
+        ASSORTMENT,
+        "never",
+        None,
+        &[
+            ("Body", Some(never), vec![body("Body_Red")]),
+            (
+                "Legs",
+                None,
+                vec![TestLoadout::Manual(vec![TestLoadoutEntry::class(
+                    "Legs_ItemPort",
+                    "Body_Blue",
+                )])],
+            ),
+        ],
+    );
+    let tree = resolve(generated(&[ASSORTMENT]), None, vec![record])?;
+
+    assert!(tree.issues().is_empty(), "issues: {:?}", tree.issues());
+    assert_eq!(attached(&tree), [pair("Legs_ItemPort", "Body_Blue")]);
+    Ok(())
+}
+
+#[test]
+fn an_assortment_whose_requirement_fails_gives_nothing() -> TestResult {
+    let never = TestRequirement::Not(Box::new(TestRequirement::unrestricted()));
+    let record = requiring(Some(&never), None, None);
+    let tree = resolve(generated(&[ASSORTMENT]), None, vec![record])?;
+
+    assert!(tree.issues().is_empty(), "issues: {:?}", tree.issues());
+    assert_eq!(attached(&tree), Vec::<(String, String)>::new());
+    Ok(())
+}
+
+#[test]
+fn not_and_or_follow_their_parts_and_an_empty_or_is_undecided() -> TestResult {
+    let cases = [
+        (TestRequirement::Not(Box::new(tagged())), "undecided"),
+        (TestRequirement::AnyOf(Vec::new()), "undecided"),
+        (
+            TestRequirement::AnyOf(vec![TestRequirement::Not(Box::new(
+                TestRequirement::unrestricted(),
+            ))]),
+            "unmet",
+        ),
+        (
+            TestRequirement::Not(Box::new(TestRequirement::AnyOf(vec![
+                tagged(),
+                TestRequirement::unrestricted(),
+            ]))),
+            "unmet",
+        ),
+    ];
+    for (requirement, expected) in cases {
+        let record = requiring(None, Some(requirement.clone()), None);
+        let tree = resolve(generated(&[ASSORTMENT]), None, vec![record])?;
+        let outcome = if tree.issues().is_empty() {
+            "unmet"
+        } else {
+            "undecided"
+        };
+        assert_eq!(outcome, expected, "{requirement:?}");
+    }
     Ok(())
 }
 

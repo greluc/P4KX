@@ -23,6 +23,12 @@ pub(crate) struct ConvertArgs {
     /// `p4kx search`. A Filter that matches no file is invalid input.
     #[arg(long, value_name = "FILTER")]
     pub(crate) filter: Option<String>,
+    /// Leaves out every file whose relative path this Filter matches, with the rules of
+    /// `p4kx extract --exclude`; repeatable. A texture whose header it matches is left out with
+    /// its parts; a part it matches alone is not written but still read to build its texture,
+    /// which a note on stderr tells. A pair that leaves nothing is invalid input.
+    #[arg(long, value_name = "FILTER")]
+    pub(crate) exclude: Vec<String>,
     /// What to do with a file that already exists in the target.
     #[arg(long, value_enum, default_value_t = Conflict::Skip)]
     pub(crate) conflict: Conflict,

@@ -8,6 +8,7 @@ use std::error::Error;
 use p4kx_assembly::{ArchiveModels, Armour, AssemblyOptions, BodyVariant, LoadoutResolver, Piece};
 use p4kx_extraction::{Archive, DataForgeEntry};
 use p4kx_render::Scene;
+use p4kx_testkit::watchdog::arm;
 use p4kx_testkit::{ArchiveBuilder, TestZoneChunk, ZONE_SHIRT, zone_entries};
 
 fn places(variant: BodyVariant) -> Vec<[f32; 2]> {
@@ -55,6 +56,7 @@ fn triangles(chunks: &[TestZoneChunk]) -> Result<usize, Box<dyn Error>> {
 #[test]
 fn the_scene_of_the_viewer_loses_the_triangles_of_the_covered_zones() -> Result<(), Box<dyn Error>>
 {
+    let _guard = arm("the_scene_of_the_viewer_loses_the_triangles_of_the_covered_zones");
     let bare = triangles(&[])?;
     let covered = triangles(&[
         TestZoneChunk::new("torso01_zone", 1),

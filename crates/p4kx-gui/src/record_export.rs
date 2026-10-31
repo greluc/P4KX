@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use p4kx_export::RecordForm;
-use p4kx_extraction::{ConflictPolicy, WriteRefused};
+use p4kx_extraction::{ConflictPolicy, Filter, FilterError, WriteRefused};
 
 pub use job::{RecordExport, RecordExportStatus};
 pub(crate) use job::{Request, Selection, start};
@@ -218,8 +218,15 @@ impl RecordExportSetup {
             && self.refusal.is_none()
             && match self.scope {
                 RecordScope::Tree => self.tree.as_ref().is_some_and(|tree| !tree.is_empty()),
-                RecordScope::Filter => !self.filter.is_empty(),
+                RecordScope::Filter => !self.filter.is_empty() && self.filter_error().is_none(),
             }
+    }
+
+    /// Returns why the record-path filter is refused, when its text is too long or has too many
+    /// wildcards.
+    #[must_use]
+    pub fn filter_error(&self) -> Option<FilterError> {
+        Filter::check(&self.filter).err()
     }
 
     pub(crate) fn request(&self) -> Option<Request> {
@@ -228,7 +235,7 @@ impl RecordExportSetup {
         }
         let selection = match self.scope {
             RecordScope::Tree => Selection::Records(Arc::clone(&self.tree.as_ref()?.records)),
-            RecordScope::Filter => Selection::Filter(self.filter.clone()),
+            RecordScope::Filter => Selection::Filter(Filter::parse(&self.filter).ok()?),
         };
         Some(Request {
             selection,

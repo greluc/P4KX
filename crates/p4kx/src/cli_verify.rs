@@ -14,4 +14,9 @@ pub(crate) struct VerifyArgs {
     /// every Entry.
     #[arg(long, value_name = "FILTER")]
     pub(crate) filter: Option<String>,
+    /// Leaves out every Entry this Filter matches, with the rules of the Filter; repeatable. The
+    /// parts of a texture whose header it matches are left out too. A selection it leaves empty
+    /// is invalid input.
+    #[arg(long, value_name = "FILTER")]
+    pub(crate) exclude: Vec<String>,
 }

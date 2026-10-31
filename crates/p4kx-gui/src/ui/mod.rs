@@ -59,6 +59,7 @@ mod extraction_exclude;
 mod extraction_outcome;
 mod extraction_record_lists;
 mod field_rows;
+mod filter_text;
 mod folder_conversion_outcome;
 mod game_running;
 mod hex_view;

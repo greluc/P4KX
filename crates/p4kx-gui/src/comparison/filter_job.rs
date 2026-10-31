@@ -9,7 +9,7 @@ use std::thread;
 use p4kx_comparison::{Filter, OwnedComparison};
 use rayon::prelude::*;
 
-use super::view::Summary;
+use super::summary::Summary;
 
 /// The changes a Filter matched, indexed by change id, and their counts.
 #[derive(Debug)]
@@ -52,6 +52,15 @@ impl FilterJob {
 impl Drop for FilterJob {
     fn drop(&mut self) {
         self.cancelled.store(true, Ordering::Relaxed);
+    }
+}
+
+/// Returns the match of a Filter that selects no change of `comparison`.
+pub(crate) fn none(comparison: &OwnedComparison) -> Matched {
+    let mask = vec![false; comparison.len()];
+    Matched {
+        summary: Summary::of(&comparison.comparison_of(&mask)),
+        mask: mask.into(),
     }
 }
 

@@ -28,7 +28,11 @@ impl Browser {
             self.show_matches(Matches::default());
             return;
         };
-        match search::start(&index, &Filter::new(text), wake) {
+        let Ok(filter) = Filter::parse(text) else {
+            self.show_matches(Matches::default());
+            return;
+        };
+        match search::start(&index, &filter, wake) {
             Started::Running(pending) => self.pending = Some(pending),
             Started::Finished(matches) => self.show_matches(matches),
         }

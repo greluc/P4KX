@@ -9,11 +9,14 @@ use std::path::{Path, PathBuf};
 
 use crate::dataforge_pick::by_name_then_content;
 use crate::extract::{Rules, extract_files};
-use crate::{ExtractOptions, ExtractionReport, Filter, FolderError, FolderSource};
+use crate::{ExtractOptions, ExtractionReport, FolderError, FolderSelection, FolderSource};
 
-/// Converts the files of `source` whose path matches `filter`, or all of them, into the folder
-/// `target` with the same relative paths, as `extract` with Conversion on writes the same
+/// Converts the files of `selection`, made by [`FolderSource::select`] from `source`, into the
+/// folder `target` with the same relative paths, as `extract` with Conversion on writes the same
 /// Entries.
+///
+/// A texture whose header the selection's exclusion matched is left out with its parts; a part it
+/// matched alone is not written, but a texture whose header remains is still built from it.
 ///
 /// A file Conversion has nothing to do with is counted in
 /// [`ExtractionReport::not_converted`], or with `copy_other` written unchanged. The files and
@@ -27,7 +30,7 @@ use crate::{ExtractOptions, ExtractionReport, Filter, FolderError, FolderSource}
 /// and [`FolderError::Read`] when `target` cannot be created; nothing is written then.
 pub fn convert_folder(
     source: &FolderSource,
-    filter: Option<&Filter>,
+    selection: &FolderSelection<'_>,
     copy_other: bool,
     target: &Path,
     options: &ExtractOptions<'_>,
@@ -44,12 +47,12 @@ pub fn convert_folder(
         watch: None,
         ..*options
     };
-    let entries = source.select(filter);
+    let entries = &selection.entries;
     let rules = Rules {
         copy_other,
         pick: &by_name_then_content,
     };
-    let mut report = extract_files(source, &entries, target, &options, &rules);
+    let mut report = extract_files(source, entries, target, &options, &rules);
     report.failures.splice(0..0, source.rejected_failures());
     Ok(report)
 }

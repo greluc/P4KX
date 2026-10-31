@@ -6,7 +6,7 @@ use std::process::ExitCode;
 
 use anyhow::Result;
 use p4kx_extraction::{
-    ExtractOptions, ExtractionReport, Filter, FolderSource, Progress, convert_folder,
+    Exclusion, ExtractOptions, ExtractionReport, Filter, FolderSource, Progress, convert_folder,
 };
 
 use crate::cli::ConvertArgs;
@@ -15,25 +15,27 @@ use crate::extract::{
     audio, cancel_on_interrupt, exit_code, policy, records_folder, texture_conversion,
 };
 use crate::extract_report::{print_report, report_json};
+use crate::filter_pair;
 use crate::json;
-use crate::no_match::NoMatch;
 use crate::progress::ProgressLine;
 
 /// Converts the files of the input folder into the output folder, showing progress and stopping
 /// on Ctrl+C, and prints the report like `p4kx extract` does.
 pub(crate) fn run(args: &ConvertArgs, as_json: bool) -> Result<ExitCode> {
     let filter = args.filter.as_deref().map(Filter::parse).transpose()?;
+    let exclusion = Exclusion::parse(&args.exclude)?;
     crate::guard::ensure_writable(&args.out)?;
     let cancel = cancel_on_interrupt()?;
     if args.cancel_after == Some(0) {
         cancel.cancel();
     }
     let source = FolderSource::scan(&args.folder, Some(&cancel))?;
-    if let (Some(filter), Some(text)) = (&filter, &args.filter)
-        && source.count_matching(filter) == 0
-    {
-        return Err(NoMatch::new(text).into());
+    let selection = source.select(filter.as_ref(), &exclusion);
+    if filter.is_some() || !exclusion.is_empty() {
+        let text = args.filter.as_deref().unwrap_or("*");
+        filter_pair::require(text, selection.matched(), selection.len())?;
     }
+    filter_pair::note_excluded_parts(selection.excluded_parts(), "the Conversion");
     let line = ProgressLine::new();
     let on_progress = |progress: Progress| {
         if args
@@ -54,13 +56,7 @@ pub(crate) fn run(args: &ConvertArgs, as_json: bool) -> Result<ExitCode> {
         progress: Some(&on_progress),
         ..ExtractOptions::default()
     };
-    let report = convert_folder(
-        &source,
-        filter.as_ref(),
-        args.copy_other,
-        &args.out,
-        &options,
-    )?;
+    let report = convert_folder(&source, &selection, args.copy_other, &args.out, &options)?;
     line.finish();
     if let Err(error) = print(&report, args, as_json)
         && error.kind() != io::ErrorKind::BrokenPipe

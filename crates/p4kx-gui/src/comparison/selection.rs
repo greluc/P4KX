@@ -4,6 +4,7 @@
 use std::sync::Arc;
 
 use p4kx_comparison::{Archive, ChangeKind, Entry, EntryChange, EntryCounts, OwnedComparison};
+use p4kx_extraction::Exclusion;
 use rayon::prelude::*;
 
 use super::ComparisonSide;
@@ -47,16 +48,51 @@ impl ChangeSelection {
 
     /// Returns the selected Entries of the chosen side in path order.
     pub(crate) fn entries(&self) -> Vec<&Entry> {
+        self.selected_ids()
+            .into_iter()
+            .filter_map(|id| self.entry(id))
+            .collect()
+    }
+
+    /// Leaves the Entries out that `exclusion` matches; returns the selection of the rest and the
+    /// number of left-out parts of textures that remain, or `None` when no Entry remains.
+    pub(crate) fn leave_out(&self, exclusion: &Exclusion) -> Option<(Self, usize)> {
+        let left = exclusion.leave_out(self.selected_ids(), |&id| {
+            self.entry(id).map_or("", Entry::path)
+        });
+        if left.kept.is_empty() {
+            return None;
+        }
+        let mut mask = vec![false; self.comparison.len()];
+        for &id in &left.kept {
+            if let Some(slot) = mask.get_mut(id) {
+                *slot = true;
+            }
+        }
+        let kept = Self {
+            comparison: Arc::clone(&self.comparison),
+            matched: Some(mask.into()),
+            side: self.side,
+            len: left.kept.len(),
+        };
+        Some((kept, left.parts_of_kept_textures.len()))
+    }
+
+    /// Returns the ids of the changes with an Entry on the chosen side that the Filter selects,
+    /// in path order.
+    fn selected_ids(&self) -> Vec<usize> {
         let matched = self.matched.as_deref();
         (0..self.comparison.len())
             .into_par_iter()
             .filter(|&id| matched.is_none_or(|mask| mask.get(id).copied().unwrap_or(false)))
-            .filter_map(|id| {
-                self.comparison
-                    .entry_change(id)
-                    .and_then(|change| side_entry(change, self.side))
-            })
+            .filter(|&id| self.entry(id).is_some())
             .collect()
+    }
+
+    fn entry(&self, id: usize) -> Option<&Entry> {
+        self.comparison
+            .entry_change(id)
+            .and_then(|change| side_entry(change, self.side))
     }
 }
 

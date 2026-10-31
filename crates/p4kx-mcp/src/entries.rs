@@ -60,7 +60,7 @@ pub(crate) fn search(
     page: Page,
 ) -> Result<SearchResult, ToolError> {
     let archive = place.archive();
-    let filter = Filter::new(filter);
+    let filter = Filter::parse(filter)?;
     let mut total = 0;
     let mut entries = Vec::with_capacity(page.limit());
     for entry in archive.entries() {

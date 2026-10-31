@@ -19,7 +19,7 @@ pub(crate) struct Pair {
     pub(crate) new: PathBuf,
 }
 
-fn write(
+pub(crate) fn write(
     dir: &Path,
     channel: &str,
     version: &str,

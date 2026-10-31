@@ -34,6 +34,7 @@ mod comparison_diff_model;
 mod comparison_diff_window;
 mod comparison_extraction;
 mod comparison_extraction_archive_change;
+mod comparison_extraction_exclude;
 mod comparison_extraction_window;
 mod comparison_model;
 mod comparison_record_changes;

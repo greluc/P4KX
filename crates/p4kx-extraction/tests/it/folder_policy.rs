@@ -9,7 +9,7 @@ use std::fs;
 use std::path::Path;
 
 use p4kx_extraction::{
-    ConflictPolicy, ExtractOptions, ExtractionReport, FolderSource, convert_folder,
+    ConflictPolicy, Exclusion, ExtractOptions, ExtractionReport, FolderSource, convert_folder,
 };
 use p4kx_testkit::{CryXmlByteOrder, CryXmlSignature, TestElement};
 
@@ -25,7 +25,8 @@ fn convert(
         policy,
         ..ExtractOptions::default()
     };
-    Ok(convert_folder(&source, None, true, out, &options)?)
+    let selection = source.select(None, &Exclusion::default());
+    Ok(convert_folder(&source, &selection, true, out, &options)?)
 }
 
 #[test]

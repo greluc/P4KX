@@ -24,10 +24,10 @@ pub enum ExtractionText {
     ExcludeHeading,
     /// The hint of the empty exclusion field.
     ExcludeHint,
-    /// A Filter of the exclusion is too long; takes `max`.
-    ExcludeTooLong,
-    /// A Filter of the exclusion has too many wildcards; takes `max`.
-    ExcludeTooManyWildcards,
+    /// A Filter is too long; takes `max`.
+    FilterTooLong,
+    /// A Filter has too many wildcards; takes `max`.
+    FilterTooManyWildcards,
     /// The exclusion has too many Filters; takes `max`.
     ExcludeTooMany,
     /// A Filter of the exclusion is empty.
@@ -157,8 +157,8 @@ impl ExtractionText {
         Self::ScopeAll,
         Self::ExcludeHeading,
         Self::ExcludeHint,
-        Self::ExcludeTooLong,
-        Self::ExcludeTooManyWildcards,
+        Self::FilterTooLong,
+        Self::FilterTooManyWildcards,
         Self::ExcludeTooMany,
         Self::ExcludeEmpty,
         Self::ExcludeNothingLeft,
@@ -231,8 +231,8 @@ impl ExtractionText {
             Self::ScopeAll => "extraction-scope-all",
             Self::ExcludeHeading => "extraction-exclude-heading",
             Self::ExcludeHint => "extraction-exclude-hint",
-            Self::ExcludeTooLong => "extraction-exclude-too-long",
-            Self::ExcludeTooManyWildcards => "extraction-exclude-too-many-wildcards",
+            Self::FilterTooLong => "filter-too-long",
+            Self::FilterTooManyWildcards => "filter-too-many-wildcards",
             Self::ExcludeTooMany => "extraction-exclude-too-many",
             Self::ExcludeEmpty => "extraction-exclude-empty",
             Self::ExcludeNothingLeft => "extraction-exclude-nothing-left",

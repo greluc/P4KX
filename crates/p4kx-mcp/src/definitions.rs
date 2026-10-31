@@ -70,7 +70,7 @@ fn matching<'f, T>(
     filter: Option<&str>,
     name: impl Fn(&T) -> Result<&'f str, p4kx_extraction::DataForgeError>,
 ) -> Result<Vec<(&'f str, T)>, ToolError> {
-    let filter = filter.map(Filter::new);
+    let filter = filter.map(Filter::parse).transpose()?;
     let mut named = Vec::new();
     for definition in definitions {
         let text = name(&definition)?;

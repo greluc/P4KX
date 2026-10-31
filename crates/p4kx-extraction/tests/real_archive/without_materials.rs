@@ -4,7 +4,7 @@
 //! Reads a model Entry without its material library.
 
 use p4kx_extraction::model::{LodSelection, MaterialReading, PositionBox};
-use p4kx_extraction::{ConversionError, ModelSource, PathIndex};
+use p4kx_extraction::{ConversionError, ModelSource, PathIndex, TextureVerdicts};
 
 /// Reads the model Entry at `path` of the Archive `index` is over, at the levels `lods`, without
 /// its material library.
@@ -19,5 +19,6 @@ pub(crate) fn without_materials(
         lods,
         PositionBox::default(),
         MaterialReading::Skipped,
+        &TextureVerdicts::new(),
     )
 }

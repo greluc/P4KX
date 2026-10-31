@@ -9,7 +9,7 @@ use std::error::Error;
 use std::path::Path;
 
 use p4kx_extraction::model::{LayerCache, Material};
-use p4kx_extraction::{Archive, ModelSource, PathIndex};
+use p4kx_extraction::{Archive, ModelSource, PathIndex, TextureVerdicts};
 use p4kx_testkit::{real_archive_key, real_archive_path};
 
 type TestResult = Result<(), Box<dyn Error>>;
@@ -29,6 +29,7 @@ fn names_placeholder(material: &Material, slot: &str) -> bool {
 fn runtime_decals_are_hidden_and_screens_are_drawn() -> TestResult {
     let archive = Archive::open_with_key(real_archive_path()?, Some(real_archive_key()?))?;
     let index = PathIndex::new(&archive);
+    let verdicts = TextureVerdicts::new();
     let (mut decals, mut screens) = (0_usize, 0_usize);
     for entry in archive.entries() {
         let lower = entry.path().to_ascii_lowercase();
@@ -47,8 +48,13 @@ fn runtime_decals_are_hidden_and_screens_are_drawn() -> TestResult {
         else {
             continue;
         };
-        let status =
-            ModelSource::material_library(&index, entry.path(), &library, &LayerCache::new());
+        let status = ModelSource::material_library(
+            &index,
+            entry.path(),
+            &library,
+            &LayerCache::new(),
+            &verdicts,
+        );
         for material in status
             .library()
             .iter()

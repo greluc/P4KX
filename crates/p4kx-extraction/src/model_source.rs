@@ -10,6 +10,7 @@ use crate::ConversionError;
 use crate::chunk_source::ChunkSource;
 use crate::model_companions::{ArchiveCompanions, DiskCompanions};
 use crate::path_index::PathIndex;
+use crate::texture_grey::TextureVerdicts;
 
 /// A model read from a chunk file Entry of an Archive or from a file on disk, with the
 /// companions next to it.
@@ -23,6 +24,9 @@ pub struct ModelSource {
 impl ModelSource {
     /// Reads the model Entry at `path`, matched with either separator and ignoring ASCII case,
     /// and its companions from the same folder of the Archive, all looked up through `index`.
+    ///
+    /// Each call judges the colour of its textures afresh; to share the verdicts across reads use
+    /// [`Self::from_index_reading`] with one [`TextureVerdicts`].
     ///
     /// # Errors
     ///
@@ -51,7 +55,7 @@ impl ModelSource {
 
     /// Reads the levels of detail `lods` of the model Entry at `path` like
     /// [`Self::from_index_with`], dequantising its positions with `position_box`, see
-    /// [`Model::read_with_box`].
+    /// [`Model::read_with_box`]. Like [`Self::from_index`], it judges its textures afresh.
     ///
     /// # Errors
     ///
@@ -62,13 +66,21 @@ impl ModelSource {
         lods: LodSelection,
         position_box: PositionBox,
     ) -> Result<Self, ConversionError> {
-        Self::from_index_reading(index, path, lods, position_box, MaterialReading::Drawn)
+        Self::from_index_reading(
+            index,
+            path,
+            lods,
+            position_box,
+            MaterialReading::Drawn,
+            &TextureVerdicts::new(),
+        )
     }
 
     /// Reads the model like [`Self::from_index_with_box`], reading the material library the model
     /// names as `reading` says, see [`Model::read_with_materials`]: [`MaterialReading::Skipped`]
     /// for a caller that chooses and caches the libraries itself, see [`Self::material_library`],
-    /// [`MaterialReading::Plain`] for a listing such as `model info`.
+    /// [`MaterialReading::Plain`] for a listing such as `model info`. The colour verdicts of the
+    /// textures the library names come from `verdicts` and stay there.
     ///
     /// # Errors
     ///
@@ -79,11 +91,16 @@ impl ModelSource {
         lods: LodSelection,
         position_box: PositionBox,
         reading: MaterialReading,
+        verdicts: &TextureVerdicts,
     ) -> Result<Self, ConversionError> {
         let source = ChunkSource::from_index(index, path)?;
         let name = source.name().to_owned();
         let (folder, file_name) = split_entry_path(&name);
-        let mut companions = ArchiveCompanions { index, folder };
+        let mut companions = ArchiveCompanions {
+            index,
+            folder,
+            verdicts,
+        };
         let read = Model::read_with_materials(
             file_name,
             source.file(),
@@ -108,16 +125,21 @@ impl ModelSource {
     /// exist or cannot be read is a status, not a failure.
     ///
     /// The layer files come from `cache` and stay there, so that the libraries of one ship fetch
-    /// and parse each shared layer file once.
+    /// and parse each shared layer file once; likewise `verdicts` for the colour of the textures.
     #[must_use]
     pub fn material_library(
         index: &PathIndex<'_>,
         model_path: &str,
         library: &str,
         cache: &LayerCache,
+        verdicts: &TextureVerdicts,
     ) -> MaterialStatus {
         let (folder, _) = split_entry_path(model_path);
-        let mut companions = ArchiveCompanions { index, folder };
+        let mut companions = ArchiveCompanions {
+            index,
+            folder,
+            verdicts,
+        };
         MaterialStatus::load_with(
             Some(library),
             &mut companions,

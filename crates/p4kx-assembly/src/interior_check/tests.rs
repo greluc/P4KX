@@ -23,7 +23,10 @@ pub(super) fn hardpoint(kind: HardpointKind, position: [f32; 3]) -> Hardpoint {
 pub(super) fn container(room: Option<WorldBox>) -> ContainerFit {
     ContainerFit {
         file: "a.socpak".to_owned(),
+        owner: 0,
         room,
+        models: room.into_iter().collect(),
+        rooms: room.into_iter().collect(),
         inside: Vec::new(),
         outside: Vec::new(),
         animated: Vec::new(),
@@ -59,6 +62,18 @@ fn a_degenerate_box_contains_its_own_points_and_nothing_else() {
     assert!(!point.contains([1.0, 2.0, 3.1]));
     assert!(flat.contains([2.0, 3.0, 2.0]));
     assert_eq!(flat.distance([2.0, 3.0, 5.0]), Some(3.0));
+}
+
+#[test]
+fn a_box_overshoots_another_by_its_worst_axis_and_not_when_inside() {
+    let outer = unit_box();
+    let inside = WorldBox::around([[0.2; 3], [0.8; 3]]).expect("finite");
+    let touching = WorldBox::around([[0.0; 3], [1.0; 3]]).expect("finite");
+    let protruding = WorldBox::around([[-0.5, 0.0, 0.0], [1.0, 3.0, 1.0]]).expect("finite");
+
+    assert_eq!(inside.overshoot(&outer), 0.0);
+    assert_eq!(touching.overshoot(&outer), 0.0);
+    assert_eq!(protruding.overshoot(&outer), 2.0);
 }
 
 #[test]
@@ -150,6 +165,7 @@ fn fit_of(hardpoints: Vec<Hardpoint>) -> InteriorFit {
     InteriorFit {
         containers: Vec::new(),
         unplaced: Vec::new(),
+        hull: None,
         hardpoints: hardpoints
             .into_iter()
             .map(|hardpoint| HardpointFit::measure(hardpoint, &[]))

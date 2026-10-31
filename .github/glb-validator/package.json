@@ -1,0 +1,11 @@
+{
+  "name": "p4kx-glb-validator",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Runs the Khronos glTF-Validator over the GLBs the tests write.",
+  "type": "module",
+  "license": "MIT OR Apache-2.0",
+  "dependencies": {
+    "gltf-validator": "2.0.0-dev.3.10"
+  }
+}

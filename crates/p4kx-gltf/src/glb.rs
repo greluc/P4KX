@@ -16,7 +16,6 @@ use crate::instance::{Content, Instance, material_requests};
 use crate::layout::Layout;
 use crate::material_index::index_materials;
 use crate::materials::MaterialPlan;
-use crate::morphs::json_bytes;
 use crate::scene_rig::SceneRig;
 use crate::texture_loader::{NoTextures, TextureLoader};
 use crate::texture_plan::TextureSet;
@@ -356,7 +355,7 @@ pub(crate) fn write_file(
     images: &TextureSet,
     out: &mut impl Write,
 ) -> Result<u64, GltfError> {
-    let mut json = json_bytes(root, layout)?;
+    let mut json = root.to_vec()?;
     json.resize(json.len().next_multiple_of(4), b' ');
     let json_len = json.len() as u64;
     let bin_len = layout.len;

@@ -210,6 +210,73 @@ fn props_do_not_bound_the_room_and_animated_parts_are_measured_from_it() -> Test
 }
 
 #[test]
+fn a_hardpoint_between_two_room_models_is_in_the_union_box_but_in_no_room() -> TestResult {
+    let model = Arc::new(cube()?);
+    let container = container_of(vec![
+        part(InteriorPartKind::Container, None, None, Transform::IDENTITY),
+        part(
+            InteriorPartKind::Model,
+            Some("cockpit.cgf"),
+            Some(Arc::clone(&model)),
+            Transform::IDENTITY,
+        ),
+        part(
+            InteriorPartKind::Model,
+            Some("body.cgf"),
+            Some(model),
+            moved(0.0, 10.0, 0.0),
+        ),
+    ]);
+    let gap = hardpoint(HardpointKind::Seat, [0.0, 5.0, 7.0]);
+
+    let fit = ContainerFit::measure(&Transform::IDENTITY, &container, &[gap]);
+
+    assert!(fit.room().ok_or("no room")?.contains([0.0, 5.0, 7.0]));
+    assert_eq!((fit.inside(), fit.outside()), (&[][..], &[0][..]));
+    assert_eq!(fit.rooms().len(), 2);
+    assert!(!fit.holds([0.0, 5.0, 7.0], 0.5));
+    assert!(fit.holds([0.0, 10.0, 7.0], 0.5));
+    assert!(fit.holds([0.0, 0.0, 7.0], 0.5));
+    Ok(())
+}
+
+#[test]
+fn a_model_much_smaller_than_the_largest_holds_hardpoints_but_is_no_room_for_the_hull_check()
+-> TestResult {
+    let model = Arc::new(cube()?);
+    let container = container_of(vec![
+        part(InteriorPartKind::Container, None, None, Transform::IDENTITY),
+        part(
+            InteriorPartKind::Model,
+            Some("room.cgf"),
+            Some(Arc::clone(&model)),
+            Transform::IDENTITY,
+        ),
+        part(
+            InteriorPartKind::Model,
+            Some("trim.cgf"),
+            Some(model),
+            Transform {
+                rows: [
+                    [0.1, 0.0, 0.0, 0.0],
+                    [0.0, 0.1, 0.0, 30.0],
+                    [0.0, 0.0, 0.1, 0.0],
+                ],
+            },
+        ),
+    ]);
+
+    let fit = ContainerFit::measure(&Transform::IDENTITY, &container, &[]);
+
+    let hull = WorldBox::around([[-3.0, -3.0, -3.0], [3.0, 3.0, 7.0]]).ok_or("no hull")?;
+    assert_eq!(fit.rooms().len(), 1);
+    assert_eq!(fit.models().len(), 2);
+    assert!(fit.holds([0.0, 30.0, 5.2], 0.5));
+    assert_eq!(fit.overshoot(&hull), Some(2.0));
+    Ok(())
+}
+
+#[test]
 fn a_static_model_that_cannot_be_read_is_counted_not_boxed() {
     let container = container_of(vec![
         part(InteriorPartKind::Container, None, None, Transform::IDENTITY),
